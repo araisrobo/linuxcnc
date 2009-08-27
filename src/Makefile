@@ -565,6 +565,14 @@ ifeq ($(RTARCH),x86_64)
 EXTRA_CFLAGS += -msse
 endif
 
+# for libwou
+ifneq ($(WOU_VERSION),)
+EXTRA_CFLAGS += $(WOU_CFLAGS)
+EXTRALINK += $(WOU_LIBS)
+# LDFLAGS += $(WOU_LIBS)
+endif
+
+
 ifeq "$(USE_STUBS)" "1"
 MATHSTUB := rtapi/mathstubs.o
 endif
@@ -600,6 +608,10 @@ obj-$(CONFIG_ENCODER_RATIO) += encoder_ratio.o
 encoder_ratio-objs := hal/components/encoder_ratio.o $(MATHSTUB)
 obj-$(CONFIG_STEPGEN) += stepgen.o
 stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
+# WOU: wishbone over usb
+# wou.o is composed of (multiple) wou-objs
+obj-$(CONFIG_WOU) += wou.o
+wou-objs := hal/components/wou_stepgen.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -735,6 +747,11 @@ scarakins-objs := emc/kinematics/scarakins.o
 scarakins-objs += libnml/posemath/_posemath.o
 scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
+obj-m += art_scarakins.o
+art_scarakins-objs := emc/kinematics/art_scarakins.o
+art_scarakins-objs += libnml/posemath/_posemath.o
+art_scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
+
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o 
 motmod-objs += emc/kinematics/tc.o 
@@ -761,7 +778,7 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	@ld -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	@ld -shared -Bsymbolic -o $@ objects/$*.tmp -lm
+	ld -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)
@@ -772,7 +789,9 @@ $(sort $(RTDEPS)): depends/rt%.d: %.c
 $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	$(ECHO) Compiling realtime $<
 	@mkdir -p $(dir $@)
-	@$(CC) -c $(OPT) $(DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
+	$(CC) -c $(OPT) $(DEBUG) -DSIM $(EXTRA_CFLAGS) $< -o $@
+	@# orig: $(CC) -c $(OPT) $(DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
+	@# -DSIM and -DSIMULATOR are defined at EXTRA_CFLAGS
 endif
 
 ifeq ($(BUILD_SYS),normal)
@@ -808,6 +827,7 @@ endif
 ../rtlib/counter$(MODULE_EXT): $(addprefix objects/rt,$(counter-objs))
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
+../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
@@ -846,6 +866,7 @@ endif
 ../rtlib/genserkins$(MODULE_EXT): $(addprefix objects/rt,$(genserkins-objs))
 ../rtlib/pumakins$(MODULE_EXT): $(addprefix objects/rt,$(pumakins-objs))
 ../rtlib/scarakins$(MODULE_EXT): $(addprefix objects/rt,$(scarakins-objs))
+../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))
