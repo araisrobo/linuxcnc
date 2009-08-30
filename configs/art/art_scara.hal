@@ -169,3 +169,10 @@ setp wou.stepgen.1.maxaccel [AXIS_1]MAX_ACCELERATION
 setp wou.stepgen.2.maxaccel [AXIS_2]MAX_ACCELERATION
 setp wou.stepgen.3.maxaccel [AXIS_5]MAX_ACCELERATION
 
+# for art_scarakins.c
+setp scarakins.D1  [SCARAKINS]D1
+setp scarakins.D2  [SCARAKINS]D2
+setp scarakins.D3  [SCARAKINS]D3
+setp scarakins.D4  [SCARAKINS]D4
+setp scarakins.D5  [SCARAKINS]D5
+setp scarakins.D6  [SCARAKINS]D6
