@@ -91,6 +91,14 @@ int kinematicsForward(const double * joint,
 
 DP ("begin\n");
 /* convert joint angles to radians for sin() and cos() */
+    
+    DPS("D1=%f ", D1);
+    DPS("D2=%f ", D2);
+    DPS("D3=%f ", D3);
+    DPS("D4=%f ", D4);
+    DPS("D5=%f ", D5);
+    DPS("D6=%f ", D6);
+    DPS("\n");
 
     a0 = joint[0] * ( PM_PI / 180 );
     a1 = joint[1] * ( PM_PI / 180 );
@@ -140,6 +148,15 @@ int kinematicsInverse(const EmcPose * world,
     int i;
 
     DP ("begin\n");
+    
+    DPS("D1=%f ", D1);
+    DPS("D2=%f ", D2);
+    DPS("D3=%f ", D3);
+    DPS("D4=%f ", D4);
+    DPS("D5=%f ", D5);
+    DPS("D6=%f ", D6);
+    DPS("\n");
+    
     x = world->tran.x;
     y = world->tran.y;
     z = world->tran.z;
@@ -244,12 +261,20 @@ int rtapi_app_main(void) {
     if((res = hal_pin_float_new("scarakins.D5", HAL_IO, &(haldata->d5), comp_id)) < 0) goto error;
     if((res = hal_pin_float_new("scarakins.D6", HAL_IO, &(haldata->d6), comp_id)) < 0) goto error;
     
-    D1 = DEFAULT_D1;
-    D2 = DEFAULT_D2;
-    D3 = DEFAULT_D3;
-    D4 = DEFAULT_D4;
-    D5 = DEFAULT_D5;
-    D6 = DEFAULT_D6;
+     
+    DPS("D1=%f ", D1);
+    DPS("D2=%f ", D2);
+    DPS("D3=%f ", D3);
+    DPS("D4=%f ", D4);
+    DPS("D5=%f ", D5);
+    DPS("D6=%f ", D6);
+    DPS("\n");
+    // D1 = DEFAULT_D1;
+    // D2 = DEFAULT_D2;
+    // D3 = DEFAULT_D3;
+    // D4 = DEFAULT_D4;
+    // D5 = DEFAULT_D5;
+    // D6 = DEFAULT_D6;
 
     hal_ready(comp_id);
     return 0;
