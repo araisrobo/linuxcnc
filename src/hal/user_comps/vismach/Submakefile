@@ -4,6 +4,7 @@ VISMACH_PY :=  \
 	pumagui.py \
 	puma560gui.py \
 	scaragui.py \
+	art_scaragui.py \
 	hexagui.py \
 	5axisgui.py \
 	max5gui.py \

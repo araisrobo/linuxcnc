@@ -115,12 +115,6 @@ linksp zflt axis.2.amp-fault-in
 newsig aflt bit
 linksp aflt axis.3.amp-fault-in
 
-loadusr -W scaragui
-
-net j0 axis.0.joint-pos-fb scaragui.joint0
-net j1 axis.1.joint-pos-fb scaragui.joint1
-net j2 axis.2.joint-pos-fb scaragui.joint2
-net j3 axis.3.joint-pos-fb scaragui.joint3
 
 # wou_stepgen.c does not need the following signals to parport pads
 # -----------------------------------------------------------------
@@ -176,3 +170,19 @@ setp scarakins.D3  [SCARAKINS]D3
 setp scarakins.D4  [SCARAKINS]D4
 setp scarakins.D5  [SCARAKINS]D5
 setp scarakins.D6  [SCARAKINS]D6
+
+# for src/hal/user_comps/vismach/art_scaragui.py 
+loadusr -W art_scaragui
+net j0 axis.0.joint-pos-fb art_scaragui.joint0
+net j1 axis.1.joint-pos-fb art_scaragui.joint1
+net j2 axis.2.joint-pos-fb art_scaragui.joint2
+net j3 axis.3.joint-pos-fb art_scaragui.joint3
+setp art_scaragui.D1        [SCARAKINS]D1
+setp art_scaragui.D2        [SCARAKINS]D2
+setp art_scaragui.D3        [SCARAKINS]D3
+setp art_scaragui.D4        [SCARAKINS]D4
+setp art_scaragui.D5        [SCARAKINS]D5
+setp art_scaragui.D6        [SCARAKINS]D6
+setp art_scaragui.J3MIN     [AXIS_2]MIN_LIMIT
+setp art_scaragui.J3MAX     [AXIS_2]MAX_LIMIT
+
