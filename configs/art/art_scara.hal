@@ -170,6 +170,7 @@ setp scarakins.D3  [SCARAKINS]D3
 setp scarakins.D4  [SCARAKINS]D4
 setp scarakins.D5  [SCARAKINS]D5
 setp scarakins.D6  [SCARAKINS]D6
+setp scarakins.PPD [SCARAKINS]PPD
 
 # for src/hal/user_comps/vismach/art_scaragui.py 
 loadusr -W art_scaragui
@@ -185,4 +186,5 @@ setp art_scaragui.D5        [SCARAKINS]D5
 setp art_scaragui.D6        [SCARAKINS]D6
 setp art_scaragui.J3MIN     [AXIS_2]MIN_LIMIT
 setp art_scaragui.J3MAX     [AXIS_2]MAX_LIMIT
+setp art_scaragui.PPD       [SCARAKINS]PPD
 

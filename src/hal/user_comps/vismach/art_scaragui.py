@@ -38,6 +38,7 @@ c.newpin("D5", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("D6", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("J3MIN", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("J3MAX", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("PPD", hal.HAL_FLOAT, hal.HAL_IN)
 
 c.ready()
 
@@ -72,6 +73,7 @@ d3 = c['D3'];
 d4 = c['D4'];
 d5 = c['D5'];
 d6 = c['D6'];
+ppd = c['PPD'];   # joint[2]_pitch per degree_of_joint[3]
 j3min = c['J3MIN'];
 j3max = c['J3MAX'];
 
@@ -150,6 +152,8 @@ tool = HalRotate([tool],c,"joint3",1,0,0,1)
 link3 = CylinderZ(0.0, l3_rad, l3_len, l3_rad)
 # attach tool to end
 link3 = Collection([tool,link3])
+# compensate the Z axis move because of the rotate of joint[3]
+link3 = HalTranslate([link3],c,"joint3",0,0,(-1*ppd))
 # make joint 2 go up and down
 link3 = HalTranslate([link3],c,"joint2",0,0,-1)
 

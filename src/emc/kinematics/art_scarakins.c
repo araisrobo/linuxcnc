@@ -33,7 +33,7 @@ FILE *dptrace;
 #endif
 
 struct scara_data {
-    hal_float_t *d1, *d2, *d3, *d4, *d5, *d6;
+    hal_float_t *d1, *d2, *d3, *d4, *d5, *d6, *ppd;
 } *haldata = 0;
 
 /* key dimensions
@@ -70,14 +70,18 @@ struct scara_data {
 		tooltip is on the centerline.  Non-zero values should be
 		positive, if negative they introduce a 180 degree offset
 		on the value of joint[3].
+   PPD = Pitch Per Degree of joint[3]
+                the rotate of joint[3] may move end effector along
+                veritcal direction
 */
 
-#define D1 (*(haldata->d1))
-#define D2 (*(haldata->d2))
-#define D3 (*(haldata->d3))
-#define D4 (*(haldata->d4))
-#define D5 (*(haldata->d5))
-#define D6 (*(haldata->d6))
+#define D1  (*(haldata->d1))
+#define D2  (*(haldata->d2))
+#define D3  (*(haldata->d3))
+#define D4  (*(haldata->d4))
+#define D5  (*(haldata->d5))
+#define D6  (*(haldata->d6))
+#define PPD (*(haldata->ppd))
 
 /* joint[0], joint[1] and joint[3] are in degrees and joint[2] is in length units */
 int kinematicsForward(const double * joint,
@@ -98,6 +102,7 @@ DP ("begin\n");
     DPS("D4=%f ", D4);
     DPS("D5=%f ", D5);
     DPS("D6=%f ", D6);
+    DPS("PPD=%f ", PPD);
     DPS("\n");
 
     a0 = joint[0] * ( PM_PI / 180 );
@@ -110,7 +115,9 @@ DP ("begin\n");
 
     x = D2*cos(a0) + D4*cos(a1) + D6*cos(a3);
     y = D2*sin(a0) + D4*sin(a1) + D6*sin(a3);
-    z = D1 + D3 - joint[2] - D5;
+    //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
+    //PPD: pitch per degree
+    z = D1 + D3 - joint[2] - D5 - joint[3]*PPD; 
     c = a3;
 	
     *iflags = 0;
@@ -155,6 +162,7 @@ int kinematicsInverse(const EmcPose * world,
     DPS("D4=%f ", D4);
     DPS("D5=%f ", D5);
     DPS("D6=%f ", D6);
+    DPS("PPD=%f ", PPD);
     DPS("\n");
     
     x = world->tran.x;
@@ -197,8 +205,10 @@ int kinematicsInverse(const EmcPose * world,
 
     joint[0] = q0;
     joint[1] = q1;
-    joint[2] = D1 + D3 - D5 - z;
     joint[3] = c - (q0 + q1);
+    //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
+    //PPD: pitch per degree
+    joint[2] = D1 + D3 - D5 - z - joint[3]*PPD;
     joint[4] = world->a;
     joint[5] = world->b;
 
@@ -260,6 +270,7 @@ int rtapi_app_main(void) {
     if((res = hal_pin_float_new("scarakins.D4", HAL_IO, &(haldata->d4), comp_id)) < 0) goto error;
     if((res = hal_pin_float_new("scarakins.D5", HAL_IO, &(haldata->d5), comp_id)) < 0) goto error;
     if((res = hal_pin_float_new("scarakins.D6", HAL_IO, &(haldata->d6), comp_id)) < 0) goto error;
+    if((res = hal_pin_float_new("scarakins.PPD", HAL_IO, &(haldata->ppd), comp_id)) < 0) goto error;
     
      
     DPS("D1=%f ", D1);
@@ -268,6 +279,7 @@ int rtapi_app_main(void) {
     DPS("D4=%f ", D4);
     DPS("D5=%f ", D5);
     DPS("D6=%f ", D6);
+    DPS("PPD=%f ", PPD);
     DPS("\n");
     // D1 = DEFAULT_D1;
     // D2 = DEFAULT_D2;
