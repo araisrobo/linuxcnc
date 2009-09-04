@@ -20,31 +20,66 @@ from vismach import *
 import hal
 import math
 import sys
+import time
 
-c = hal.component("scaragui")
+c = hal.component("art_scaragui")
 c.newpin("joint0", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("joint1", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("joint2", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("joint3", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("joint4", hal.HAL_FLOAT, hal.HAL_IN)
 c.newpin("joint5", hal.HAL_FLOAT, hal.HAL_IN)
+
+c.newpin("D1", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("D2", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("D3", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("D4", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("D5", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("D6", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("J3MIN", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("J3MAX", hal.HAL_FLOAT, hal.HAL_IN)
+c.newpin("PPD", hal.HAL_FLOAT, hal.HAL_IN)
+
 c.ready()
+
+# wait for art_scara.hal to propagate its value to this place
+time.sleep(5)
 
 # parameters that define the geometry see scarakins.c for definitions these
 # numbers match the defaults there, and will need to be changed or specified on
 # the commandline if you are not using the defaults.
 
-d1 =  490.0
-d2 =  340.0
-d3 =   50.0
-d4 =  250.0
-d5 =   50.0
-d6 =   50.0
-#orig: j3min =  40.0
-#orig: j3max = 270.0
-# j3: conform to AXIS_2 of scara.ini
-j3min =  25.0
-j3max = 300.0
+# d1 =  490.0
+# d2 =  340.0
+# d3 =   50.0
+# d4 =  250.0
+# d5 =   50.0
+# d6 =   50.0
+# #orig: j3min =  40.0
+# #orig: j3max = 270.0
+# # j3: conform to AXIS_2 of scara.ini
+# j3min =  25.0
+# j3max = 300.0
+
+# d1 = c['D1'];
+# d2 = c['D2'];
+# d3 = c['D3'];
+# d4 = c['D4'];
+# d5 = c['D5'];
+# d6 = c['D6'];
+d1 = c['D1'] + c['D3']/2.0;
+d2 = c['D2'];
+d3 = c['D3'];
+d4 = c['D4'];
+d5 = c['D5'];
+d6 = c['D6'];
+ppd = c['PPD'];   # joint[2]_pitch per degree_of_joint[3]
+j3min = c['J3MIN'];
+j3max = c['J3MAX'];
+
+f = open('art_scaragui.log', 'w')
+print >>f, "d1=", d1, ", d2=", d2, ", d3=", d3, ", d4=", d4, ", d5=", d5, ", d6=", d6
+print >>f, "j3min=", j3min, ", j3max=", j3max
 
 for setting in sys.argv[1:]: exec setting
 
@@ -55,8 +90,6 @@ for setting in sys.argv[1:]: exec setting
 # for the machine you are modeling, feel free to change
 # these numbers
 
-tool_len = math.sqrt(d5*d5+d6*d6)	# don't change
-tool_dia = tool_len / 6.0
 # diameters of the arms
 l1_dia = d2 / 5.0
 l2_dia = d4 / 5.0
@@ -73,11 +106,10 @@ j1_hi2 = l2_dia * 1.2
 j2_hi = l2_dia * 1.3
 
 # don't change these
-tool_angle = math.degrees(math.atan2(d6,d5))
-tool_radius = tool_dia / 2.0
 l1_rad = l1_dia / 2.0
 l2_rad = l2_dia / 2.0
-l3_len = j3max + j2_hi * 0.7
+# l3_len = j3max + j2_hi * 0.7
+l3_len = (j3max - j3min) * 3.0
 l3_rad = l3_dia / 2.0
 j0_hi = j0_hi / 2.0
 j0_rad = j0_dia / 2.0
@@ -89,25 +121,39 @@ j2_rad = j2_dia / 2.0
 
 size = max(d1+d3+l3_len,d2+d4+d6)
 
+# tool settings
+# orig: tool_len = math.sqrt(d5*d5+d6*d6)	# don't change
+# orig: tool_dia = tool_len / 6.0
+# orig: tool_angle = math.degrees(math.atan2(d6,d5))
+# orig: tool_radius = tool_dia / 2.0
+tool_len = l3_dia	# don't change
+tool_dia = tool_len
+tool_angle = 0
+tool_radius = tool_dia / 2.0
+
 # tool - cylinder with a point, and a ball to hide the blunt back end
 # the origin starts out at the tool tip, and we want to capture this
 # "tooltip" coordinate system
 tooltip = Capture()
 tool = Collection([
 	tooltip,
-	Sphere(0.0, 0.0, tool_len, tool_dia),
-	CylinderZ(tool_len, tool_radius, tool_dia, tool_radius),
-	CylinderZ(tool_dia, tool_radius, 0.0, 0.0)])
+	# Sphere(0.0, 0.0, tool_len, tool_dia),
+	Box(-tool_radius, -tool_radius, 0, tool_radius, tool_radius, tool_len)])
+	#orig: Sphere(0.0, 0.0, tool_len, tool_dia),
+	#orig: CylinderZ(tool_len, tool_radius, tool_dia, tool_radius),
+	#orig: CylinderZ(tool_dia, tool_radius, 0.0, 0.0)])
 # translate so origin is at base of tool, not the tip
-tool = Translate([tool],0.0,0.0,-tool_len)	
+tool = Translate([tool], 0.0, 0.0, -tool_len)	
 # the tool might not be pointing straight down
-tool = Rotate([tool],tool_angle,0.0,-1.0,0.0)
+# tool = Rotate([tool],tool_angle,0.0,-1.0,0.0)
 # make joint 3 rotate
 tool = HalRotate([tool],c,"joint3",1,0,0,1)
 
 link3 = CylinderZ(0.0, l3_rad, l3_len, l3_rad)
 # attach tool to end
 link3 = Collection([tool,link3])
+# compensate the Z axis move because of the rotate of joint[3]
+link3 = HalTranslate([link3],c,"joint3",0,0,(-1*ppd))
 # make joint 2 go up and down
 link3 = HalTranslate([link3],c,"joint2",0,0,-1)
 
@@ -170,7 +216,7 @@ floor = Box(-0.5*size,-0.5*size,-0.02*size,0.5*size,0.5*size,0.0)
 
 # and a table for the workpiece - define in workpiece coords
 reach = d2+d4-d6
-table_height = d1+d3-j3max-d5
+table_height = d1+d3-j3max-d5-tool_len
 work = Capture()
 table = Collection([
 	work,
@@ -186,5 +232,5 @@ table = Translate([table],0.5*reach,0.0,table_height)
 model = Collection([link0, floor, table])
 
 # original: main(model, tooltip, work, size)
-# main(model, tooltip, work, size, 0, None, 10(r w/ x), 90(rotate along with z))
+# main(model, tooltip, work, size, 0, None, 10(rotate w/ x-axis), 90(rotate along with z))
 main(model, tooltip, work, size, 0, None, -60, -30)

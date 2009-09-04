@@ -325,15 +325,10 @@ RTAPI_MP_ARRAY_INT(step_type,MAX_CHAN,"stepping types for up to 8 channels");
 const char *ctrl_type[MAX_CHAN] = { "p", "p", "p", "p", "p", "p", "p", "p" };
 RTAPI_MP_ARRAY_STRING(ctrl_type,MAX_CHAN,"control type (pos or vel) for up to 8 channels");
 
-#define WOU_EN
-// #undef WOU_EN
-
-#ifdef WOU_EN
 static const char *board = "7i43u";
 static const char wou_id = 0;
 static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
-#endif // WOU_EN
 
 
 /***********************************************************************
@@ -371,7 +366,7 @@ typedef struct {
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position mode, 0 = velocity mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
-    double old_pos_cmd;		/* previous position command (counts) */
+    // double old_pos_cmd;		/* previous position command (counts) */
     hal_s32_t *count;		/* pin: captured feedback in counts */
     hal_float_t pos_scale;	/* param: steps per position unit */
     double old_scale;		/* stored scale value */
@@ -459,7 +454,6 @@ int rtapi_app_main(void)
 {
     int n, retval;
 
-#ifdef WOU_EN
     uint8_t data[MAX_DSIZE];
     int ret;
     wou_init(&w_param, board, wou_id, bitfile);
@@ -495,7 +489,6 @@ int rtapi_app_main(void)
                    data);
     assert (ret==0);
     wou_flush(&w_param);
-#endif // WOU_EN
     
     for (n = 0; n < MAX_CHAN && step_type[n] != -1 ; n++) {
 	if ((step_type[n] > MAX_STEP_TYPE) || (step_type[n] < 0)) {
@@ -628,37 +621,19 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
     stepgen = arg;
    
     // debug message:
-    if (*stepgen->enable) {
-      fprintf (wou_fh, "period(%ld)\n", period);
-    }
+    // if (*stepgen->enable) {
+    //   fprintf (wou_fh, "period(%ld)\n", period);
+    // }
 
     // num_chan: 4 for act/scara.ini
     /* loop thru generators */
     for (n = 0; n < num_chan; n++) {
-	// not necessary: /* check for scale change */
-	// not necessary: if (stepgen->pos_scale != stepgen->old_scale) {
-	// not necessary:     /* get ready to detect future scale changes */
-	// not necessary:     stepgen->old_scale = stepgen->pos_scale;
-	// not necessary:     /* validate the new scale value */
-	// not necessary:     if ((stepgen->pos_scale < 1e-20)
-	// not necessary: 	&& (stepgen->pos_scale > -1e-20)) {
-	// not necessary: 	/* value too small, divide by zero is a bad thing */
-	// not necessary: 	stepgen->pos_scale = 1.0;
-	// not necessary:     }
-	// not necessary:     //ysli: /* we will need the reciprocal, and the accum is fixed point with
-	// not necessary:     //ysli:    fractional bits, so we precalc some stuff */
-	// not necessary:     //ysli: stepgen->scale_recip = (1.0 / (1L << PICKOFF)) / stepgen->pos_scale;
-	// not necessary:     stepgen->scale_recip = 1.0 / stepgen->pos_scale;
-	// not necessary: }
-        // fprintf (wou_fh, "\tJ%d: en(%d) pos_scale(%f)\n", 
-        //                  n, *stepgen->enable, stepgen->pos_scale);
-        
 	/* test for disabled stepgen */
 	if (*stepgen->enable == 0) {
-	    /* disabled: keep updating old_pos_cmd (if in pos ctrl mode) */
-	    if ( stepgen->pos_mode ) {
-	        stepgen->old_pos_cmd = *stepgen->pos_cmd * stepgen->pos_scale;
-	    }
+	    // /* disabled: keep updating old_pos_cmd (if in pos ctrl mode) */
+	    // if ( stepgen->pos_mode ) {
+	    //     stepgen->old_pos_cmd = *stepgen->pos_cmd * stepgen->pos_scale;
+	    // }
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
 	    stepgen->addval = 0;
@@ -671,11 +646,11 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	/* calculate frequency limit */
         // TODO: calculate limits once at initialization
         // each joint may have different STEPLEN setting
-        if (step_type[n] < 2) {
-          min_step_period = stepgen->step_len + stepgen->step_space;
-        } else {
+        // if (step_type[n] < 2) {
+        //   min_step_period = stepgen->step_len + stepgen->step_space;
+        // } else {
           min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
-        }
+        // }
 	max_freq = 1.0 / (min_step_period * 0.000000001);
 	/* check for user specified frequency limit parameter */
 	if (stepgen->maxvel <= 0.0) {
@@ -731,18 +706,23 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	   changes have been handled - time for the main control */
 	if ( stepgen->pos_mode ) {
 	    /* calculate position command in counts */
-	    // pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale
-            //           + stepgen->pos_accum;
-	    // curr_pos = stepgen->cur_pos;
-	    pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
+            pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
+            //try: if (n != 2) {
+	    //try:   pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
+            //try: } else {
+            //try:   // AXIS_2: Z is depended on C.
+            //try:   // pos_scale_c = P*INPUT_SCALE[2]/360
+            //try:   pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale +
+            //try:             (*(stepgen + 1)->pos_cmd) * stepgen->pos_scale_c;
+            //try: }
 	    curr_pos = stepgen->accum;
 	    /* calculate velocity command in counts/sec */
 	    vel_cmd = (pos_cmd - curr_pos) * recip_dt;
 	    /* get velocity in counts/sec */
 	    curr_vel = stepgen->freq;
             /* unit for the followings are counts or counts/sec */
-            fprintf (wou_fh, "\tJ%d: pos_cmd(%f) curr_pos(%f) vel_cmd(%f) curr_vel(%f)\n",
-                             n, pos_cmd, curr_pos, vel_cmd, curr_vel);
+            // fprintf (wou_fh, "\tJ%d: pos_cmd(%f) curr_pos(%f) vel_cmd(%f) curr_vel(%f)\n",
+            //                  n, pos_cmd, curr_pos, vel_cmd, curr_vel);
 
 	    /* At this point we have good values for pos_cmd, curr_pos,
 	       vel_cmd, curr_vel, max_freq and max_ac, all in counts,
@@ -757,16 +737,21 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	    /* determine how long the match would take */
 	    match_time = (vel_cmd - curr_vel) / match_ac;
 	    if (match_time < dt) {
-	        /* we can match velocity in one period */
-                new_vel = vel_cmd;
+	      /* we can match velocity in one period */
+              new_vel = vel_cmd;
 	    } else {
-	        new_vel = curr_vel + match_ac * dt;
+	      new_vel = curr_vel + match_ac * dt;
+              //do happens: rtapi_print_msg(RTAPI_MSG_ERR,
+              //do happens:   "STEPGEN[%d]: cna not match velocity in one period.\n",
+              //do happens:   n);
 	    }
 	    /* apply frequency limit */
 	    if (new_vel > max_freq) {
-	        new_vel = max_freq;
+	      new_vel = max_freq;
+              //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
 	    } else if (new_vel < -max_freq) {
-	        new_vel = -max_freq;
+	      new_vel = -max_freq;
+              //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
 	    }
 	    /* end of position mode */
 	} else {
@@ -788,7 +773,6 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
         // fprintf (wou_fh, "\tJ%d: wou_pos_cmd(%d)\n", n, wou_pos_cmd);
         assert (wou_pos_cmd < 8192);
         assert (wou_pos_cmd > -8192);
-#ifdef WOU_EN
         {
           uint8_t data[MAX_DSIZE];
           int ret;
@@ -810,7 +794,6 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
                  data);
           assert (ret==0);
         }
-#endif // WOU_EN
 
         // stepgen->cur_pos = curr_pos + wou_pos_cmd;
         // stepgen->pos_accum = pos_cmd - wou_pos_cmd;
@@ -989,7 +972,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     addr->deltalim = 0;
     /* other init */
     addr->printed_error = 0;
-    addr->old_pos_cmd = 0.0;
+    // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
     *(addr->count) = 0;
     *(addr->pos_fb) = 0.0;
