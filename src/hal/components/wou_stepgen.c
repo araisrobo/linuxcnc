@@ -625,7 +625,7 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
     //   fprintf (wou_fh, "period(%ld)\n", period);
     // }
 
-    // num_chan: 4 for act/scara.ini
+    // num_chan: 4, calculated from step_type;
     /* loop thru generators */
     for (n = 0; n < num_chan; n++) {
 	/* test for disabled stepgen */
@@ -706,6 +706,7 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	   changes have been handled - time for the main control */
 	if ( stepgen->pos_mode ) {
 	    /* calculate position command in counts */
+            // fprintf (wou_fh, "\tJ%d: pos_cmd(%f)\n", n, *stepgen->pos_cmd);
             pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
             //try: if (n != 2) {
 	    //try:   pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;

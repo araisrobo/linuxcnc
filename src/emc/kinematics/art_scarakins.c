@@ -25,7 +25,7 @@
 #include "hal.h"
 
 // to disable DP():
-// #define TRACE 0
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -257,7 +257,9 @@ int comp_id;
 int rtapi_app_main(void) {
     int res=0;
 
+#if (TRACE!=0)
     dptrace = fopen("art_scarakins.log","w");
+#endif
     
     comp_id = hal_init("art_scarakins");
     if (comp_id < 0) return comp_id;
@@ -293,7 +295,9 @@ int rtapi_app_main(void) {
     
 error:
     hal_exit(comp_id);
+#if (TRACE!=0)
     fclose(dptrace);
+#endif
     return res;
 }
 
