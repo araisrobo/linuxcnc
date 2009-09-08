@@ -3615,11 +3615,11 @@ s = emc.stat();
 s.poll()
 statfail=0
 while s.axes == 0:
-    print "waiting for s.axes"
+    # print "waiting for s.axes"
     time.sleep(.01)
     statfail+=1
-    if statfail > 500:
-        raise SystemExit, "Invalid configuration of axes is preventing EMC from starting"
+    # if statfail > 500:
+    #     raise SystemExit, "Invalid configuration of axes is preventing EMC from starting"
     s.poll()
 
 live_axis_count = 0
