@@ -316,6 +316,14 @@
 
 #define MAX_CHAN 8
 
+// to disable DP():
+// #define TRACE 0
+#include "dptrace.h"
+#if (TRACE!=0)
+// FILE *dptrace = fopen("dptrace.log","w");
+static FILE *dptrace;
+#endif
+
 /* module information */
 MODULE_AUTHOR("John Kasunich");
 MODULE_DESCRIPTION("Step Pulse Generator for EMC HAL");
@@ -390,7 +398,7 @@ typedef struct {
 static stepgen_t *stepgen_array;
 
 /* file handle for wou step commands */
-static FILE *wou_fh;
+// static FILE *wou_fh;
 
 /* lookup tables for stepping types 2 and higher - phase A is the LSB */
 
@@ -456,6 +464,12 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int ret;
+
+#if (TRACE!=0)
+    // initialize file handle for logging wou steps
+    dptrace = fopen("wou_steps.log", "w");
+#endif
+    
     wou_init(&w_param, board, wou_id, bitfile);
     if (wou_connect(&w_param) == -1) {  
 	    rtapi_print_msg(RTAPI_MSG_ERR, "ERROR Connection failed\n");
@@ -565,16 +579,15 @@ int rtapi_app_main(void)
     rtapi_print_msg(RTAPI_MSG_INFO,
 	"STEPGEN: installed %d step pulse generators\n", num_chan);
     
-    // initialize file handle for logging wou steps
-    wou_fh = fopen("wou_steps.log", "w");
-    
     hal_ready(comp_id);
     return 0;
 }
 
 void rtapi_app_exit(void)
 {
-    fclose(wou_fh);
+#if (TRACE!=0)
+    fclose(dptrace);
+#endif
     hal_exit(comp_id);
 }
 
@@ -592,6 +605,9 @@ static void update_freq(void *arg, long period)
     double match_ac, match_time, new_vel;
     double desired_freq;
     int wou_pos_cmd;
+    // ret, data[]: for wou_cmd()
+    uint8_t data[MAX_DSIZE];
+    int ret;
 
     /*! \todo FIXME - while this code works just fine, there are a bunch of
        internal variables, many of which hold intermediate results that
@@ -706,16 +722,11 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	   changes have been handled - time for the main control */
 	if ( stepgen->pos_mode ) {
 	    /* calculate position command in counts */
-            // fprintf (wou_fh, "\tJ%d: pos_cmd(%f)\n", n, *stepgen->pos_cmd);
+            DPS ("\tJ%d: pos_cmd(%f) curr_pos(%f) accum(%lld)\n", 
+                  n, *stepgen->pos_cmd,
+                  stepgen->accum/stepgen->pos_scale,
+                  stepgen->accum);
             pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
-            //try: if (n != 2) {
-	    //try:   pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
-            //try: } else {
-            //try:   // AXIS_2: Z is depended on C.
-            //try:   // pos_scale_c = P*INPUT_SCALE[2]/360
-            //try:   pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale +
-            //try:             (*(stepgen + 1)->pos_cmd) * stepgen->pos_scale_c;
-            //try: }
 	    curr_pos = stepgen->accum;
 	    /* calculate velocity command in counts/sec */
 	    vel_cmd = (pos_cmd - curr_pos) * recip_dt;
@@ -762,7 +773,6 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	}
 	stepgen->freq = new_vel;
         
-        stepgen->accum = curr_pos + new_vel * dt;
         
         // TODO: calculate WOU commands
         // each AXIS cycle is 1638400ns, 8192 ticks of 200ns(5MHz) clocks
@@ -771,29 +781,33 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
         // fprintf (wou_fh, "\tJ%d: new_vel(%f), pos_cmd(%f)\n", n, new_vel, pos_cmd);
         // wou_pos_cmd = (int) pos_cmd;
         wou_pos_cmd = (int) new_vel * dt;
+        stepgen->accum = curr_pos + wou_pos_cmd;
+
         // fprintf (wou_fh, "\tJ%d: wou_pos_cmd(%d)\n", n, wou_pos_cmd);
         assert (wou_pos_cmd < 8192);
         assert (wou_pos_cmd > -8192);
+        
         {
-          uint8_t data[MAX_DSIZE];
-          int ret;
           if (wou_pos_cmd >= 0) {
             // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
-            data[0] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20); 
-            data[1] = (uint8_t) (wou_pos_cmd & 0xFF);
+            data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20); 
+            data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
           } else {
             // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
             wou_pos_cmd *= -1;
-            data[0] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F); 
-            data[1] = (uint8_t) (wou_pos_cmd & 0xFF);
+            data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F); 
+            data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
           }
           // fprintf (wou_fh, "\tJ%d: data[]: <0x%02x><0x%02x>\n", n, data[0], data[1]);
-          ret = wou_cmd (&w_param,
-                 (WB_WR_CMD | WB_FIFO_MODE),
-                 (JCMD_BASE | JCMD_POS_W),
-                 2,
-                 data);
-          assert (ret==0);
+          if (n == (num_chan - 1)) {
+            // send to WOU when all axes commands are generated
+            ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_FIFO_MODE),
+                   (JCMD_BASE | JCMD_POS_W),
+                   2*num_chan,
+                   data);
+            assert (ret==0);
+          }
         }
 
         // stepgen->cur_pos = curr_pos + wou_pos_cmd;

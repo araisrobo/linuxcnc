@@ -25,11 +25,11 @@
 #include "hal.h"
 
 // to disable DP():
-#define TRACE 0
+#define TRACE 0 
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
-FILE *dptrace;
+static FILE *dptrace;
 #endif
 
 struct scara_data {
