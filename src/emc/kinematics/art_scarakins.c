@@ -117,7 +117,7 @@ DP ("begin\n");
     y = D2*sin(a0) + D4*sin(a1) + D6*sin(a3);
     //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
     //PPD: pitch per degree
-    z = D1 + D3 - joint[2] - D5 - joint[3]*PPD; 
+    z = D1 + D3 - joint[2] - D5 + joint[3]*PPD; 
     c = a3;
 	
     *iflags = 0;
@@ -207,8 +207,10 @@ int kinematicsInverse(const EmcPose * world,
     joint[1] = q1;
     joint[3] = c - (q0 + q1);
     //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
+    //ysli: before 2009-09-18, it's (-)joint[3]
+    //ysli: after  2009-09-18, it's (+)joint[3]
     //PPD: pitch per degree
-    joint[2] = D1 + D3 - D5 - z - joint[3]*PPD;
+    joint[2] = D1 + D3 - D5 - z + joint[3]*PPD;
     joint[4] = world->a;
     joint[5] = world->b;
 
