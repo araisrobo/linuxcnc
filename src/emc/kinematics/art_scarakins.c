@@ -91,11 +91,8 @@ int kinematicsForward(const double * joint,
 {
     double a0, a1, a3;
     double x, y, z, c;
-    int i;
 
-DP ("begin\n");
-/* convert joint angles to radians for sin() and cos() */
-    
+    DP ("begin\n");
     DPS("D1=%f ", D1);
     DPS("D2=%f ", D2);
     DPS("D3=%f ", D3);
@@ -105,6 +102,7 @@ DP ("begin\n");
     DPS("PPD=%f ", PPD);
     DPS("\n");
 
+    /* convert joint angles to radians for sin() and cos() */
     a0 = joint[0] * ( PM_PI / 180 );
     a1 = joint[1] * ( PM_PI / 180 );
     a3 = joint[3] * ( PM_PI / 180 );
@@ -129,17 +127,22 @@ DP ("begin\n");
     world->tran.z = z;
     world->c = c * 180 / PM_PI;
 	
-    world->a = joint[4];
-    world->b = joint[5];
+    // world->a = joint[4];
+    // world->b = joint[5];
 
-    for (i=0; i<6; i++) {
-      DPS("Joint[%d]=%f ", i, joint[i]);
+#if (TRACE)
+    { 
+      int i;
+      for (i=0; i<6; i++) {
+        DPS("Joint[%d]=%f ", i, joint[i]);
+      }
     }
+#endif
     DPS("\n");
     DPS("x=%f y=%f z=%f a=%f b=%f c=%f\n", 
         x, y, z, world->a, world->b, world->c);
-
     DP ("end\n");
+
     return (0);
 }
 
@@ -152,10 +155,8 @@ int kinematicsInverse(const EmcPose * world,
     double q0, q1;
     double xt, yt, rsq, cc;
     double x, y, z, c;
-    int i;
 
     DP ("begin\n");
-    
     DPS("D1=%f ", D1);
     DPS("D2=%f ", D2);
     DPS("D3=%f ", D3);
@@ -164,7 +165,7 @@ int kinematicsInverse(const EmcPose * world,
     DPS("D6=%f ", D6);
     DPS("PPD=%f ", PPD);
     DPS("\n");
-    
+
     x = world->tran.x;
     y = world->tran.y;
     z = world->tran.z;
@@ -211,18 +212,22 @@ int kinematicsInverse(const EmcPose * world,
     //ysli: after  2009-09-18, it's (+)joint[3]
     //PPD: pitch per degree
     joint[2] = D1 + D3 - D5 - z + joint[3]*PPD;
-    joint[4] = world->a;
-    joint[5] = world->b;
+    // joint[4] = world->a;
+    // joint[5] = world->b;
 
     *fflags = 0;
     
-    DPS("x=%f y=%f z=%f a=%f b=%f c=%f\n", 
-        x, y, z, world->a, world->b, world->c);
-    for (i=0; i<6; i++) {
-      DPS("Joint[%d]=%f ", i, joint[i]);
+    DPS("x=%f y=%f z=%f c=%f\n", 
+        x, y, z, world->c);
+#if (TRACE)
+    {
+      int i;
+      for (i=0; i<4; i++) {
+        DPS("Joint[%d]=%f ", i, joint[i]);
+      }
     }
+#endif
     DPS("\n");
-
     DP ("end\n");
 
     return (0);
