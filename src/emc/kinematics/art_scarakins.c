@@ -90,7 +90,7 @@ int kinematicsForward(const double * joint,
                       KINEMATICS_INVERSE_FLAGS * iflags)
 {
     double a0, a1, a3;
-    double x, y, z, c;
+    double x, y, z, a;
 
     DP ("begin\n");
     DPS("D1=%f ", D1);
@@ -116,7 +116,7 @@ int kinematicsForward(const double * joint,
     //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
     //PPD: pitch per degree
     z = D1 + D3 - joint[2] - D5 + joint[3]*PPD; 
-    c = a3;
+    a = a3;
 	
     *iflags = 0;
     if (joint[1] < 90)
@@ -125,7 +125,7 @@ int kinematicsForward(const double * joint,
     world->tran.x = x;
     world->tran.y = y;
     world->tran.z = z;
-    world->c = c * 180 / PM_PI;
+    world->a = a * 180 / PM_PI;
 	
     // world->a = joint[4];
     // world->b = joint[5];
@@ -139,8 +139,8 @@ int kinematicsForward(const double * joint,
     }
 #endif
     DPS("\n");
-    DPS("x=%f y=%f z=%f a=%f b=%f c=%f\n", 
-        x, y, z, world->a, world->b, world->c);
+    DPS("x=%f y=%f z=%f a=%f b=%f a=%f\n", 
+        x, y, z, world->a, world->b, world->a);
     DP ("end\n");
 
     return (0);
@@ -154,7 +154,7 @@ int kinematicsInverse(const EmcPose * world,
     double a3;
     double q0, q1;
     double xt, yt, rsq, cc;
-    double x, y, z, c;
+    double x, y, z, a;
 
     DP ("begin\n");
     DPS("D1=%f ", D1);
@@ -169,10 +169,10 @@ int kinematicsInverse(const EmcPose * world,
     x = world->tran.x;
     y = world->tran.y;
     z = world->tran.z;
-    c = world->c;
+    a = world->a;
 
     /* convert degrees to radians */
-    a3 = c * ( PM_PI / 180 );
+    a3 = a * ( PM_PI / 180 );
 
     /* center of end effector (correct for D6) */
     xt = x - D6*cos(a3);
@@ -206,7 +206,7 @@ int kinematicsInverse(const EmcPose * world,
 
     joint[0] = q0;
     joint[1] = q1;
-    joint[3] = c - (q0 + q1);
+    joint[3] = a - (q0 + q1);
     //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
     //ysli: before 2009-09-18, it's (-)joint[3]
     //ysli: after  2009-09-18, it's (+)joint[3]
@@ -217,8 +217,8 @@ int kinematicsInverse(const EmcPose * world,
 
     *fflags = 0;
     
-    DPS("x=%f y=%f z=%f c=%f\n", 
-        x, y, z, world->c);
+    DPS("x=%f y=%f z=%f a=%f\n", 
+        x, y, z, world->a);
 #if (TRACE)
     {
       int i;
