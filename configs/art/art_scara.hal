@@ -45,14 +45,14 @@ linksp J2pos => wou.stepgen.2.position-cmd
 linksp J3pos => wou.stepgen.3.position-cmd
 
 # loop position commands back to motion module feedback
+#TODO: net J0pos-fb wou.stepgen.0.position-fb => axis.0.motor-pos-fb
+#TODO: net J1pos-fb wou.stepgen.1.position-fb => axis.1.motor-pos-fb
+#TODO: net J2pos-fb wou.stepgen.2.position-fb => axis.2.motor-pos-fb
+#TODO: net J3pos-fb wou.stepgen.3.position-fb => axis.3.motor-pos-fb
 linksp J0pos => axis.0.motor-pos-fb
 linksp J1pos => axis.1.motor-pos-fb
 linksp J2pos => axis.2.motor-pos-fb
 linksp J3pos => axis.3.motor-pos-fb
-# TODO: net J0pos-fb wou.stepgen.0.position-fb => axis.0.motor-pos-fb
-# TODO: net J1pos-fb wou.stepgen.1.position-fb => axis.1.motor-pos-fb
-# TODO: net J2pos-fb wou.stepgen.2.position-fb => axis.2.motor-pos-fb
-# TODO: net J3pos-fb wou.stepgen.3.position-fb => axis.3.motor-pos-fb
 
 # # send the position commands thru differentiators to
 # # generate velocity and accel signals

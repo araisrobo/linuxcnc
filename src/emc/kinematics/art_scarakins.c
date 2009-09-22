@@ -115,7 +115,7 @@ int kinematicsForward(const double * joint,
     y = D2*sin(a0) + D4*sin(a1) + D6*sin(a3);
     //TODO: confirm if it should be "(-/+)joint[3]" in real SCARA
     //PPD: pitch per degree
-    z = D1 + D3 - joint[2] - D5 + joint[3]*PPD; 
+    z = D1 + D3 - joint[2] - D5 - joint[3]*PPD; 
     a = a3;
 	
     *iflags = 0;
@@ -133,14 +133,14 @@ int kinematicsForward(const double * joint,
 #if (TRACE)
     { 
       int i;
-      for (i=0; i<6; i++) {
+      for (i=0; i<4; i++) {
         DPS("Joint[%d]=%f ", i, joint[i]);
       }
     }
 #endif
     DPS("\n");
-    DPS("x=%f y=%f z=%f a=%f b=%f a=%f\n", 
-        x, y, z, world->a, world->b, world->a);
+    DPS("x=%f y=%f z=%f a=%f\n", 
+        x, y, z, world->a);
     DP ("end\n");
 
     return (0);
@@ -211,7 +211,7 @@ int kinematicsInverse(const EmcPose * world,
     //ysli: before 2009-09-18, it's (-)joint[3]
     //ysli: after  2009-09-18, it's (+)joint[3]
     //PPD: pitch per degree
-    joint[2] = D1 + D3 - D5 - z + joint[3]*PPD;
+    joint[2] = D1 + D3 - D5 - z - joint[3]*PPD;
     // joint[4] = world->a;
     // joint[5] = world->b;
 
