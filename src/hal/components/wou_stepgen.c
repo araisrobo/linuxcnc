@@ -316,8 +316,8 @@
 
 #define MAX_CHAN 8
 
-// to disable DP():
-// #define TRACE 0
+// to disable DP(): #define TRACE 0
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -468,6 +468,11 @@ int rtapi_app_main(void)
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_steps.log", "w");
+    /* prepare header for gnuplot */
+    DPS ("#%10s  %15s%12s  %15s%12s  %15s%12s  %15s%12s\n", 
+          "dt",  "pos_cmd[0]", "pos_fb[0]", "pos_cmd[1]", "pos_fb[1]",
+                 "pos_cmd[2]", "pos_fb[2]", "pos_cmd[3]", "pos_fb[3]");
+
 #endif
     
     wou_init(&w_param, board, wou_id, bitfile);
@@ -597,18 +602,20 @@ void rtapi_app_exit(void)
 
 static void update_freq(void *arg, long period)
 {
+    long     min_step_period;
+    double   max_freq;
     stepgen_t *stepgen;
     int n;
-    long min_step_period;
-    // long long int accum_a, accum_b;
-    double pos_cmd, vel_cmd, curr_pos, curr_vel, max_freq, max_ac;
-    double match_ac, match_time, new_vel;
-    double desired_freq;
+    double pos_cmd, vel_cmd, curr_pos, curr_vel, max_ac;
+    double match_ac, match_time, new_vel, desired_freq;
+    double dp, dv, est_out, est_cmd, est_err, avg_v;
     int wou_pos_cmd;
     // ret, data[]: for wou_cmd()
     uint8_t data[MAX_DSIZE];
     int ret;
-
+#if (TRACE!=0)
+    static uint32_t _dt = 0;
+#endif
     /*! \todo FIXME - while this code works just fine, there are a bunch of
        internal variables, many of which hold intermediate results that
        don't really need their own variables.  They are used either for
@@ -636,20 +643,23 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
     /* point at stepgen data */
     stepgen = arg;
    
-    // debug message:
-    // if (*stepgen->enable) {
-    //   fprintf (wou_fh, "period(%ld)\n", period);
-    // }
+#if (TRACE!=0)
+    if (*stepgen->enable) {
+      DPS("%11u", _dt);
+      _dt ++;
+    }
+#endif
 
     // num_chan: 4, calculated from step_type;
     /* loop thru generators */
+	    
     for (n = 0; n < num_chan; n++) {
 	/* test for disabled stepgen */
 	if (*stepgen->enable == 0) {
-	    // /* disabled: keep updating old_pos_cmd (if in pos ctrl mode) */
-	    // if ( stepgen->pos_mode ) {
-	    //     stepgen->old_pos_cmd = *stepgen->pos_cmd * stepgen->pos_scale;
-	    // }
+	    /* AXIS not enable */
+            /* keep updating parameters for better performance */
+            stepgen->scale_recip = 1.0 / stepgen->pos_scale;
+            
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
 	    stepgen->addval = 0;
@@ -665,7 +675,7 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
         // if (step_type[n] < 2) {
         //   min_step_period = stepgen->step_len + stepgen->step_space;
         // } else {
-          min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
+        min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
         // }
 	max_freq = 1.0 / (min_step_period * 0.000000001);
 	/* check for user specified frequency limit parameter */
@@ -721,11 +731,8 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	/* at this point, all scaling, limits, and other parameter
 	   changes have been handled - time for the main control */
 	if ( stepgen->pos_mode ) {
+            DPS ("  %15.7f%12.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
 	    /* calculate position command in counts */
-            DPS ("\tJ%d: pos_cmd(%f) curr_pos(%f) accum(%lld)\n", 
-                  n, *stepgen->pos_cmd,
-                  stepgen->accum/stepgen->pos_scale,
-                  stepgen->accum);
             pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
 	    curr_pos = stepgen->accum;
 	    /* calculate velocity command in counts/sec */
@@ -748,15 +755,42 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
 	    }
 	    /* determine how long the match would take */
 	    match_time = (vel_cmd - curr_vel) / match_ac;
+	    /* calc output position at the end of the match */
+	    avg_v = (vel_cmd + curr_vel) * 0.5;
+	    est_out = curr_pos + avg_v * match_time;
+	    /* calculate the expected command position at that time */
+	    est_cmd = pos_cmd + vel_cmd * (match_time - 1.5 * dt);
+	    /* calculate error at that time */
+	    est_err = est_out - est_cmd;
 	    if (match_time < dt) {
 	      /* we can match velocity in one period */
-              new_vel = vel_cmd;
+              if (fabs(est_err) < 0.0001) {
+                /* after match the position error will be acceptable */
+                /* so we just do the velocity match */
+                new_vel = vel_cmd;
+              } else {
+                /* try to correct position error */
+                new_vel = vel_cmd - 0.5 * est_err * recip_dt;
+                /* apply accel limits */
+                if (new_vel > (curr_vel + max_ac * dt)) {
+                  new_vel = curr_vel + max_ac * dt;
+                } else if (new_vel < (curr_vel - max_ac * dt)) {
+                  new_vel = curr_vel - max_ac * dt;
+                }
+              }
 	    } else {
+              /* calculate change in final position if we ramp in the
+		 opposite direction for one period */
+	      dv = -2.0 * match_ac * dt;
+	      dp = dv * match_time;
+	      /* decide which way to ramp */
+	      if (fabs(est_err + dp * 2.0) < fabs(est_err)) {
+	          match_ac = -match_ac;
+	      }
+	      /* and do it */
 	      new_vel = curr_vel + match_ac * dt;
-              //do happens: rtapi_print_msg(RTAPI_MSG_ERR,
-              //do happens:   "STEPGEN[%d]: cna not match velocity in one period.\n",
-              //do happens:   n);
 	    }
+
 	    /* apply frequency limit */
 	    if (new_vel > max_freq) {
 	      new_vel = max_freq;
@@ -813,13 +847,20 @@ rtapi_set_msg_level(RTAPI_MSG_ALL);
         // stepgen->cur_pos = curr_pos + wou_pos_cmd;
         // stepgen->pos_accum = pos_cmd - wou_pos_cmd;
         // fprintf (wou_fh, "\tJ%d: pos_cmd(%f), accum(%f)\n", n, pos_cmd, stepgen->pos_accum);
-        // *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
-        // *(stepgen->pos_fb) = stepgen->cur_pos / stepgen->pos_scale;
-        *(stepgen->pos_fb) = stepgen->accum / stepgen->pos_scale;
+        
+        // *(stepgen->pos_fb) = stepgen->accum / stepgen->pos_scale;
+        *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
 
 	/* move on to next channel */
 	stepgen++;
     }
+
+#if (TRACE!=0)
+    if (*(stepgen-1)->enable) {
+      DPS("\n");
+    }
+#endif
+
 /* restore saved message level */
 rtapi_set_msg_level(msg);
     /* done */
