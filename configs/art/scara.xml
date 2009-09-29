@@ -10,6 +10,16 @@
       <font>("Helvetica",20)</font>
       <format>"+3.2f"</format>
     </number>
+    <s32>
+      <halpin>"pulse_cmd_j0"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j0"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
  </vbox>
  <vbox>
     <label>
@@ -21,6 +31,16 @@
       <font>("Helvetica",20)</font>
       <format>"+3.2f"</format>
     </number>
+    <s32>
+      <halpin>"pulse_cmd_j1"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j1"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
  </vbox>
  <vbox>
     <label>
@@ -32,6 +52,16 @@
       <font>("Helvetica",20)</font>
       <format>"+3.2f"</format>
     </number>
+    <s32>
+      <halpin>"pulse_cmd_j2"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j2"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
  </vbox>
  <vbox>
     <label>
@@ -43,6 +73,16 @@
       <font>("Helvetica",20)</font>
       <format>"+3.2f"</format>
     </number>
+    <s32>
+      <halpin>"pulse_cmd_j3"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j3"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"10d"</format>
+    </s32>
  </vbox>
 
 <!--

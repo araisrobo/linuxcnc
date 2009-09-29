@@ -247,12 +247,12 @@ KINEMATICS_TYPE kinematicsType()
   return KINEMATICS_BOTH;
 }
 
-#define DEFAULT_D1 490
-#define DEFAULT_D2 340
-#define DEFAULT_D3  50
-#define DEFAULT_D4 250
-#define DEFAULT_D5  50
-#define DEFAULT_D6  50
+// #define DEFAULT_D1 490
+// #define DEFAULT_D2 340
+// #define DEFAULT_D3  50
+// #define DEFAULT_D4 250
+// #define DEFAULT_D5  50
+// #define DEFAULT_D6  50
 
 EXPORT_SYMBOL(kinematicsType);
 EXPORT_SYMBOL(kinematicsForward);

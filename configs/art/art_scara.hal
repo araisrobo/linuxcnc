@@ -115,27 +115,6 @@ linksp zflt axis.2.amp-fault-in
 newsig aflt bit
 linksp aflt axis.3.amp-fault-in
 
-
-# wou_stepgen.c does not need the following signals to parport pads
-# -----------------------------------------------------------------
-# # connect signals to step pulse generator outputs
-# newsig Xstep bit
-# newsig Xdir  bit
-# newsig Ystep bit
-# newsig Ydir  bit
-# newsig Zstep bit
-# newsig Zdir  bit
-# newsig Astep bit
-# newsig Adir  bit
-# linkps wou.stepgen.0.step Xstep
-# linkps wou.stepgen.0.dir  Xdir
-# linkps wou.stepgen.1.step Ystep
-# linkps wou.stepgen.1.dir  Ydir
-# linkps wou.stepgen.2.step Zstep
-# linkps wou.stepgen.2.dir  Zdir
-# linkps wou.stepgen.3.step Astep
-# linkps wou.stepgen.3.dir  Adir
-
 setp wou.stepgen.0.steplen  [AXIS_0]STEPLEN
 setp wou.stepgen.1.steplen  [AXIS_1]STEPLEN
 setp wou.stepgen.2.steplen  [AXIS_2]STEPLEN
@@ -144,6 +123,26 @@ setp wou.stepgen.0.dirdelay [AXIS_0]DIRDELAY
 setp wou.stepgen.1.dirdelay [AXIS_1]DIRDELAY
 setp wou.stepgen.2.dirdelay [AXIS_2]DIRDELAY
 setp wou.stepgen.3.dirdelay [AXIS_3]DIRDELAY
+
+# connect signals from FPGA.
+# pulse_cmd: the actual pulse_cmd sent to servo drive.
+net pulse_cmd_j0  wou.stepgen.0.pulse_cmd
+net pulse_cmd_j1  wou.stepgen.1.pulse_cmd
+net pulse_cmd_j2  wou.stepgen.2.pulse_cmd
+net pulse_cmd_j3  wou.stepgen.3.pulse_cmd
+# enc_pos: the encoder position read from FPGA.
+net enc_pos_j0    wou.stepgen.0.enc_pos  
+net enc_pos_j1    wou.stepgen.1.enc_pos  
+net enc_pos_j2    wou.stepgen.2.enc_pos  
+net enc_pos_j3    wou.stepgen.3.enc_pos  
+# # home: home switch status from FPGA
+# net home_j0       wou.gpio.in.00    =>  axis.0.home-sw-in
+# net home_j1       wou.gpio.in.01    =>  axis.1.home-sw-in
+# net home_j2       wou.gpio.in.02    =>  axis.2.home-sw-in
+# net home_j3       wou.gpio.in.03    =>  axis.3.home-sw-in
+# xena also served as servo_on
+net xena                            =>  wou.gpio.out.00
+net servo_rst                       =>  wou.gpio.out.01   
 
 # set wou module scaling - get values from ini file
 setp wou.stepgen.0.position-scale [AXIS_0]INPUT_SCALE

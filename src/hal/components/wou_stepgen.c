@@ -305,6 +305,7 @@
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
 #include "hal.h"		/* HAL public API decls */
 
+#include <string.h>
 #include <float.h>
 #include <assert.h>
 #include <stdio.h>
@@ -356,7 +357,6 @@ typedef struct {
     int hold_dds;		/* prevents accumulator from updating */
     long addval;		/* actual frequency generator add value */
     volatile long long accum;	/* frequency generator accumulator */
-    hal_s32_t rawcount;		/* param: position feedback in counts */
     int curr_dir;		/* current direction */
     int state;			/* current position in state table */
     /* stuff that is read but not written by makepulses */
@@ -375,7 +375,9 @@ typedef struct {
     int pos_mode;		/* 1 = position mode, 0 = velocity mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
     // double old_pos_cmd;		/* previous position command (counts) */
-    hal_s32_t *count;		/* pin: captured feedback in counts */
+    // hal_s32_t rawcount;		/* param: position feedback in counts */
+    hal_s32_t *pulse_cmd;	/* pin: pulse_cmd to servo drive, captured from FPGA */
+    hal_s32_t *enc_pos;	        /* pin: encoder position from servo drive, captured from FPGA */
     hal_float_t pos_scale;	/* param: steps per position unit */
     double old_scale;		/* stored scale value */
     double scale_recip;		/* reciprocal value used for scaling */
@@ -394,8 +396,19 @@ typedef struct {
     int printed_error;		/* flag to avoid repeated printing */
 } stepgen_t;
 
+typedef struct {
+  // 16in 8out
+  hal_bit_t *in[16];
+  hal_bit_t *out[8];
+  int       num_in;
+  int       num_out;
+  uint8_t   prev_out;
+  uint16_t  prev_in;
+} gpio_t;
+
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
-static stepgen_t *stepgen_array;
+static stepgen_t  *stepgen_array;
+static gpio_t     *gpio;
 
 /* file handle for wou step commands */
 // static FILE *wou_fh;
@@ -452,6 +465,7 @@ static double recip_dt;		/* recprocal of period, avoids divides */
 ************************************************************************/
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode);
+static int export_gpio(gpio_t *addr);
 static void update_freq(void *arg, long period);
 
 /***********************************************************************
@@ -497,7 +511,7 @@ int rtapi_app_main(void)
                    data);
     assert (ret==0);
     // JCMD_CTRL: 
-    //  [bit-0]: (1)JCMD in PLAY mode, forward JCMD_POS_W to JCMD_FIFO
+    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SIF_EN, servo interface enable
     //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
     data[0] = 3;
@@ -553,6 +567,7 @@ int rtapi_app_main(void)
 			"STEPGEN: ERROR: hal_init() failed\n");
 	return -1;
     }
+
     /* allocate shared memory for counter data */
     stepgen_array = hal_malloc(num_chan * sizeof(stepgen_t));
     if (stepgen_array == 0) {
@@ -561,6 +576,14 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
+    gpio = hal_malloc(sizeof(gpio_t));
+    if (gpio == 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"GPIO: ERROR: hal_malloc() failed\n");
+	hal_exit(comp_id);
+	return -1;
+    }
+
     /* export all the variables for each pulse generator */
     for (n = 0; n < num_chan; n++) {
 	/* export all vars */
@@ -573,6 +596,14 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
+    retval = export_gpio(gpio);  // 16-in, 8-out
+    if (retval != 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+            "GPIO: ERROR: gpio var export failed\n");
+        hal_exit(comp_id);
+        return -1;
+    }
+
     retval = hal_export_funct("wou.stepgen.update-freq", update_freq,
 	stepgen_array, 1, 0, comp_id);
     if (retval != 0) {
@@ -602,263 +633,302 @@ void rtapi_app_exit(void)
 
 static void update_freq(void *arg, long period)
 {
-    long     min_step_period;
-    double   max_freq;
-    stepgen_t *stepgen;
-    int n;
-    double pos_cmd, vel_cmd, curr_pos, curr_vel, max_ac;
-    double match_ac, match_time, new_vel, desired_freq;
-    double dp, dv, est_out, est_cmd, est_err, avg_v;
-    int wou_pos_cmd;
-    // ret, data[]: for wou_cmd()
-    uint8_t data[MAX_DSIZE];
-    int ret;
+  long    min_step_period;
+  double  max_freq;
+  stepgen_t *stepgen;
+  int n, i;
+  double pos_cmd, vel_cmd, curr_pos, curr_vel, max_ac;
+  double match_ac, match_time, new_vel, desired_freq;
+  double dp, dv, est_out, est_cmd, est_err, avg_v;
+  int wou_pos_cmd;
+  // ret, data[]: for wou_cmd()
+  uint8_t data[MAX_DSIZE];
+  int     ret;
+  // static  int   reg_update = 0;
 #if (TRACE!=0)
-    static uint32_t _dt = 0;
+  static uint32_t _dt = 0;
 #endif
-    /*! \todo FIXME - while this code works just fine, there are a bunch of
-       internal variables, many of which hold intermediate results that
-       don't really need their own variables.  They are used either for
-       clarity, or because that's how the code evolved.  This algorithm
-       could use some cleanup and optimization. */
-    /* this periodns stuff is a little convoluted because we need to
-       calculate some constants here in this relatively slow thread but the
-       constants are based on the period of the much faster 'make_pulses()'
-       thread. */
-    
-    /* This function exports a lot of stuff, which results in a lot of
-       logging if msg_level is at INFO or ALL. So we save the current value
-       of msg_level and restore it later.  If you actually need to log this
-       function's actions, change the second line below */
-int msg;
-msg = rtapi_get_msg_level();
-// rtapi_set_msg_level(RTAPI_MSG_WARN);
-rtapi_set_msg_level(RTAPI_MSG_ALL);
-// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: enter %s\n", __FUNCTION__);
-// long long int now;
-// now = rtapi_get_time();
-// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: enter %s @(%lld)\n",
-//                                __FUNCTION__, now);
+  /*! \todo FIXME - while this code works just fine, there are a bunch of
+     internal variables, many of which hold intermediate results that
+     don't really need their own variables.  They are used either for
+     clarity, or because that's how the code evolved.  This algorithm
+     could use some cleanup and optimization. */
+  /* this periodns stuff is a little convoluted because we need to
+     calculate some constants here in this relatively slow thread but the
+     constants are based on the period of the much faster 'make_pulses()'
+     thread. */
+  
+  /* This function exports a lot of stuff, which results in a lot of
+     logging if msg_level is at INFO or ALL. So we save the current value
+     of msg_level and restore it later.  If you actually need to log this
+     function's actions, change the second line below */
+  int msg;
+  msg = rtapi_get_msg_level();
+  // rtapi_set_msg_level(RTAPI_MSG_WARN);
+  rtapi_set_msg_level(RTAPI_MSG_ALL);
+  // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: enter %s\n", __FUNCTION__);
+  // long long int now;
+  // now = rtapi_get_time();
+  // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: enter %s @(%lld)\n",
+  //                                __FUNCTION__, now);
 
-    /* point at stepgen data */
-    stepgen = arg;
-   
-#if (TRACE!=0)
-    if (*stepgen->enable) {
-      DPS("%11u", _dt);
-      _dt ++;
+  /* check and update WOU Registers */
+  assert(wou_update(&w_param) == 0);
+
+  // copy GPIO.IN ports if it differs from previous value
+  if (memcmp(gpio->prev_in, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2)) {
+    // update prev_in from WOU_REGISTER
+    memcpy(gpio->prev_in, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2);
+    for (i=0; i < gpio->num_in; i++) {
+      *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
     }
+  }
+
+  // process GPIO.OUT
+  data[0] = 0;
+  for (i=0; i < gpio->num_out; i++) {
+    data[0] |= ((*(gpio->out[i]) & 1) << i);
+  }
+  if (data[0] != gpio->prev_out) {
+    gpio->prev_out = data[0];
+    // issue a WOU_WRITE while got new GPIO.OUT value
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   GPIO_BASE | GPIO_OUT,
+                   1,
+                   data);
+    assert (ret==0);
+  }
+
+
+  // if (!reg_update) {
+  //   reg_update = 1;
+  // }
+
+  /* point at stepgen data */
+  stepgen = arg;
+ 
+#if (TRACE!=0)
+  if (*stepgen->enable) {
+    DPS("%11u", _dt);
+    _dt ++;
+  }
 #endif
 
-    // num_chan: 4, calculated from step_type;
-    /* loop thru generators */
-	    
-    for (n = 0; n < num_chan; n++) {
-	/* test for disabled stepgen */
-	if (*stepgen->enable == 0) {
-	    /* AXIS not enable */
-            /* keep updating parameters for better performance */
-            stepgen->scale_recip = 1.0 / stepgen->pos_scale;
-            
-	    /* set velocity to zero */
-	    stepgen->freq = 0;
-	    stepgen->addval = 0;
-	    stepgen->target_addval = 0;
-	    /* and skip to next one */
-	    stepgen++;
-	    continue;
-	}
 
-	/* calculate frequency limit */
-        // TODO: calculate limits once at initialization
-        // each joint may have different STEPLEN setting
-        // if (step_type[n] < 2) {
-        //   min_step_period = stepgen->step_len + stepgen->step_space;
-        // } else {
-        min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
-        // }
-	max_freq = 1.0 / (min_step_period * 0.000000001);
-	/* check for user specified frequency limit parameter */
-	if (stepgen->maxvel <= 0.0) {
-	    /* set to zero if negative */
-	    stepgen->maxvel = 0.0;
-	} else {
-	    /* parameter is non-zero, compare to max_freq */
-	    desired_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
+  // num_chan: 4, calculated from step_type;
+  /* loop thru generators */
+          
+  for (n = 0; n < num_chan; n++) {
+    /* update registers from FPGA */
+    memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_PULSE_CMD + n*4), 4);
+    memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_ENC_POS + n*4), 4);
+
+    /* test for disabled stepgen */
+    if (*stepgen->enable == 0) {
+        /* AXIS not enable */
+        /* keep updating parameters for better performance */
+        stepgen->scale_recip = 1.0 / stepgen->pos_scale;
+        
+        /* set velocity to zero */
+        stepgen->freq = 0;
+        stepgen->addval = 0;
+        stepgen->target_addval = 0;
+        /* and skip to next one */
+        stepgen++;
+        continue;
+    }
+
+    /* calculate frequency limit */
+    // TODO: calculate limits once at initialization
+    // each joint may have different STEPLEN setting
+    // if (step_type[n] < 2) {
+    //   min_step_period = stepgen->step_len + stepgen->step_space;
+    // } else {
+    min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
+    // }
+    max_freq = 1.0 / (min_step_period * 0.000000001);
+    /* check for user specified frequency limit parameter */
+    if (stepgen->maxvel <= 0.0) {
+        /* set to zero if negative */
+        stepgen->maxvel = 0.0;
+    } else {
+        /* parameter is non-zero, compare to max_freq */
+        desired_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
 
 // rtapi_print_msg(RTAPI_MSG_DBG, "%s: min_step_period(%ld), max_freq(%f), desired_freq(%f)\n", 
 //                               __FUNCTION__, min_step_period, max_freq, desired_freq);
 // rtapi_print_msg(RTAPI_MSG_DBG, "%s: maxvel(%f), pos_scale(%f)\n", 
 //                               __FUNCTION__, stepgen->maxvel, stepgen->pos_scale);
 
-	    if (desired_freq > max_freq) {
-		/* parameter is too high, complain about it */
-		if(!stepgen->printed_error) {
-		    rtapi_print_msg(RTAPI_MSG_ERR,
-			"STEPGEN: Channel %d: The requested maximum velocity of %d steps/sec is too high.\n",
-			n, (int)desired_freq);
-		    rtapi_print_msg(RTAPI_MSG_ERR,
-			"STEPGEN: Channel %d: The maximum possible frequency is %d steps/second\n",
-			n, (int)max_freq);
-		    stepgen->printed_error = 1;
-		}
-		/* parameter is too high, limit it */
-		stepgen->maxvel = max_freq / fabs(stepgen->pos_scale);
-	    } else {
-		/* lower max_freq to match parameter */
-		// max_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
-		max_freq = desired_freq;
-	    }
-	}
-	/* set internal accel limit to its absolute max, which is
-	   zero to full speed in one thread period */
-        // @500KHz servo pulse, 1.31ms period, max_ac is 381M p/s^2
-	max_ac = max_freq * recip_dt;
-	/* check for user specified accel limit parameter */
-	if (stepgen->maxaccel <= 0.0) {
-	    /* set to zero if negative */
-	    stepgen->maxaccel = 0.0;
-	} else {
-	    /* parameter is non-zero, compare to max_ac */
-	    if ((stepgen->maxaccel * fabs(stepgen->pos_scale)) > max_ac) {
-		/* parameter is too high, lower it */
-		stepgen->maxaccel = max_ac / fabs(stepgen->pos_scale);
-	    } else {
-		/* lower limit to match parameter */
-		max_ac = stepgen->maxaccel * fabs(stepgen->pos_scale);
-	    }
-	}
-	/* at this point, all scaling, limits, and other parameter
-	   changes have been handled - time for the main control */
-	if ( stepgen->pos_mode ) {
-            DPS ("  %15.7f%12.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
-	    /* calculate position command in counts */
-            pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
-	    curr_pos = stepgen->accum;
-	    /* calculate velocity command in counts/sec */
-	    vel_cmd = (pos_cmd - curr_pos) * recip_dt;
-	    /* get velocity in counts/sec */
-	    curr_vel = stepgen->freq;
-            /* unit for the followings are counts or counts/sec */
-            // fprintf (wou_fh, "\tJ%d: pos_cmd(%f) curr_pos(%f) vel_cmd(%f) curr_vel(%f)\n",
-            //                  n, pos_cmd, curr_pos, vel_cmd, curr_vel);
+        if (desired_freq > max_freq) {
+            /* parameter is too high, complain about it */
+            if(!stepgen->printed_error) {
+                rtapi_print_msg(RTAPI_MSG_ERR,
+                    "STEPGEN: Channel %d: The requested maximum velocity of %d steps/sec is too high.\n",
+                    n, (int)desired_freq);
+                rtapi_print_msg(RTAPI_MSG_ERR,
+                    "STEPGEN: Channel %d: The maximum possible frequency is %d steps/second\n",
+                    n, (int)max_freq);
+                stepgen->printed_error = 1;
+            }
+            /* parameter is too high, limit it */
+            stepgen->maxvel = max_freq / fabs(stepgen->pos_scale);
+        } else {
+            /* lower max_freq to match parameter */
+            // max_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
+            max_freq = desired_freq;
+        }
+    }
+    /* set internal accel limit to its absolute max, which is
+       zero to full speed in one thread period */
+    // @500KHz servo pulse, 1.31ms period, max_ac is 381M p/s^2
+    max_ac = max_freq * recip_dt;
+    /* check for user specified accel limit parameter */
+    if (stepgen->maxaccel <= 0.0) {
+        /* set to zero if negative */
+        stepgen->maxaccel = 0.0;
+    } else {
+        /* parameter is non-zero, compare to max_ac */
+        if ((stepgen->maxaccel * fabs(stepgen->pos_scale)) > max_ac) {
+            /* parameter is too high, lower it */
+            stepgen->maxaccel = max_ac / fabs(stepgen->pos_scale);
+        } else {
+            /* lower limit to match parameter */
+            max_ac = stepgen->maxaccel * fabs(stepgen->pos_scale);
+        }
+    }
+    /* at this point, all scaling, limits, and other parameter
+       changes have been handled - time for the main control */
+    if ( stepgen->pos_mode ) {
+        DPS ("  %15.7f%12.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
+        /* calculate position command in counts */
+        pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
+        curr_pos = stepgen->accum;
+        /* calculate velocity command in counts/sec */
+        vel_cmd = (pos_cmd - curr_pos) * recip_dt;
+        /* get velocity in counts/sec */
+        curr_vel = stepgen->freq;
+        /* unit for the followings are counts or counts/sec */
+        // fprintf (wou_fh, "\tJ%d: pos_cmd(%f) curr_pos(%f) vel_cmd(%f) curr_vel(%f)\n",
+        //                  n, pos_cmd, curr_pos, vel_cmd, curr_vel);
 
-	    /* At this point we have good values for pos_cmd, curr_pos,
-	       vel_cmd, curr_vel, max_freq and max_ac, all in counts,
-	       counts/sec, or counts/sec^2.  Now we just have to do
-	       something useful with them. */
-	    /* determine which way we need to ramp to match velocity */
-	    if (vel_cmd > curr_vel) {
-	        match_ac = max_ac;
-	    } else {
-	        match_ac = -max_ac;
-	    }
-	    /* determine how long the match would take */
-	    match_time = (vel_cmd - curr_vel) / match_ac;
-	    /* calc output position at the end of the match */
-	    avg_v = (vel_cmd + curr_vel) * 0.5;
-	    est_out = curr_pos + avg_v * match_time;
-	    /* calculate the expected command position at that time */
-	    est_cmd = pos_cmd + vel_cmd * (match_time - 1.5 * dt);
-	    /* calculate error at that time */
-	    est_err = est_out - est_cmd;
-	    if (match_time < dt) {
-	      /* we can match velocity in one period */
-              if (fabs(est_err) < 0.0001) {
-                /* after match the position error will be acceptable */
-                /* so we just do the velocity match */
-                new_vel = vel_cmd;
-              } else {
-                /* try to correct position error */
-                new_vel = vel_cmd - 0.5 * est_err * recip_dt;
-                /* apply accel limits */
-                if (new_vel > (curr_vel + max_ac * dt)) {
-                  new_vel = curr_vel + max_ac * dt;
-                } else if (new_vel < (curr_vel - max_ac * dt)) {
-                  new_vel = curr_vel - max_ac * dt;
-                }
-              }
-	    } else {
-              /* calculate change in final position if we ramp in the
-		 opposite direction for one period */
-	      dv = -2.0 * match_ac * dt;
-	      dp = dv * match_time;
-	      /* decide which way to ramp */
-	      if (fabs(est_err + dp * 2.0) < fabs(est_err)) {
-	          match_ac = -match_ac;
-	      }
-	      /* and do it */
-	      new_vel = curr_vel + match_ac * dt;
-	    }
-
-	    /* apply frequency limit */
-	    if (new_vel > max_freq) {
-	      new_vel = max_freq;
-              //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
-	    } else if (new_vel < -max_freq) {
-	      new_vel = -max_freq;
-              //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
-	    }
-	    /* end of position mode */
-	} else {
-            // do not support velocity mode yet
-            assert(0);
-	    /* end of velocity mode */
-	}
-	stepgen->freq = new_vel;
-        
-        
-        // TODO: calculate WOU commands
-        // each AXIS cycle is 1638400ns, 8192 ticks of 200ns(5MHz) clocks
-        // each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
-        // pos_cmd = new_vel * dt;
-        // fprintf (wou_fh, "\tJ%d: new_vel(%f), pos_cmd(%f)\n", n, new_vel, pos_cmd);
-        // wou_pos_cmd = (int) pos_cmd;
-        wou_pos_cmd = (int) new_vel * dt;
-        stepgen->accum = curr_pos + wou_pos_cmd;
-
-        // fprintf (wou_fh, "\tJ%d: wou_pos_cmd(%d)\n", n, wou_pos_cmd);
-        assert (wou_pos_cmd < 8192);
-        assert (wou_pos_cmd > -8192);
-        
-        {
-          if (wou_pos_cmd >= 0) {
-            // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
-            data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20); 
-            data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+        /* At this point we have good values for pos_cmd, curr_pos,
+           vel_cmd, curr_vel, max_freq and max_ac, all in counts,
+           counts/sec, or counts/sec^2.  Now we just have to do
+           something useful with them. */
+        /* determine which way we need to ramp to match velocity */
+        if (vel_cmd > curr_vel) {
+            match_ac = max_ac;
+        } else {
+            match_ac = -max_ac;
+        }
+        /* determine how long the match would take */
+        match_time = (vel_cmd - curr_vel) / match_ac;
+        /* calc output position at the end of the match */
+        avg_v = (vel_cmd + curr_vel) * 0.5;
+        est_out = curr_pos + avg_v * match_time;
+        /* calculate the expected command position at that time */
+        est_cmd = pos_cmd + vel_cmd * (match_time - 1.5 * dt);
+        /* calculate error at that time */
+        est_err = est_out - est_cmd;
+        if (match_time < dt) {
+          /* we can match velocity in one period */
+          if (fabs(est_err) < 0.0001) {
+            /* after match the position error will be acceptable */
+            /* so we just do the velocity match */
+            new_vel = vel_cmd;
           } else {
-            // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
-            wou_pos_cmd *= -1;
-            data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F); 
-            data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+            /* try to correct position error */
+            new_vel = vel_cmd - 0.5 * est_err * recip_dt;
+            /* apply accel limits */
+            if (new_vel > (curr_vel + max_ac * dt)) {
+              new_vel = curr_vel + max_ac * dt;
+            } else if (new_vel < (curr_vel - max_ac * dt)) {
+              new_vel = curr_vel - max_ac * dt;
+            }
           }
-          // fprintf (wou_fh, "\tJ%d: data[]: <0x%02x><0x%02x>\n", n, data[0], data[1]);
-          if (n == (num_chan - 1)) {
-            // send to WOU when all axes commands are generated
-            ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_FIFO_MODE),
-                   (JCMD_BASE | JCMD_POS_W),
-                   2*num_chan,
-                   data);
-            assert (ret==0);
+        } else {
+          /* calculate change in final position if we ramp in the
+             opposite direction for one period */
+          dv = -2.0 * match_ac * dt;
+          dp = dv * match_time;
+          /* decide which way to ramp */
+          if (fabs(est_err + dp * 2.0) < fabs(est_err)) {
+              match_ac = -match_ac;
           }
+          /* and do it */
+          new_vel = curr_vel + match_ac * dt;
         }
 
-        // stepgen->cur_pos = curr_pos + wou_pos_cmd;
-        // stepgen->pos_accum = pos_cmd - wou_pos_cmd;
-        // fprintf (wou_fh, "\tJ%d: pos_cmd(%f), accum(%f)\n", n, pos_cmd, stepgen->pos_accum);
-        
-        // *(stepgen->pos_fb) = stepgen->accum / stepgen->pos_scale;
-        *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
-
-	/* move on to next channel */
-	stepgen++;
+        /* apply frequency limit */
+        if (new_vel > max_freq) {
+          new_vel = max_freq;
+          //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
+        } else if (new_vel < -max_freq) {
+          new_vel = -max_freq;
+          //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
+        }
+        /* end of position mode */
+    } else {
+        // do not support velocity mode yet
+        assert(0);
+        /* end of velocity mode */
     }
+    stepgen->freq = new_vel;
+    
+    
+    // TODO: calculate WOU commands
+    // each AXIS cycle is 1638400ns, 8192 ticks of 200ns(5MHz) clocks
+    // each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
+    // pos_cmd = new_vel * dt;
+    // fprintf (wou_fh, "\tJ%d: new_vel(%f), pos_cmd(%f)\n", n, new_vel, pos_cmd);
+    // wou_pos_cmd = (int) pos_cmd;
+    wou_pos_cmd = (int) new_vel * dt;
+    stepgen->accum = curr_pos + wou_pos_cmd;
+
+    // fprintf (wou_fh, "\tJ%d: wou_pos_cmd(%d)\n", n, wou_pos_cmd);
+    assert (wou_pos_cmd < 8192);
+    assert (wou_pos_cmd > -8192);
+    
+    {
+      if (wou_pos_cmd >= 0) {
+        // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
+        data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20); 
+        data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+      } else {
+        // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
+        wou_pos_cmd *= -1;
+        data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F); 
+        data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+      }
+      // fprintf (wou_fh, "\tJ%d: data[]: <0x%02x><0x%02x>\n", n, data[0], data[1]);
+      if (n == (num_chan - 1)) {
+        // send to WOU when all axes commands are generated
+        ret = wou_cmd (&w_param,
+               (WB_WR_CMD | WB_FIFO_MODE),
+               (JCMD_BASE | JCMD_POS_W),
+               2*num_chan,
+               data);
+        assert (ret==0);
+      }
+    }
+
+    // stepgen->cur_pos = curr_pos + wou_pos_cmd;
+    // stepgen->pos_accum = pos_cmd - wou_pos_cmd;
+    // fprintf (wou_fh, "\tJ%d: pos_cmd(%f), accum(%f)\n", n, pos_cmd, stepgen->pos_accum);
+    
+    // *(stepgen->pos_fb) = stepgen->accum / stepgen->pos_scale;
+    *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
+
+    /* move on to next channel */
+    stepgen++;
+  }
 
 #if (TRACE!=0)
-    if (*(stepgen-1)->enable) {
-      DPS("\n");
-    }
+  if (*(stepgen-1)->enable) {
+    DPS("\n");
+  }
 #endif
 
 /* restore saved message level */
@@ -869,6 +939,43 @@ rtapi_set_msg_level(msg);
 /***********************************************************************
 *                   LOCAL FUNCTION DEFINITIONS                         *
 ************************************************************************/
+
+static int export_gpio (gpio_t *addr)
+{
+  int i, retval, msg;
+
+  /* This function exports a lot of stuff, which results in a lot of
+     logging if msg_level is at INFO or ALL. So we save the current value
+     of msg_level and restore it later.  If you actually need to log this
+     function's actions, change the second line below */
+  msg = rtapi_get_msg_level();
+  // rtapi_set_msg_level(RTAPI_MSG_WARN);
+  rtapi_set_msg_level(RTAPI_MSG_ALL);
+
+  /* export pin for counts captured by wou_update() */
+  for (i = 0; i < 16; i++) {
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->in[i]), comp_id, 
+                              "wou.gpio.in.%02d", i);
+    if (retval != 0) { return retval; }
+    *(addr->in[i]) = 0;
+  }
+  for (i = 0; i < 8; i++) {
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id, 
+                              "wou.gpio.out.%02d", i);
+    if (retval != 0) {return retval;}
+    *(addr->out[i]) = 0;
+  }
+  
+  /* set default parameter values */
+  addr->num_in = 4;
+  addr->num_out = 2;
+  addr->prev_out = 0;
+  addr->prev_in = 0;
+
+  /* restore saved message level */
+  rtapi_set_msg_level(msg);
+  return 0;
+} // export_gpio ()
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode)
 {
@@ -883,13 +990,18 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     /* export param variable for raw counts */
-    retval = hal_param_s32_newf(HAL_RO, &(addr->rawcount), comp_id,
-	"wou.stepgen.%d.rawcounts", num);
+//    retval = hal_param_s32_newf(HAL_RO, &(addr->rawcount), comp_id,
+//	"wou.stepgen.%d.rawcounts", num);
+//    if (retval != 0) { return retval; }
+    
+    /* export pin for counts captured by wou_update() */
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_cmd), comp_id,
+	"wou.stepgen.%d.pulse_cmd", num);
     if (retval != 0) { return retval; }
-    /* export pin for counts captured by update() */
-    retval = hal_pin_s32_newf(HAL_OUT, &(addr->count), comp_id,
-	"wou.stepgen.%d.counts", num);
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_pos), comp_id,
+	"wou.stepgen.%d.enc_pos", num);
     if (retval != 0) { return retval; }
+
     /* export parameter for position scaling */
     retval = hal_param_float_newf(HAL_RW, &(addr->pos_scale), comp_id,
 	"wou.stepgen.%d.position-scale", num);
@@ -1020,7 +1132,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     addr->hold_dds = 0;
     addr->addval = 0;
     addr->accum = 0;
-    addr->rawcount = 0;
+    // addr->rawcount = 0;
     addr->curr_dir = 0;
     addr->state = 0;
     *(addr->enable) = 0;
@@ -1030,7 +1142,8 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     addr->printed_error = 0;
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
-    *(addr->count) = 0;
+    *(addr->pulse_cmd) = 0;
+    *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     if ( pos_mode ) {
 	*(addr->pos_cmd) = 0.0;

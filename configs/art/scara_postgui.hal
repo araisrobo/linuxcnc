@@ -1,4 +1,12 @@
-net j0 pyvcp.joint0
-net j1 pyvcp.joint1
-net j2 pyvcp.joint2
-net j3 pyvcp.joint3
+net j0            pyvcp.joint0
+net j1            pyvcp.joint1
+net j2            pyvcp.joint2
+net j3            pyvcp.joint3
+net pulse_cmd_j0  pyvcp.pulse_cmd_j0
+net pulse_cmd_j1  pyvcp.pulse_cmd_j1
+net pulse_cmd_j2  pyvcp.pulse_cmd_j2
+net pulse_cmd_j3  pyvcp.pulse_cmd_j3
+net enc_pos_j0    pyvcp.enc_pos_j0
+net enc_pos_j1    pyvcp.enc_pos_j1
+net enc_pos_j2    pyvcp.enc_pos_j2
+net enc_pos_j3    pyvcp.enc_pos_j3
