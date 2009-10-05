@@ -153,7 +153,7 @@ link3 = CylinderZ(0.0, l3_rad, l3_len, l3_rad)
 # attach tool to end
 link3 = Collection([tool,link3])
 # compensate the Z axis move because of the rotate of joint[3]
-link3 = HalTranslate([link3],c,"joint3",0,0,(-1*ppd))
+link3 = HalTranslate([link3],c,"joint3",0,0,(ppd))
 # make joint 2 go up and down
 link3 = HalTranslate([link3],c,"joint2",0,0,-1)
 

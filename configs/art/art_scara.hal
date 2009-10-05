@@ -151,16 +151,16 @@ setp wou.stepgen.2.position-scale [AXIS_2]INPUT_SCALE
 setp wou.stepgen.3.position-scale [AXIS_3]INPUT_SCALE
 
 # set wou module velocity limits - get values from ini file
-setp wou.stepgen.0.maxvel [AXIS_0]STEPGEN_MAXVEL
-setp wou.stepgen.1.maxvel [AXIS_1]STEPGEN_MAXVEL
-setp wou.stepgen.2.maxvel [AXIS_2]STEPGEN_MAXVEL
-setp wou.stepgen.3.maxvel [AXIS_3]STEPGEN_MAXVEL
+setp wou.stepgen.0.maxvel [AXIS_0]MAX_VELOCITY
+setp wou.stepgen.1.maxvel [AXIS_1]MAX_VELOCITY
+setp wou.stepgen.2.maxvel [AXIS_2]MAX_VELOCITY
+setp wou.stepgen.3.maxvel [AXIS_3]MAX_VELOCITY
 
 # set wou module accel limits - get values from ini file
-setp wou.stepgen.0.maxaccel [AXIS_0]STEPGEN_MAXACCEL
-setp wou.stepgen.1.maxaccel [AXIS_1]STEPGEN_MAXACCEL
-setp wou.stepgen.2.maxaccel [AXIS_2]STEPGEN_MAXACCEL
-setp wou.stepgen.3.maxaccel [AXIS_3]STEPGEN_MAXACCEL
+setp wou.stepgen.0.maxaccel [AXIS_0]MAX_ACCELERATION
+setp wou.stepgen.1.maxaccel [AXIS_1]MAX_ACCELERATION
+setp wou.stepgen.2.maxaccel [AXIS_2]MAX_ACCELERATION
+setp wou.stepgen.3.maxaccel [AXIS_3]MAX_ACCELERATION
 
 # for art_scarakins.c
 setp scarakins.D1  [SCARAKINS]D1

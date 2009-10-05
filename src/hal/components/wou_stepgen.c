@@ -351,26 +351,15 @@ static wou_param_t w_param;
 
 typedef struct {
     /* stuff that is both read and written by makepulses */
-    unsigned int timer1;	/* times out when step pulse should end */
-    unsigned int timer2;	/* times out when safe to change dir */
-    unsigned int timer3;	/* times out when safe to step in new dir */
-    int hold_dds;		/* prevents accumulator from updating */
-    long addval;		/* actual frequency generator add value */
     volatile long long accum;	/* frequency generator accumulator */
-    int curr_dir;		/* current direction */
-    int state;			/* current position in state table */
     /* stuff that is read but not written by makepulses */
     hal_bit_t *enable;		/* pin for enable stepgen */
-    long target_addval;		/* desired freq generator add value */
-    long deltalim;		/* max allowed change per period */
     hal_u32_t step_len;		/* parameter: step pulse length */
     hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
     hal_u32_t dir_setup;	/* param: direction setup time */
     int step_type;		/* stepping type - see list above */
-    int cycle_max;		/* cycle length for step types 2 and up */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
-    const unsigned char *lut;	/* pointer to state lookup table */
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position mode, 0 = velocity mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
@@ -379,21 +368,20 @@ typedef struct {
     hal_s32_t *pulse_cmd;	/* pin: pulse_cmd to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;	        /* pin: encoder position from servo drive, captured from FPGA */
     hal_float_t pos_scale;	/* param: steps per position unit */
-    double old_scale;		/* stored scale value */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
-    hal_float_t pos_accum;	/* accumulated sub-step cmd */
     hal_float_t cur_pos;	/* current position */
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
-    hal_u32_t old_step_len;	/* used to detect parameter changes */
-    hal_u32_t old_step_space;
-    hal_u32_t old_dir_hold_dly;
-    hal_u32_t old_dir_setup;
     int printed_error;		/* flag to avoid repeated printing */
+    
+    double prev_pos_cmd;        /* prev pos_cmd in counts */
+    double prev_pos;            /* prev position in counts */
+    double sum_err_0;
+    double sum_err_1;
 } stepgen_t;
 
 typedef struct {
@@ -453,9 +441,6 @@ static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static long periodns;		/* makepulses function period in nanosec */
 static long old_periodns;	/* used to detect changes in periodns */
-static double periodfp;		/* makepulses function period in seconds */
-static double freqscale;	/* conv. factor from Hz to addval counts */
-static double accelscale;	/* conv. Hz/sec to addval cnts/period */
 static long old_dtns;		/* update_freq funct period in nsec */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
@@ -483,9 +468,11 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_steps.log", "w");
     /* prepare header for gnuplot */
-    DPS ("#%10s  %15s%12s  %15s%12s  %15s%12s  %15s%12s\n", 
-          "dt",  "pos_cmd[0]", "pos_fb[0]", "pos_cmd[1]", "pos_fb[1]",
-                 "pos_cmd[2]", "pos_fb[2]", "pos_cmd[3]", "pos_fb[3]");
+    DPS ("#%10s  %15s%12s%12s%12s  %15s%12s%12s%12s  %15s%12s%12s%12s  %15s%12s%12s%12s\n", 
+          "dt",  "pos_cmd[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", 
+                 "pos_cmd[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]",
+                 "pos_cmd[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]",
+                 "pos_cmd[3]", "pos_fb[3]", "match_ac[3]", "curr_vel[3]");
 
 #endif
     
@@ -555,9 +542,6 @@ int rtapi_app_main(void)
     old_periodns = periodns = 50000;
     old_dtns = 1310720;
     /* precompute some constants */
-    periodfp = periodns * 0.000000001;
-    freqscale = (1L << PICKOFF) * periodfp;
-    accelscale = freqscale * periodfp;
     dt = old_dtns * 0.000000001;
     recip_dt = 1.0 / dt;
     /* have good config info, connect to the HAL */
@@ -637,9 +621,12 @@ static void update_freq(void *arg, long period)
   double  max_freq;
   stepgen_t *stepgen;
   int n, i;
-  double pos_cmd, vel_cmd, curr_pos, curr_vel, max_ac;
-  double match_ac, match_time, new_vel, desired_freq;
-  double dp, dv, est_out, est_cmd, est_err, avg_v;
+  double pos_cmd, curr_pos, curr_vel, max_ac;
+  double d_pos_cmd, d_curr_pos;
+  double match_ac, new_vel, end_vel, desired_freq;
+  // double dp, dv, est_out, est_cmd, est_err, match_time, vel_cmd, avg_v;
+  double est_err;
+
   int wou_pos_cmd;
   // ret, data[]: for wou_cmd()
   uint8_t data[MAX_DSIZE];
@@ -676,9 +663,9 @@ static void update_freq(void *arg, long period)
   assert(wou_update(&w_param) == 0);
 
   // copy GPIO.IN ports if it differs from previous value
-  if (memcmp(gpio->prev_in, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2)) {
+  if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2)) {
     // update prev_in from WOU_REGISTER
-    memcpy(gpio->prev_in, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2);
+    memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2);
     for (i=0; i < gpio->num_in; i++) {
       *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
     }
@@ -699,11 +686,6 @@ static void update_freq(void *arg, long period)
                    data);
     assert (ret==0);
   }
-
-
-  // if (!reg_update) {
-  //   reg_update = 1;
-  // }
 
   /* point at stepgen data */
   stepgen = arg;
@@ -732,8 +714,6 @@ static void update_freq(void *arg, long period)
         
         /* set velocity to zero */
         stepgen->freq = 0;
-        stepgen->addval = 0;
-        stepgen->target_addval = 0;
         /* and skip to next one */
         stepgen++;
         continue;
@@ -756,10 +736,8 @@ static void update_freq(void *arg, long period)
         /* parameter is non-zero, compare to max_freq */
         desired_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
 
-// rtapi_print_msg(RTAPI_MSG_DBG, "%s: min_step_period(%ld), max_freq(%f), desired_freq(%f)\n", 
-//                               __FUNCTION__, min_step_period, max_freq, desired_freq);
-// rtapi_print_msg(RTAPI_MSG_DBG, "%s: maxvel(%f), pos_scale(%f)\n", 
-//                               __FUNCTION__, stepgen->maxvel, stepgen->pos_scale);
+        // rtapi_print_msg(RTAPI_MSG_DBG, "%s: min_step_period(%ld), max_freq(%f), desired_freq(%f)\n", 
+        //                               __FUNCTION__, min_step_period, max_freq, desired_freq);
 
         if (desired_freq > max_freq) {
             /* parameter is too high, complain about it */
@@ -806,88 +784,76 @@ static void update_freq(void *arg, long period)
         pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
         curr_pos = stepgen->accum;
         /* calculate velocity command in counts/sec */
-        vel_cmd = (pos_cmd - curr_pos) * recip_dt;
-        /* get velocity in counts/sec */
+        est_err = pos_cmd - curr_pos;
+       
+        if (pos_cmd > 0) {
+          // for setting up breakpoint; do nothing
+          est_err = pos_cmd - curr_pos;
+        }
+
+        /* current velocity in counts/sec */
         curr_vel = stepgen->freq;
-        /* unit for the followings are counts or counts/sec */
-        // fprintf (wou_fh, "\tJ%d: pos_cmd(%f) curr_pos(%f) vel_cmd(%f) curr_vel(%f)\n",
-        //                  n, pos_cmd, curr_pos, vel_cmd, curr_vel);
 
-        /* At this point we have good values for pos_cmd, curr_pos,
-           vel_cmd, curr_vel, max_freq and max_ac, all in counts,
-           counts/sec, or counts/sec^2.  Now we just have to do
-           something useful with them. */
-        /* determine which way we need to ramp to match velocity */
-        if (vel_cmd > curr_vel) {
-            match_ac = max_ac;
-        } else {
-            match_ac = -max_ac;
+        // to calculate matched accel for position error
+        match_ac = (2 * (est_err * recip_dt - curr_vel) * recip_dt);
+        // compare and set accel limit
+        if (match_ac > max_ac) {
+          match_ac = max_ac;
+        } else if (match_ac < -max_ac) {
+          match_ac = -max_ac;
         }
-        /* determine how long the match would take */
-        match_time = (vel_cmd - curr_vel) / match_ac;
-        /* calc output position at the end of the match */
-        avg_v = (vel_cmd + curr_vel) * 0.5;
-        est_out = curr_pos + avg_v * match_time;
-        /* calculate the expected command position at that time */
-        est_cmd = pos_cmd + vel_cmd * (match_time - 1.5 * dt);
-        /* calculate error at that time */
-        est_err = est_out - est_cmd;
-        if (match_time < dt) {
-          /* we can match velocity in one period */
-          if (fabs(est_err) < 0.0001) {
-            /* after match the position error will be acceptable */
-            /* so we just do the velocity match */
-            new_vel = vel_cmd;
-          } else {
-            /* try to correct position error */
-            new_vel = vel_cmd - 0.5 * est_err * recip_dt;
-            /* apply accel limits */
-            if (new_vel > (curr_vel + max_ac * dt)) {
-              new_vel = curr_vel + max_ac * dt;
-            } else if (new_vel < (curr_vel - max_ac * dt)) {
-              new_vel = curr_vel - max_ac * dt;
-            }
-          }
-        } else {
-          /* calculate change in final position if we ramp in the
-             opposite direction for one period */
-          dv = -2.0 * match_ac * dt;
-          dp = dv * match_time;
-          /* decide which way to ramp */
-          if (fabs(est_err + dp * 2.0) < fabs(est_err)) {
+
+
+        // for velocity control 
+        // to calculate matched accel for velocity based on sum of position error
+        d_pos_cmd = pos_cmd - stepgen->prev_pos_cmd;
+        d_curr_pos = curr_pos - stepgen->prev_pos;
+        stepgen->prev_pos_cmd = pos_cmd;
+        stepgen->prev_pos = curr_pos;
+        stepgen->sum_err_0 += (d_pos_cmd - d_curr_pos); 
+        if (match_ac >= 0) {
+          if (d_pos_cmd < d_curr_pos) {
+            if ((stepgen->sum_err_0 * 2.0) < stepgen->sum_err_1) {
               match_ac = -match_ac;
+            }
+          } else {
+            // accumulate err
+            stepgen->sum_err_1 = stepgen->sum_err_0;
           }
-          /* and do it */
-          new_vel = curr_vel + match_ac * dt;
+        } else if (match_ac < 0){
+          if (d_curr_pos < d_pos_cmd) {
+            if ((stepgen->sum_err_0 * 2.0) > stepgen->sum_err_1) {
+              match_ac = -match_ac;
+            }
+          } else {
+            // accumulate err
+            stepgen->sum_err_1 = stepgen->sum_err_0;
+          }
         }
+        DPS ("%12.2f%12.2f", match_ac, d_curr_pos);
+        end_vel = curr_vel + match_ac * dt;
 
-        /* apply frequency limit */
-        if (new_vel > max_freq) {
-          new_vel = max_freq;
-          //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
-        } else if (new_vel < -max_freq) {
-          new_vel = -max_freq;
-          //do happens: rtapi_print_msg(RTAPI_MSG_ERR, "STEPGEN[%d]: over max_freq\n", n);
+        /* apply frequency limit */      
+        if (end_vel > max_freq) {
+          end_vel = max_freq;
+        } else if (end_vel < -max_freq) {
+          end_vel = -max_freq;
         }
+        new_vel = (curr_vel + end_vel) / 2;
         /* end of position mode */
     } else {
         // do not support velocity mode yet
         assert(0);
         /* end of velocity mode */
     }
-    stepgen->freq = new_vel;
+    stepgen->freq = end_vel;
     
-    
-    // TODO: calculate WOU commands
+    // calculate WOU commands
     // each AXIS cycle is 1638400ns, 8192 ticks of 200ns(5MHz) clocks
     // each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
-    // pos_cmd = new_vel * dt;
-    // fprintf (wou_fh, "\tJ%d: new_vel(%f), pos_cmd(%f)\n", n, new_vel, pos_cmd);
-    // wou_pos_cmd = (int) pos_cmd;
     wou_pos_cmd = (int) new_vel * dt;
     stepgen->accum = curr_pos + wou_pos_cmd;
 
-    // fprintf (wou_fh, "\tJ%d: wou_pos_cmd(%d)\n", n, wou_pos_cmd);
     assert (wou_pos_cmd < 8192);
     assert (wou_pos_cmd > -8192);
     
@@ -914,11 +880,6 @@ static void update_freq(void *arg, long period)
       }
     }
 
-    // stepgen->cur_pos = curr_pos + wou_pos_cmd;
-    // stepgen->pos_accum = pos_cmd - wou_pos_cmd;
-    // fprintf (wou_fh, "\tJ%d: pos_cmd(%f), accum(%f)\n", n, pos_cmd, stepgen->pos_accum);
-    
-    // *(stepgen->pos_fb) = stepgen->accum / stepgen->pos_scale;
     *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
 
     /* move on to next channel */
@@ -1092,7 +1053,6 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     }
     /* set default parameter values */
     addr->pos_scale = 1.0;
-    addr->old_scale = 0.0;
     addr->scale_recip = 0.0;
     addr->freq = 0.0;
     addr->maxvel = 0.0;
@@ -1113,31 +1073,18 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
 	addr->dir_hold_dly = 1;
 	addr->dir_setup = 0;
     }
-    /* set 'old' values to make update_freq validate the timing params */
-    addr->old_step_len = ~0;
-    addr->old_step_space = ~0;
-    addr->old_dir_hold_dly = ~0;
-    addr->old_dir_setup = ~0;
-    if ( step_type >= 2 ) {
-	/* init output stuff */
-	addr->cycle_max = cycle_len_lut[step_type - 2] - 1;
-	addr->lut = &(master_lut[step_type - 2][0]);
-    }
     /* init the step generator core to zero output */
     addr->cur_pos = 0.0;
-    addr->pos_accum = 0.0;
-    addr->timer1 = 0;
-    addr->timer2 = 0;
-    addr->timer3 = 0;
-    addr->hold_dds = 0;
-    addr->addval = 0;
     addr->accum = 0;
+
+    addr->prev_pos_cmd = 0;
+    addr->prev_pos = 0;
+    addr->sum_err_0 = 0;
+    addr->sum_err_1 = 0;
+
+
     // addr->rawcount = 0;
-    addr->curr_dir = 0;
-    addr->state = 0;
     *(addr->enable) = 0;
-    addr->target_addval = 0;
-    addr->deltalim = 0;
     /* other init */
     addr->printed_error = 0;
     // addr->old_pos_cmd = 0.0;
