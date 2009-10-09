@@ -16,3 +16,4 @@ share
 .tmp*
 *.log
 *.swp
+run.sh
