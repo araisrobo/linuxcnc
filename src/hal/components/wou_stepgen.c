@@ -481,8 +481,15 @@ int rtapi_app_main(void)
 	    rtapi_print_msg(RTAPI_MSG_ERR, "ERROR Connection failed\n");
 	    return -1;
     }
-    // forward SERVO pulses to LEDs
-    data[0] = 1;
+    // // forward SERVO pulses to LEDs
+    // data[0] = 1;
+    // ret = wou_cmd (&w_param,
+    //                (WB_WR_CMD | WB_AI_MODE),
+    //                GPIO_LEDS_SEL,
+    //                1,
+    //                data);
+    // forward debug_port_0[7:0] to LEDs
+    data[0] = 2;
     ret = wou_cmd (&w_param,
                    (WB_WR_CMD | WB_AI_MODE),
                    GPIO_LEDS_SEL,
@@ -685,6 +692,7 @@ static void update_freq(void *arg, long period)
                    1,
                    data);
     assert (ret==0);
+    wou_flush(&w_param);
   }
 
   /* point at stepgen data */
@@ -696,7 +704,6 @@ static void update_freq(void *arg, long period)
     _dt ++;
   }
 #endif
-
 
   // num_chan: 4, calculated from step_type;
   /* loop thru generators */
@@ -720,13 +727,7 @@ static void update_freq(void *arg, long period)
     }
 
     /* calculate frequency limit */
-    // TODO: calculate limits once at initialization
-    // each joint may have different STEPLEN setting
-    // if (step_type[n] < 2) {
-    //   min_step_period = stepgen->step_len + stepgen->step_space;
-    // } else {
     min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
-    // }
     max_freq = 1.0 / (min_step_period * 0.000000001);
     /* check for user specified frequency limit parameter */
     if (stepgen->maxvel <= 0.0) {

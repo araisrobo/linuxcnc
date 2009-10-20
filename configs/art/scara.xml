@@ -1,6 +1,69 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <pyvcp>
- <vbox>
+  <hbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
+    <!-- the ALARM Led -->
+    <vbox>
+      <led>
+        <halpin>"alarm"</halpin>
+        <size>"90"</size>
+        <on_color>"red"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <label>
+      <text>"ALM"</text>
+      <font>("Helvetica",12)</font>
+      </label>
+    </vbox>
+    <!-- the SERVO_READY Led -->
+    <vbox>
+      <led>
+        <halpin>"servo_ready"</halpin>
+        <size>"90"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <label>
+      <text>"RDY"</text>
+      <font>("Helvetica",12)</font>
+      </label>
+    </vbox>
+  </hbox>
+  <hbox>
+  </hbox>
+    <labelframe text="Home Switches">
+    <font>("Helvetica",12)</font>
+    <hbox>
+      <led>
+        <halpin>"home_j0"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <led>
+        <halpin>"home_j1"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <led>
+        <halpin>"home_j2"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+     <led>
+        <halpin>"home_j3"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+    </hbox>
+    </labelframe>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
     <label>
       <text>"Joint 0 (deg):"</text>
       <font>("Helvetica",16)</font>
@@ -20,8 +83,10 @@
       <font>("Helvetica",20)</font>
       <format>"10d"</format>
     </s32>
- </vbox>
- <vbox>
+  </vbox>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
     <label>
       <text>"Joint 1 (deg):"</text>
       <font>("Helvetica",16)</font>
@@ -41,8 +106,10 @@
       <font>("Helvetica",20)</font>
       <format>"10d"</format>
     </s32>
- </vbox>
- <vbox>
+  </vbox>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
     <label>
       <text>"Joint 2 (mm):"</text>
       <font>("Helvetica",16)</font>
@@ -62,8 +129,10 @@
       <font>("Helvetica",20)</font>
       <format>"10d"</format>
     </s32>
- </vbox>
- <vbox>
+  </vbox>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
     <label>
       <text>"Joint 3 (deg):"</text>
       <font>("Helvetica",16)</font>
@@ -83,7 +152,7 @@
       <font>("Helvetica",20)</font>
       <format>"10d"</format>
     </s32>
- </vbox>
+  </vbox>
 
 <!--
  <vbox>

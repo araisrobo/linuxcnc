@@ -106,15 +106,6 @@ linksp yena => wou.stepgen.1.enable
 linksp zena => wou.stepgen.2.enable
 linksp aena => wou.stepgen.3.enable
 
-newsig xflt bit
-linksp xflt axis.0.amp-fault-in
-newsig yflt bit
-linksp yflt axis.1.amp-fault-in
-newsig zflt bit
-linksp zflt axis.2.amp-fault-in
-newsig aflt bit
-linksp aflt axis.3.amp-fault-in
-
 setp wou.stepgen.0.steplen  [AXIS_0]STEPLEN
 setp wou.stepgen.1.steplen  [AXIS_1]STEPLEN
 setp wou.stepgen.2.steplen  [AXIS_2]STEPLEN
@@ -126,23 +117,29 @@ setp wou.stepgen.3.dirdelay [AXIS_3]DIRDELAY
 
 # connect signals from FPGA.
 # pulse_cmd: the actual pulse_cmd sent to servo drive.
-net pulse_cmd_j0  wou.stepgen.0.pulse_cmd
-net pulse_cmd_j1  wou.stepgen.1.pulse_cmd
-net pulse_cmd_j2  wou.stepgen.2.pulse_cmd
-net pulse_cmd_j3  wou.stepgen.3.pulse_cmd
+net pulse_cmd_j0  <= wou.stepgen.0.pulse_cmd
+net pulse_cmd_j1  <= wou.stepgen.1.pulse_cmd
+net pulse_cmd_j2  <= wou.stepgen.2.pulse_cmd
+net pulse_cmd_j3  <= wou.stepgen.3.pulse_cmd
 # enc_pos: the encoder position read from FPGA.
-net enc_pos_j0    wou.stepgen.0.enc_pos  
-net enc_pos_j1    wou.stepgen.1.enc_pos  
-net enc_pos_j2    wou.stepgen.2.enc_pos  
-net enc_pos_j3    wou.stepgen.3.enc_pos  
-# # home: home switch status from FPGA
-# net home_j0       wou.gpio.in.00    =>  axis.0.home-sw-in
-# net home_j1       wou.gpio.in.01    =>  axis.1.home-sw-in
-# net home_j2       wou.gpio.in.02    =>  axis.2.home-sw-in
-# net home_j3       wou.gpio.in.03    =>  axis.3.home-sw-in
+net enc_pos_j0    <= wou.stepgen.0.enc_pos  
+net enc_pos_j1    <= wou.stepgen.1.enc_pos  
+net enc_pos_j2    <= wou.stepgen.2.enc_pos  
+net enc_pos_j3    <= wou.stepgen.3.enc_pos  
+
+# refer to proto/doc/wiring.txt
 # xena also served as servo_on
-net xena                            =>  wou.gpio.out.00
-net servo_rst                       =>  wou.gpio.out.01   
+net xena          =>  wou.gpio.out.00
+net servo_rst     =>  wou.gpio.out.01
+# the alarm signal is shared by 4 axes
+net alarm         <=  wou.gpio.in.00
+    net alarm         =>  axis.0.amp-fault-in
+    net alarm         =>  axis.1.amp-fault-in
+    net alarm         =>  axis.2.amp-fault-in
+    net alarm         =>  axis.3.amp-fault-in
+net servo_ready   <=  wou.gpio.in.01
+# TODO: forward servo_ready to AXIS, the servo could not be ON while (!servo_ready)
+# home.hal, simulated_home.hal: definition for home_j0 ~ home_j3
 
 # set wou module scaling - get values from ini file
 setp wou.stepgen.0.position-scale [AXIS_0]INPUT_SCALE
