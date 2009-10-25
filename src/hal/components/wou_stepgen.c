@@ -673,6 +673,7 @@ static void update_freq(void *arg, long period)
   if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2)) {
     // update prev_in from WOU_REGISTER
     memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2);
+    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
     for (i=0; i < gpio->num_in; i++) {
       *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
     }
@@ -929,8 +930,8 @@ static int export_gpio (gpio_t *addr)
   }
   
   /* set default parameter values */
-  addr->num_in = 4;
-  addr->num_out = 2;
+  addr->num_in = 16;
+  addr->num_out = 8;
   addr->prev_out = 0;
   addr->prev_in = 0;
 
