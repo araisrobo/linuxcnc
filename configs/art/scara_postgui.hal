@@ -16,3 +16,7 @@ net home_j0       =>  pyvcp.home_j0
 net home_j1       =>  pyvcp.home_j1
 net home_j2       =>  pyvcp.home_j2
 net home_j3       =>  pyvcp.home_j3
+
+# net ccwl_j2       =>  pyvcp.ccwl_j2
+
+# net cwl_j2        =>  pyvcp.cwl_j2

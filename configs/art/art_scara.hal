@@ -10,6 +10,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[E
 # loadrt wou step_type=0,0,0,0  # type(0): step + dir
 # TODO: add fpga-bitfile as a parameter to "loadrt wou"
 loadrt wou step_type=2,2,2,2  # type(2): Quadrature 
+loadrt not count=7
 
 # add motion controller functions to servo thread
 addf motion-command-handler servo-thread
@@ -25,7 +26,14 @@ addf motion-controller servo-thread
 # addf ddt.8 servo-thread
 # addf wou.stepgen.make-pulses servo-thread
 # TODO: addf wou.stepgen.capture-position servo-thread
-addf wou.stepgen.update-freq servo-thread
+addf wou.stepgen.update-freq  servo-thread
+addf not.0                    servo-thread
+addf not.1                    servo-thread
+addf not.2                    servo-thread
+addf not.3                    servo-thread
+addf not.4                    servo-thread
+addf not.5                    servo-thread
+addf not.6                    servo-thread
 
 
 # create HAL signals for position commands from motion module
@@ -132,14 +140,15 @@ net enc_pos_j3    <= wou.stepgen.3.enc_pos
 net xena          =>  wou.gpio.out.00
 net servo_rst     =>  wou.gpio.out.01
 # the alarm signal is shared by 4 axes
-net alarm         <=  wou.gpio.in.00
+net alarm_in not.0.in <=  wou.gpio.in.00
+net alarm             <=  not.0.out
     net alarm         =>  axis.0.amp-fault-in
     net alarm         =>  axis.1.amp-fault-in
     net alarm         =>  axis.2.amp-fault-in
     net alarm         =>  axis.3.amp-fault-in
 net servo_ready   <=  wou.gpio.in.01
 # TODO: forward servo_ready to AXIS, the servo could not be ON while (!servo_ready)
-# home.hal, simulated_home.hal: definition for home_j0 ~ home_j3
+# switches.hal, simulated_home.hal: definition for home_j0 ~ home_j3
 
 # set wou module scaling - get values from ini file
 setp wou.stepgen.0.position-scale [AXIS_0]INPUT_SCALE

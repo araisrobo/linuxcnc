@@ -922,6 +922,7 @@ static int export_gpio (gpio_t *addr)
     if (retval != 0) { return retval; }
     *(addr->in[i]) = 0;
   }
+
   for (i = 0; i < 8; i++) {
     retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id, 
                               "wou.gpio.out.%02d", i);
@@ -933,7 +934,10 @@ static int export_gpio (gpio_t *addr)
   addr->num_in = 16;
   addr->num_out = 8;
   addr->prev_out = 0;
-  addr->prev_in = 0;
+  addr->prev_in = 1;
+  // gpio.in[0] is SVO-ALM, which is low active;
+  // set "prev_in[0]" as 1 also
+  *(addr->in[0]) = 1;
 
   /* restore saved message level */
   rtapi_set_msg_level(msg);

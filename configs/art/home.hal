@@ -1,5 +1,0 @@
-# home: home switch status from FPGA
-net home_j0       wou.gpio.in.02    =>  axis.0.home-sw-in
-net home_j1       wou.gpio.in.03    =>  axis.1.home-sw-in
-net home_j2       wou.gpio.in.04    =>  axis.2.home-sw-in
-net home_j3       wou.gpio.in.05    =>  axis.3.home-sw-in
