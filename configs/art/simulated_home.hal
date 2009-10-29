@@ -7,7 +7,7 @@ net J3homeswpos => comp.3.in0
 
 sets J0homeswpos 15
 sets J1homeswpos 10.5
-sets J2homeswpos 150 
+sets J2homeswpos 15
 sets J3homeswpos 10
 # sets J0homeswpos 1
 # sets J1homeswpos 1

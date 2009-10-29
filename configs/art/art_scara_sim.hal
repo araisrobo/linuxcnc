@@ -1,0 +1,83 @@
+# core HAL config file for simulation - 4 axis
+
+# load RT modules
+loadrt art_scarakins
+loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[TRAJ]AXES
+
+# load five limit3 blocks to simulate the accel and vel limits of the motors
+loadrt limit3 count=4
+# load window comparators for home/limit switches
+loadrt wcomp count=5
+loadrt not count=7
+
+# add motion controller functions to servo thread
+addf motion-command-handler servo-thread
+addf motion-controller servo-thread
+
+addf not.0                    servo-thread
+addf not.1                    servo-thread
+addf not.2                    servo-thread
+addf not.3                    servo-thread
+addf not.4                    servo-thread
+addf not.5                    servo-thread
+addf not.6                    servo-thread
+
+
+# create HAL signals for position commands from motion module
+newsig J0pos float
+linksp J0pos <= axis.0.motor-pos-cmd
+newsig J1pos float
+linksp J1pos <= axis.1.motor-pos-cmd
+newsig J2pos float
+linksp J2pos <= axis.2.motor-pos-cmd
+newsig J3pos float
+linksp J3pos <= axis.3.motor-pos-cmd
+
+# loop position commands back to motion module feedback
+linksp J0pos => axis.0.motor-pos-fb
+linksp J1pos => axis.1.motor-pos-fb
+linksp J2pos => axis.2.motor-pos-fb
+linksp J3pos => axis.3.motor-pos-fb
+
+# estop loopback
+net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
+
+# create signals for tool loading loopback
+net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
+net tool-change-loop iocontrol.0.tool-change iocontrol.0.tool-changed
+
+# amp control
+newsig xena bit
+newsig yena bit
+newsig zena bit
+newsig aena bit
+linksp xena <= axis.0.amp-enable-out
+linksp yena <= axis.1.amp-enable-out
+linksp zena <= axis.2.amp-enable-out
+linksp aena <= axis.3.amp-enable-out
+
+# for art_scarakins.c
+setp scarakins.D1  [SCARAKINS]D1
+setp scarakins.D2  [SCARAKINS]D2
+setp scarakins.D3  [SCARAKINS]D3
+setp scarakins.D4  [SCARAKINS]D4
+setp scarakins.D5  [SCARAKINS]D5
+setp scarakins.D6  [SCARAKINS]D6
+setp scarakins.PPD [SCARAKINS]PPD
+
+# for src/hal/user_comps/vismach/art_scaragui.py 
+loadusr -W art_scaragui
+net j0 axis.0.joint-pos-fb art_scaragui.joint0
+net j1 axis.1.joint-pos-fb art_scaragui.joint1
+net j2 axis.2.joint-pos-fb art_scaragui.joint2
+net j3 axis.3.joint-pos-fb art_scaragui.joint3
+setp art_scaragui.D1        [SCARAKINS]D1
+setp art_scaragui.D2        [SCARAKINS]D2
+setp art_scaragui.D3        [SCARAKINS]D3
+setp art_scaragui.D4        [SCARAKINS]D4
+setp art_scaragui.D5        [SCARAKINS]D5
+setp art_scaragui.D6        [SCARAKINS]D6
+setp art_scaragui.J3MIN     [AXIS_2]MIN_LIMIT
+setp art_scaragui.J3MAX     [AXIS_2]MAX_LIMIT
+setp art_scaragui.PPD       [SCARAKINS]PPD
+
