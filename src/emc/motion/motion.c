@@ -530,6 +530,19 @@ static int init_hal_io(void)
         return retval;
     }
 
+    retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probing), mot_comp_id, "motion.probing");
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probe_toward), mot_comp_id, "motion.probe-toward");
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probe_away), mot_comp_id, "motion.probe-away");
+    if (retval != 0) {
+        return retval;
+    }
+
     /* initialize machine wide pins and parameters */
     *(emcmot_hal_data->probe_input) = 0;
     /* default value of enable is TRUE, so simple machines
@@ -621,6 +634,12 @@ static int export_joint(int num, joint_hal_t * addr)
     if (retval != 0) {
 	return retval;
     }
+    rtapi_snprintf(buf, HAL_NAME_LEN, "axis.%d.joint-pos-probed", num);
+    retval =
+	hal_pin_float_new(buf, HAL_OUT, &(addr->joint_pos_probed), mot_comp_id);
+    if (retval != 0) {
+	return retval;
+    }
     rtapi_snprintf(buf, HAL_NAME_LEN, "axis.%d.motor-pos-cmd", num);
     retval =
 	hal_pin_float_new(buf, HAL_OUT, &(addr->motor_pos_cmd), mot_comp_id);
@@ -630,6 +649,12 @@ static int export_joint(int num, joint_hal_t * addr)
     rtapi_snprintf(buf, HAL_NAME_LEN, "axis.%d.motor-pos-fb", num);
     retval =
 	hal_pin_float_new(buf, HAL_IN, &(addr->motor_pos_fb), mot_comp_id);
+    if (retval != 0) {
+	return retval;
+    }
+    rtapi_snprintf(buf, HAL_NAME_LEN, "axis.%d.motor-pos-probed", num);
+    retval =
+	hal_pin_float_new(buf, HAL_IN, &(addr->motor_pos_probed), mot_comp_id);
     if (retval != 0) {
 	return retval;
     }

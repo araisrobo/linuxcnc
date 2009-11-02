@@ -377,13 +377,25 @@ static void process_probe_inputs(void) {
     // trigger when the probe clears, instead of the usual case of triggering when it trips
     char probe_whenclears = !!(probe_type & 2);
     
-    /* read probe input */
-    emcmotStatus->probeVal = *(emcmot_hal_data->probe_input);
     if (emcmotStatus->probing) {
         /* check if the probe has been tripped */
         if (emcmotStatus->probeVal ^ probe_whenclears) {
-            /* remember the current position */
-            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
+            /* use the feedback position as the initial guess */
+            EmcPose probedPos = emcmotStatus->carte_pos_fb;
+            double probed_joint_positions[9] = {
+                joints[0].pos_probed, joints[1].pos_probed, joints[2].pos_probed,
+                joints[3].pos_probed, joints[4].pos_probed, joints[5].pos_probed,
+                joints[6].pos_probed, joints[7].pos_probed, joints[8].pos_probed,
+            };
+            /* Use copies to avoid disturbing the state of the flags
+             * for usual position feedback kinematics
+             */
+            KINEMATICS_FORWARD_FLAGS fl = fflags;
+            KINEMATICS_INVERSE_FLAGS ifl = iflags;
+
+            kinematicsForward((const double*)probed_joint_positions,
+                    &probedPos, &ifl, &fl);
+            emcmotStatus->probedPos = probedPos;
             /* stop! */
             tpAbort(&emcmotDebug->queue);
             emcmotStatus->probing = 0;
@@ -455,6 +467,9 @@ static void process_inputs(void)
     joint_hal_t *joint_data;
     emcmot_joint_t *joint;
     unsigned char enables;
+    int do_probe;
+    int probe_whenclears;
+
     /* read spindle angle (for threading, etc) */
     emcmotStatus->spindleRevs = *emcmot_hal_data->spindle_revs;
     emcmotStatus->spindleSpeedIn = *emcmot_hal_data->spindle_speed_in;
@@ -499,6 +514,12 @@ static void process_inputs(void)
     /* save the resulting combined scale factor */
     emcmotStatus->net_spindle_scale = scale;
 
+    /* read probe input */
+    emcmotStatus->probeVal = *(emcmot_hal_data->probe_input);
+    probe_whenclears= !!(emcmotStatus->probe_type & 2);
+    do_probe = emcmotStatus->probing
+        && (emcmotStatus->probeVal ^ probe_whenclears);
+
     /* read and process per-joint inputs */
     for (joint_num = 0; joint_num < num_joints; joint_num++) {
 	/* point to joint HAL data */
@@ -512,6 +533,10 @@ static void process_inputs(void)
 	/* copy data from HAL to joint structure */
 	joint->index_enable = *(joint_data->index_enable);
 	joint->motor_pos_fb = *(joint_data->motor_pos_fb);
+	if(do_probe)
+	{
+	    joint->motor_pos_probed = *(joint_data->motor_pos_probed);
+	}
 	/* calculate pos_fb */
 	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
 	    ( joint->index_enable == 0 )) {
@@ -525,6 +550,9 @@ static void process_inputs(void)
 	    /* normal case: subtract backlash comp and motor offset */
 	    joint->pos_fb = joint->motor_pos_fb -
 		(joint->backlash_filt + joint->motor_offset);
+	    if(do_probe)
+		joint->pos_probed = joint->motor_pos_probed -
+		    (joint->backlash_filt + joint->motor_offset);
 	}
 	/* calculate following error */
 	joint->ferror = joint->pos_cmd - joint->pos_fb;
@@ -1757,6 +1785,7 @@ static void output_to_hal(void)
     emcmot_joint_t *joint;
     joint_hal_t *joint_data;
     static int old_motion_index=0, old_hal_index=0;
+    int probing, probe_direction;
 
     /* output machine info to HAL for scoping, etc */
     *(emcmot_hal_data->motion_enabled) = GET_MOTION_ENABLE_FLAG();
@@ -1839,6 +1868,12 @@ static void output_to_hal(void)
     *(emcmot_hal_data->tooloffset_z) = emcmotStatus->tooloffset_z;
     *(emcmot_hal_data->tooloffset_w) = emcmotStatus->tooloffset_w;
 
+    probing = !!(emcmotStatus->probing);
+    probe_direction = (emcmotStatus->probe_type & 2);
+    *(emcmot_hal_data->probing) = probing;
+    *(emcmot_hal_data->probe_toward) = probing && !probe_direction;
+    *(emcmot_hal_data->probe_away) = probing && probe_direction;
+
     /* output joint info to HAL for scoping, etc */
     for (joint_num = 0; joint_num < num_joints; joint_num++) {
 	/* point to joint struct */
@@ -1852,6 +1887,7 @@ static void output_to_hal(void)
 	*(joint_data->motor_pos_cmd) = joint->motor_pos_cmd;
 	*(joint_data->joint_pos_cmd) = joint->pos_cmd;
 	*(joint_data->joint_pos_fb) = joint->pos_fb;
+	*(joint_data->joint_pos_probed) = joint->pos_probed;
 	*(joint_data->amp_enable) = GET_JOINT_ENABLE_FLAG(joint);
 	*(joint_data->index_enable) = joint->index_enable;
 	*(joint_data->homing) = GET_JOINT_HOMING_FLAG(joint);

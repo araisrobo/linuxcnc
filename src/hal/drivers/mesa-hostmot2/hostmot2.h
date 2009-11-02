@@ -37,20 +37,20 @@
 // Note: HM2_PRINT() and HM2_PRINT_NO_LL() use rtapi_print(), all the others use rtapi_print_msg()
 //
 
-#define HM2_PRINT_NO_LL(fmt, args...)  rtapi_print(HM2_NAME ": " fmt, ## args);
+#define HM2_PRINT_NO_LL(fmt, args...)  rtapi_print(HM2_NAME ": " fmt, ## args)
 
-#define HM2_ERR_NO_LL(fmt, args...)    rtapi_print_msg(RTAPI_MSG_ERR,  HM2_NAME ": " fmt, ## args);
-#define HM2_WARN_NO_LL(fmt, args...)   rtapi_print_msg(RTAPI_MSG_WARN, HM2_NAME ": " fmt, ## args);
-#define HM2_INFO_NO_LL(fmt, args...)   rtapi_print_msg(RTAPI_MSG_INFO, HM2_NAME ": " fmt, ## args);
-#define HM2_DBG_NO_LL(fmt, args...)    rtapi_print_msg(RTAPI_MSG_DBG,  HM2_NAME ": " fmt, ## args);
+#define HM2_ERR_NO_LL(fmt, args...)    rtapi_print_msg(RTAPI_MSG_ERR,  HM2_NAME ": " fmt, ## args)
+#define HM2_WARN_NO_LL(fmt, args...)   rtapi_print_msg(RTAPI_MSG_WARN, HM2_NAME ": " fmt, ## args)
+#define HM2_INFO_NO_LL(fmt, args...)   rtapi_print_msg(RTAPI_MSG_INFO, HM2_NAME ": " fmt, ## args)
+#define HM2_DBG_NO_LL(fmt, args...)    rtapi_print_msg(RTAPI_MSG_DBG,  HM2_NAME ": " fmt, ## args)
 
 
-#define HM2_PRINT(fmt, args...)  rtapi_print(HM2_NAME "/%s: " fmt, hm2->llio->name, ## args);
+#define HM2_PRINT(fmt, args...)  rtapi_print(HM2_NAME "/%s: " fmt, hm2->llio->name, ## args)
 
-#define HM2_ERR(fmt, args...)    rtapi_print_msg(RTAPI_MSG_ERR,  HM2_NAME "/%s: " fmt, hm2->llio->name, ## args);
-#define HM2_WARN(fmt, args...)   rtapi_print_msg(RTAPI_MSG_WARN, HM2_NAME "/%s: " fmt, hm2->llio->name, ## args);
-#define HM2_INFO(fmt, args...)   rtapi_print_msg(RTAPI_MSG_INFO, HM2_NAME "/%s: " fmt, hm2->llio->name, ## args);
-#define HM2_DBG(fmt, args...)    rtapi_print_msg(RTAPI_MSG_DBG,  HM2_NAME "/%s: " fmt, hm2->llio->name, ## args);
+#define HM2_ERR(fmt, args...)    rtapi_print_msg(RTAPI_MSG_ERR,  HM2_NAME "/%s: " fmt, hm2->llio->name, ## args)
+#define HM2_WARN(fmt, args...)   rtapi_print_msg(RTAPI_MSG_WARN, HM2_NAME "/%s: " fmt, hm2->llio->name, ## args)
+#define HM2_INFO(fmt, args...)   rtapi_print_msg(RTAPI_MSG_INFO, HM2_NAME "/%s: " fmt, hm2->llio->name, ## args)
+#define HM2_DBG(fmt, args...)    rtapi_print_msg(RTAPI_MSG_DBG,  HM2_NAME "/%s: " fmt, hm2->llio->name, ## args)
 
 
 
@@ -201,6 +201,10 @@ typedef struct {
 // encoders
 //
 
+#define HM2_ENCODER_QUADRATURE_ERROR    (1<<15)
+#define HM2_ENCODER_AB_MASK_POLARITY    (1<<14)
+#define HM2_ENCODER_LATCH_ON_PROBE      (1<<13)
+#define HM2_ENCODER_PROBE_POLARITY      (1<<12)
 #define HM2_ENCODER_FILTER              (1<<11)
 #define HM2_ENCODER_COUNTER_MODE        (1<<10)
 #define HM2_ENCODER_INDEX_MASK          (1<<9)
@@ -224,11 +228,16 @@ typedef struct {
 
         struct {
             hal_s32_t *rawcounts;    // raw encoder counts
+            hal_s32_t *rawlatch;     // raw encoder of latch
             hal_s32_t *count;        // (rawcounts - zero_offset)
+            hal_s32_t *count_latch;  // (rawlatch - zero_offset)
             hal_float_t *position;
+            hal_float_t *position_latch;
             hal_float_t *velocity;
             hal_bit_t *reset;
             hal_bit_t *index_enable;
+            hal_bit_t *latch_enable;
+            hal_bit_t *latch_polarity;
         } pin;
 
         struct {

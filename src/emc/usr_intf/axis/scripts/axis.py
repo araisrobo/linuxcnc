@@ -1115,6 +1115,20 @@ class MyOpengl(Opengl):
                 y = positions[1]
                 positions[0] = x * math.cos(t) - y * math.sin(t)
                 positions[1] = x * math.sin(t) + y * math.cos(t)
+            else:
+                positions = list(positions)
+
+            if a_axis_wrapped:
+                positions[3] = math.fmod(positions[3], 360.0)
+                if positions[3] < 0: positions[3] += 360.0
+
+            if b_axis_wrapped:
+                positions[4] = math.fmod(positions[4], 360.0)
+                if positions[4] < 0: positions[4] += 360.0
+
+            if c_axis_wrapped:
+                positions[5] = math.fmod(positions[5], 360.0)
+                if positions[5] < 0: positions[5] += 360.0
 
             positions = to_internal_units(positions)
             axisdtg = to_internal_units(s.dtg)
@@ -1506,6 +1520,7 @@ class LivePlotter:
         self.last_motion_mode = None
         self.last_joint_position = None
         self.set_manual_mode = False
+        self.notifications_clear = False
 
     def start(self):
         if self.running.get(): return
@@ -1606,6 +1621,11 @@ class LivePlotter:
              self.set_manual_mode = set_manual_mode
              if self.set_manual_mode:
                  root_window.tk.eval(pane_top + ".tabs raise manual")
+        notifications_clear = comp["notifications-clear"]
+        if self.notifications_clear != notifications_clear:
+             self.notifications_clear = notifications_clear
+             if self.notifications_clear:
+                 notifications.clear()
         vupdate(vars.task_mode, self.stat.task_mode)
         vupdate(vars.task_state, self.stat.task_state)
         vupdate(vars.task_paused, self.stat.task_paused)
@@ -1634,16 +1654,13 @@ class LivePlotter:
                 on_any_limit = True
         vupdate(vars.on_any_limit, on_any_limit)
         global current_tool
-        current_tool = None
-        for i in self.stat.tool_table:
-            if i[0] == self.stat.tool_in_spindle:
-                current_tool = i
+        current_tool = self.stat.tool_table[0]
         if current_tool:
             tool_data = {'tool': current_tool[0], 'zo': current_tool[1], 'xo': current_tool[2], 'dia': current_tool[3]}
-        if self.stat.tool_in_spindle == 0:
-            vupdate(vars.tool, _("No tool"))
-        elif current_tool is None:
+        if current_tool is None:
             vupdate(vars.tool, _("Unknown tool %d") % self.stat.tool_in_spindle)
+        elif tool_data['tool'] == 0 or tool_data['tool'] == -1:
+            vupdate(vars.tool, _("No tool"))
         elif current_tool.xoffset == 0 and not lathe:
             vupdate(vars.tool, _("Tool %(tool)d, offset %(zo)g, diameter %(dia)g") % tool_data)
         else:
@@ -2285,7 +2302,7 @@ class _prompt_touchoff(_prompt_float):
             tool_offset_axes = "xz"
         else:
             tool_offset_axes = "z"
-        if s.tool_in_spindle == 0 or vars.current_axis.get() not in tool_offset_axes:
+        if vars.current_axis.get() not in tool_offset_axes:
             del systems[-1]
             if defaultsystem.startswith("T"): defaultsystem = systems[0]
         linear_axis = vars.current_axis.get() in "xyzuvw"
@@ -3568,6 +3585,9 @@ vars.has_editor.set(editor is not None)
 tooleditor = inifile.find("DISPLAY", "TOOL_EDITOR") or "tooledit"
 tooltable = inifile.find("EMCIO", "TOOL_TABLE")
 lu = units(inifile.find("TRAJ", "LINEAR_UNITS"))
+a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
+b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
+c_axis_wrapped = inifile.find("AXIS_5", "WRAPPED_ROTARY")
 if coordinate_display:
     if coordinate_display.lower() in ("mm", "metric"): vars.metric.set(1)
     else: vars.metric.set(0)
@@ -3794,6 +3814,7 @@ if hal_present == 1 :
     comp.newpin("jog.w", hal.HAL_BIT, hal.HAL_OUT)
     comp.newpin("jog.increment", hal.HAL_FLOAT, hal.HAL_OUT)
     comp.newpin("set-manual-mode",hal.HAL_BIT,hal.HAL_IN)
+    comp.newpin("notifications-clear",hal.HAL_BIT,hal.HAL_IN)
     vars.has_ladder.set(hal.component_exists('classicladder_rt'))
 
     if vcp:
