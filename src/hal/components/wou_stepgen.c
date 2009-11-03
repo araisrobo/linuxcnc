@@ -318,7 +318,7 @@
 #define MAX_CHAN 8
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -468,7 +468,7 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_steps.log", "w");
     /* prepare header for gnuplot */
-    DPS ("#%10s  %15s%12s%12s%12s  %15s%12s%12s%12s  %15s%12s%12s%12s  %15s%12s%12s%12s\n", 
+    DPS ("#%10s  %17s%15s%15s%15s  %17s%15s%15s%15s  %17s%15s%15s%15s  %17s%15s%15s%15s\n", 
           "dt",  "pos_cmd[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", 
                  "pos_cmd[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]",
                  "pos_cmd[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]",
@@ -701,7 +701,7 @@ static void update_freq(void *arg, long period)
  
 #if (TRACE!=0)
   if (*stepgen->enable) {
-    DPS("%11u", _dt);
+    DPS("%10u", _dt);
     _dt ++;
   }
 #endif
@@ -781,7 +781,7 @@ static void update_freq(void *arg, long period)
     /* at this point, all scaling, limits, and other parameter
        changes have been handled - time for the main control */
     if ( stepgen->pos_mode ) {
-        DPS ("  %15.7f%12.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
+        DPS ("  %17.7f%15.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
         /* calculate position command in counts */
         pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
         curr_pos = stepgen->accum;
@@ -832,7 +832,7 @@ static void update_freq(void *arg, long period)
             stepgen->sum_err_1 = stepgen->sum_err_0;
           }
         }
-        DPS ("%12.2f%12.2f", match_ac, d_curr_pos);
+        DPS ("%15.2f%15.2f", match_ac, d_curr_pos);
         end_vel = curr_vel + match_ac * dt;
 
         /* apply frequency limit */      

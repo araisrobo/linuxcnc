@@ -140,8 +140,9 @@ net enc_pos_j3    <= wou.stepgen.3.enc_pos
 net xena          =>  wou.gpio.out.00
 net servo_rst     =>  wou.gpio.out.01
 # the alarm signal is shared by 4 axes
-net alarm_in not.0.in <=  wou.gpio.in.00
-net alarm             <=  not.0.out
+# for real SCARA: net alarm_in not.0.in <=  wou.gpio.in.00
+# for real SCARA: net alarm             <=  not.0.out
+net alarm         <=  wou.gpio.in.00
     net alarm         =>  axis.0.amp-fault-in
     net alarm         =>  axis.1.amp-fault-in
     net alarm         =>  axis.2.amp-fault-in
