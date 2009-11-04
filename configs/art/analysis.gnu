@@ -32,3 +32,18 @@ plot \
     "wou_steps.log" using 1:15 title "cur_pos[3]", \
     "wou_steps.log" using 1:($16/10000) title "match_ac[3]", \
     "wou_steps.log" using 1:($17/10) title "curr_vel[3]"
+
+# to plot trajectory planning trace dumped by src/emc/motion/control.c
+plot \
+    "control.log" using 1:2 title "x", \
+    "control.log" using 1:3 title "y", \
+    "control.log" using 1:4 title "z", \
+    "control.log" using 1:5 title "a", \
+    "control.log" using 1:6 title "tp_pos[0]", \
+    "control.log" using 1:7 title "tp_pos[1]", \
+    "control.log" using 1:8 title "tp_pos[2]", \
+    "control.log" using 1:9 title "tp_pos[3]", \
+    "control.log" using 1:10 title "cubic_pos[0]", \
+    "control.log" using 1:11 title "cubic_pos[1]", \
+    "control.log" using 1:12 title "cubic_pos[2]", \
+    "control.log" using 1:13 title "cubic_pos[3]"

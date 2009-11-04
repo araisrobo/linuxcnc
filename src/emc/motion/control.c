@@ -13,6 +13,8 @@
 * Copyright (c) 2004 All rights reserved.
 ********************************************************************/
 
+#include <stdint.h>
+
 #include "posemath.h"
 #include "rtapi.h"
 #include "hal.h"
@@ -38,6 +40,15 @@ unsigned long last_period = 0;
 /* these variables have the servo cycle time and 1/cycle time */
 double servo_period;
 double servo_freq;
+
+// to disable DP(): #define TRACE 0
+#define TRACE 0
+#include "dptrace.h"
+#if (TRACE!=0)
+static FILE* dptrace = 0;
+static uint32_t _dt = 0;
+#endif
+
 
 
 /* debugging function - prints a cartesean pose (multplies the floating
@@ -259,6 +270,17 @@ void emcmotController(void *arg, long period)
     emcmot_hal_data->last_period = this_run;
 #ifdef HAVE_CPU_KHZ
     emcmot_hal_data->last_period_ns = this_run * 1e6 / cpu_khz;
+#endif
+
+#if (TRACE!=0)
+    if(!dptrace) {
+      dptrace = fopen("control.log", "w");
+      /* prepare header for gnuplot */
+      DPS ("#%10s%10s%10s%10s%10s%17s%17s%17s%17s\n", 
+           "dt", "x", "y", "z", "a", 
+           "tp_pos[0]", "tp_pos[1]", "tp_pos[2]", "tp_pos[3]");
+    }
+    _dt+=1;
 #endif
 
 #ifndef RTAPI_SIM
@@ -1278,10 +1300,18 @@ static void get_pos_cmds(long period)
 	    kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
 		&iflags, &fflags);
 	    /* copy to joint structures and spline them up */
+            DPS("%11u", _dt);
+            DPS("%10.5f%10.5f%10.5f%10.5f", 
+                emcmotStatus->carte_pos_cmd.tran.x,
+                emcmotStatus->carte_pos_cmd.tran.y,
+                emcmotStatus->carte_pos_cmd.tran.z,
+                emcmotStatus->carte_pos_cmd.a);
 	    for (joint_num = 0; joint_num < num_joints; joint_num++) {
 		/* point to joint struct */
 		joint = &joints[joint_num];
 		joint->coarse_pos = positions[joint_num];
+                // for gnuplot analysis: compare trajectory planning results
+                DPS ("%17.7f", positions[joint_num]); 
 		/* spline joints up-- note that we may be adding points
 		   that fail soft limits, but we'll abort at the end of
 		   this cycle so it doesn't really matter */
@@ -1299,7 +1329,9 @@ static void get_pos_cmds(long period)
 	    /* interpolate to get new one */
 	    joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
 	    joint->vel_cmd = (joint->pos_cmd - old_pos_cmd) * servo_freq;
+            DPS ("%17.7f", joint->pos_cmd); 
 	}
+        DPS("\n");
 	/* report motion status */
 	SET_MOTION_INPOS_FLAG(0);
 	if (tpIsDone(&emcmotDebug->queue)) {
