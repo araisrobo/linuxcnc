@@ -1,0 +1,35 @@
+loadrt comp count=4
+
+net J0homeswpos => comp.0.in0 
+net J1homeswpos => comp.1.in0 
+net J2homeswpos => comp.2.in0 
+net J3homeswpos => comp.3.in0 
+
+sets J0homeswpos 15
+sets J1homeswpos 10.5
+sets J2homeswpos 15
+sets J3homeswpos 10
+# sets J0homeswpos 1
+# sets J1homeswpos 1
+# sets J2homeswpos 1
+# sets J3homeswpos 1
+
+net J0pos => comp.0.in1
+net J1pos => comp.1.in1
+net J2pos => comp.2.in1
+net J3pos => comp.3.in1
+
+setp comp.0.hyst .02
+setp comp.1.hyst .02
+setp comp.2.hyst .02
+setp comp.3.hyst .02
+
+net home_j0 <= comp.0.out  => joint.0.home-sw-in
+net home_j1 <= comp.1.out  => joint.1.home-sw-in
+net home_j2 <= comp.2.out  => joint.2.home-sw-in
+net home_j3 <= comp.3.out  => joint.3.home-sw-in
+
+addf comp.0 servo-thread
+addf comp.1 servo-thread
+addf comp.2 servo-thread
+addf comp.3 servo-thread

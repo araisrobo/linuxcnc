@@ -1,0 +1,175 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pyvcp>
+  <hbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
+    <!-- the ALARM Led -->
+    <vbox>
+      <led>
+        <halpin>"alarm"</halpin>
+        <size>"90"</size>
+        <on_color>"red"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <label>
+      <text>"ALM"</text>
+      <font>("Helvetica",12)</font>
+      </label>
+    </vbox>
+    <!-- the SERVO_READY Led -->
+    <vbox>
+      <led>
+        <halpin>"servo_ready"</halpin>
+        <size>"90"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <label>
+      <text>"RDY"</text>
+      <font>("Helvetica",12)</font>
+      </label>
+    </vbox>
+  </hbox>
+  <hbox>
+  </hbox>
+    <labelframe text="Home Switches">
+    <font>("Helvetica",12)</font>
+    <hbox>
+      <led>
+        <halpin>"home_j0"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <led>
+        <halpin>"home_j1"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+      <led>
+        <halpin>"home_j2"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+     <led>
+        <halpin>"home_j3"</halpin>
+        <size>"45"</size>
+        <on_color>"green"</on_color>
+        <off_color>"gray"</off_color>
+      </led>
+    </hbox>
+    </labelframe>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
+    <label>
+      <text>"Joint 0 (deg):"</text>
+      <font>("Helvetica",16)</font>
+    </label>
+    <number>
+      <halpin>"joint0"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"+3.2f"</format>
+    </number>
+    <s32>
+      <halpin>"pulse_cmd_j0"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j0"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+  </vbox>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
+    <label>
+      <text>"Joint 1 (deg):"</text>
+      <font>("Helvetica",16)</font>
+    </label>
+    <number>
+      <halpin>"joint1"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"+3.2f"</format>
+    </number>
+    <s32>
+      <halpin>"pulse_cmd_j1"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j1"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+  </vbox>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
+    <label>
+      <text>"Joint 2 (mm):"</text>
+      <font>("Helvetica",16)</font>
+    </label>
+    <number>
+      <halpin>"joint2"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"+3.2f"</format>
+    </number>
+    <s32>
+      <halpin>"pulse_cmd_j2"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j2"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+  </vbox>
+  <vbox>
+    <relief>RIDGE</relief>
+    <bd>2</bd>
+    <label>
+      <text>"Joint 3 (deg):"</text>
+      <font>("Helvetica",16)</font>
+    </label>
+    <number>
+      <halpin>"joint3"</halpin>
+      <font>("Helvetica",20)</font>
+      <format>"+3.2f"</format>
+    </number>
+    <s32>
+      <halpin>"pulse_cmd_j3"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+    <s32>
+      <halpin>"enc_pos_j3"</halpin>
+      <font>("Helvetica",10)</font>
+      <format>"10d"</format>
+    </s32>
+  </vbox>
+
+<!--
+ <vbox>
+    <label><text>"Joint 0:"</text></label>
+    <meter><size>70</size><halpin>"joint0"</halpin><max_>180</max_><min_>-180</min_></meter>
+ </vbox>
+ <vbox>
+    <label><text>"Joint 1:"</text></label>
+    <meter><size>70</size><halpin>"joint1"</halpin><max_>180</max_><min_>-180</min_></meter>
+ </vbox>
+ <vbox>
+    <label><text>"Joint 2:"</text></label>
+    <meter><size>120</size><halpin>"joint2"</halpin><max_>180</max_><min_>-180</min_></meter>
+ </vbox>
+ <vbox>
+    <label><text>"Joint 3:"</text></label>
+    <meter><size>70</size><halpin>"joint3"</halpin><max_>180</max_><min_>-180</min_></meter>
+ </vbox>
+-->
+</pyvcp>
