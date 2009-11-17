@@ -1026,14 +1026,14 @@ button $_tabs_manual.jogf.jog.jogminus \
 
 bind $_tabs_manual.jogf.jog.jogminus <Button-4> {
  
-    jog_plus
-    jog_stop
+     if {[is_continuous]} { jog_plus }
+     if {![is_continuous]} {jog_plus 1}
 
 }
 
 bind $_tabs_manual.jogf.jog.jogminus <Button-5> {
-    jog_minus
-    jog_stop
+    if {[is_continuous]} { jog_minus }
+    if {![is_continuous]} {jog_minus 1}
 }
 bind $_tabs_manual.jogf.jog.jogminus <Button-1> {
     if {[is_continuous]} { jog_minus }
@@ -1050,13 +1050,13 @@ button $_tabs_manual.jogf.jog.jogplus \
         -text +
 bind $_tabs_manual.jogf.jog.jogplus <Button-4> {
  
-    jog_plus
-    jog_stop
+     if {[is_continuous]} { jog_plus }
+     if {![is_continuous]} {jog_plus 1}
 
 }
 bind $_tabs_manual.jogf.jog.jogplus <Button-5> {
-    jog_minus
-    jog_stop
+    if {[is_continuous]} { jog_minus }
+    if {![is_continuous]} {jog_minus 1}
 }
 bind $_tabs_manual.jogf.jog.jogplus <Button-1> {
     if {[is_continuous]} { jog_plus }
