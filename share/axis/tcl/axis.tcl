@@ -1064,8 +1064,6 @@ bind $_tabs_manual.jogf.jog.jogplus <Button-1> {
 bind $_tabs_manual.jogf.jog.jogplus <ButtonRelease-1> {
     if {[is_continuous]} { jog_stop }
 }
-scale $_tabs_manual.jogf.jog.scl -label "Age :" -orient h -digit 1 -from 10 -to 50 \
-	-variable age -tickinterval 10
 
 combobox $_tabs_manual.jogf.jog.jogincr \
 	-editable 0 \
