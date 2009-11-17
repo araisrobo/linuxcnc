@@ -1023,6 +1023,18 @@ button $_tabs_manual.jogf.jog.jogminus \
 	-pady 0 \
 	-width 2 \
         -text -
+
+bind $_tabs_manual.jogf.jog.jogminus <Button-4> {
+ 
+    jog_plus
+    jog_stop
+
+}
+
+bind $_tabs_manual.jogf.jog.jogminus <Button-5> {
+    jog_minus
+    jog_stop
+}
 bind $_tabs_manual.jogf.jog.jogminus <Button-1> {
     if {[is_continuous]} { jog_minus }
 }
@@ -1036,12 +1048,24 @@ button $_tabs_manual.jogf.jog.jogplus \
 	-pady 0 \
 	-width 2 \
         -text +
+bind $_tabs_manual.jogf.jog.jogplus <Button-4> {
+ 
+    jog_plus
+    jog_stop
+
+}
+bind $_tabs_manual.jogf.jog.jogplus <Button-5> {
+    jog_minus
+    jog_stop
+}
 bind $_tabs_manual.jogf.jog.jogplus <Button-1> {
     if {[is_continuous]} { jog_plus }
 }
 bind $_tabs_manual.jogf.jog.jogplus <ButtonRelease-1> {
     if {[is_continuous]} { jog_stop }
 }
+scale $_tabs_manual.jogf.jog.scl -label "Age :" -orient h -digit 1 -from 10 -to 50 \
+	-variable age -tickinterval 10
 
 combobox $_tabs_manual.jogf.jog.jogincr \
 	-editable 0 \
