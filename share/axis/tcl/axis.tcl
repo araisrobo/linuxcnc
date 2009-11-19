@@ -1024,19 +1024,19 @@ button $_tabs_manual.jogf.jog.jogminus \
 	-width 2 \
         -text -
 
-bind $_tabs_manual.jogf.jog.jogminus <Button-4> {
- 
-     if {[is_continuous]} { jog_plus }
-     if {![is_continuous]} {jog_plus 1}
 
-}
-
-bind $_tabs_manual.jogf.jog.jogminus <Button-5> {
-    if {[is_continuous]} { jog_minus }
-    if {![is_continuous]} {jog_minus 1}
-}
 bind $_tabs_manual.jogf.jog.jogminus <Button-1> {
     if {[is_continuous]} { jog_minus }
+    jog_minus
+}
+bind $_tabs_manual.jogf.jog.jogminus <Button-5> {
+    if {[is_continuous]} { wheel_down }
+    if {![is_continuous]} {jog_plus 1}
+}
+
+bind $_tabs_manual.jogf.jog.jogminus <Button-4> {
+    if {[is_continuous]} {wheel_up }
+    if {![is_continuous]} {jog_minus 1}
 }
 bind $_tabs_manual.jogf.jog.jogminus <ButtonRelease-1> {
     if {[is_continuous]} { jog_stop }
@@ -1048,18 +1048,18 @@ button $_tabs_manual.jogf.jog.jogplus \
 	-pady 0 \
 	-width 2 \
         -text +
-bind $_tabs_manual.jogf.jog.jogplus <Button-4> {
- 
-     if {[is_continuous]} { jog_plus }
-     if {![is_continuous]} {jog_plus 1}
 
-}
-bind $_tabs_manual.jogf.jog.jogplus <Button-5> {
-    if {[is_continuous]} { jog_minus }
-    if {![is_continuous]} {jog_minus 1}
-}
 bind $_tabs_manual.jogf.jog.jogplus <Button-1> {
     if {[is_continuous]} { jog_plus }
+}
+
+bind $_tabs_manual.jogf.jog.jogplus <Button-4> {
+    if {[is_continuous]} {wheel_up }
+    if {![is_continuous]} {jog_minus 1}
+}
+bind $_tabs_manual.jogf.jog.jogplus <Button-5> {
+   if {[is_continuous]} { wheel_down }
+    if {![is_continuous]} {jog_plus 1}
 }
 bind $_tabs_manual.jogf.jog.jogplus <ButtonRelease-1> {
     if {[is_continuous]} { jog_stop }
