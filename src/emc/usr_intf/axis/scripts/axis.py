@@ -2423,7 +2423,12 @@ def reload_file(refilter=True):
         open_file_guts(tempfile, True, False)
     if line:
         o.set_highlight_line(line)
- 
+
+recentUp = 0
+recentDown = 0
+is_wheel_down = 0
+is_wheel_up =0
+
 class TclCommands(nf.TclCommands):
     def toggle_preview(event=None):
         current = widgets.right.raise_page()
@@ -3025,6 +3030,25 @@ class TclCommands(nf.TclCommands):
     def clear_live_plot(*ignored):
         live_plotter.clear()
 
+    # wheel up and down for mouse scroll wheel
+    def wheel_up():
+        # we should invoke deferred thread here
+        global recentUp,is_wheel_up
+        recentUp = 1
+        if is_wheel_up==0:
+            is_wheel_up=1
+            thread.start_new_thread( wheel_up_deferred, ( ) )
+
+    def wheel_down():
+        # we should invoke deferred thread here
+        global recentDown,is_wheel_down
+        recentDown = 1
+        if is_wheel_down==0:
+            is_wheel_down=1
+            thread.start_new_thread( wheel_down_deferred, ( ) )
+
+
+
     # The next three don't have 'manual_ok' because that's done in jog_on /
     # jog_off
     def jog_plus(incr=False):
@@ -3463,6 +3487,46 @@ def jog(*args):
     if not manual_ok(): return
     ensure_mode(emc.MODE_MANUAL)
     c.jog(*args)
+
+# mouse wheel deferred functions
+
+
+def wheel_up_deferred():
+    global recentUp , is_wheel_up
+    jog_plus()
+    while recentUp==1:
+        recentUp = 0
+        time.sleep(0.1)
+    jog_stop()
+    is_wheel_up=0
+    return
+    
+
+def wheel_down_deferred():
+    global recentDown, is_wheel_down
+    jog_minus()
+    while recentDown==1:
+        recentDown = 0
+        time.sleep(0.1)
+    jog_stop()
+    is_wheel_down=0
+    return
+
+# function extract from TCL command
+def jog_plus(incr=False):
+    a = vars.current_axis.get()
+    if isinstance(a, (str, unicode)):
+        a = "xyzabcuvw".index(a)
+    speed = get_jog_speed(a)
+    jog_on(a, speed)
+def jog_minus(incr=False):
+    a = vars.current_axis.get()
+    if isinstance(a, (str, unicode)):
+        a = "xyzabcuvw".index(a)
+    speed = get_jog_speed(a)
+    jog_on(a, -speed)
+def jog_stop(event=None):
+    jog_off(vars.current_axis.get())
 
 # XXX correct for machines with more than six axes
 jog_after = [None] * 9
