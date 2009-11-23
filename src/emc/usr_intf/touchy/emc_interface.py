@@ -13,6 +13,8 @@
 
 import math
 
+from __main__ import set_active, set_text
+
 class emc_control:
         def __init__(self, emc, listing, error):
                 self.emc = emc
@@ -77,35 +79,15 @@ class emc_control:
                 self.emccommand.mode(self.emc.MODE_MANUAL)
                 self.emccommand.unhome(-1)
 
-        def home_x(self, b):
+        def home_selected(self, axis):
                 if self.masked: return
                 self.emccommand.mode(self.emc.MODE_MANUAL)
-                self.emccommand.home(0)
+                self.emccommand.home(axis)
 
-        def home_y(self, b):
+        def unhome_selected(self, axis):
                 if self.masked: return
                 self.emccommand.mode(self.emc.MODE_MANUAL)
-                self.emccommand.home(1)
-
-        def home_z(self, b):
-                if self.masked: return
-                self.emccommand.mode(self.emc.MODE_MANUAL)
-                self.emccommand.home(2)
-
-        def unhome_x(self, b):
-                if self.masked: return
-                self.emccommand.mode(self.emc.MODE_MANUAL)
-                self.emccommand.unhome(0)
-
-        def unhome_y(self, b):
-                if self.masked: return
-                self.emccommand.mode(self.emc.MODE_MANUAL)
-                self.emccommand.unhome(1)
-
-        def unhome_z(self, b):
-                if self.masked: return
-                self.emccommand.mode(self.emc.MODE_MANUAL)
-                self.emccommand.unhome(2)
+                self.emccommand.unhome(axis)
 
         def jogging(self, b):
                 if self.masked: return
@@ -191,7 +173,7 @@ class emc_control:
 
         def abort(self):
                 self.emccommand.abort()
-                self.error.set_text("")
+                set_text(self.error, "")
 
         def single_block(self, s):
                 self.sb = s
@@ -220,16 +202,19 @@ class emc_control:
                                 self.listing.clear_startline()
 
 class emc_status:
-        def __init__(self, gtk, emc, listing, dros, error, homes,
-                     unhomes, estops, machines, override_limit, status,
+        def __init__(self, gtk, emc, listing, relative, absolute, distance,
+                     dro_table,
+                     error,
+                     estops, machines, override_limit, status,
                      floods, mists, spindles, prefs, opstop, blockdel):
                 self.gtk = gtk
                 self.emc = emc
                 self.listing = listing
-                self.dros = dros
+                self.relative = relative
+                self.absolute = absolute
+                self.distance = distance
+                self.dro_table = dro_table
                 self.error = error
-                self.homes = homes
-                self.unhomes = unhomes
                 self.estops = estops
                 self.machines = machines
                 self.override_limit = override_limit
@@ -240,6 +225,7 @@ class emc_status:
                 self.prefs = prefs
                 self.opstop = opstop
                 self.blockdel = blockdel
+                self.resized_dro = 0
                 
                 self.mm = 0
                 self.actual = 0
@@ -274,9 +260,24 @@ class emc_status:
 
         def periodic(self):
                 self.emcstat.poll()
-
+                am = self.emcstat.axis_mask
+                lathe = not (self.emcstat.axis_mask & 2)
                 dtg = self.emcstat.dtg
-                
+
+                if not self.resized_dro:
+                        height = 9
+                        for i in range(9):
+                                if i == 1 and lathe:
+                                        continue
+                                if not (am & (1<<i)):
+                                        height -= 1
+                                        self.dro_table.remove(self.relative[height])
+                                        self.dro_table.remove(self.absolute[height])
+                                        self.dro_table.remove(self.distance[height])
+                                        
+                        self.dro_table.resize(height, 3)
+                        self.resized_dro = 1
+                                        
                 if self.actual:
                         p = self.emcstat.actual_position
                 else:
@@ -285,8 +286,14 @@ class emc_status:
                 x = p[0] - self.emcstat.origin[0] - self.emcstat.tool_offset[0]
                 y = p[1] - self.emcstat.origin[1]
                 z = p[2] - self.emcstat.origin[2] - self.emcstat.tool_offset[2]
+                a = p[3] - self.emcstat.origin[3]
+                b = p[4] - self.emcstat.origin[4]
+                c = p[5] - self.emcstat.origin[5]
+                u = p[6] - self.emcstat.origin[6]
+                v = p[7] - self.emcstat.origin[7]
+                w = p[8] - self.emcstat.origin[8] - self.emcstat.tool_offset[8]
                 t = math.radians(-self.emcstat.rotation_xy)
-                relp = [x * math.cos(t) - y * math.sin(t), x * math.sin(t) + y * math.cos(t), z]
+                relp = [x * math.cos(t) - y * math.sin(t), x * math.sin(t) + y * math.cos(t), z, a, b, c, u, v, w]
 
                 if self.mm:
                         p = [i*25.4 for i in p]
@@ -296,69 +303,84 @@ class emc_status:
                 else:
                         fmt = "%c:% 9.4f"
 
+                d = 0
+                if (am & 1):
+                        h = " "
+                        if self.emcstat.homed[0]: h = "*"
+                        
+                        if lathe:
+                                set_text(self.relative[d], fmt % ('R', relp[0]))
+                                set_text(self.absolute[d], h + fmt % ('R', p[0]))
+                                set_text(self.distance[d], fmt % ('R', dtg[0]))
+                                d += 1
+                                set_text(self.relative[d], fmt % ('D', relp[0] * 2.0))
+                                set_text(self.absolute[d], fmt % ('D', p[0] * 2.0))
+                                set_text(self.distance[d], fmt % ('D', dtg[0] * 2.0))
+                        else:
+                                set_text(self.relative[d], fmt % ('X', relp[0]))
+                                set_text(self.absolute[d], h + fmt % ('X', p[0]))
+                                set_text(self.distance[d], fmt % ('X', dtg[0]))
 
-                self.dros['xr'].set_text(fmt % ('X', relp[0]))
-                self.dros['yr'].set_text(fmt % ('Y', relp[1]))
-                self.dros['zr'].set_text(fmt % ('Z', relp[2]))
-                self.dros['xa'].set_text(fmt % ('X', p[0]))
-                self.dros['ya'].set_text(fmt % ('Y', p[1]))
-                self.dros['za'].set_text(fmt % ('Z', p[2]))
-                self.dros['xd'].set_text(fmt % ('X', dtg[0]))
-                self.dros['yd'].set_text(fmt % ('Y', dtg[1]))
-                self.dros['zd'].set_text(fmt % ('Z', dtg[2]))
-
-                for j,name in [(0,'x'), (1,'y'), (2,'z')]:
-                        self.homes[name].set_active(self.emcstat.homed[j])
-                        self.unhomes[name].set_active(not self.emcstat.homed[j])
+                        d += 1
+                        
+                for i in range(1, 9):
+                        h = " "
+                        if self.emcstat.homed[i]: h = "*"
+                        if am & (1<<i):
+                                letter = 'XYZABCUVW'[i]
+                                set_text(self.relative[d], fmt % (letter, relp[i]))
+                                set_text(self.absolute[d], h + fmt % (letter, p[i]))
+                                set_text(self.distance[d], fmt % (letter, dtg[i]))
+                                d += 1
 
                 estopped = self.emcstat.task_state == self.emc.STATE_ESTOP
-                self.estops['estop'].set_active(estopped)
-                self.estops['estop_reset'].set_active(not estopped)
+                set_active(self.estops['estop'], estopped)
+                set_active(self.estops['estop_reset'], not estopped)
 
                 on = self.emcstat.task_state == self.emc.STATE_ON
-                self.machines['on'].set_active(on)
-                self.machines['off'].set_active(not on)              
+                set_active(self.machines['on'], on)
+                set_active(self.machines['off'], not on)
 
                 ovl = self.emcstat.axis[0]['override_limits']
-                self.override_limit.set_active(ovl)
+                set_active(self.override_limit, ovl)
 
-                self.status['file'].set_text(self.emcstat.file)
-                self.status['line'].set_text("%d" % self.emcstat.current_line)
-                self.status['id'].set_text("%d" % self.emcstat.id)
-                self.status['dtg'].set_text("%f" % self.emcstat.distance_to_go)
-                self.status['velocity'].set_text("%f" % (self.emcstat.current_vel * 60.0))
-                self.status['delay'].set_text("%f" % self.emcstat.delay_left)
+                set_text(self.status['file'], self.emcstat.file)
+                set_text(self.status['line'], "%d" % self.emcstat.current_line)
+                set_text(self.status['id'], "%d" % self.emcstat.id)
+                set_text(self.status['dtg'], "%f" % self.emcstat.distance_to_go)
+                set_text(self.status['velocity'], "%f" % (self.emcstat.current_vel * 60.0))
+                set_text(self.status['delay'], "%f" % self.emcstat.delay_left)
 
                 flood = self.emcstat.flood
-                self.floods['on'].set_active(flood)
-                self.floods['off'].set_active(not flood)
+                set_active(self.floods['on'], flood)
+                set_active(self.floods['off'], not flood)
 
                 mist = self.emcstat.mist
-                self.mists['on'].set_active(mist)
-                self.mists['off'].set_active(not mist)
+                set_active(self.mists['on'], mist)
+                set_active(self.mists['off'], not mist)
 
                 spin = self.emcstat.spindle_direction
-                self.spindles['forward'].set_active(spin == 1)
-                self.spindles['off'].set_active(spin == 0)
-                self.spindles['reverse'].set_active(spin == -1)
+                set_active(self.spindles['forward'], spin == 1)
+                set_active(self.spindles['off'], spin == 0)
+                set_active(self.spindles['reverse'], spin == -1)
 
                 ol = ""
                 for i in range(len(self.emcstat.limit)):
                         if self.emcstat.limit[i]:
                                 ol += "%c " % "XYZABCUVW"[i]
-                self.status['onlimit'].set_text(ol)
+                set_text(self.status['onlimit'], ol)
 
-                sd = ("CCW", "Stopped", "CW")
-                self.status['spindledir'].set_text(sd[self.emcstat.spindle_direction+1])
+                sd = (_("CCW"), _("Stopped"), _("CW"))
+                set_text(self.status['spindledir'], sd[self.emcstat.spindle_direction+1])
 
-                self.status['spindlespeed'].set_text("%d" % self.emcstat.spindle_speed)
-                self.status['loadedtool'].set_text("%d" % self.emcstat.tool_in_spindle)
+                set_text(self.status['spindlespeed'], "%d" % self.emcstat.spindle_speed)
+                set_text(self.status['loadedtool'], "%d" % self.emcstat.tool_in_spindle)
 		if self.emcstat.pocket_prepped == -1:
-			self.status['preppedtool'].set_text("None")
+			set_text(self.status['preppedtool'], _("None"))
 		else:
-			self.status['preppedtool'].set_text("%d" % self.emcstat.tool_table[self.emcstat.pocket_prepped].id)
-                self.status['xyrotation'].set_text("%d" % self.emcstat.rotation_xy)
-                self.status['tlo'].set_text("%f" % self.emcstat.tool_offset[2])
+			set_text(self.status['preppedtool'], "%d" % self.emcstat.tool_table[self.emcstat.pocket_prepped].id)
+                set_text(self.status['xyrotation'], "%d" % self.emcstat.rotation_xy)
+                set_text(self.status['tlo'], "%f" % self.emcstat.tool_offset[2])
 
                 active_codes = []
                 for i in self.emcstat.gcodes[1:]:
@@ -377,18 +399,18 @@ class emc_status:
                 active_codes.append(feed_str)
                 active_codes.append("S%.0f" % self.emcstat.settings[2])
 
-                self.status['activecodes'].set_text(" ".join(active_codes))
+                set_text(self.status['activecodes'], " ".join(active_codes))
 
-                self.prefs['inch'].set_active(self.mm == 0)
-                self.prefs['mm'].set_active(self.mm == 1)
-                self.prefs['actual'].set_active(self.actual == 1)
-                self.prefs['commanded'].set_active(self.actual == 0)
+                set_active(self.prefs['inch'], self.mm == 0)
+                set_active(self.prefs['mm'], self.mm == 1)
+                set_active(self.prefs['actual'], self.actual == 1)
+                set_active(self.prefs['commanded'], self.actual == 0)
 
-                self.opstop['on'].set_active(self.emcstat.optional_stop)
-                self.opstop['off'].set_active(not self.emcstat.optional_stop)
+                set_active(self.opstop['on'], self.emcstat.optional_stop)
+                set_active(self.opstop['off'], not self.emcstat.optional_stop)
                 
-                self.blockdel['on'].set_active(self.emcstat.block_delete)
-                self.blockdel['off'].set_active(not self.emcstat.block_delete)
+                set_active(self.blockdel['on'], self.emcstat.block_delete)
+                set_active(self.blockdel['off'], not self.emcstat.block_delete)
                 
 
                 if self.emcstat.id == 0 and (self.emcstat.interp_state == self.emc.INTERP_PAUSED or self.emcstat.exec_state == self.emc.EXEC_WAITING_FOR_DELAY):
@@ -401,6 +423,6 @@ class emc_status:
                 e = self.emcerror.poll()
                 if e:
                         kind, text = e
-                        self.error.set_text(text)
+                        set_text(self.error, text)
 
                 

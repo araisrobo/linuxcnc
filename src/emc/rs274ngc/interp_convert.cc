@@ -1183,6 +1183,7 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   return INTERP_OK;
 }
 
+#define VAL_LEN 30
 
 int Interp::convert_param_comment(char *comment, char *expanded, int len)
 {
@@ -1191,7 +1192,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
     int paramNumber;
     int stat;
     double value;
-    char valbuf[30]; // max double length + room
+    char valbuf[VAL_LEN]; // max double length + room
     char *v;
     int found;
 
@@ -1285,8 +1286,8 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
             // we have the value
             if(found)
             {
-                int n = snprintf(valbuf, sizeof(valbuf), "%lf", value);
-                bool fail = (n >= sizeof(valbuf) || n < 0);
+                int n = snprintf(valbuf, VAL_LEN, "%lf", value);
+                bool fail = (n >= VAL_LEN || n < 0);
                 if(fail)
                     strcpy(valbuf, "######");
 
@@ -3119,6 +3120,10 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].zoffset,
                              settings->tool_table[pocket].diameter);
 
+    if(settings->current_pocket == pocket) {
+        settings->tool_table[0] = settings->tool_table[pocket];
+    }
+
     return INTERP_OK;
 }
 
@@ -4378,7 +4383,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
                     &discard, &discard, &discard,
                     settings);
       COMMENT("AXIS,hide");
-      STRAIGHT_TRAVERSE(0, settings->current_x, settings->current_y, up_z,
+      STRAIGHT_TRAVERSE(-1, settings->current_x, settings->current_y, up_z,
                         settings->AA_current, settings->BB_current, settings->CC_current,
                         settings->u_current, settings->v_current, settings->w_current);
       COMMENT("AXIS,show");
@@ -4409,7 +4414,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
                     &AA_end, &BB_end, &CC_end, 
                     &u_end, &v_end, &w_end, settings);
       COMMENT("AXIS,hide");
-      STRAIGHT_TRAVERSE(0, end_x, end_y, end_z,
+      STRAIGHT_TRAVERSE(-1, end_x, end_y, end_z,
                         AA_end, BB_end, CC_end,
                         u_end, v_end, w_end);
       COMMENT("AXIS,show");

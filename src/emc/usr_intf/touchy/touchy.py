@@ -32,6 +32,27 @@ try:
 except:
 	sys.exit(1)
 
+import gettext
+LOCALEDIR = os.path.join(BASE, "share", "locale")
+gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
+gtk.glade.bindtextdomain("emc2", LOCALEDIR)
+gtk.glade.textdomain("emc2")
+
+def set_active(w, s):
+	if not w: return
+	os = w.get_active()
+	if os != s: w.set_active(s)
+
+def set_label(w, l):
+	if not w: return
+	ol = w.get_label()
+	if ol != l: w.set_label(l)
+
+def set_text(w, t):
+	if not w: return
+	ot = w.get_label()
+	if ot != t: w.set_label(t)
+
 import emc
 import emc_interface
 import mdi
@@ -41,7 +62,7 @@ import listing
 import preferences
 
 if gtk.gtk_version >= (2, 10, 0):
-    gtk.rc_parse_string("""
+    gtk.rc_parse_string('''
 	gtk_color_scheme = "bg_color:#dcdad5\nfg_color:#000"
 	style "touchy-default-style" {
 	    bg[PRELIGHT] = @bg_color
@@ -52,11 +73,12 @@ if gtk.gtk_version >= (2, 10, 0):
 	    fg[NORMAL] = @fg_color
 	    fg[ACTIVE] = @fg_color
 	    fg[INSENSITIVE] = darker (@bg_color)
+	    GtkWidget::focus-line-width = 0
 	}
 	class "GtkWidget" style "touchy-default-style"
-    """)
+    ''') #"
 else:
-    gtk.rc_parse_string("""
+    gtk.rc_parse_string('''
 	style "touchy-default-style" {
 	    bg[PRELIGHT] = "#dcdad5"
 	    bg[NORMAL] = "#dcdad5"
@@ -68,13 +90,14 @@ else:
 	    fg[INSENSITIVE] = "#9a9895"
 	}
 	class "GtkWidget" style "touchy-default-style"
-    """)
+    ''')
 
-pix_data = """/* XPM */
+pix_data = '''/* XPM */
 static char * invisible_xpm[] = {
 "1 1 1 1",
 "	c None",
-" "};"""
+" "};'''
+
 
 color = gtk.gdk.Color()
 pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
@@ -94,6 +117,7 @@ class touchy:
                 self.wheelinc = 0
                 self.wheel = "fo"
                 self.radiobutton_mask = 0
+                self.resized_wheelbuttons = 0
 
                 self.tab = 0
 
@@ -154,12 +178,13 @@ class touchy:
                         filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
                 self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
 
-                status_labels = ['xr', 'yr', 'zr', 'xa', 'ya', 'za', 'xd', 'yd', 'zd']
-                status_labels = dict((i, self.wTree.get_widget(i)) for i in status_labels)
-                homes = ['x', 'y', 'z']
-                homes = dict((i, self.wTree.get_widget("home_" + i)) for i in homes)
-                unhomes = ['x', 'y', 'z']
-                unhomes = dict((i, self.wTree.get_widget("unhome_" + i)) for i in unhomes)
+                relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
+                absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
+                distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
+                relative = [self.wTree.get_widget(i) for i in relative]
+                absolute = [self.wTree.get_widget(i) for i in absolute]
+                distance = [self.wTree.get_widget(i) for i in distance]
+                
                 estops = ['estop_reset', 'estop']
                 estops = dict((i, self.wTree.get_widget(i)) for i in estops)
                 machines = ['on', 'off']
@@ -181,9 +206,9 @@ class touchy:
                 blockdel = ['on', 'off']
                 blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
 
-                self.status = emc_interface.emc_status(gtk, emc, self.listing, status_labels,
+                self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
+                                                       self.wTree.get_widget("dro_table"),
                                                        self.wTree.get_widget("error"),
-                                                       homes, unhomes,
                                                        estops, machines,
                                                        self.wTree.get_widget("override_limits"),
                                                        stats,
@@ -261,12 +286,8 @@ class touchy:
                         "on_flood_off_clicked" : self.emc.flood_off,
                         "on_home_all_clicked" : self.emc.home_all,
                         "on_unhome_all_clicked" : self.emc.unhome_all,
-                        "on_home_x_clicked" : self.emc.home_x,
-                        "on_home_y_clicked" : self.emc.home_y,
-                        "on_home_z_clicked" : self.emc.home_z,
-                        "on_unhome_x_clicked" : self.emc.unhome_x,
-                        "on_unhome_y_clicked" : self.emc.unhome_y,
-                        "on_unhome_z_clicked" : self.emc.unhome_z,
+                        "on_home_selected_clicked" : self.home_selected,
+                        "on_unhome_selected_clicked" : self.unhome_selected,
                         "on_fo_clicked" : self.fo,
                         "on_so_clicked" : self.so,
                         "on_mv_clicked" : self.mv,
@@ -274,6 +295,12 @@ class touchy:
                         "on_wheelx_clicked" : self.wheelx,
                         "on_wheely_clicked" : self.wheely,
                         "on_wheelz_clicked" : self.wheelz,
+                        "on_wheela_clicked" : self.wheela,
+                        "on_wheelb_clicked" : self.wheelb,
+                        "on_wheelc_clicked" : self.wheelc,
+                        "on_wheelu_clicked" : self.wheelu,
+                        "on_wheelv_clicked" : self.wheelv,
+                        "on_wheelw_clicked" : self.wheelw,
                         "on_wheelinc1_clicked" : self.wheelinc1,
                         "on_wheelinc2_clicked" : self.wheelinc2,
                         "on_wheelinc3_clicked" : self.wheelinc3,
@@ -356,9 +383,39 @@ class touchy:
                 if self.radiobutton_mask: return
                 self.wheelxyz = 2
 
+        def wheela(self, b):
+                if self.radiobutton_mask: return
+                self.wheelxyz = 3
+
+        def wheelb(self, b):
+                if self.radiobutton_mask: return
+                self.wheelxyz = 4
+
+        def wheelc(self, b):
+                if self.radiobutton_mask: return
+                self.wheelxyz = 5
+
+        def wheelu(self, b):
+                if self.radiobutton_mask: return
+                self.wheelxyz = 6
+
+        def wheelv(self, b):
+                if self.radiobutton_mask: return
+                self.wheelxyz = 7
+
+        def wheelw(self, b):
+                if self.radiobutton_mask: return
+                self.wheelxyz = 8
+
         def wheelinc1(self, b):
                 if self.radiobutton_mask: return
                 self.wheelinc = 0
+
+        def home_selected(self, b):
+                self.emc.home_selected(self.wheelxyz)
+
+        def unhome_selected(self, b):
+                self.emc.unhome_selected(self.wheelxyz)
 
         def wheelinc2(self, b):
                 if self.radiobutton_mask: return
@@ -390,8 +447,7 @@ class touchy:
                 self.jogsettings_activate(1)
 
         def jogsettings_activate(self, active):
-                for i in ["wheelx", "wheely", "wheelz",
-                          "wheelinc1", "wheelinc2", "wheelinc3"]:
+                for i in ["wheelinc1", "wheelinc2", "wheelinc3"]:
                         w = self.wTree.get_widget(i)
                         w.set_sensitive(active)
                 self.hal.jogactive(active)
@@ -427,17 +483,21 @@ class touchy:
                           "flood_on", "flood_off", "mist_on", "mist_off",
                           "g", "m", "t", "set_tool", "set_origin",
                           "estop", "estop_reset", "machine_off", "machine_on",
-                          "home_all", "unhome_all", "home_x", "unhome_x",
-                          "home_y", "unhome_y", "home_z", "unhome_z",
+                          "home_all", "unhome_all", "home_selected", "unhome_selected",
                           "fo", "so", "mv", "jogging", "wheelinc1", "wheelinc2", "wheelinc3",
-                          "wheelx", "wheely", "wheelz", "override_limits",
+                          "wheelx", "wheely", "wheelz",
+                          "wheela", "wheelb", "wheelc",
+                          "wheelu", "wheelv", "wheelw",
+                          "override_limits",
                           "spindle_forward", "spindle_off", "spindle_reverse",
                           "spindle_faster", "spindle_slower",
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
                           "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show"]:
-                        w = self.wTree.get_widget(i).child
-                        w.modify_font(self.control_font)
+                        w = self.wTree.get_widget(i)
+                        if w:
+                                w = w.child
+                                w.modify_font(self.control_font)
 
                 # labels
                 for i in range(self.num_mdi_labels):
@@ -455,14 +515,18 @@ class touchy:
                         w.modify_font(self.control_font)
 
                 # dro
-                for i in ["xa", "ya", "za", "xr", "yr", "zr", "xd", "yd", "zd"]:
+                for i in ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr',
+                          'xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa',
+                          'xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']:
                         w = self.wTree.get_widget(i)
-                        w.modify_font(self.dro_font)
+                        if w: w.modify_font(self.dro_font)
 
                 # status bar
                 for i in ["error"]:
                         w = self.wTree.get_widget(i)
                         w.modify_font(self.error_font)
+
+		self.wTree.get_widget("MainWindow").window.maximize()
 
         def mdi_set_tool(self, b):
                 self.mdi_control.set_tool(self.status.get_current_tool())
@@ -487,18 +551,43 @@ class touchy:
 
         def periodic_radiobuttons(self):
                 self.radiobutton_mask = 1
-                self.wTree.get_widget("wheelx").set_active(self.wheelxyz == 0)
-                self.wTree.get_widget("wheely").set_active(self.wheelxyz == 1)
-                self.wTree.get_widget("wheelz").set_active(self.wheelxyz == 2)
-                self.wTree.get_widget("wheelinc1").set_active(self.wheelinc == 0)
-                self.wTree.get_widget("wheelinc2").set_active(self.wheelinc == 1)
-                self.wTree.get_widget("wheelinc3").set_active(self.wheelinc == 2)
-                self.wTree.get_widget("fo").set_active(self.wheel == "fo")
-                self.wTree.get_widget("so").set_active(self.wheel == "so")
-                self.wTree.get_widget("mv").set_active(self.wheel == "mv")
-                self.wTree.get_widget("jogging").set_active(self.wheel == "jogging")
-                self.wTree.get_widget("pointer_show").set_active(not self.invisible_cursor)
-                self.wTree.get_widget("pointer_hide").set_active(self.invisible_cursor)
+                s = emc.stat()
+                s.poll()
+                am = s.axis_mask
+                if not self.resized_wheelbuttons:
+                        at = self.wTree.get_widget("axis_table")
+                        for i in range(9):
+                                b = ["wheelx", "wheely", "wheelz",
+                                     "wheela", "wheelb", "wheelc",
+                                     "wheelu", "wheelv", "wheelw"][i]
+                                w = self.wTree.get_widget(b)
+                                if not (am & (1<<i)):
+                                        at.remove(w)
+                        if (am & 0700) == 0:
+                                at.resize(3, 2)
+                                if (am & 070) == 0:
+                                        at.resize(3, 1)
+                                        self.wTree.get_widget("wheel_hbox").set_homogeneous(1)
+                        self.resized_wheelbuttons = 1
+                
+                set_active(self.wTree.get_widget("wheelx"), self.wheelxyz == 0)
+                set_active(self.wTree.get_widget("wheely"), self.wheelxyz == 1)
+                set_active(self.wTree.get_widget("wheelz"), self.wheelxyz == 2)
+                set_active(self.wTree.get_widget("wheela"), self.wheelxyz == 3)
+                set_active(self.wTree.get_widget("wheelb"), self.wheelxyz == 4)
+                set_active(self.wTree.get_widget("wheelc"), self.wheelxyz == 5)
+                set_active(self.wTree.get_widget("wheelu"), self.wheelxyz == 6)
+                set_active(self.wTree.get_widget("wheelv"), self.wheelxyz == 7)
+                set_active(self.wTree.get_widget("wheelw"), self.wheelxyz == 8)
+                set_active(self.wTree.get_widget("wheelinc1"), self.wheelinc == 0)
+                set_active(self.wTree.get_widget("wheelinc2"), self.wheelinc == 1)
+                set_active(self.wTree.get_widget("wheelinc3"), self.wheelinc == 2)
+                set_active(self.wTree.get_widget("fo"), self.wheel == "fo")
+                set_active(self.wTree.get_widget("so"), self.wheel == "so")
+                set_active(self.wTree.get_widget("mv"), self.wheel == "mv")
+                set_active(self.wTree.get_widget("jogging"), self.wheel == "jogging")
+                set_active(self.wTree.get_widget("pointer_show"), not self.invisible_cursor)
+                set_active(self.wTree.get_widget("pointer_hide"), self.invisible_cursor)
                 self.radiobutton_mask = 0
 
                 if self.wheel == "jogging":
@@ -527,9 +616,9 @@ class touchy:
                                 self.emc.continuous_jog_velocity(self.mv_val)
                         
 
-                self.wTree.get_widget("fo").child.set_label("FO: %d%%" % self.fo_val)
-                self.wTree.get_widget("so").child.set_label("SO: %d%%" % self.so_val)
-                self.wTree.get_widget("mv").child.set_label("MV: %d" % self.mv_val)
+                set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
+                set_label(self.wTree.get_widget("so").child, "SO: %d%%" % self.so_val)
+                set_label(self.wTree.get_widget("mv").child, "MV: %d" % self.mv_val)
 
                         
                 return True

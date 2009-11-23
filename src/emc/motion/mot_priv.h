@@ -39,10 +39,8 @@ typedef struct {
     hal_float_t *backlash_vel;	/* RPI: backlash speed variable */
     hal_float_t *motor_pos_cmd;	/* WPI: commanded position, with comp */
     hal_float_t *motor_pos_fb;	/* RPI: position feedback, with comp */
-    hal_float_t *motor_pos_probed; /* RPI: position latch, with comp */
     hal_float_t *joint_pos_cmd;	/* WPI: commanded position w/o comp, mot ofs */
     hal_float_t *joint_pos_fb;	/* RPI: position feedback, w/o comp */
-    hal_float_t *joint_pos_probed; /* RPI: position latch, w/o comp */
     hal_float_t *f_error;	/* RPI: following error */
     hal_float_t *f_error_lim;	/* RPI: following error limit */
 
@@ -97,6 +95,7 @@ typedef struct {
 
     hal_s32_t *program_line;    /* RPA: program line causing current motion */
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
+    hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
 
     hal_bit_t debug_bit_0;	/* RPA: generic param, for debugging */
@@ -153,10 +152,6 @@ typedef struct {
     hal_float_t *tooloffset_x;
     hal_float_t *tooloffset_z;
     hal_float_t *tooloffset_w;
-
-    hal_bit_t *probing;		/* WPI: probe in progress? */
-    hal_bit_t *probe_toward;	/* WPI: probe direction output */
-    hal_bit_t *probe_away;	/* WPI: probe direction output */
 
     joint_hal_t joint[EMCMOT_MAX_JOINTS];	/* data for each joint */
 
