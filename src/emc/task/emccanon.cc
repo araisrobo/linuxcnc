@@ -43,6 +43,13 @@
 #include "emcglb.h"		// TRAJ_MAX_VELOCITY
 #include "emcpos.h"
 
+#define TRACE 0
+#include "dptrace.h"
+#if (TRACE != 0)
+// FILE *dptrace = fopen("dptrace.log","w");
+static FILE *dptrace = fopen("dptrace_emccanon.log","w");
+#endif
+
 /*
   Origin offsets, length units, and active plane are all maintained
   here in this file. Controller runs in absolute mode, and does not
@@ -446,7 +453,6 @@ void SET_FEED_RATE(double rate)
 	/* convert from /min to /sec */
 	rate /= 60.0;
 
-
 	/* convert to traj units (mm & deg) if needed */
 	double newLinearFeedRate = FROM_PROG_LEN(rate),
 	       newAngularFeedRate = FROM_PROG_ANG(rate);
@@ -615,6 +621,8 @@ double getStraightVelocity(double x, double y, double z,
     if(!axis_valid(7) || dv < tiny) dv = 0.0;
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
+    DP ("dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g\n", 
+        dx, dy, dz, da, db, dc, du, dv, dw);
     if(debug_velacc) 
         printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ", 
                dx, dy, dz, da, db, dc, du, dv, dw);
@@ -700,6 +708,8 @@ double getStraightVelocity(double x, double y, double z,
 	    vel = dtot / tmax;
 	}
     }
+
+    DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
     if(debug_velacc) 
         printf("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
     return vel;
@@ -708,12 +718,14 @@ double getStraightVelocity(double x, double y, double z,
 #include <vector>
 struct pt { double x, y, z, a, b, c, u, v, w; int line_no;};
 
-static std::vector<struct pt>& chained_points(void) {
+static std::vector<struct pt>& chained_points(void) 
+{
     static std::vector<struct pt> points;
     return points;
 }
 
-static void flush_segments(void) {
+static void flush_segments(void) 
+{
     if(chained_points().empty()) return;
 
     struct pt &pos = chained_points().back();
@@ -723,6 +735,9 @@ static void flush_segments(void) {
     double u = pos.u, v = pos.v, w = pos.w;
     
     int line_no = pos.line_no;
+
+    DP("line_no(%d) x(%f) y(%f) z(%f) a(%f) b(%f) c(%f) u(%f) v(%f) w(%f)\n",
+        line_no, x, y, z, a, b, c, u, v, w);
 
 #ifdef SHOW_JOINED_SEGMENTS
     for(unsigned int i=0; i != chained_points().size(); i++) { printf("."); }
@@ -795,7 +810,8 @@ static void get_last_pos(double &lx, double &ly, double &lz) {
 static bool
 linkable(double x, double y, double z, 
          double a, double b, double c, 
-         double u, double v, double w) {
+         double u, double v, double w) 
+{
     struct pt &pos = chained_points().back();
     if(canon.motionMode != CANON_CONTINUOUS || canon.naivecamTolerance == 0)
         return false;
@@ -849,7 +865,8 @@ see_segment(int line_number,
     }
 }
 
-void FINISH() {
+void FINISH() 
+{
     flush_segments();
 }
 
@@ -1214,7 +1231,8 @@ void NURBS_FEED(std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
     knot_vector.clear();
 }
 
-void SPLINE_FEED(double x1, double y1, double x2, double y2) {
+void SPLINE_FEED(double x1, double y1, double x2, double y2) 
+{
     flush_segments();
 
     double x0 = TO_PROG_LEN(canon.endPoint.x);
@@ -1245,7 +1263,8 @@ perturb:
     }
 }
 
-void SPLINE_FEED(double x1, double y1, double x2, double y2, double x3, double y3) {
+void SPLINE_FEED(double x1, double y1, double x2, double y2, double x3, double y3) 
+{
     flush_segments();
 
     double x0 = TO_PROG_LEN(canon.endPoint.x);
@@ -1300,6 +1319,8 @@ void ARC_FEED(int line_number,
     double unused=0;
     int i;
     
+    DP ("TODO: study this for non-triv-kins\n");
+
     for (i = 0; i < 3; i++) {
         axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
