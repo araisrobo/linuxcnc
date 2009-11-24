@@ -226,6 +226,7 @@ HEADERS := \
     config.h \
     emc/ini/emcIniFile.hh \
     emc/ini/iniaxis.hh \
+    emc/ini/inijoint.hh \
     emc/ini/initool.hh \
     emc/ini/initraj.hh \
     emc/kinematics/cubic.h \
@@ -721,6 +722,9 @@ maxkins-objs := emc/kinematics/maxkins.o
 obj-m += gantrykins.o
 gantrykins-objs := emc/kinematics/gantrykins.o
 
+obj-m += gentrivkins.o
+gentrivkins-objs := emc/kinematics/gentrivkins.o
+
 obj-m += rotatekins.o
 rotatekins-objs := emc/kinematics/rotatekins.o
 
@@ -760,6 +764,7 @@ motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/command.o 
 motmod-objs += emc/motion/control.o 
 motmod-objs += emc/motion/homing.o 
+motmod-objs += emc/motion/simple_tp.o 
 motmod-objs += emc/motion/emcmotglb.o 
 motmod-objs += emc/motion/emcmotutil.o 
 motmod-objs += libnml/posemath/_posemath.o
@@ -791,7 +796,7 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	@mkdir -p $(dir $@)
 	$(CC) -c $(OPT) $(DEBUG) -DSIM $(EXTRA_CFLAGS) $< -o $@
 	@# orig: $(CC) -c $(OPT) $(DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
-	@# -DSIM and -DSIMULATOR are defined at EXTRA_CFLAGS
+	@#   NB: -DSIM and -DSIMULATOR are defined at EXTRA_CFLAGS
 endif
 
 ifeq ($(BUILD_SYS),normal)
@@ -857,6 +862,7 @@ endif
 ../rtlib/hal_lib$(MODULE_EXT): $(addprefix objects/rt,$(hal_lib-objs))
 ../rtlib/motmod$(MODULE_EXT): $(addprefix objects/rt,$(motmod-objs))
 ../rtlib/trivkins$(MODULE_EXT): $(addprefix objects/rt,$(trivkins-objs))
+../rtlib/gentrivkins$(MODULE_EXT): $(addprefix objects/rt,$(gentrivkins-objs))
 ../rtlib/5axiskins$(MODULE_EXT): $(addprefix objects/rt,$(5axiskins-objs))
 ../rtlib/maxkins$(MODULE_EXT): $(addprefix objects/rt,$(maxkins-objs))
 ../rtlib/gantrykins$(MODULE_EXT): $(addprefix objects/rt,$(gantrykins-objs))

@@ -341,7 +341,7 @@ def soft_limits():
         if abs(x) > 1e30: return 0
         return x
 
-    ax = s.axis
+    ax = s.joint
     return (
         to_internal_units([fudge(ax[i]['min_position_limit']) for i in range(3)]),
         to_internal_units([fudge(ax[i]['max_position_limit']) for i in range(3)]))
@@ -1093,21 +1093,14 @@ class MyOpengl(Opengl):
 
 
     def posstrs(self):
-        limit = []
-        for i,l in enumerate(s.limit):
-            if s.axis_mask & (1<<i):
-                limit.append(l)
-
-        homed = []
-        for i,h in enumerate(s.homed):
-            if s.axis_mask & (1<<i):
-                homed.append(h)
-
-        if lathe and not s.axis_mask & 2:
-            homed.insert(1, 0)
-            limit.insert(1, 0)
-
         if not joints_mode():
+            if s.kinematics_type == emc.KINEMATICS_IDENTITY:
+                homed = s.homed[:]
+                limit = s.limit[:]
+            else:
+                homed = [0]*9
+                limit = [0]*9
+
             if vars.display_type.get():
                 positions = s.position
             else:
@@ -1173,6 +1166,9 @@ class MyOpengl(Opengl):
                     dtg *= 25.4
                 posstrs.append(format % ("DTG", dtg))
         else:
+            homed = s.homed[:]
+            limit = s.limit[:]
+
             # N.B. no conversion here because joint positions are unitless
             posstrs = ["  %s:% 9.4f" % i for i in
                 zip(range(num_joints), s.joint_actual_position)]
@@ -1667,11 +1663,12 @@ class LivePlotter:
             if vars.metric.get(): m = m * 25.4
             vupdate(vars.maxvel_speed, float(int(600 * m)/10.0))
             root_window.tk.call("update_maxvel_slider")
-        vupdate(vars.override_limits, self.stat.axis[0]['override_limits'])
+        vupdate(vars.override_limits, self.stat.joint[0]['override_limits'])
         on_any_limit = 0
-        for i, l in enumerate(self.stat.limit):
-            if self.stat.axis_mask & (1<<i) and l:
+        for l in self.stat.limit:
+            if l:
                 on_any_limit = True
+                break
         vupdate(vars.on_any_limit, on_any_limit)
         global current_tool
         current_tool = self.stat.tool_table[0]
@@ -1944,8 +1941,8 @@ def open_file_guts(f, filtered=False, addrecent=True):
         canon.parameter_file = temp_parameter
 
         initcode = inifile.find("EMC", "RS274NGC_STARTUP_CODE") or ""
-        if initcode == "":
-            initcode = inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+	if initcode == "":
+    	    initcode = inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
         unitcode = "G%d" % (20 + (s.linear_units == 1))
         try:
             result, seq = gcode.parse(f, canon, unitcode, initcode)
@@ -3232,7 +3229,7 @@ class TclCommands(nf.TclCommands):
     def toggle_override_limits(*args):
         s.poll()
         if s.interp_state != emc.INTERP_IDLE: return
-        if s.axis[0]['override_limits']:
+        if s.joint[0]['override_limits']:
             ensure_mode(emc.MODE_AUTO)
         else:
             ensure_mode(emc.MODE_MANUAL)
@@ -3610,6 +3607,8 @@ if sys.argv[1] != "-ini":
 
 inifile = emc.ini(sys.argv[2])
 vars.emcini.set(sys.argv[2])
+jointcount = int(inifile.find("KINS", "JOINTS"))
+jointnames = "012345678"[:jointcount]
 open_directory = inifile.find("DISPLAY", "PROGRAM_PREFIX")
 vars.machine.set(inifile.find("EMC", "MACHINE"))
 extensions = inifile.findall("FILTER", "PROGRAM_EXTENSION")
@@ -3685,7 +3684,7 @@ else:
     root_window.tk.eval("${pane_top}.jogspeed.l1 configure -text in/min")
     root_window.tk.eval("${pane_top}.maxvel.l1 configure -text in/min")
 root_window.tk.eval(u"${pane_top}.ajogspeed.l1 configure -text deg/min")
-homing_order_defined = inifile.find("AXIS_0", "HOME_SEQUENCE") is not None
+homing_order_defined = inifile.find("JOINT_0", "HOME_SEQUENCE") is not None
 
 if homing_order_defined:
     widgets.homebutton.configure(text=_("Home All"), command="home_all_axes")
@@ -3711,17 +3710,14 @@ while s.axes == 0:
     #     raise SystemExit, "Invalid configuration of axes is preventing EMC from starting"
     s.poll()
 
-live_axis_count = 0
-for i,j in enumerate("XYZABCUVW"):
-    if s.axis_mask & (1<<i) == 0: continue
-    live_axis_count += 1
+num_joints = s.joints
+for i in range(num_joints):
     widgets.homemenu.add_command(command=lambda i=i: commands.home_axis_number(i))
     widgets.unhomemenu.add_command(command=lambda i=i: commands.unhome_axis_number(i))
     root_window.tk.call("setup_menu_accel", widgets.homemenu, "end",
-            _("Home Axis _%s") % j)
+            _("Home Joint _%s") % i)
     root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end",
-            _("Unhome Axis _%s") % j)
-num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
+            _("Unhome Joint _%s") % i)
 
 astep_size = step_size = 1
 for a in range(9):
@@ -4050,10 +4046,10 @@ forget(widgets.spinoverridef, "motion.spindle-speed-out")
 has_limit_switch = 0
 for j in range(9):
     try:
-        if hal.pin_has_writer("axis.%d.neg-lim-sw-in" % j):
+        if hal.pin_has_writer("joint.%d.neg-lim-sw-in" % j):
             has_limit_switch=1
             break
-        if hal.pin_has_writer("axis.%d.pos-lim-sw-in" % j):
+        if hal.pin_has_writer("joint.%d.pos-lim-sw-in" % j):
             has_limit_switch=1
             break
     except NameError, detail:

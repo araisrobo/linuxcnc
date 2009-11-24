@@ -19,6 +19,5 @@ $(call TOOBJSDEPS, $(RTAPI_APP_SRCS)): EXTRAFLAGS += $(PTH_CFLAGS) -DSIM
 ../bin/rtapi_app: $(call TOOBJS, $(RTAPI_APP_SRCS))
 	$(ECHO) Linking $(notdir $@)
 	@$(CXX) -rdynamic $(LDFLAGS) -o $@ $^ -ldl $(PTH_LINK) -lpthread
-	@#$(CXX) -rdynamic $(LDFLAGS) -o $@ $^ -ldl $(PTH_LINK) -g -O0 -lpthread
 TARGETS += ../bin/rtapi_app
 endif

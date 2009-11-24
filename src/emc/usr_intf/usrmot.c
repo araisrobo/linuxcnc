@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
     int lastPrint = 0;		/* flag for which status subset to print */
     int statconfigdebug = 0;	/* 0 for stat, 1 for debug, 2 for config */
     int motionId = 0;		/* motion id sent down with moves */
-    int axis;			/* axis selected for command */
+    int joint;			/* joint selected for command */
     int errCode;		/* returned from usrmotWrite,Read... */
     char compfile[LINELEN];	/* name of the compensation file */
 
@@ -296,8 +296,8 @@ int main(int argc, char *argv[])
 		printf("scale <0..1>\tscale velocity\n");
 		printf
 		    ("enable | disable\tenable or disable motion controller\n");
-		printf("jog <axis> + | -\tjog axis pos or neg\n");
-		printf("jog <axis> + | -\tjog axis pos or neg\n");
+		printf("jog <joint> + | -\tjog joint pos or neg\n");
+		printf("jog <joint> + | -\tjog joint pos or neg\n");
 		printf("id <num>   \tset base id for subsequent moves\n");
 		printf("<x> <y> <z>\tput motion on queue\n");
 		printf("load <file>\tput motions from file on queue\n");
@@ -431,19 +431,19 @@ int main(int argc, char *argv[])
 		    fprintf(stderr, "Can't send a command to RT-task\n");
 		}
 	    } else if (!strcmp(cmd, "a")) {
-		/* set the axis field, if provided. If not provided, it will
+		/* set the joint field, if provided. If not provided, it will
 		   default to the last one used. In coord mode it's not used
 		   at all. */
 		valid = 0;
-		if (1 == sscanf(input, "%*s %d", &axis)) {
-		    if (axis < 0 || axis >= EMCMOT_MAX_JOINTS) {
-			fprintf(stderr, "bad axis %d to abort\n", axis);
+		if (1 == sscanf(input, "%*s %d", &joint)) {
+		    if (joint < 0 || joint >= EMCMOT_MAX_JOINTS) {
+			fprintf(stderr, "bad joint %d to abort\n", joint);
 		    } else {
-			emcmotCommand.axis = axis;
+			emcmotCommand.joint = joint;
 			valid = 1;
 		    }
 		} else {
-		    /* axis not provided, so leave last one in
+		    /* joint not provided, so leave last one in
 		       emcmotCommand.axs alone */
 		    valid = 1;
 		}
@@ -497,14 +497,14 @@ int main(int argc, char *argv[])
 		}
 	    } else if (!strcmp(cmd, "jog")) {
 		if (2 ==
-		    sscanf(input, "%*s %d %s", &emcmotCommand.axis, cmd)) {
+		    sscanf(input, "%*s %d %s", &emcmotCommand.joint, cmd)) {
 		    emcmotCommand.command = EMCMOT_JOG_CONT;
 		    if (cmd[0] == '+') {
 			emcmotCommand.vel = emcmotStatus.vel;
 		    } else if (cmd[0] == '-') {
 			emcmotCommand.vel = -emcmotStatus.vel;
 		    } else {
-			fprintf(stderr, "syntax: jog <axis> + | -\n");
+			fprintf(stderr, "syntax: jog <joint> + | -\n");
 			break;
 		    }
 
@@ -513,7 +513,7 @@ int main(int argc, char *argv[])
 				"Can't send a command to RT-task\n");
 		    }
 		} else {
-		    fprintf(stderr, "syntax: jog <axis> + | -\n");
+		    fprintf(stderr, "syntax: jog <joint> + | -\n");
 		}
 	    } else if (!strcmp(cmd, "id")) {
 		int newId;
@@ -669,10 +669,10 @@ int main(int argc, char *argv[])
 #if 0
 	    } else if (!strcmp(cmd, "oscale")) {
 		if (3 != sscanf(input, "%*s %d %lf %lf",
-				&emcmotCommand.axis,
+				&emcmotCommand.joint,
 				&emcmotCommand.scale,
 				&emcmotCommand.offset)) {
-		    printf("syntax: oscale <axis 0..n-1> <a> <b>\n");
+		    printf("syntax: oscale <joint 0..n-1> <a> <b>\n");
 		} else {
 		    emcmotCommand.command = EMCMOT_SET_OUTPUT_SCALE;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
@@ -682,10 +682,10 @@ int main(int argc, char *argv[])
 		}
 	    } else if (!strcmp(cmd, "iscale")) {
 		if (3 != sscanf(input, "%*s %d %lf %lf",
-				&emcmotCommand.axis,
+				&emcmotCommand.joint,
 				&emcmotCommand.scale,
 				&emcmotCommand.offset)) {
-		    printf("syntax: iscale <axis 0..n-1> <a> <b>\n");
+		    printf("syntax: iscale <joint 0..n-1> <a> <b>\n");
 		} else {
 		    emcmotCommand.command = EMCMOT_SET_INPUT_SCALE;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
@@ -695,28 +695,28 @@ int main(int argc, char *argv[])
 		}
 	    } else if (!strcmp(cmd, "pol")) {
 		if (3 != sscanf(input, "%*s %d %s %d",
-				&emcmotCommand.axis, cmd,
+				&emcmotCommand.joint, cmd,
 				&emcmotCommand.level)) {
 		    printf
-			("syntax: pol <axis 0..n-1> <enable nhl phl homedir homesw fault> <0 1>\n");
+			("syntax: pol <joint 0..n-1> <enable nhl phl homedir homesw fault> <0 1>\n");
 		} else {
 		    valid = 1;
 
 		    if (!strcmp(cmd, "enable")) {
-			emcmotCommand.axisFlag = EMCMOT_JOINT_ENABLE_BIT;
+			emcmotCommand.jointFlag = EMCMOT_JOINT_ENABLE_BIT;
 		    } else if (!strcmp(cmd, "nhl")) {
-			emcmotCommand.axisFlag =
+			emcmotCommand.jointFlag =
 			    EMCMOT_JOINT_MIN_HARD_LIMIT_BIT;
 		    } else if (!strcmp(cmd, "phl")) {
-			emcmotCommand.axisFlag =
+			emcmotCommand.jointFlag =
 			    EMCMOT_JOINT_MAX_HARD_LIMIT_BIT;
 		    } else if (!strcmp(cmd, "homedir")) {
-			emcmotCommand.axisFlag = EMCMOT_JOINT_HOMING_BIT;
+			emcmotCommand.jointFlag = EMCMOT_JOINT_HOMING_BIT;
 		    } else if (!strcmp(cmd, "homesw")) {
-			emcmotCommand.axisFlag =
+			emcmotCommand.jointFlag =
 			    EMCMOT_JOINT_HOME_SWITCH_BIT;
 		    } else if (!strcmp(cmd, "fault")) {
-			emcmotCommand.axisFlag = EMCMOT_JOINT_FAULT_BIT;
+			emcmotCommand.jointFlag = EMCMOT_JOINT_FAULT_BIT;
 		    } else {
 			valid = 0;
 		    }
@@ -729,13 +729,13 @@ int main(int argc, char *argv[])
 			}
 		    } else {
 			printf
-			    ("syntax: pol <axis 0..n-1> <enable nhl phl homedir homesw fault> <0 1>\n");
+			    ("syntax: pol <joint 0..n-1> <enable nhl phl homedir homesw fault> <0 1>\n");
 		    }
 		}
 	    } else if (!strcmp(cmd, "pid")) {
-		if (1 != sscanf(input, "%*s %d", &emcmotCommand.axis) ||
-		    emcmotCommand.axis < 0 ||
-		    emcmotCommand.axis >= EMCMOT_MAX_JOINTS ||
+		if (1 != sscanf(input, "%*s %d", &emcmotCommand.joint) ||
+		    emcmotCommand.joint < 0 ||
+		    emcmotCommand.joint >= EMCMOT_MAX_JOINTS ||
 		    1 != sscanf(input, "%*s %*s %s", filename)) {
 		    printf("syntax: pid <n> <ini file>\n");
 		} else {
@@ -755,12 +755,12 @@ int main(int argc, char *argv[])
 #endif
 	    } else if (!strcmp(cmd, "limit")) {
 		if (3 != sscanf(input, "%*s %d %lf %lf",
-				&emcmotCommand.axis,
+				&emcmotCommand.joint,
 				&emcmotCommand.minLimit,
 				&emcmotCommand.maxLimit)) {
-		    printf("syntax: limit <axis> <min> <max>\n");
+		    printf("syntax: limit <joint> <min> <max>\n");
 		} else {
-		    emcmotCommand.command = EMCMOT_SET_POSITION_LIMITS;
+		    emcmotCommand.command = EMCMOT_SET_JOINT_POSITION_LIMITS;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
@@ -770,10 +770,10 @@ int main(int argc, char *argv[])
 #if 0				/* obsolete command */
 	    } else if (!strcmp(cmd, "clamp")) {
 		if (3 != sscanf(input, "%*s %d %lf %lf",
-				&emcmotCommand.axis,
+				&emcmotCommand.joint,
 				&emcmotCommand.minLimit,
 				&emcmotCommand.maxLimit)) {
-		    printf("syntax: clamp <axis> <min> <max>\n");
+		    printf("syntax: clamp <joint> <min> <max>\n");
 		} else {
 		    emcmotCommand.command = EMCMOT_SET_OUTPUT_LIMITS;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
@@ -784,59 +784,59 @@ int main(int argc, char *argv[])
 #endif
 	    } else if (!strcmp(cmd, "ferror")) {
 		if (2 != sscanf(input, "%*s %d %lf",
-				&emcmotCommand.axis,
+				&emcmotCommand.joint,
 				&emcmotCommand.maxFerror)) {
-		    printf("syntax: ferror <axis> <ferror>\n");
+		    printf("syntax: ferror <joint> <ferror>\n");
 		} else {
-		    emcmotCommand.command = EMCMOT_SET_MAX_FERROR;
+		    emcmotCommand.command = EMCMOT_SET_JOINT_MAX_FERROR;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
 		    }
 		}
 	    } else if (!strcmp(cmd, "live")) {
-		if (1 != sscanf(input, "%*s %d", &emcmotCommand.axis) ||
-		    emcmotCommand.axis < 0 ||
-		    emcmotCommand.axis >= EMCMOT_MAX_JOINTS) {
+		if (1 != sscanf(input, "%*s %d", &emcmotCommand.joint) ||
+		    emcmotCommand.joint < 0 ||
+		    emcmotCommand.joint >= EMCMOT_MAX_JOINTS) {
 		    printf("syntax: live <n>\n");
 		} else {
-		    emcmotCommand.command = EMCMOT_ENABLE_AMPLIFIER;
+		    emcmotCommand.command = EMCMOT_JOINT_ENABLE_AMPLIFIER;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
 		    }
 		}
 	    } else if (!strcmp(cmd, "kill")) {
-		if (1 != sscanf(input, "%*s %d", &emcmotCommand.axis) ||
-		    emcmotCommand.axis < 0 ||
-		    emcmotCommand.axis >= EMCMOT_MAX_JOINTS) {
+		if (1 != sscanf(input, "%*s %d", &emcmotCommand.joint) ||
+		    emcmotCommand.joint < 0 ||
+		    emcmotCommand.joint >= EMCMOT_MAX_JOINTS) {
 		    printf("syntax: kill <n>\n");
 		} else {
-		    emcmotCommand.command = EMCMOT_DISABLE_AMPLIFIER;
+		    emcmotCommand.command = EMCMOT_JOINT_DISABLE_AMPLIFIER;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
 		    }
 		}
 	    } else if (!strcmp(cmd, "activate")) {
-		if (1 != sscanf(input, "%*s %d", &emcmotCommand.axis) ||
-		    emcmotCommand.axis < 0 ||
-		    emcmotCommand.axis >= EMCMOT_MAX_JOINTS) {
+		if (1 != sscanf(input, "%*s %d", &emcmotCommand.joint) ||
+		    emcmotCommand.joint < 0 ||
+		    emcmotCommand.joint >= EMCMOT_MAX_JOINTS) {
 		    printf("syntax: activate <n>\n");
 		} else {
-		    emcmotCommand.command = EMCMOT_ACTIVATE_JOINT;
+		    emcmotCommand.command = EMCMOT_JOINT_ACTIVATE;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
 		    }
 		}
 	    } else if (!strcmp(cmd, "deactivate")) {
-		if (1 != sscanf(input, "%*s %d", &emcmotCommand.axis) ||
-		    emcmotCommand.axis < 0 ||
-		    emcmotCommand.axis >= EMCMOT_MAX_JOINTS) {
+		if (1 != sscanf(input, "%*s %d", &emcmotCommand.joint) ||
+		    emcmotCommand.joint < 0 ||
+		    emcmotCommand.joint >= EMCMOT_MAX_JOINTS) {
 		    printf("syntax: deactivate <n>\n");
 		} else {
-		    emcmotCommand.command = EMCMOT_DEACTIVATE_JOINT;
+		    emcmotCommand.command = EMCMOT_JOINT_DEACTIVATE;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
@@ -846,7 +846,7 @@ int main(int argc, char *argv[])
 #if 0
 	    } else if (!strcmp(cmd, "dac")) {
 		if (2 == sscanf(input, "%*s %d %lf",
-				&emcmotCommand.axis,
+				&emcmotCommand.joint,
 				&emcmotCommand.dacOut)) {
 		    emcmotCommand.command = EMCMOT_DAC_OUT;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
@@ -858,14 +858,14 @@ int main(int argc, char *argv[])
 		}
 #endif
 	    } else if (!strcmp(cmd, "home")) {
-		if (1 == sscanf(input, "%*s %d", &emcmotCommand.axis)) {
-		    emcmotCommand.command = EMCMOT_HOME;
+		if (1 == sscanf(input, "%*s %d", &emcmotCommand.joint)) {
+		    emcmotCommand.command = EMCMOT_JOINT_HOME;
 		    if (usrmotWriteEmcmotCommand(&emcmotCommand) == -1) {
 			fprintf(stderr,
 				"Can't send a command to RT-task\n");
 		    }
 		} else {
-		    printf("syntax: home <axis>\n");
+		    printf("syntax: home <joint>\n");
 		}
 	    } else if (!strcmp(cmd, "nolim")) {
 		emcmotCommand.command = EMCMOT_OVERRIDE_LIMITS;
@@ -947,18 +947,18 @@ int main(int argc, char *argv[])
 		    printf("syntax: wd on {<waits>} | off\n");
 		}
 	    } else if (!strcmp(cmd, "comp")) {
-		if (1 != sscanf(input, "%*s %d", &axis)) {
-		    fprintf(stderr, "syntax: comp <axis> {<file> <type>}\n");
+		if (1 != sscanf(input, "%*s %d", &joint)) {
+		    fprintf(stderr, "syntax: comp <joint> {<file> <type>}\n");
 		} else {
 		    /* try a string for the compfile, else it's blank which
 		       means print */
 		    if (1 == sscanf(input, "%*s %*d %s %d", compfile, &type)) {
-			if (0 != usrmotLoadComp(axis, compfile, type)) {
+			if (0 != usrmotLoadComp(joint, compfile, type)) {
 			    fprintf(stderr, "Can't load comp file %s\n",
 				    compfile);
 			}
 		    } else {
-			if (0 != usrmotPrintComp(axis)) {
+			if (0 != usrmotPrintComp(joint)) {
 			    fprintf(stderr, "Can't print comp table\n");
 			}
 		    }

@@ -1,5 +1,5 @@
 /********************************************************************
-* Description: iniaxis.hh
+* Description: inijoint.hh
 *
 *   Derived from a work by Fred Proctor & Will Shackleford
 *
@@ -7,16 +7,12 @@
 * License: GPL Version 2
 * System: Linux
 *    
-* Copyright (c) 2004 All rights reserved.
-*
-* Last change:
+* Copyright (c) 2004-2009 All rights reserved.
 ********************************************************************/
-#ifndef INIAXIS_HH
-#define INIAXIS_HH
+#ifndef INIJOINT_HH
+#define INIJOINT_HH
 
-#include "emc.hh"		// EMC_AXIS_STAT
-
-/* initializes axis modules from ini file */
-extern int iniAxis(int axis, const char *filename);
+/* initializes joint modules from ini file */
+extern int iniJoint(int joint, const char *filename);
 
 #endif

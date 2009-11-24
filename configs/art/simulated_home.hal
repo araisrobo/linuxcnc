@@ -24,10 +24,10 @@ setp comp.1.hyst .02
 setp comp.2.hyst .02
 setp comp.3.hyst .02
 
-net home_j0 <= comp.0.out  => axis.0.home-sw-in
-net home_j1 <= comp.1.out  => axis.1.home-sw-in
-net home_j2 <= comp.2.out  => axis.2.home-sw-in
-net home_j3 <= comp.3.out  => axis.3.home-sw-in
+net home_j0 <= comp.0.out  => joint.0.home-sw-in
+net home_j1 <= comp.1.out  => joint.1.home-sw-in
+net home_j2 <= comp.2.out  => joint.2.home-sw-in
+net home_j3 <= comp.3.out  => joint.3.home-sw-in
 
 addf comp.0 servo-thread
 addf comp.1 servo-thread

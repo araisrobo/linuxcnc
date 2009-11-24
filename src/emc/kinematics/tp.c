@@ -247,7 +247,8 @@ int tpSetPos(TP_STRUCT * tp, EmcPose pos)
 }
 
 int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel, 
-                  double acc, unsigned char enables) {
+                  double acc, unsigned char enables) 
+{
     TC_STRUCT tc;
     PmLine line_xyz;
     PmPose start_xyz, end_xyz;
