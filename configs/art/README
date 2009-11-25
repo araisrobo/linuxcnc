@@ -1,18 +1,8 @@
-The proto configuration drives 4-axis stepper pulses using a Mesa Anything
-IO board with USB interface (7i43 usb). It packs position commands along 
-with corresponding time information into wishbone-over-usb stream. The
-realtime task is done by the USB device. As a result, the RTOS is not
-necessary.
+The configuration files for generating 4-axis stepper pulses with a Mesa
+Anything IO board with USB interface (7i43 usb). It packs position commands
+along with corresponding time information into wishbone-over-usb stream.
+The realtime task is done by the FPGA of 7i43. As a result, the RTAI is not
+required.
 
-proto.ini
----------
-  this config has 4 StepGens 
-  The config will only run if you have libwbou installed.
-
-
-scara.ini
----------
-  Config file for a SCARA type robot.
-  You need to specify what kinematics should get used (loadrt scarakins in your hal file)
-  If you change the HOME location in TRAJ, make sure you change the appropiate HOME locations of the AXES 
-  aswell, and make sure the position match (when run through the kinematics).
+Those configurations were taken from configs/scara/, and modified by Yishin
+Li, Arais Robot Technology Inc.
