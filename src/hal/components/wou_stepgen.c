@@ -318,7 +318,7 @@
 #define MAX_CHAN 8
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -788,10 +788,10 @@ static void update_freq(void *arg, long period)
         /* calculate velocity command in counts/sec */
         est_err = pos_cmd - curr_pos;
        
-        if (pos_cmd > 0) {
-          // for setting up breakpoint; do nothing
-          est_err = pos_cmd - curr_pos;
-        }
+        // if (pos_cmd > 0) {
+        //   // for setting up breakpoint; do nothing
+        //   est_err = pos_cmd - curr_pos;
+        // }
 
         /* current velocity in counts/sec */
         curr_vel = stepgen->freq;
