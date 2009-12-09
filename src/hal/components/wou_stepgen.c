@@ -318,7 +318,7 @@
 #define MAX_CHAN 8
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -378,6 +378,7 @@ typedef struct {
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
     int printed_error;		/* flag to avoid repeated printing */
     
+    double vel_fb;
     double prev_pos_cmd;        /* prev pos_cmd in counts */
     double prev_pos;            /* prev position in counts */
     double sum_err_0;
@@ -618,9 +619,18 @@ void rtapi_app_exit(void)
     hal_exit(comp_id);
 }
 
+
 /***********************************************************************
 *              REALTIME STEP PULSE GENERATION FUNCTIONS                *
 ************************************************************************/
+
+// This function was invented by Jeff Epler.
+// It forces a floating-point variable to be degraded from native register
+// size (80 bits on x86) to C double size (64 bits).
+static double force_precision(double d) __attribute__((__noinline__));
+static double force_precision(double d) {
+    return d;
+}
 
 static void update_freq(void *arg, long period)
 {
@@ -633,6 +643,18 @@ static void update_freq(void *arg, long period)
   double match_ac, new_vel, end_vel, desired_freq;
   // double dp, dv, est_out, est_cmd, est_err, match_time, vel_cmd, avg_v;
   double est_err;
+
+  double ff_vel;
+  double velocity_error;
+  double match_accel;
+  double seconds_to_vel_match;
+  double position_at_match;
+  double position_cmd_at_match;
+  double error_at_match;
+  double velocity_cmd;
+  
+  double physical_maxvel;  // max vel supported by current step timings & position-scale
+  double maxvel;           // actual max vel to use this time
 
   int wou_pos_cmd;
   // ret, data[]: for wou_cmd()
@@ -727,134 +749,272 @@ static void update_freq(void *arg, long period)
         continue;
     }
 
-    /* calculate frequency limit */
-    min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
-    max_freq = 1.0 / (min_step_period * 0.000000001);
-    /* check for user specified frequency limit parameter */
-    if (stepgen->maxvel <= 0.0) {
-        /* set to zero if negative */
-        stepgen->maxvel = 0.0;
-    } else {
-        /* parameter is non-zero, compare to max_freq */
-        desired_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
+    //
+    // first sanity-check our maxaccel and maxvel params
+    //
 
-        // rtapi_print_msg(RTAPI_MSG_DBG, "%s: min_step_period(%ld), max_freq(%f), desired_freq(%f)\n", 
-        //                               __FUNCTION__, min_step_period, max_freq, desired_freq);
+    // maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
+    {
+        double min_ns_per_step = stepgen->step_len + stepgen->dir_hold_dly;
+        double max_steps_per_s = 1.0e9 / min_ns_per_step;
 
-        if (desired_freq > max_freq) {
-            /* parameter is too high, complain about it */
-            if(!stepgen->printed_error) {
-                rtapi_print_msg(RTAPI_MSG_ERR,
-                    "STEPGEN: Channel %d: The requested maximum velocity of %d steps/sec is too high.\n",
-                    n, (int)desired_freq);
-                rtapi_print_msg(RTAPI_MSG_ERR,
-                    "STEPGEN: Channel %d: The maximum possible frequency is %d steps/second\n",
-                    n, (int)max_freq);
-                stepgen->printed_error = 1;
-            }
-            /* parameter is too high, limit it */
-            stepgen->maxvel = max_freq / fabs(stepgen->pos_scale);
+        physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
+        physical_maxvel = force_precision(physical_maxvel);
+
+        if (stepgen->maxvel < 0.0) {
+          rtapi_print_msg(RTAPI_MSG_ERR,
+              "stepgen.%02d.maxvel < 0, setting to its absolute value\n",
+              n);
+          stepgen->maxvel = fabs(stepgen->maxvel);
+        }
+
+        if (stepgen->maxvel > physical_maxvel) {
+          rtapi_print_msg(RTAPI_MSG_ERR,
+              "stepgen.%02d.maxvel is too big for current step timings & position-scale, clipping to max possible\n",
+              n);
+          stepgen->maxvel = physical_maxvel;
+        }
+
+        if (stepgen->maxvel == 0.0) {
+            maxvel = physical_maxvel;
         } else {
-            /* lower max_freq to match parameter */
-            // max_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
-            max_freq = desired_freq;
+            maxvel = stepgen->maxvel;
         }
     }
-    /* set internal accel limit to its absolute max, which is
-       zero to full speed in one thread period */
-    // @500KHz servo pulse, 1.31ms period, max_ac is 381M p/s^2
-    max_ac = max_freq * recip_dt;
-    /* check for user specified accel limit parameter */
-    if (stepgen->maxaccel <= 0.0) {
-        /* set to zero if negative */
-        stepgen->maxaccel = 0.0;
-    } else {
-        /* parameter is non-zero, compare to max_ac */
-        if ((stepgen->maxaccel * fabs(stepgen->pos_scale)) > max_ac) {
-            /* parameter is too high, lower it */
-            stepgen->maxaccel = max_ac / fabs(stepgen->pos_scale);
-        } else {
-            /* lower limit to match parameter */
-            max_ac = stepgen->maxaccel * fabs(stepgen->pos_scale);
-        }
-    }
+
+//orig:    /* calculate frequency limit */
+//orig:    min_step_period = stepgen->step_len + stepgen->dir_hold_dly;
+//orig:    max_freq = 1.0 / (min_step_period * 0.000000001);
+//orig:    /* check for user specified frequency limit parameter */
+//orig:    if (stepgen->maxvel <= 0.0) {
+//orig:        /* set to zero if negative */
+//orig:        stepgen->maxvel = 0.0;
+//orig:    } else {
+//orig:        /* parameter is non-zero, compare to max_freq */
+//orig:        desired_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
+//orig:
+//orig:        // rtapi_print_msg(RTAPI_MSG_DBG, "%s: min_step_period(%ld), max_freq(%f), desired_freq(%f)\n", 
+//orig:        //                               __FUNCTION__, min_step_period, max_freq, desired_freq);
+//orig:
+//orig:        if (desired_freq > max_freq) {
+//orig:            /* parameter is too high, complain about it */
+//orig:            if(!stepgen->printed_error) {
+//orig:                rtapi_print_msg(RTAPI_MSG_ERR,
+//orig:                    "STEPGEN: Channel %d: The requested maximum velocity of %d steps/sec is too high.\n",
+//orig:                    n, (int)desired_freq);
+//orig:                rtapi_print_msg(RTAPI_MSG_ERR,
+//orig:                    "STEPGEN: Channel %d: The maximum possible frequency is %d steps/second\n",
+//orig:                    n, (int)max_freq);
+//orig:                stepgen->printed_error = 1;
+//orig:            }
+//orig:            /* parameter is too high, limit it */
+//orig:            stepgen->maxvel = max_freq / fabs(stepgen->pos_scale);
+//orig:        } else {
+//orig:            /* lower max_freq to match parameter */
+//orig:            // max_freq = stepgen->maxvel * fabs(stepgen->pos_scale);
+//orig:            max_freq = desired_freq;
+//orig:        }
+//orig:    }
+//orig:
+//orig:    /* set internal accel limit to its absolute max, which is
+//orig:       zero to full speed in one thread period */
+//orig:    // @500KHz servo pulse, 1.31ms period, max_ac is 381M p/s^2
+//orig:    max_ac = max_freq * recip_dt;
+//orig:    /* check for user specified accel limit parameter */
+//orig:    if (stepgen->maxaccel <= 0.0) {
+//orig:        /* set to zero if negative */
+//orig:        stepgen->maxaccel = 0.0;
+//orig:    } else {
+//orig:        /* parameter is non-zero, compare to max_ac */
+//orig:        if ((stepgen->maxaccel * fabs(stepgen->pos_scale)) > max_ac) {
+//orig:            /* parameter is too high, lower it */
+//orig:            stepgen->maxaccel = max_ac / fabs(stepgen->pos_scale);
+//orig:        } else {
+//orig:            /* lower limit to match parameter */
+//orig:            max_ac = stepgen->maxaccel * fabs(stepgen->pos_scale);
+//orig:        }
+//orig:    }
+
     /* at this point, all scaling, limits, and other parameter
        changes have been handled - time for the main control */
     if ( stepgen->pos_mode ) {
-        DPS ("  %17.7f%15.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
-        /* calculate position command in counts */
-        pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
-        curr_pos = stepgen->accum;
-        /* calculate velocity command in counts/sec */
-        est_err = pos_cmd - curr_pos;
-       
-        // if (pos_cmd > 0) {
-        //   // for setting up breakpoint; do nothing
-        //   est_err = pos_cmd - curr_pos;
-        // }
+      // DPS ("  %17.7f%15.7f", *stepgen->pos_cmd, *stepgen->pos_fb);
+      DPS ("  %17.7f", *stepgen->pos_cmd);
+// 
+// took from src/hal/drivers/mesa-hostmot2/stepgen.c:
+// Here's the stepgen position controller.  It uses first-order
+// feedforward and proportional error feedback.  This code is based
+// on John Kasunich's software stepgen code.
+//
+      // calculate feed-forward velocity in machine units per second
+      ff_vel = ((*stepgen->pos_cmd) - stepgen->prev_pos_cmd) * recip_dt;
 
-        /* current velocity in counts/sec */
-        curr_vel = stepgen->freq;
+      stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
 
-        // to calculate matched accel for position error
-        match_ac = (2 * (est_err * recip_dt - curr_vel) * recip_dt);
-        // compare and set accel limit
-        if (match_ac > max_ac) {
-          match_ac = max_ac;
-        } else if (match_ac < -max_ac) {
-          match_ac = -max_ac;
-        }
+      velocity_error = (stepgen->vel_fb) - ff_vel;
 
-
-        // for velocity control 
-        // to calculate matched accel for velocity based on sum of position error
-        d_pos_cmd = pos_cmd - stepgen->prev_pos_cmd;
-        d_curr_pos = curr_pos - stepgen->prev_pos;
-        stepgen->prev_pos_cmd = pos_cmd;
-        stepgen->prev_pos = curr_pos;
-        stepgen->sum_err_0 += (d_pos_cmd - d_curr_pos); 
-        if (match_ac >= 0) {
-          if (d_pos_cmd < d_curr_pos) {
-            if ((stepgen->sum_err_0 * 2.0) < stepgen->sum_err_1) {
-              match_ac = -match_ac;
-            }
+      // Do we need to change speed to match the speed of position-cmd?
+      // If maxaccel is 0, there's no accel limit: fix this velocity error
+      // by the next servo period!  This leaves acceleration control up to
+      // the trajectory planner.
+      // If maxaccel is not zero, the user has specified a maxaccel and we
+      // adhere to that.
+      if (velocity_error > 0.0) {
+          if (stepgen->maxaccel == 0) {
+              match_accel = -velocity_error * recip_dt;
           } else {
-            // accumulate err
-            stepgen->sum_err_1 = stepgen->sum_err_0;
+              match_accel = -stepgen->maxaccel;
           }
-        } else if (match_ac < 0){
-          if (d_curr_pos < d_pos_cmd) {
-            if ((stepgen->sum_err_0 * 2.0) > stepgen->sum_err_1) {
-              match_ac = -match_ac;
-            }
+      } else if (velocity_error < 0.0) {
+          if (stepgen->maxaccel == 0) {
+              match_accel = velocity_error * recip_dt;
           } else {
-            // accumulate err
-            stepgen->sum_err_1 = stepgen->sum_err_0;
+              match_accel = stepgen->maxaccel;
           }
-        }
-        DPS ("%15.2f%15.2f", match_ac, d_curr_pos);
-        end_vel = curr_vel + match_ac * dt;
+      } else {
+          match_accel = 0;
+      }
 
-        /* apply frequency limit */      
-        if (end_vel > max_freq) {
-          end_vel = max_freq;
-        } else if (end_vel < -max_freq) {
-          end_vel = -max_freq;
-        }
-        new_vel = (curr_vel + end_vel) / 2;
-        /* end of position mode */
+      if (match_accel == 0) {
+          // vel is just right, dont need to accelerate
+          seconds_to_vel_match = 0.0;
+      } else {
+          seconds_to_vel_match = -velocity_error / match_accel;
+      }
+
+      // compute expected position at the time of velocity match
+      // Note: this is "feedback position at the beginning of the servo period after we attain velocity match"
+      {
+          double avg_v;
+          avg_v = (ff_vel + stepgen->vel_fb) * 0.5;
+          position_at_match = *stepgen->pos_fb + (avg_v * (seconds_to_vel_match + dt));
+      }
+
+      // Note: this assumes that position-cmd keeps the current velocity
+      position_cmd_at_match = *stepgen->pos_cmd + (ff_vel * seconds_to_vel_match);
+      error_at_match = position_at_match - position_cmd_at_match;
+
+      if (seconds_to_vel_match < dt) {
+          // we can match velocity in one period
+          // try to correct whatever position error we have
+          // orig: velocity_cmd = ff_vel - (0.5 * error_at_match * recip_dt);
+          velocity_cmd = (*stepgen->pos_cmd - *stepgen->pos_fb) * recip_dt;
+          // TODO: do we need spline filter for velocity_cmd?
+
+          // apply accel limits?
+          if (stepgen->maxaccel > 0) {
+              if (velocity_cmd > (stepgen->vel_fb + (stepgen->maxaccel * dt))) {
+                  velocity_cmd = stepgen->vel_fb + (stepgen->maxaccel * dt);
+              } else if (velocity_cmd < (stepgen->vel_fb - (stepgen->maxaccel * dt))) {
+                  velocity_cmd = stepgen->vel_fb - (stepgen->maxaccel * dt);
+              }
+          }
+
+      } else {
+          // we're going to have to work for more than one period to match velocity
+          // FIXME: I dont really get this part yet
+
+          double dv;
+          double dp;
+
+          /* calculate change in final position if we ramp in the opposite direction for one period */
+          dv = -2.0 * match_accel * dt;
+          dp = dv * seconds_to_vel_match;
+
+          /* decide which way to ramp */
+          if (fabs(error_at_match + (dp * 2.0)) < fabs(error_at_match)) {
+              match_accel = -match_accel;
+          }
+
+          /* and do it */
+          velocity_cmd = stepgen->vel_fb + (match_accel * dt);
+      }
+
+      new_vel = velocity_cmd;
+      /* apply frequency limit */      
+      if (new_vel > maxvel) {
+        new_vel = maxvel;
+      } else if (new_vel < -maxvel) {
+        new_vel = -maxvel;
+      }
+      stepgen->vel_fb = new_vel;
+      
+// orig:         /* calculate position command in counts */
+// orig:         pos_cmd = (*stepgen->pos_cmd) * stepgen->pos_scale;
+// orig:         curr_pos = stepgen->accum;
+// orig:         /* calculate velocity command in counts/sec */
+// orig:         est_err = pos_cmd - curr_pos;
+// orig:        
+// orig:         // if (pos_cmd > 0) {
+// orig:         //   // for setting up breakpoint; do nothing
+// orig:         //   est_err = pos_cmd - curr_pos;
+// orig:         // }
+// orig: 
+// orig:         /* current velocity in counts/sec */
+// orig:         curr_vel = stepgen->freq;
+// orig: 
+// orig:         // to calculate matched accel for position error
+// orig:         match_ac = (2 * (est_err * recip_dt - curr_vel) * recip_dt);
+// orig:         // compare and set accel limit
+// orig:         if (match_ac > max_ac) {
+// orig:           match_ac = max_ac;
+// orig:         } else if (match_ac < -max_ac) {
+// orig:           match_ac = -max_ac;
+// orig:         }
+// orig: 
+// orig: 
+// orig:         // for velocity control 
+// orig:         // to calculate matched accel for velocity based on sum of position error
+// orig:         d_pos_cmd = pos_cmd - stepgen->prev_pos_cmd;
+// orig:         d_curr_pos = curr_pos - stepgen->prev_pos;
+// orig:         stepgen->prev_pos_cmd = pos_cmd;
+// orig:         stepgen->prev_pos = curr_pos;
+// orig:         stepgen->sum_err_0 += (d_pos_cmd - d_curr_pos); 
+// orig:         if (match_ac >= 0) {
+// orig:           if (d_pos_cmd < d_curr_pos) {
+// orig:             if ((stepgen->sum_err_0 * 2.0) < stepgen->sum_err_1) {
+// orig:               match_ac = -match_ac;
+// orig:             }
+// orig:           } else {
+// orig:             // accumulate err
+// orig:             stepgen->sum_err_1 = stepgen->sum_err_0;
+// orig:           }
+// orig:         } else if (match_ac < 0){
+// orig:           if (d_curr_pos < d_pos_cmd) {
+// orig:             if ((stepgen->sum_err_0 * 2.0) > stepgen->sum_err_1) {
+// orig:               match_ac = -match_ac;
+// orig:             }
+// orig:           } else {
+// orig:             // accumulate err
+// orig:             stepgen->sum_err_1 = stepgen->sum_err_0;
+// orig:           }
+// orig:         }
+// orig:         DPS ("%15.2f%15.2f", match_ac, d_curr_pos);
+// orig:         end_vel = curr_vel + match_ac * dt;
+// orig: 
+// orig:         /* apply frequency limit */      
+// orig:         if (end_vel > max_freq) {
+// orig:           end_vel = max_freq;
+// orig:         } else if (end_vel < -max_freq) {
+// orig:           end_vel = -max_freq;
+// orig:         }
+// orig:         new_vel = (curr_vel + end_vel) / 2;
+// orig:         /* end of position mode */
+// orig:        stepgen->freq = end_vel;
     } else {
         // do not support velocity mode yet
         assert(0);
         /* end of velocity mode */
     }
-    stepgen->freq = end_vel;
     
     // calculate WOU commands
-    // each AXIS cycle is 1638400ns, 8192 ticks of 200ns(5MHz) clocks
     // each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
-    wou_pos_cmd = (int) new_vel * dt;
-    stepgen->accum = curr_pos + wou_pos_cmd;
+    wou_pos_cmd = (int) new_vel * stepgen->pos_scale * dt;
+    stepgen->accum += wou_pos_cmd;
+      
+    // d_curr_pos = stepgen->accum - stepgen->prev_pos;
+    // stepgen->prev_pos = stepgen->accum;
+      
 
     assert (wou_pos_cmd < 8192);
     assert (wou_pos_cmd > -8192);
@@ -883,6 +1043,7 @@ static void update_freq(void *arg, long period)
     }
 
     *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
+    DPS ("%15.7f%15.7f%15.7f", *stepgen->pos_fb, match_accel, new_vel);
 
     /* move on to next channel */
     stepgen++;
@@ -1083,6 +1244,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     addr->cur_pos = 0.0;
     addr->accum = 0;
 
+    addr->vel_fb = 0;
     addr->prev_pos_cmd = 0;
     addr->prev_pos = 0;
     addr->sum_err_0 = 0;
