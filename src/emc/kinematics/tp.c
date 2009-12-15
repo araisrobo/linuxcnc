@@ -22,6 +22,15 @@
 #include "../motion/mot_priv.h"
 #include "motion_debug.h"
 
+// to disable DP(): #define TRACE 0
+#define TRACE 0
+#include <stdint.h>
+#include "dptrace.h"
+#if (TRACE!=0)
+static FILE* dptrace = 0;
+static uint32_t _dt = 0;
+#endif
+
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 
@@ -44,6 +53,16 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
     if (-1 == tcqCreate(&tp->queue, tp->queueSize, tcSpace)) {
 	return -1;
     }
+
+#if (TRACE!=0)
+    if(!dptrace) {
+      dptrace = fopen("tp.log", "w");
+      /* prepare header for gnuplot */
+      DPS ("%11s%15s%15s%15s%15s%15s\n", 
+           "#dt", "newaccel", "newvel", "cur_vel", "progress", "blend_vel");
+    }
+    _dt+=1;
+#endif
 
     /* init the rest of our data */
     return tpInit(tp);
@@ -297,6 +316,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.active = 0;
     tc.atspeed = 1;
 
+    tc.cur_accel = 0.0;
     tc.currentvel = 0.0;
     tc.blending = 0;
     tc.blend_vel = 0.0;
@@ -413,6 +433,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxv
     tc.active = 0;
     tc.atspeed = atspeed;
 
+    tc.cur_accel = 0.0;
     tc.currentvel = 0.0;
     tc.blending = 0;
     tc.blend_vel = 0.0;
@@ -523,6 +544,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     tc.active = 0;
     tc.atspeed = atspeed;
 
+    tc.cur_accel = 0.0;
     tc.currentvel = 0.0;
     tc.blending = 0;
     tc.blend_vel = 0.0;
@@ -563,16 +585,37 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     double discr, maxnewvel, newvel, newaccel=0;
+    double delta_accel;
     if(!tc->blending) tc->vel_at_blend_start = tc->currentvel;
+
 
     discr = 0.5 * tc->cycle_time * tc->currentvel - (tc->target - tc->progress);
     if(discr > 0.0) {
         // should never happen: means we've overshot the target
         newvel = maxnewvel = 0.0;
     } else {
+        // posemath.h: pmSq = ((x)*(x))
         discr = 0.25 * pmSq(tc->cycle_time) - 2.0 / tc->maxaccel * discr;
         newvel = maxnewvel = -0.5 * tc->maxaccel * tc->cycle_time + 
-            tc->maxaccel * pmSqrt(discr);
+                              tc->maxaccel * pmSqrt(discr);
+        // if (tc->currentvel < 10) {
+        //     delta_accel = tc->maxaccel * 0.1;   // TODO: set jerk as parameter
+        //     newaccel = fabs(tc->cur_accel + delta_accel);
+        //     if (newaccel > tc->maxaccel)
+        //         newaccel = tc->maxaccel;
+        //     else if (newaccel < delta_accel)
+        //         newaccel = delta_accel;
+        // } else {
+        //     newaccel = tc->maxaccel;
+        // }
+        // discr = 0.25 * pmSq(tc->cycle_time) - 2.0 / newaccel * discr;
+        // newvel = maxnewvel = -0.5 * newaccel * tc->cycle_time + 
+        //                       newaccel * pmSqrt(discr);
+    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f\n", 
+        _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->blend_vel);
+#if (TRACE!=0)
+    _dt += 1;
+#endif
     }
     if(newvel <= 0.0) {
         // also should never happen - if we already finished this tc, it was
@@ -609,6 +652,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         // update position in this tc
         tc->progress += (newvel + tc->currentvel) * 0.5 * tc->cycle_time;
     }
+    tc->cur_accel = newaccel;
     tc->currentvel = newvel;
     if(v) *v = newvel;
     if(on_final_decel) *on_final_decel = fabs(maxnewvel - newvel) < 0.001;

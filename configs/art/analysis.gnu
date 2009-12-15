@@ -62,3 +62,11 @@ plot \
     "control.log" using 1:11 title "cubic_pos[1]", \
     "control.log" using 1:12 title "cubic_pos[2]", \
     "control.log" using 1:13 title "cubic_pos[3]"
+
+# to plot trace dumped by src/emc/kinematics/tp.c
+plot \
+    "tp.log" using 1:2 title "newaccel", \
+    "tp.log" using 1:3 title "newvel", \
+    "tp.log" using 1:4 title "cur_vel", \
+    "tp.log" using 1:5 title "progress"
+
