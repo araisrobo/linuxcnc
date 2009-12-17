@@ -482,20 +482,29 @@ int rtapi_app_main(void)
 	    rtapi_print_msg(RTAPI_MSG_ERR, "ERROR Connection failed\n");
 	    return -1;
     }
-    // forward SERVO pulses to LEDs
-    data[0] = 1;
+    // un-mask HOME-SWITCH inputs (bits_i[5:2])
+    data[0] = 0x3C;
     ret = wou_cmd (&w_param,
                    (WB_WR_CMD | WB_AI_MODE),
-                   GPIO_LEDS_SEL,
+                   GPIO_MASK_IN0,
                    1,
                    data);
-    // // forward debug_port_0[7:0] to LEDs
-    // data[0] = 2;
+    assert (ret==0);
+
+    // // forward SERVO pulses to LEDs
+    // data[0] = 1;
     // ret = wou_cmd (&w_param,
     //                (WB_WR_CMD | WB_AI_MODE),
     //                GPIO_LEDS_SEL,
     //                1,
     //                data);
+    // forward debug_port_0[7:0] to LEDs
+    data[0] = 2;
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   GPIO_LEDS_SEL,
+                   1,
+                   data);
     assert (ret==0);
     // JCMD_TBASE: 0: sif base_period is "32768" ticks
     data[0] = 0; 
