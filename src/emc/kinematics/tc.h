@@ -67,10 +67,13 @@ typedef struct {
     double target;          // segment length
     double reqvel;          // vel requested by F word, calc'd by task
     double maxaccel;        // accel calc'd by task
+    double jerk;            // the accelrate of accel
     double feed_override;   // feed override requested by user
     double maxvel;          // max possible vel (feed override stops here)
     double currentvel;      // keep track of current step (vel * cycle_time)
     double cur_accel;       // keep track of current acceleration
+    double accel_dist;      // keep track of acceleration distance
+    double accel_time;      // keep track of acceleration time
     
     int id;                 // segment's serial number
 

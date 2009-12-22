@@ -21,6 +21,7 @@
 #include "hal.h"
 #include "../motion/mot_priv.h"
 #include "motion_debug.h"
+#include <assert.h>
 
 // to disable DP(): #define TRACE 0
 #define TRACE 0
@@ -58,8 +59,8 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
     if(!dptrace) {
       dptrace = fopen("tp.log", "w");
       /* prepare header for gnuplot */
-      DPS ("%11s%15s%15s%15s%15s%15s\n", 
-           "#dt", "newaccel", "newvel", "cur_vel", "progress", "blend_vel");
+      DPS ("%11s%15s%15s%15s%15s%15s%15s\n", 
+           "#dt", "newaccel", "newvel", "cur_vel", "progress", "blend_vel", "target");
     }
     _dt+=1;
 #endif
@@ -308,8 +309,12 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.target = line_xyz.tmag + 10. * tp->uu_per_rev;
 
     tc.progress = 0.0;
+    tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxaccel = acc;
+    // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
+    // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
+    tc.jerk = 9.0 * acc;
     tc.feed_override = 0.0;
     tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
@@ -425,8 +430,12 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxv
         tc.target = line_abc.tmag;
 
     tc.progress = 0.0;
+    tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxaccel = acc;
+    // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
+    // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
+    tc.jerk = 9.0 * acc;
     tc.feed_override = 0.0;
     tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
@@ -536,8 +545,12 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     tc.cycle_time = tp->cycleTime;
     tc.target = helix_length;
     tc.progress = 0.0;
+    tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxaccel = acc;
+    // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
+    // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
+    tc.jerk = 9.0 * acc;
     tc.feed_override = 0.0;
     tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
@@ -584,78 +597,154 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 }
 
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
-    double discr, maxnewvel, newvel, newaccel=0;
-    double delta_accel;
+    double /* discr, maxnewvel, */ newvel, newaccel=0;
+    // double delta_accel;
     if(!tc->blending) tc->vel_at_blend_start = tc->currentvel;
-
-
-    discr = 0.5 * tc->cycle_time * tc->currentvel - (tc->target - tc->progress);
-    if(discr > 0.0) {
-        // should never happen: means we've overshot the target
-        newvel = maxnewvel = 0.0;
+    if(on_final_decel) *on_final_decel = 0;
+    
+    if (tc->progress < (0.5 * tc->target)) {
+        // postive acceleration
+        // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
+        // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
+        // tc->jerk = 3.0 * tc->maxaccel;
+        if (((tc->currentvel * 2) < tc->maxvel) &&
+            ((tc->currentvel * 2) < (tc->reqvel * tc->feed_override)) &&
+            ((tc->currentvel * 4 * tc->accel_time) < tc->target)) {
+            newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
+            tc->accel_time += tc->cycle_time;
+        } else {
+            newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
+        }
+        if (newaccel > tc->maxaccel) {
+            newaccel = tc->maxaccel;
+        }
+        if (newaccel < 0) {
+            newaccel = 0;
+        }
+        newvel = tc->currentvel + newaccel * tc->cycle_time;
+        if (newvel > tc->reqvel * tc->feed_override) {
+            newvel = tc->reqvel * tc->feed_override;
+        }
+        if (newvel > tc->maxvel) {
+            newvel = tc->maxvel;
+        }
+        tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
+        newaccel = (newvel - tc->currentvel)/tc->cycle_time;
+        if (newaccel > 0) {
+            tc->accel_dist = tc->progress;  // keep track of acceleration area for begin of deceleration
+        }
     } else {
-        // posemath.h: pmSq = ((x)*(x))
-        discr = 0.25 * pmSq(tc->cycle_time) - 2.0 / tc->maxaccel * discr;
-        newvel = maxnewvel = -0.5 * tc->maxaccel * tc->cycle_time + 
-                              tc->maxaccel * pmSqrt(discr);
-        // if (tc->currentvel < 10) {
-        //     delta_accel = tc->maxaccel * 0.1;   // TODO: set jerk as parameter
-        //     newaccel = fabs(tc->cur_accel + delta_accel);
-        //     if (newaccel > tc->maxaccel)
-        //         newaccel = tc->maxaccel;
-        //     else if (newaccel < delta_accel)
-        //         newaccel = delta_accel;
-        // } else {
-        //     newaccel = tc->maxaccel;
-        // }
-        // discr = 0.25 * pmSq(tc->cycle_time) - 2.0 / newaccel * discr;
-        // newvel = maxnewvel = -0.5 * newaccel * tc->cycle_time + 
-        //                       newaccel * pmSqrt(discr);
-    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f\n", 
-        _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->blend_vel);
+        if ((tc->progress + tc->accel_dist) > tc->target) {
+            // begin of deceleration
+            // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
+            // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
+            // tc->jerk = 3.0 * tc->maxaccel;
+            if (tc->accel_time > 0) {
+                newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
+                tc->accel_time -= tc->cycle_time;
+            } else {
+                if (tc->currentvel <= tc->blend_vel) {
+                    newaccel = 0;
+                } else {
+                    newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
+                }
+                if(on_final_decel) *on_final_decel = 1;
+            }
+            if (newaccel < -(tc->maxaccel)) {
+                newaccel = -(tc->maxaccel);
+            }
+            if (newaccel > 0) {
+                newaccel = 0;
+            }
+        } else {
+            newaccel = 0;
+        }
+        newvel = tc->currentvel + newaccel * tc->cycle_time;
+        assert (newvel > 0);
+        tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
+    }
+    if (tc->progress >= tc->target) {
+        newvel = 0;
+        newaccel = 0;
+        tc->progress = tc->target;
+    }
+    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n", 
+        _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->blend_vel, tc->target);
 #if (TRACE!=0)
     _dt += 1;
 #endif
-    }
-    if(newvel <= 0.0) {
-        // also should never happen - if we already finished this tc, it was
-        // caught above
-        newvel = newaccel = 0.0;
-        tc->progress = tc->target;
-    } else {
-        // constrain velocity
-        if(newvel > tc->reqvel * tc->feed_override) 
-            newvel = tc->reqvel * tc->feed_override;
-        if(newvel > tc->maxvel) newvel = tc->maxvel;
-
-        // if the motion is not purely rotary axes (and therefore in angular units) ...
-        if(!(tc->motion_type == TC_LINEAR && tc->coords.line.xyz.tmag_zero && tc->coords.line.uvw.tmag_zero)) {
-            // ... clamp motion's velocity at TRAJ MAX_VELOCITY (tooltip maxvel)
-            // except when it's synced to spindle position.
-            if((!tc->synchronized || tc->velocity_mode) && newvel > tp->vLimit) {
-                newvel = tp->vLimit;
-            }
-        }
-
-        // get resulting acceleration
-        newaccel = (newvel - tc->currentvel) / tc->cycle_time;
-        
-        // constrain acceleration and get resulting velocity
-        if(newaccel > 0.0 && newaccel > tc->maxaccel) {
-            newaccel = tc->maxaccel;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-        }
-        if(newaccel < 0.0 && newaccel < -tc->maxaccel) {
-            newaccel = -tc->maxaccel;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-        }
-        // update position in this tc
-        tc->progress += (newvel + tc->currentvel) * 0.5 * tc->cycle_time;
-    }
     tc->cur_accel = newaccel;
     tc->currentvel = newvel;
     if(v) *v = newvel;
-    if(on_final_decel) *on_final_decel = fabs(maxnewvel - newvel) < 0.001;
+    // orig: if(on_final_decel) *on_final_decel = fabs(maxnewvel - newvel) < 0.001;
+
+// orig:     // discr = 0.5 * tc->cycle_time * tc->currentvel - (tc->target - tc->progress);
+// orig:     if(discr > 0.0) {
+// orig:         // should never happen: means we've overshot the target
+// orig:         newvel = maxnewvel = 0.0;
+// orig:     } else {
+// orig:         // posemath.h: pmSq = ((x)*(x))
+// orig:         discr = 0.25 * pmSq(tc->cycle_time) - 2.0 / tc->maxaccel * discr;
+// orig:         newvel = maxnewvel = -0.5 * tc->maxaccel * tc->cycle_time + 
+// orig:                               tc->maxaccel * pmSqrt(discr);
+// orig:         // if (tc->currentvel < 10) {
+// orig:         //     delta_accel = tc->maxaccel * 0.1;   // TODO: set jerk as parameter
+// orig:         //     newaccel = fabs(tc->cur_accel + delta_accel);
+// orig:         //     if (newaccel > tc->maxaccel)
+// orig:         //         newaccel = tc->maxaccel;
+// orig:         //     else if (newaccel < delta_accel)
+// orig:         //         newaccel = delta_accel;
+// orig:         // } else {
+// orig:         //     newaccel = tc->maxaccel;
+// orig:         // }
+// orig:         // discr = 0.25 * pmSq(tc->cycle_time) - 2.0 / newaccel * discr;
+// orig:         // newvel = maxnewvel = -0.5 * newaccel * tc->cycle_time + 
+// orig:         //                       newaccel * pmSqrt(discr);
+// orig:     DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f\n", 
+// orig:         _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->blend_vel);
+// orig: #if (TRACE!=0)
+// orig:     _dt += 1;
+// orig: #endif
+// orig:     }
+// orig:     if(newvel <= 0.0) {
+// orig:         // also should never happen - if we already finished this tc, it was
+// orig:         // caught above
+// orig:         newvel = newaccel = 0.0;
+// orig:         tc->progress = tc->target;
+// orig:     } else {
+// orig:         // constrain velocity
+// orig:         if(newvel > tc->reqvel * tc->feed_override) 
+// orig:             newvel = tc->reqvel * tc->feed_override;
+// orig:         if(newvel > tc->maxvel) newvel = tc->maxvel;
+// orig: 
+// orig:         // if the motion is not purely rotary axes (and therefore in angular units) ...
+// orig:         if(!(tc->motion_type == TC_LINEAR && tc->coords.line.xyz.tmag_zero && tc->coords.line.uvw.tmag_zero)) {
+// orig:             // ... clamp motion's velocity at TRAJ MAX_VELOCITY (tooltip maxvel)
+// orig:             // except when it's synced to spindle position.
+// orig:             if((!tc->synchronized || tc->velocity_mode) && newvel > tp->vLimit) {
+// orig:                 newvel = tp->vLimit;
+// orig:             }
+// orig:         }
+// orig: 
+// orig:         // get resulting acceleration
+// orig:         newaccel = (newvel - tc->currentvel) / tc->cycle_time;
+// orig:         
+// orig:         // constrain acceleration and get resulting velocity
+// orig:         if(newaccel > 0.0 && newaccel > tc->maxaccel) {
+// orig:             newaccel = tc->maxaccel;
+// orig:             newvel = tc->currentvel + newaccel * tc->cycle_time;
+// orig:         }
+// orig:         if(newaccel < 0.0 && newaccel < -tc->maxaccel) {
+// orig:             newaccel = -tc->maxaccel;
+// orig:             newvel = tc->currentvel + newaccel * tc->cycle_time;
+// orig:         }
+// orig:         // update position in this tc
+// orig:         tc->progress += (newvel + tc->currentvel) * 0.5 * tc->cycle_time;
+// orig:     }
+// orig:     tc->cur_accel = newaccel;
+// orig:     tc->currentvel = newvel;
+// orig:     if(v) *v = newvel;
+// orig:     if(on_final_decel) *on_final_decel = fabs(maxnewvel - newvel) < 0.001;
 }
 
 
@@ -1018,8 +1107,14 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     // we know to start blending it in when the current tc goes below
     // this velocity...
     if(nexttc && nexttc->maxaccel) {
-        tc->blend_vel = nexttc->maxaccel * 
-            pmSqrt(nexttc->target / nexttc->maxaccel);
+        tc->blend_vel = pmSq(nexttc->maxaccel)/nexttc->jerk;
+        if (tc->blend_vel * 2 * nexttc->maxaccel/nexttc->jerk > nexttc->target) {
+            // has to lower tc->blend_vel;
+            tc->blend_vel = 0.5 * nexttc->target * nexttc->jerk / nexttc->maxaccel;
+        }
+        if(tc->blend_vel > nexttc->maxvel) {
+            tc->blend_vel = nexttc->maxvel;
+        }
         if(tc->blend_vel > nexttc->reqvel * nexttc->feed_override) {
             // segment has a cruise phase so let's blend over the 
             // whole accel period if possible
@@ -1106,12 +1201,12 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         emcmotStatus->current_vel = tc->currentvel + nexttc->currentvel;
 
         secondary_before = tcGetPos(nexttc);
-        save_vel = nexttc->reqvel;
-        nexttc->reqvel = nexttc->feed_override > 0.0 ? 
-            ((tc->vel_at_blend_start - primary_vel) / nexttc->feed_override) :
-            0.0;
+        // orig: save_vel = nexttc->reqvel;
+        // orig: nexttc->reqvel = nexttc->feed_override > 0.0 ? 
+        // orig:     ((tc->vel_at_blend_start - primary_vel) / nexttc->feed_override) :
+        // orig:     0.0;
         tcRunCycle(tp, nexttc, NULL, NULL);
-        nexttc->reqvel = save_vel;
+        // orig: nexttc->reqvel = save_vel;
 
         secondary_after = tcGetPos(nexttc);
         pmCartCartSub(secondary_after.tran, secondary_before.tran, 
