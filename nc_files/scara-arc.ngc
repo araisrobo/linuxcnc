@@ -9,7 +9,7 @@
 
 (for EPSON SCARA E2C351C)
 #1000 = 190.0000  ( Safe Z )
-#1001 = 115.5000  ( Engraving Depth Z )
+#1001 = 103.0000  ( Engraving Depth Z )
 #1002 = 150.0000  ( X Start )
 #1003 = 125.0000  ( Y Start )
 #1004 = 50.0      ( Circle Radius )
@@ -18,8 +18,9 @@
 
 (===================================================================)
 (F25000: feed rate: 25000mm/min)
-(G17 G21 G90 G64 P0.003 M3 S3000 M7 F60000)
-G17 G21 G90 G64 P0.003 M3 S3000 M7 F1200
+(P0.003: tolerance for blending: 0.003mm) 
+(G17 G21 G90 G64 P0.003 /* P0:tolerance for blending */ M3 S3000 M7 F60000)
+G17 G21 G90 G64 P0.003 M3 S3000 M7 F60000
 
 G1 Z#1000
 #1 = 0

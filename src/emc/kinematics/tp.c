@@ -24,7 +24,7 @@
 #include <assert.h>
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -59,8 +59,8 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
     if(!dptrace) {
       dptrace = fopen("tp.log", "w");
       /* prepare header for gnuplot */
-      DPS ("%11s%15s%15s%15s%15s%15s%15s\n", 
-           "#dt", "newaccel", "newvel", "cur_vel", "progress", "blend_vel", "target");
+      DPS ("%11s%15s%15s%15s%15s%15s%15s%15s\n", 
+           "#dt", "newaccel", "newvel", "cur_vel", "progress", "blend_vel", "target", "tolerance");
     }
     _dt+=1;
 #endif
@@ -325,7 +325,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.currentvel = 0.0;
     tc.blending = 0;
     tc.blend_vel = 0.0;
-    tc.vel_at_blend_start = 0.0;
+    // tc.nexttc_vel= 0.0;
 
     tc.coords.rigidtap.xyz = line_xyz;
     tc.coords.rigidtap.abc = abc;
@@ -446,7 +446,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxv
     tc.currentvel = 0.0;
     tc.blending = 0;
     tc.blend_vel = 0.0;
-    tc.vel_at_blend_start = 0.0;
+    // tc.nexttc_vel= 0.0;
 
     tc.coords.line.xyz = line_xyz;
     tc.coords.line.uvw = line_uvw;
@@ -561,7 +561,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     tc.currentvel = 0.0;
     tc.blending = 0;
     tc.blend_vel = 0.0;
-    tc.vel_at_blend_start = 0.0;
+    // tc.nexttc_vel= 0.0;
 
     tc.coords.circle.xyz = circle;
     tc.coords.circle.uvw = line_uvw;
@@ -599,14 +599,11 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     double /* discr, maxnewvel, */ newvel, newaccel=0;
     // double delta_accel;
-    if(!tc->blending) tc->vel_at_blend_start = tc->currentvel;
+    // if(!tc->blending) tc->vel_at_blend_start = tc->currentvel;
     if(on_final_decel) *on_final_decel = 0;
     
     if (tc->progress < (0.5 * tc->target)) {
         // postive acceleration
-        // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
-        // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
-        // tc->jerk = 3.0 * tc->maxaccel;
         if (((tc->currentvel * 2) < tc->maxvel) &&
             ((tc->currentvel * 2) < (tc->reqvel * tc->feed_override)) &&
             ((tc->currentvel * 4 * tc->accel_time) < tc->target)) {
@@ -624,26 +621,25 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         newvel = tc->currentvel + newaccel * tc->cycle_time;
         if (newvel > tc->reqvel * tc->feed_override) {
             newvel = tc->reqvel * tc->feed_override;
+            newaccel = (newvel - tc->currentvel)/tc->cycle_time;
         }
         if (newvel > tc->maxvel) {
             newvel = tc->maxvel;
+            newaccel = (newvel - tc->currentvel)/tc->cycle_time;
         }
         tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
-        newaccel = (newvel - tc->currentvel)/tc->cycle_time;
         if (newaccel > 0) {
             tc->accel_dist = tc->progress;  // keep track of acceleration area for begin of deceleration
         }
     } else {
         if ((tc->progress + tc->accel_dist) > tc->target) {
             // begin of deceleration
-            // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
-            // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
-            // tc->jerk = 3.0 * tc->maxaccel;
-            if (tc->accel_time > 0) {
+            if (tc->accel_time >= 0) {
                 newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
                 tc->accel_time -= tc->cycle_time;
             } else {
-                if (tc->currentvel <= tc->blend_vel) {
+                if (tc->blending && (tc->currentvel < tc->blend_vel)) {
+                    //TODO: find a suitable formula for blending
                     newaccel = 0;
                 } else {
                     newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
@@ -660,7 +656,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             newaccel = 0;
         }
         newvel = tc->currentvel + newaccel * tc->cycle_time;
-        assert (newvel > 0);
+        if (newvel <= 0) {
+            newvel = tc->currentvel;
+        }
         tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
     }
     if (tc->progress >= tc->target) {
@@ -668,8 +666,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         newaccel = 0;
         tc->progress = tc->target;
     }
-    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n", 
-        _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->blend_vel, tc->target);
+    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n", 
+        _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->blend_vel, tc->target, tc->tolerance);
 #if (TRACE!=0)
     _dt += 1;
 #endif
@@ -784,7 +782,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     static double spindleoffset;
     static int waiting_for_index = 0;
     static int waiting_for_atspeed = 0;
-    double save_vel;
+    // double save_vel;
     static double revs;
     EmcPose target;
 
@@ -1120,8 +1118,10 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             // whole accel period if possible
             tc->blend_vel = nexttc->reqvel * nexttc->feed_override;
         }
-        if(tc->maxaccel < nexttc->maxaccel)
-            tc->blend_vel *= tc->maxaccel/nexttc->maxaccel;
+        if(tc->maxaccel < nexttc->maxaccel) {
+            tc->blend_vel *= pmSq(tc->maxaccel/nexttc->maxaccel)
+                             / (tc->jerk/nexttc->jerk);
+        }
 
         if(tc->tolerance) {
             /* see diagram blend.fig.  T (blend tolerance) is given, theta
@@ -1206,6 +1206,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // orig:     ((tc->vel_at_blend_start - primary_vel) / nexttc->feed_override) :
         // orig:     0.0;
         tcRunCycle(tp, nexttc, NULL, NULL);
+        // tc->nexttc_vel = nexttc->currentvel;
         // orig: nexttc->reqvel = save_vel;
 
         secondary_after = tcGetPos(nexttc);
