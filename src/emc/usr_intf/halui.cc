@@ -1316,13 +1316,13 @@ static int sendHome(int joint)
     return emcCommandWaitReceived(emcCommandSerialNumber);
 }
 
-static int sendUnhome(int axis)
+static int sendUnhome(int joint)
 {
-    EMC_AXIS_UNHOME emc_axis_unhome_msg;
+    EMC_JOINT_UNHOME emc_joint_unhome_msg;
 
-    emc_axis_unhome_msg.serial_number = ++emcCommandSerialNumber;
-    emc_axis_unhome_msg.axis = axis;
-    emcCommandBuffer->write(emc_axis_unhome_msg);
+    emc_joint_unhome_msg.serial_number = ++emcCommandSerialNumber;
+    emc_joint_unhome_msg.joint = joint;
+    emcCommandBuffer->write(emc_joint_unhome_msg);
     return emcCommandWaitReceived(emcCommandSerialNumber);
 }
 
