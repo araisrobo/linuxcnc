@@ -66,7 +66,7 @@ static FILE *dptrace = fopen("dptrace_emccanon.log","w");
 static CanonConfig_t canon;
 
 static int debug_velacc = 0;
-static const double tiny = 1e-10;
+static const double tiny = 1e-7;
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -2287,15 +2287,7 @@ void INIT_CANON()
     canon.programOrigin.v = 0.0;
     canon.programOrigin.w = 0.0;
     SELECT_PLANE(CANON_PLANE_XY);
-    canon.endPoint.x = 0.0;
-    canon.endPoint.y = 0.0;
-    canon.endPoint.z = 0.0;
-    canon.endPoint.a = 0.0;
-    canon.endPoint.b = 0.0;
-    canon.endPoint.c = 0.0;
-    canon.endPoint.u = 0.0;
-    canon.endPoint.v = 0.0;
-    canon.endPoint.w = 0.0;
+    canonUpdateEndPoint(0, 0, 0, 0, 0, 0, 0, 0, 0);
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
     SET_NAIVECAM_TOLERANCE(0);
     canon.toolOffset.x = 0.0;
@@ -2390,17 +2382,9 @@ CANON_POSITION GET_EXTERNAL_POSITION()
     pos = emcStatus->motion.traj.position;
 
     // first update internal record of last position
-    canon.endPoint.x = FROM_EXT_LEN(pos.tran.x);
-    canon.endPoint.y = FROM_EXT_LEN(pos.tran.y);
-    canon.endPoint.z = FROM_EXT_LEN(pos.tran.z);
-
-    canon.endPoint.a = FROM_EXT_ANG(pos.a);
-    canon.endPoint.b = FROM_EXT_ANG(pos.b);
-    canon.endPoint.c = FROM_EXT_ANG(pos.c);
-
-    canon.endPoint.u = FROM_EXT_LEN(pos.u);
-    canon.endPoint.v = FROM_EXT_LEN(pos.v);
-    canon.endPoint.w = FROM_EXT_LEN(pos.w);
+    canonUpdateEndPoint(FROM_EXT_LEN(pos.tran.x), FROM_EXT_LEN(pos.tran.y), FROM_EXT_LEN(pos.tran.z),
+                        FROM_EXT_ANG(pos.a), FROM_EXT_ANG(pos.b), FROM_EXT_ANG(pos.c),
+                        FROM_EXT_LEN(pos.u), FROM_EXT_LEN(pos.v), FROM_EXT_LEN(pos.w));
 
     // now calculate position in program units, for interpreter
     position = unoffset_and_unrotate_pos(canon.endPoint);
