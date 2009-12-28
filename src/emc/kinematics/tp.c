@@ -24,7 +24,7 @@
 #include <assert.h>
 
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)

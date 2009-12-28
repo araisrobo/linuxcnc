@@ -84,7 +84,7 @@ case $TARGET in
 	KERNEL_HEADERS=libpth-dev
 	DRIVERS=
         EXTRA_FILES="usr/bin/rtapi_app"
-	EXTRA_BUILD=lyx-qt
+	EXTRA_BUILD="lyx"
 	if test "$DISTRIB_NAME" = "Ubuntu-8.04" ; then 
 	    EXTRA_BUILD=$DOC_BUILD
 	fi
