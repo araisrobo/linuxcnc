@@ -7,9 +7,13 @@ usr/lib/*.so*
 usr/bin/*
 usr/lib/emc/tcl/*.so
 usr/lib/python@PYTHON_VERSION@/dist-packages/*.pyc
-usr/lib/python@PYTHON_VERSION@/dist-packages/rs274/*.pyc
-usr/lib/python@PYTHON_VERSION@/dist-packages/rs274/*.so
+usr/lib/python@PYTHON_VERSION@/dist-packages/*/*.pyc
+usr/lib/python@PYTHON_VERSION@/dist-packages/*/*.so
 usr/lib/python@PYTHON_VERSION@/dist-packages/*.so
+usr/lib/python@PYTHON_VERSION@/site-packages/*.pyc
+usr/lib/python@PYTHON_VERSION@/site-packages/*/*.pyc
+usr/lib/python@PYTHON_VERSION@/site-packages/*/*.so
+usr/lib/python@PYTHON_VERSION@/site-packages/*.so
 usr/share/axis/images/*
 usr/share/axis/tcl/*
 usr/share/doc/emc2/*

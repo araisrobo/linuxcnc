@@ -71,7 +71,7 @@
 #define HM2_ADDR_IDROM_OFFSET (0x010C)
 
 #define HM2_MAX_MODULE_DESCRIPTORS  (48)
-#define HM2_MAX_PIN_DESCRIPTORS    (128)
+#define HM2_MAX_PIN_DESCRIPTORS     (1000)
 
 
 // 
@@ -257,6 +257,8 @@ typedef struct {
     s32 zero_offset;  // *hal.pin.counts == (*hal.pin.rawcounts - zero_offset)
 
     u16 prev_reg_count;  // from this and the current count in the register we compute a change-in-counts, which we add to rawcounts
+
+    s32 prev_dS_counts;  // last time the function ran, it saw this many counts from the time before *that*
 
     u32 prev_control;
 
@@ -621,7 +623,7 @@ typedef struct {
     hm2_module_descriptor_t md[HM2_MAX_MODULE_DESCRIPTORS];
     int num_mds;
 
-    hm2_pin_t pin[HM2_MAX_PIN_DESCRIPTORS];
+    hm2_pin_t *pin;
     int num_pins;
 
     // this keeps track of all the tram entries

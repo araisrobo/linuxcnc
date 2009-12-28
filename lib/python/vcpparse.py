@@ -19,11 +19,6 @@
     Parses a pyVCP XML file and creates widgets by calling pyvcp_widgets.py
 """
 
-# there's no python-xml package for Karmic (ubuntu 9.10) 
-# therefore, there's no "oldxml" directory in /usr/lib/python2.6/...
-# And, the xml.dom.ext is not required for vcpparse.py
-#import sys; sys.path.append('/usr/lib/python%s/site-packages/oldxml' % sys.version[:3]) # python-xml 0.8.4-10ubuntu1 / hardy requires this
-#import xml.dom.ext
 import xml.dom.minidom
 from Tkinter import *
 import sys, os
