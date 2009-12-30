@@ -146,10 +146,12 @@ INCLUDE += -I$(INCLUDEPY)
 endif
 
 # Compilation options.  Perhaps some of these should come from Makefile.inc?
+# original: OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
 # for debug: 
-# OPT := -O0 $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
+# OPT := -O0
 # for release: 
-OPT := -O2 $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
+OPT := -O2 $(call cc-option,-fstrict-aliasing) $(call cc-option,-fstack-protector)
+
 # NOTE: Wwrite-strings is supposed to be OFF unless explicitly requested, even with -Wall,
 # since it produces a mess of warnings on any code that doesn't use "const" fastidiously
 # There is a bug in some versions of gcc that turns it on.
@@ -157,9 +159,9 @@ OPT := -O2 $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-pr
 # So we explicitly turn it off here, to avoid a flood of meaningless warnings that
 # might be hiding a few real ones.
 # for debug: 
-# DEBUG := -g -Wall $(call cc-option,-Wno-write-strings)
+DEBUG := -g -Wall $(call cc-option,-Wno-write-strings)
 # for release: 
-DEBUG := -Wall $(call cc-option,-Wno-write-strings)
+# DEBUG := -Wall $(call cc-option,-Wno-write-strings)
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
@@ -792,7 +794,11 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	ld -g -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	ld -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
+	# original: ld -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
+	# to fix the "undefined reference to `__stack_chk_fail_local'" error
+	# replace "ld" with "gcc" for linking with '-shared' parameter
+	# http://nsnam.isi.edu/nsnam/index.php/User_Information#Ubuntu_Installation_Guide
+	gcc -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)

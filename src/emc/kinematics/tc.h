@@ -65,6 +65,7 @@ typedef struct {
     double cycle_time;
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
+    double distance_to_go;  // distance to go for target target..0
     double reqvel;          // vel requested by F word, calc'd by task
     double maxaccel;        // accel calc'd by task
     double jerk;            // the accelrate of accel
@@ -90,8 +91,8 @@ typedef struct {
     int canon_motion_type;  // this motion is due to which canon function?
     int blend_with_next;    // gcode requests continuous feed at the end of 
                             // this segment (g64 mode)
-    int blending;           // segment is being blended into following segment
-    double blend_vel;       // velocity below which we should start blending
+    // int blending;           // segment is being blended into following segment
+    // double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move, 
                             // stay within this distance from the path.
     // double vel_at_blend_start;

@@ -77,9 +77,9 @@ ppd = c['PPD'];   # joint[2]_pitch per degree_of_joint[3]
 j3min = c['J3MIN'];
 j3max = c['J3MAX'];
 
-f = open('art_scaragui.log', 'w')
-print >>f, "d1=", d1, ", d2=", d2, ", d3=", d3, ", d4=", d4, ", d5=", d5, ", d6=", d6
-print >>f, "j3min=", j3min, ", j3max=", j3max
+# f = open('art_scaragui.log', 'w')
+# print >>f, "d1=", d1, ", d2=", d2, ", d3=", d3, ", d4=", d4, ", d5=", d5, ", d6=", d6
+# print >>f, "j3min=", j3min, ", j3max=", j3max
 
 for setting in sys.argv[1:]: exec setting
 

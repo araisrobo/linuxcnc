@@ -20,7 +20,7 @@
 (F25000: feed rate: 25000mm/min)
 (P0.003: tolerance for blending: 0.003mm) 
 (G17 G21 G90 G64 P0.003 /* P0:tolerance for blending */ M3 S3000 M7 F60000)
-G17 G21 G90 G64 P0.003 M3 S3000 M7 F6000
+G17 G21 G90 G64 P0.003 M3 S3000 M7 F60000
 
 G1 Z#1000
 #1 = 0
