@@ -794,10 +794,10 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	ld -g -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	# original: ld -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
-	# to fix the "undefined reference to `__stack_chk_fail_local'" error
-	# replace "ld" with "gcc" for linking with '-shared' parameter
-	# http://nsnam.isi.edu/nsnam/index.php/User_Information#Ubuntu_Installation_Guide
+	@# original: ld -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
+	@# to fix the "undefined reference to `__stack_chk_fail_local'" error
+	@# replace "ld" with "gcc" for linking with '-shared' parameter
+	@# http://nsnam.isi.edu/nsnam/index.php/User_Information#Ubuntu_Installation_Guide
 	gcc -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c

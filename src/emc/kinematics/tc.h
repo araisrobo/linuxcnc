@@ -61,6 +61,10 @@ typedef struct {
     RIGIDTAP_STATE state;
 } PmRigidTap;
 
+enum state_type {
+  ACCEL_S0=0, ACCEL_S1, ACCEL_S2, ACCEL_S3, ACCEL_S4, ACCEL_S5, ACCEL_S6
+};
+
 typedef struct {
     double cycle_time;
     double progress;        // where are we in the segment?  0..target
@@ -75,6 +79,7 @@ typedef struct {
     double cur_accel;       // keep track of current acceleration
     double accel_dist;      // keep track of acceleration distance
     double accel_time;      // keep track of acceleration time
+    enum state_type accel_state;
     
     int id;                 // segment's serial number
 
