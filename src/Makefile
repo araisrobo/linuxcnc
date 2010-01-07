@@ -148,9 +148,9 @@ endif
 # Compilation options.  Perhaps some of these should come from Makefile.inc?
 # original: OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
 # for debug: 
-# OPT := -O0
+OPT := -O0
 # for release: 
-OPT := -O2 $(call cc-option,-fstrict-aliasing) $(call cc-option,-fstack-protector)
+# OPT := -O2
 
 # NOTE: Wwrite-strings is supposed to be OFF unless explicitly requested, even with -Wall,
 # since it produces a mess of warnings on any code that doesn't use "const" fastidiously

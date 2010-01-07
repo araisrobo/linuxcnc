@@ -46,8 +46,7 @@
 #define TRACE 0
 #include "dptrace.h"
 #if (TRACE != 0)
-// FILE *dptrace = fopen("dptrace.log","w");
-static FILE *dptrace = fopen("dptrace_emccanon.log","w");
+static FILE *dptrace = fopen("emccanon.log","w");
 #endif
 
 /*
@@ -1218,13 +1217,13 @@ void NURBS_FEED(std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
         dye = sin(alphaM);
  	unit(&dxe,&dye);
         biarc(P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
-        //printf("___________________________________________\n");
-        //printf("X %8.4f Y %8.4f\n", P0.X, P0.Y); 
+        DP("___________________________________________\n");
+        DP("X %8.4f Y %8.4f\n", P0.X, P0.Y); 
         dxs = dxe;
         dys = dye;
         P0 = P1;
         P1 = P2;   
-        //printf("u = %f\n", u);
+        DP("u = %f\n", u);
         u = u + umax/div;      
     }
     P1.X = nurbs_control_points[n].X;
@@ -1233,7 +1232,7 @@ void NURBS_FEED(std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
     dye = nurbs_control_points[n].Y - nurbs_control_points[n-1].Y;
     unit(&dxe,&dye);
     biarc(P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
-    //printf("parameters: n = %d, umax = %f, div= %d, u = %f, k = %d\n",n,umax,div,u,k);
+    DP("parameters: n = %d, umax = %f, div= %d, u = %f, k = %d\n",n,umax,div,u,k);
     knot_vector.clear();
 }
 

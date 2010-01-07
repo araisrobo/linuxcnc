@@ -9,7 +9,7 @@
 
 (for EPSON SCARA E2C351C)
 #1000 = 190.0000  ( Safe Z )
-#1001 = 150.0000  ( Engraving Depth Z )
+#1001 = 113.0000  ( Engraving Depth Z )
 #1002 = 150.0000  ( X Start )
 #1003 = 125.0000  ( Y Start )
 #1004 = 50.0      ( Circle Radius )
@@ -20,29 +20,16 @@
 (F25000: feed rate: 25000mm/min)
 (P0.003: tolerance for blending: 0.003mm) 
 (G17 G21 G90 G64 P0.003 /* P0:tolerance for blending */ M3 S3000 M7 F60000)
-G17 G21 G90 G64 P0.003 M3 S3000 M7 F60000
+G17 G21 G90 G64 P0.003 F60000
 
 G1 Z#1000
-#1 = 0
-O101 while [#1 lt 90]
 G1 X#1005 Y#1006 A45 (init)
-G1 X#1002 Y#1003
-G1 Z#1001
-G1 Z#1000
-G1 Z#1001
-G3 X#1002 Y#1003 I#1004 J0.0 (Arc Buddy w/ diameter 100)
-G1 X[#1002+[#1004*2]] Y#1003 (A-45)
-G1 Z#1000
-G1 X#1005 Y#1006 (init)
-G1 Z#1001
-G1 X#1002 Y[#1003*-1] (A45)   (begin of 2nd circle)
-G1 Z#1001
-G3 X#1002 Y[#1003*-1] I#1004 J0.0 
-G1 X[#1002+[#1004*2]] Y[#1003*-1] (A-45)
-G1 Z#1001
-G1 Z#1000
-#1 = [#1+1]
-O101 endwhile
-G1 X#1005 Y#1006 A45 (init)
+
+G5.2  X330 Y20 P1 
+      X315 Y0 P2
+      X295 Y15 P1
+      X280 Y10 P1
+G5.3
+
 M5 M9 M2
 

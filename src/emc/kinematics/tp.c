@@ -604,11 +604,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     double newvel, newaccel, target_vel;
-    // double max_decel, avg_decel;
-    // double T, X;
-    // double delta_accel;
-    // if(!tc->blending) tc->vel_at_blend_start = tc->currentvel;
-    // if(on_final_decel) *on_final_decel = 0;
+    double T, PT;
     
     switch (tc->accel_state) {
         case ACCEL_S0:
@@ -660,24 +656,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         case ACCEL_S3:
             newaccel = 0;
             newvel = tc->currentvel;
-            // max_decel = tc->jerk * tc->distance_to_go / newvel * 0.5;
-            // avg_decel = pmSq(newvel) * 0.5 / tc->distance_to_go;
-            // if (max_decel < tc->maxaccel) {
-            //     // will not hit accel limit
-            //     if (avg_decel >= max_decel) {
-            //         tc->accel_state = ACCEL_S4;
-            //         tc->accel_time = tc->currentvel; // save currentvel to accel_time
-            //     }
-            // } else {
-            //     // will hit accel limit
-            //     T = tc->maxaccel/tc->jerk;
-            //     X = 2 * (tc->distance_to_go / newvel - T);
-            //     max_decel = (0.5 * T + X) / (T + X) * tc->maxaccel;
-            //     if (avg_decel >= max_decel) {
-            //         tc->accel_state = ACCEL_S4;
-            //         tc->accel_time = tc->currentvel; // save currentvel to accel_time
-            //     }
-            // }
             if (tc->distance_to_go <= tc->accel_dist) {
                 tc->accel_state = ACCEL_S4;
                 tc->accel_time = tc->currentvel; // save currentvel to accel_time
@@ -693,6 +671,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->accel_time = tc->accel_time - newvel; // record the delta-V
             }
             // hit progress limit
+            // T = -newaccel / tc->jerk;
+            // PT = newvel * T + 0.5 * newaccel * pmSq(T) + 0.16667 * tc->jerk * pmSq(T) * T;
+            // if (PT >= tc->distance_to_go) 
             if (newvel <= 0.5 * tc->accel_time) {   // accel_time stores the initial-velocity of deceleration
                 tc->accel_state = ACCEL_S6;
             }
@@ -704,6 +685,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             if (newvel <= tc->accel_time) { // accel_time stores the delta-V for ACCEL_S4
                 tc->accel_state = ACCEL_S6;
             }            
+            // // hit progress limit
+            // T = -newaccel / tc->jerk;
+            // PT = newvel * T + 0.5 * newaccel * pmSq(T) + 0.16667 * tc->jerk * pmSq(T) * T;
+            // if (PT >= tc->distance_to_go) {
+            //     tc->accel_state = ACCEL_S6;
+            // }
             assert(newvel > 0);
             break;
         case ACCEL_S6:
@@ -714,69 +701,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         default:
             assert(0);
     } // switch (tc->accel_state)
-
-    // if (tc->progress < tc->distance_to_go) {
-    //     // postive acceleration
-    //     if (((tc->currentvel * 2) < tc->maxvel) &&
-    //         ((tc->currentvel * 2) < (tc->reqvel * tc->feed_override)) &&
-    //         // FIXME: this calculation might be wrong: 
-    //         ((tc->currentvel * 4 * tc->accel_time) < tc->target)) {
-    //         newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
-    //         tc->accel_time += tc->cycle_time;
-    //     } else {
-    //         newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
-    //     }
-    //     if (newaccel > tc->maxaccel) {
-    //         newaccel = tc->maxaccel;
-    //     }
-    //     if (newaccel < 0) {
-    //         newaccel = 0;
-    //     }
-    //     newvel = tc->currentvel + newaccel * tc->cycle_time;
-    //     if (newvel > tc->reqvel * tc->feed_override) {
-    //         newvel = tc->reqvel * tc->feed_override;
-    //         newaccel = (newvel - tc->currentvel)/tc->cycle_time;
-    //     }
-    //     if (newvel > tc->maxvel) {
-    //         newvel = tc->maxvel;
-    //         newaccel = (newvel - tc->currentvel)/tc->cycle_time;
-    //     }
-    //     tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
-    //     if (newaccel > 0) {
-    //         tc->accel_dist = tc->progress;  // keep track of acceleration area for begin of deceleration
-    //     }
-    // } else {
-    //     if (tc->distance_to_go < tc->accel_dist) {
-    //         // begin of deceleration
-    //         // FIXME: calculate the start point of decel
-    //         if (tc->accel_time >= 0) {
-    //             newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
-    //             tc->accel_time -= tc->cycle_time;
-    //         } else {
-    //             // if (tc->blending && (tc->currentvel < tc->blend_vel)) {
-    //             //     newaccel = 0;
-    //             // } else {
-    //                 //TODO: find a suitable formula for blending
-    //                 newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
-    //             // }
-    //             // if(on_final_decel) *on_final_decel = 1;
-    //         }
-    //         if (newaccel < -(tc->maxaccel)) {
-    //             newaccel = -(tc->maxaccel);
-    //         }
-    //         // if (newaccel > 0) {
-    //         //     newaccel = 0;
-    //         // }
-    //         assert (newaccel < tc->maxaccel);
-    //     } else {
-    //         newaccel = 0;
-    //     }
-    //     newvel = tc->currentvel + newaccel * tc->cycle_time;
-    //     if (newvel <= 0) {
-    //         newvel = tc->currentvel;
-    //     }
-    //     tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
-    // }
 
     tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
     if (tc->progress >= tc->target) {
