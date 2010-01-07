@@ -19,6 +19,9 @@ import sys, os
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
 datadir = os.path.join(BASE, "share", "emc")
+#BASE = /home/eric/EMC2/YSL
+#libdir = /home/eric/EMC2/YSL/lib/python
+#datadir = /home/eric/EMC2/YSL/share/emc
 sys.path.insert(0, libdir)
 try:
         import pygtk
@@ -39,20 +42,24 @@ gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
 gtk.glade.bindtextdomain("emc2", LOCALEDIR)
 gtk.glade.textdomain("emc2")
 
+# some fucntion keep calling set_xxxxx functions
 def set_active(w, s):
-	if not w: return
-	os = w.get_active()
-	if os != s: w.set_active(s)
+    #print "call set_active"
+    if not w: return
+    os = w.get_active()
+    if os != s: w.set_active(s)
 
 def set_label(w, l):
-	if not w: return
-	ol = w.get_label()
-	if ol != l: w.set_label(l)
+    #print "call set_label"
+    if not w: return
+    ol = w.get_label()
+    if ol != l: w.set_label(l)
 
-def set_text(w, t):
-	if not w: return
-	ot = w.get_label()
-	if ot != t: w.set_label(t)
+def set_text(w, t):#set_text(widget,text)
+    #print "call set_label",w,t
+    if not w: return
+    ot = w.get_label()
+    if ot != t: w.set_label(t)
 
 import emc
 from touchy import emc_interface
@@ -61,7 +68,9 @@ from touchy import hal_interface
 from touchy import filechooser
 from touchy import listing
 from touchy import preferences
+print emc
 
+# gtk.rc_parse_string() a string to parse for resource data
 gtk.rc_parse_string('''
 style "touchy-default-style" {
     bg[PRELIGHT] = "#dcdad5"
@@ -90,32 +99,32 @@ invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
 	def __init__(self):
-		#Set the Glade file
-		self.gladefile = os.path.join(datadir, "touchy.glade")
-	        self.wTree = gtk.glade.XML(self.gladefile) 
-                
+    		#Set the Glade file
+    		self.gladefile = os.path.join(datadir, "touchy.glade")#share/emc/touchy.glade
+                self.wTree = gtk.glade.XML(self.gladefile) # loading of user interfaces from XML descriptions.
+                                                           # this return gtk.glade.XML object
                 self.num_mdi_labels = 11
                 self.num_filechooser_labels = 11
                 self.num_listing_labels = 20
-
+        
                 self.wheelxyz = 0
                 self.wheelinc = 0
                 self.wheel = "fo"
                 self.radiobutton_mask = 0
                 self.resized_wheelbuttons = 0
-
+        
                 self.tab = 0
-
+        
                 self.fo_val = 100
                 self.so_val = 100
                 self.mv_val = 100
-
-                self.prefs = preferences.preferences()
+        
+                self.prefs = preferences.preferences() #touchy.preference.py
                 self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
                 self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
                 self.error_font_name = self.prefs.getpref('error_font', 'Sans Bold 10', str)
                 self.listing_font_name = self.prefs.getpref('listing_font', 'Sans 10', str)
-
+        
                 # initial screen setup
                 self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
                 if self.invisible_cursor:
@@ -124,18 +133,18 @@ class touchy:
                         self.wTree.get_widget("MainWindow").window.set_cursor(None)
                 self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
                 self.control_font = pango.FontDescription(self.control_font_name)
-
+        
                 self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
                 self.dro_font = pango.FontDescription(self.dro_font_name)
-
+        
                 self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
                 self.error_font = pango.FontDescription(self.error_font_name)
-
+        
                 self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
                 self.listing_font = pango.FontDescription(self.listing_font_name)
-
+        
                 self.setfont()
-
+        
                 # interactive mdi command builder and issuer
                 mdi_labels = []
                 mdi_eventboxes = []
@@ -143,18 +152,18 @@ class touchy:
                         mdi_labels.append(self.wTree.get_widget("mdi%d" % i))
                         mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
                 self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)
-
+        
                 listing_labels = []
                 listing_eventboxes = []
                 for i in range(self.num_listing_labels):
                         listing_labels.append(self.wTree.get_widget("listing%d" % i))
                         listing_eventboxes.append(self.wTree.get_widget("eventbox_listing%d" % i))
                 self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
-
+        
                 # emc interface
                 self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
                 self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
-
+        
                 # silly file chooser
                 filechooser_labels = []
                 filechooser_eventboxes = []
@@ -162,7 +171,7 @@ class touchy:
                         filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
                         filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
                 self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
-
+        
                 relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
                 absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
                 distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
@@ -190,7 +199,7 @@ class touchy:
                 opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
                 blockdel = ['on', 'off']
                 blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
-
+        
                 self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
                                                        self.wTree.get_widget("dro_table"),
                                                        self.wTree.get_widget("error"),
@@ -203,17 +212,17 @@ class touchy:
                         self.status.dro_mm(0)
                 else:
                         self.status.dro_inch(0)
-
+        
                 if self.prefs.getpref('dro_actual', 0):
                         self.status.dro_actual(0)
                 else:
                         self.status.dro_commanded(0)
-
+        
                 if self.prefs.getpref('blockdel', 0):
                         self.emc.blockdel_on(0)
                 else:
                         self.emc.blockdel_off(0)
-
+        
                 if self.prefs.getpref('opstop', 1):
                         self.emc.opstop_on(0)
                 else:
@@ -221,7 +230,7 @@ class touchy:
                                 
                 gobject.timeout_add(50, self.periodic_status)
                 gobject.timeout_add(100, self.periodic_radiobuttons)
-
+        
                 # event bindings
                 dic = {
                         "quit" : self.quit,
@@ -535,6 +544,7 @@ class touchy:
                 return True
 
         def periodic_radiobuttons(self):
+                #print "periodic_radiobuttons would called repeatly"
                 self.radiobutton_mask = 1
                 s = emc.stat()
                 s.poll()
@@ -609,7 +619,10 @@ class touchy:
                 return True
 
 if __name__ == "__main__":
-	hwg = touchy()
-	res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-f", "touchy.hal"])
-	if res: raise SystemExit, res
-	gtk.main()
+    print "touchy main +++"
+    hwg = touchy()
+    res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-f", "touchy.hal"])
+    if res: raise SystemExit, res
+    print "touchy call gtk.main"
+    gtk.main()
+    print "touchy main ---"
