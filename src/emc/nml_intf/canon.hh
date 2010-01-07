@@ -493,7 +493,7 @@ extern double alpha_finder(double dx, double dy);
 
 /* Canon calls */
 
-extern void NURBS_FEED(std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k);
+extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k);
 /* Move at the feed rate along an approximation of a NURBS with a variable number
  * of control points
  */

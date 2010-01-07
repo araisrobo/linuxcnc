@@ -98,6 +98,7 @@ int tpClear(TP_STRUCT * tp)
     tp->queueSize = 0;
     tp->goalPos = tp->currentPos;
     tp->nextId = 0;
+    DP("tp->nextId(%d)\n", tp->nextId);
     tp->execId = 0;
     tp->motionType = 0;
     tp->termCond = TC_TERM_COND_BLEND;
@@ -211,6 +212,7 @@ int tpSetId(TP_STRUCT * tp, int id)
     }
 
     tp->nextId = id;
+    DP("tp->nextId(%d) emcmotCommand->id(%d)\n", tp->nextId, emcmotCommand->id);
 
     return 0;
 }
@@ -366,6 +368,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
+    DP("tp->nextId(%d)\n", tp->nextId);
 
     return 0;
 }
@@ -483,6 +486,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxv
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
+    DP("tp->nextId(%d)\n", tp->nextId);
 
     return 0;
 }
@@ -598,6 +602,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
+    DP("tp->nextId(%d)\n", tp->nextId);
 
     return 0;
 }

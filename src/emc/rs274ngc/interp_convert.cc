@@ -192,7 +192,7 @@ int Interp::convert_nurbs(int mode,
         CHKS((nurbs_control_points.size()<nurbs_order), _("You must specify a number of control points at least equal to the order L = %d"), nurbs_order);
 	settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
         settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
-        NURBS_FEED(nurbs_control_points, nurbs_order);
+        NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
 	//printf("hello\n");
 	nurbs_control_points.clear();
 	//printf("%d\n", 	nurbs_control_points.size());

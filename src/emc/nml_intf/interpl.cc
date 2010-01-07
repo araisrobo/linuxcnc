@@ -190,6 +190,13 @@ NMLmsg *NML_INTERP_LIST::get()
 
     // get it off the front
     ret = (NMLmsg *) ((char *) node_ptr->command.commandbuf);
+    
+    if (EMC_DEBUG & EMC_DEBUG_INTERP_LIST) {
+	rcs_print
+	    ("NML_INTERP_LIST::get(ret{size=%d,type=%s}) : list_size=%d, line_number=%d\n",
+	     ret->size, emc_symbol_lookup(ret->type),
+	     linked_list_ptr->list_size, line_number);
+    }
 
     return ret;
 }

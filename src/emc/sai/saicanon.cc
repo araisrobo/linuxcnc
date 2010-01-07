@@ -379,7 +379,7 @@ void STOP_SPEED_FEED_SYNCH()
 /* Machining Functions */
 
 void NURBS_FEED(
-std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
+int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
 {
   fprintf(_outfile, "%5d ", _line_number++);
   print_nc_line_number();
