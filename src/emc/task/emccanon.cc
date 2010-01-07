@@ -43,7 +43,7 @@
 #include "emcglb.h"		// TRAJ_MAX_VELOCITY
 #include "emcpos.h"
 
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE != 0)
 static FILE *dptrace = fopen("emccanon.log","w");
