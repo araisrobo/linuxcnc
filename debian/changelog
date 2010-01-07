@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-alpha1) karmic; urgency=low
+
+  * fixed NURBS(G5.2/G5.3) command
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 05 Jan 2010 15:59:32 +0800
+
 emc2 (1:2.4.0-alpha0) karmic; urgency=low
 
   * implement S-Curve Acceleration
