@@ -36,6 +36,7 @@ class mdi:
         am = self.emcstat.axis_mask
 
         self.axes = []
+        self.polar = 0
         axisnames = ['X', 'Y', 'Z', 'A', 'B', 'C', 'U', 'V', 'W']
         for i in range(9):
            if am & (1<<i):
@@ -104,6 +105,9 @@ class mdi:
         if 'A' in words:         # if A in word , apply axes into words, 
             i = words.index('A') # ex 'G03' words = 'A', 'I', 'J', 'K', 'R', 'F' => 'X', 'Y', 'Z', 'I', 'J', 'K', 'R', 'F'
             words = words[:i] + self.axes + words[i+1:]
+            if self.polar and 'X' in self.axes and 'Y' in self.axes:
+                words[self.axes.index('X')] = '@'
+                words[self.axes.index('Y')] = '^'
         return words
 
     def clear(self):
@@ -112,10 +116,20 @@ class mdi:
     def set_word(self, word, value):
         self.words[word] = value
 
+    def set_polar(self, p):
+        self.polar = p;
+
     def issue(self):
         print "mdi issue ++++"
         m = self.gcode
-        for i in self.words:
+        w = [i for i in self.words if len(self.words.get(i)) > 0]
+        if '@' in w:
+            m += '@' + self.words.get('@')
+            w.remove('@')
+        if '^' in w:
+            m += '^' + self.words.get('^')
+            w.remove('^')
+        for i in w:
             if len(self.words.get(i)) > 0:
                 m += i + self.words.get(i)
         self.emcstat.poll()
@@ -167,9 +181,9 @@ class mdi_control:
             if len(t) == 1:
                 self.mdi.set_word(t, "")
         if len(t) < 2:
-            w.modify_fg(self.gtk.STATE_NORMAL, self.gtk.gdk.color_parse("#888"))
+            w.set_alignment(1.0, 0.5)
         else:
-            w.modify_fg(self.gtk.STATE_NORMAL, self.gtk.gdk.color_parse("#000"))
+            w.set_alignment(0.0, 0.5)
             
     def clear(self, b):
         t = self.get_text()
@@ -217,7 +231,11 @@ class mdi_control:
         num = b.get_name()
         self.set_text(t + num)
 
-    def g(self, b, code="G"):
+    def gp(self, b):
+        self.g(b, "G", 1)
+
+    def g(self, b, code="G", polar=0):
+        self.mdi.set_polar(polar)
         self.set_text(code, 0)
         for i in range(1, self.numlabels):
             self.set_text("", i)

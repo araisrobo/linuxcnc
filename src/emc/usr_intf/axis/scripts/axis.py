@@ -2322,7 +2322,7 @@ class _prompt_touchoff(_prompt_float):
             tool_offset_axes = "xz"
         else:
             tool_offset_axes = "z"
-        if vars.current_axis.get() not in tool_offset_axes:
+        if (vars.current_axis.get() not in tool_offset_axes) or (s.tool_in_spindle == 0):
             del systems[-1]
             if defaultsystem.startswith("T"): defaultsystem = systems[0]
         linear_axis = vars.current_axis.get() in "xyzuvw"
@@ -2350,7 +2350,7 @@ class _prompt_touchoff(_prompt_float):
         self.buttons.tkraise()
         for i in [1,2,3,4,5,6,7,8,9]:
             t.bind("<Alt-KeyPress-%s>" % i, lambda event, system=systems[i-1]: c.set(system))
-        if not (current_tool is None or vars.current_axis.get() not in tool_offset_axes):
+        if not ((s.tool_in_spindle == 0) or vars.current_axis.get() not in tool_offset_axes):
             t.bind("<Alt-t>", lambda event: c.set(systems[9]))
             t.bind("<Alt-0>", lambda event: c.set(systems[9]))
 
@@ -2715,6 +2715,22 @@ class TclCommands(nf.TclCommands):
         f = str(f)
         open_directory = os.path.dirname(f)
         commands.open_file_name(f)
+
+    def remote (cmd,arg=""):
+        if cmd == "clear_live_plot":
+            commands.clear_live_plot()
+            return ""
+        if running():
+            return _("axis cannot accept remote command while running")
+        if cmd == "open_file_name":
+            commands.open_file_name(arg)
+        elif cmd == "send_mdi_command":
+            commands.send_mdi_command(arg)
+        elif cmd == "reload_file":
+            commands.reload_file()
+        elif cmd == "destroy":
+            root_window.tk.call("destroy", ".")
+        return ""
 
     def open_file_name(f):
         open_file_guts(f)
