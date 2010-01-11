@@ -8,7 +8,7 @@
 # the Free Software Foundation, either version 2 of the License, or
 # (at your option) any later version.
 #
-# Touchy is distributed in the hope that it will be useful,
+# Touchy is diibuted in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -70,7 +70,7 @@ from touchy import listing
 from touchy import preferences
 print emc
 
-# gtk.rc_parse_string() a string to parse for resource data
+# gtk.rc_parse_ing() a string to parse for resource data
 gtk.rc_parse_string('''
 style "touchy-default-style" {
     bg[PRELIGHT] = "#dcdad5"
@@ -146,12 +146,14 @@ class touchy:
                 self.setfont()
         
                 # interactive mdi command builder and issuer
+                print "interactive mdi command builder and issuer"
                 mdi_labels = []
                 mdi_eventboxes = []
-                for i in range(self.num_mdi_labels):
-                        mdi_labels.append(self.wTree.get_widget("mdi%d" % i))
+                for i in range(self.num_mdi_labels): #num_mdi_labels = 11 is pre-defined
+                        mdi_labels.append(self.wTree.get_widget("mdi%d" % i))#mdiX = labels belong to eventBox
                         mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
-                self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)
+                #mdi module come from touchy.mdi=mdi.py
+                self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)#at this moment mdi module run init
         
                 listing_labels = []
                 listing_eventboxes = []
@@ -366,6 +368,7 @@ class touchy:
                 self.emc.blockdel_off(b)
 
         def wheelx(self, b):
+                print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
 
@@ -402,6 +405,7 @@ class touchy:
                 self.wheelxyz = 8
 
         def wheelinc1(self, b):
+                print "wheelinc1 clicked"
                 if self.radiobutton_mask: return
                 self.wheelinc = 0
 
@@ -412,10 +416,12 @@ class touchy:
                 self.emc.unhome_selected(self.wheelxyz)
 
         def wheelinc2(self, b):
+                print "wheelinc2 clicked"
                 if self.radiobutton_mask: return
                 self.wheelinc = 1
 
         def wheelinc3(self, b):
+                print "wheelinc3 clicked"
                 if self.radiobutton_mask: return
                 self.wheelinc = 2
 
@@ -434,7 +440,8 @@ class touchy:
                 self.wheel = "mv"
                 self.jogsettings_activate(0)
 
-        def jogging(self, b):
+        def jogging(self, b):# b is gtk widget itself
+                print "click on jogging"  
                 if self.radiobutton_mask: return
                 self.wheel = "jogging"
                 self.emc.jogging(b)
@@ -540,7 +547,7 @@ class touchy:
                 self.status.periodic()
                 self.radiobutton_mask = 0
                 self.emc.unmask()
-                self.hal.periodic(self.tab == 1) # MDI tab?
+                self.hal.periodic(self.tab == 1) # MDI tab? OMG, I have to think about it myself.
                 return True
 
         def periodic_radiobuttons(self):
@@ -586,6 +593,7 @@ class touchy:
                 self.radiobutton_mask = 0
 
                 if self.wheel == "jogging":
+                       # print "touchy.wheelxyz=",self.wheelxyz
                         self.hal.jogaxis(self.wheelxyz)
                 else:
                         # disable all

@@ -16,6 +16,7 @@ import hal
 
 class hal_interface:
     def __init__(self, gui, emc_control, mdi_control):
+        print "touchy.hal init ++++"
         self.gui = gui
         self.emc_control = emc_control
         self.mdi_control = mdi_control
@@ -85,6 +86,7 @@ class hal_interface:
         self.c.ready()
         self.active = 0
         self.jogaxis(0)
+        print "touchy.hal init -----"
 
     def wheel(self):
         counts = self.c["wheel-counts"]/4
@@ -93,6 +95,7 @@ class hal_interface:
         return ret
 
     def jogaxis(self, n):
+        # n =0 and self.active => self.c["jog.wheel.x"] = TRUE
         self.c["jog.wheel.x"] = n == 0 and self.active
         self.c["jog.wheel.y"] = n == 1 and self.active
         self.c["jog.wheel.z"] = n == 2 and self.active
@@ -102,7 +105,8 @@ class hal_interface:
         self.c["jog.wheel.u"] = n == 6 and self.active
         self.c["jog.wheel.v"] = n == 7 and self.active
         self.c["jog.wheel.w"] = n == 8 and self.active
-
+       
+        
     def jogincrement(self, inc):
         incs = [0.01, 0.001, 0.0001]
         self.c["jog.wheel.increment"] = incs[inc]
@@ -113,8 +117,11 @@ class hal_interface:
 
     def periodic(self, mdi_mode):
         # edge detection
+        print "hal_interface periodic +++++"
         xp = self.c["jog.continuous.x.positive"]
-        if xp ^ self.xp: self.emc_control.continuous_jog(0, xp)
+        if xp ^ self.xp: 
+            print "periodic call emc_control.continous_jog if xp^self.xp"
+            self.emc_control.continuous_jog(0, xp)
         self.xp = xp
 
         xn = self.c["jog.continuous.x.negative"]
@@ -207,5 +214,5 @@ class hal_interface:
         singleblock = self.c["single-block"]
         if singleblock ^ self.singleblock: self.emc_control.single_block(singleblock)
         self.singleblock = singleblock
-
+        print "hal_interface periodic -----"
         

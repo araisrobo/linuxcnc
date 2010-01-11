@@ -3464,6 +3464,7 @@ def jog(*args):
     ensure_mode(emc.MODE_MANUAL)
     c.jog(*args)
 
+
 # XXX correct for machines with more than six axes
 jog_after = [None] * 9
 jog_cont  = [False] * 9
@@ -3822,6 +3823,7 @@ t.bind("<Button-5>", scroll_down)
 t.configure(state="disabled")
 
 if hal_present == 1 :
+    print "*********** axis hal prsent *********"
     comp = hal.component("axisui")
     comp.newpin("jog.x", hal.HAL_BIT, hal.HAL_OUT)
     comp.newpin("jog.y", hal.HAL_BIT, hal.HAL_OUT)
