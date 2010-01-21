@@ -62,9 +62,9 @@ def set_text(w, t):#set_text(widget,text)
     if ot != t: w.set_label(t)
 
 import emc
-from touchy import emc_interface
-from touchy import mdi
-from touchy import hal_interface
+from touchy import emc_interface  #emc_control
+from touchy import mdi #mdi
+from touchy import hal_interface #hal_interface
 from touchy import filechooser
 from touchy import listing
 from touchy import preferences
