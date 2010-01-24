@@ -100,113 +100,113 @@ pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
 invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
-    def __init__(self):
+        def __init__(self):
     #Set the Glade file
-    		self.gladefile = os.path.join(datadir, "touchy.glade")#share/emc/touchy.glade
-                self.wTree = gtk.glade.XML(self.gladefile) # loading of user interfaces from XML descriptions.
+            self.gladefile = os.path.join(datadir, "touchy.glade")#share/emc/touchy.glade
+            self.wTree = gtk.glade.XML(self.gladefile) # loading of user interfaces from XML descriptions.
                                                            # this return gtk.glade.XML object
-                self.num_mdi_labels = 11
-                self.num_filechooser_labels = 11
-                self.num_listing_labels = 20
+            self.num_mdi_labels = 11
+            self.num_filechooser_labels = 11
+            self.num_listing_labels = 20
         
-                self.wheelxyz = 0
-                self.wheelinc = 0
-                self.wheel = "fo"
-                self.radiobutton_mask = 0
-                self.resized_wheelbuttons = 0
+            self.wheelxyz = 0
+            self.wheelinc = 0
+            self.wheel = "fo"
+            self.radiobutton_mask = 0
+            self.resized_wheelbuttons = 0
         
-                self.tab = 0
+            self.tab = 0
         
-                self.fo_val = 100
-                self.so_val = 100
-                self.mv_val = 100
+            self.fo_val = 100
+            self.so_val = 100
+            self.mv_val = 100
         
-                self.prefs = preferences.preferences() #touchy.preference.py
-                self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
-                self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
-                self.error_font_name = self.prefs.getpref('error_font', 'Sans Bold 10', str)
-                self.listing_font_name = self.prefs.getpref('listing_font', 'Sans 10', str)
+            self.prefs = preferences.preferences() #touchy.preference.py
+            self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
+            self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
+            self.error_font_name = self.prefs.getpref('error_font', 'Sans Bold 10', str)
+            self.listing_font_name = self.prefs.getpref('listing_font', 'Sans 10', str)
         
-                # initial screen setup
-                self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
-                if self.invisible_cursor:
-                        self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
-                else:
-                        self.wTree.get_widget("MainWindow").window.set_cursor(None)
-                self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
-                self.control_font = pango.FontDescription(self.control_font_name)
+            # initial screen setup
+            self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
+            if self.invisible_cursor:
+                    self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
+            else:
+                    self.wTree.get_widget("MainWindow").window.set_cursor(None)
+            self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
+            self.control_font = pango.FontDescription(self.control_font_name)
         
-                self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
-                self.dro_font = pango.FontDescription(self.dro_font_name)
+            self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
+            self.dro_font = pango.FontDescription(self.dro_font_name)
         
-                self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
-                self.error_font = pango.FontDescription(self.error_font_name)
+            self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
+            self.error_font = pango.FontDescription(self.error_font_name)
         
-                self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
-                self.listing_font = pango.FontDescription(self.listing_font_name)
+            self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
+            self.listing_font = pango.FontDescription(self.listing_font_name)
         
-                self.setfont()
+            self.setfont()
         
-                # interactive mdi command builder and issuer
-                print "interactive mdi command builder and issuer"
-                mdi_labels = []
-                mdi_eventboxes = []
-                for i in range(self.num_mdi_labels): #num_mdi_labels = 11 is pre-defined
-                        mdi_labels.append(self.wTree.get_widget("mdi%d" % i))#mdiX = labels belong to eventBox
-                        mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
+            # interactive mdi command builder and issuer
+            print "interactive mdi command builder and issuer"
+            mdi_labels = []
+            mdi_eventboxes = []
+            for i in range(self.num_mdi_labels): #num_mdi_labels = 11 is pre-defined
+                    mdi_labels.append(self.wTree.get_widget("mdi%d" % i))#mdiX = labels belong to eventBox
+                    mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
                 #mdi module come from touchy.mdi=mdi.py
-                self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)#at this moment mdi module run init
+            self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)#at this moment mdi module run init
         
-                listing_labels = []
-                listing_eventboxes = []
-                for i in range(self.num_listing_labels):
+            listing_labels = []
+            listing_eventboxes = []
+            for i in range(self.num_listing_labels):
                         listing_labels.append(self.wTree.get_widget("listing%d" % i))
                         listing_eventboxes.append(self.wTree.get_widget("eventbox_listing%d" % i))
-                self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
+            self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
         
-                # emc interface
-                print "apply emc_interface.emc_control"
-                self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
-                print "apply hal_interface.hal_interface"
-                self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
+            # emc interface
+            print "apply emc_interface.emc_control"
+            self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
+            print "apply hal_interface.hal_interface"
+            self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
         
-                # silly file chooser
-                filechooser_labels = []
-                filechooser_eventboxes = []
-                for i in range(self.num_filechooser_labels):
-                        filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
-                        filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
-                self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
+            # silly file chooser
+            filechooser_labels = []
+            filechooser_eventboxes = []
+            for i in range(self.num_filechooser_labels):
+                    filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
+                    filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
+            self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
         
-                relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
-                absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
-                distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
-                relative = [self.wTree.get_widget(i) for i in relative]
-                absolute = [self.wTree.get_widget(i) for i in absolute]
-                distance = [self.wTree.get_widget(i) for i in distance]
+            relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
+            absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
+            distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
+            relative = [self.wTree.get_widget(i) for i in relative]
+            absolute = [self.wTree.get_widget(i) for i in absolute]
+            distance = [self.wTree.get_widget(i) for i in distance]
                 
-                estops = ['estop_reset', 'estop']
-                estops = dict((i, self.wTree.get_widget(i)) for i in estops)
-                machines = ['on', 'off']
-                machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
-                floods = ['on', 'off']
-                floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
-                mists = ['on', 'off']
-                mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
-                spindles = ['forward', 'off', 'reverse']
-                spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
-                stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
+            estops = ['estop_reset', 'estop']
+            estops = dict((i, self.wTree.get_widget(i)) for i in estops)
+            machines = ['on', 'off']
+            machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
+            floods = ['on', 'off']
+            floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
+            mists = ['on', 'off']
+            mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
+            spindles = ['forward', 'off', 'reverse']
+            spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
+            stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
                          'spindledir', 'spindlespeed', 'loadedtool', 'preppedtool',
                          'xyrotation', 'tlo', 'activecodes']
-                stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
-                prefs = ['actual', 'commanded', 'inch', 'mm']
-                prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
-                opstop = ['on', 'off']
-                opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
-                blockdel = ['on', 'off']
-                blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
+            stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
+            prefs = ['actual', 'commanded', 'inch', 'mm']
+            prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
+            opstop = ['on', 'off']
+            opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
+            blockdel = ['on', 'off']
+            blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
         
-                self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
+            self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
                                                        self.wTree.get_widget("dro_table"),
                                                        self.wTree.get_widget("error"),
                                                        estops, machines,
@@ -214,33 +214,33 @@ class touchy:
                                                        stats,
                                                        floods, mists, spindles, prefs,
                                                        opstop, blockdel)
-                if self.prefs.getpref('dro_mm', 0):
-                        self.status.dro_mm(0)
-                else:
-                        self.status.dro_inch(0)
+            if self.prefs.getpref('dro_mm', 0):
+                    self.status.dro_mm(0)
+            else:
+                    self.status.dro_inch(0)
         
-                if self.prefs.getpref('dro_actual', 0):
-                        self.status.dro_actual(0)
-                else:
-                        self.status.dro_commanded(0)
+            if self.prefs.getpref('dro_actual', 0):
+                    self.status.dro_actual(0)
+            else:
+                    self.status.dro_commanded(0)
         
-                if self.prefs.getpref('blockdel', 0):
-                        self.emc.blockdel_on(0)
-                else:
-                        self.emc.blockdel_off(0)
+            if self.prefs.getpref('blockdel', 0):
+                    self.emc.blockdel_on(0)
+            else:
+                    self.emc.blockdel_off(0)
         
-                if self.prefs.getpref('opstop', 1):
-                        self.emc.opstop_on(0)
-                else:
-                        self.emc.opstop_off(0)                        
+            if self.prefs.getpref('opstop', 1):
+                    self.emc.opstop_on(0)
+            else:
+                    self.emc.opstop_off(0)                        
 
-                self.emc.max_velocity(self.mv_val)
+            self.emc.max_velocity(self.mv_val)
                                 
-                gobject.timeout_add(50, self.periodic_status)
-                gobject.timeout_add(100, self.periodic_radiobuttons)
+            gobject.timeout_add(50, self.periodic_status)
+            gobject.timeout_add(100, self.periodic_radiobuttons)
         
-                # event bindings
-                dic = {
+            # event bindings
+            dic = {
                         "quit" : self.quit,
                         "on_pointer_show_clicked" : self.pointer_show,
                         "on_pointer_hide_clicked" : self.pointer_hide,
@@ -314,7 +314,7 @@ class touchy:
                         "on_spindle_slower_clicked" : self.emc.spindle_slower,
                         "on_spindle_faster_clicked" : self.emc.spindle_faster,
                         }
-                self.wTree.signal_autoconnect(dic)
+            self.wTree.signal_autoconnect(dic)
 
         def quit(self, unused):
                 gtk.main_quit()
