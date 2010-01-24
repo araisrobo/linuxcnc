@@ -27,7 +27,7 @@
 
   <child>
     <widget class="GtkVBox" id="vbox5">
-      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
       <property name="visible">True</property>
       <property name="homogeneous">False</property>
       <property name="spacing">0</property>
@@ -40,7 +40,7 @@
 
 	  <child>
 	    <widget class="GtkVBox" id="vbox1">
-               <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 	      <property name="visible">True</property>
 	      <property name="homogeneous">False</property>
 	      <property name="spacing">0</property>
@@ -903,7 +903,7 @@
 
 		  <child>
 		    <widget class="GtkVBox" id="vbox6">
- 		      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 		      <property name="visible">True</property>
 		      <property name="homogeneous">False</property>
 		      <property name="spacing">0</property>
@@ -1239,7 +1239,7 @@
 
 		  <child>
 		    <widget class="GtkVBox" id="vbox12">
-                      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 		      <property name="visible">True</property>
 		      <property name="homogeneous">False</property>
 		      <property name="spacing">0</property>
@@ -1300,7 +1300,7 @@
 
 			  <child>
 			    <widget class="GtkVBox" id="vbox11">
-                              <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 			      <property name="visible">True</property>
 			      <property name="homogeneous">True</property>
 			      <property name="spacing">0</property>
@@ -1959,8 +1959,8 @@
 
 			      <child>
 				<widget class="GtkVBox" id="vbox12">
-                                  <property name="orientation">vertical</property>
-				  <property name="visible">True</property>
+				 <property name="orientation">vertical</property>				  
+				<property name="visible">True</property>
 				  <property name="homogeneous">True</property>
 				  <property name="spacing">0</property>
 
@@ -2106,7 +2106,7 @@
 
 		  <child>
 		    <widget class="GtkVBox" id="vbox7">
-                      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 		      <property name="visible">True</property>
 		      <property name="homogeneous">False</property>
 		      <property name="spacing">0</property>
@@ -2391,7 +2391,7 @@
 
 				  <child>
 				    <widget class="GtkVBox" id="vbox8">
-                                      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 				      <property name="visible">True</property>
 				      <property name="homogeneous">True</property>
 				      <property name="spacing">0</property>
@@ -4951,7 +4951,7 @@ F1 S1</property>
 
 		  <child>
 		    <widget class="GtkVBox" id="vbox10">
-                      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 		      <property name="visible">True</property>
 		      <property name="homogeneous">False</property>
 		      <property name="spacing">0</property>
@@ -5647,14 +5647,14 @@ F1 S1</property>
 
 		  <child>
 		    <widget class="GtkVBox" id="vbox4">
-                      <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 		      <property name="visible">True</property>
 		      <property name="homogeneous">False</property>
 		      <property name="spacing">0</property>
 
 		      <child>
 			<widget class="GtkVBox" id="vbox5">
-                          <property name="orientation">vertical</property>
+ <property name="orientation">vertical</property>
 			  <property name="border_width">5</property>
 			  <property name="visible">True</property>
 			  <property name="homogeneous">False</property>

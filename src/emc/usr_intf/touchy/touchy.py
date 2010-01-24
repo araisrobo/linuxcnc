@@ -163,7 +163,9 @@ class touchy:
                 self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
         
                 # emc interface
+                print "apply emc_interface.emc_control"
                 self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
+                print "apply hal_interface.hal_interface"
                 self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
         
                 # silly file chooser
@@ -374,6 +376,11 @@ class touchy:
                 print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
+                if self.hal.xp is 1:
+                    self.hal.xp = 0
+                else:
+                    self.hal.xp=1
+                
 
         def wheely(self, b):
                 if self.radiobutton_mask: return
@@ -597,6 +604,7 @@ class touchy:
 
                 if self.wheel == "jogging":
                        # print "touchy.wheelxyz=",self.wheelxyz
+                        print "enable",touchy.wheelxyz
                         self.hal.jogaxis(self.wheelxyz)
                 else:
                         # disable all

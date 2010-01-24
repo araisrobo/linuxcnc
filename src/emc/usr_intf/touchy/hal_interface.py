@@ -117,11 +117,11 @@ class hal_interface:
 
     def periodic(self, mdi_mode):
         # edge detection
-        print "hal_interface periodic +++++"
+        # print "hal_interface periodic +++++"
         xp = self.c["jog.continuous.x.positive"]
         if xp ^ self.xp: 
             print "periodic call emc_control.continous_jog if xp^self.xp"
-            self.emc_control.continuous_jog(0, xp)
+            self.emc_control.continuous_jog(0, self.xp)
         self.xp = xp
 
         xn = self.c["jog.continuous.x.negative"]
@@ -208,11 +208,13 @@ class hal_interface:
         self.cyclestart = cyclestart
 
         abort = self.c["abort"]
-        if abort and not self.abort: self.emc_control.abort()
+        if abort and not self.abort:
+            print "allow abort" 
+            self.emc_control.abort()
         self.abort = abort
 
         singleblock = self.c["single-block"]
         if singleblock ^ self.singleblock: self.emc_control.single_block(singleblock)
         self.singleblock = singleblock
-        print "hal_interface periodic -----"
+        #print "hal_interface periodic -----"
         
