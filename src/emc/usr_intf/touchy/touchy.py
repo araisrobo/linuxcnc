@@ -62,6 +62,7 @@ def set_text(w, t):#set_text(widget,text)
     if ot != t: w.set_label(t)
 
 import emc
+print emc
 from touchy import emc_interface  #emc_control
 from touchy import mdi #mdi
 from touchy import hal_interface #hal_interface
@@ -94,12 +95,13 @@ static char * invisible_xpm[] = {
 
 
 color = gtk.gdk.Color()
+print gtk.gdk.Color()
 pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
 invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
-	def __init__(self):
-    		#Set the Glade file
+    def __init__(self):
+    #Set the Glade file
     		self.gladefile = os.path.join(datadir, "touchy.glade")#share/emc/touchy.glade
                 self.wTree = gtk.glade.XML(self.gladefile) # loading of user interfaces from XML descriptions.
                                                            # this return gtk.glade.XML object
