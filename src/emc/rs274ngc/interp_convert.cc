@@ -132,8 +132,9 @@ int Interp::comp_set_programmed(setup_pointer settings, double x, double y, doub
  * Side effects: Generates a nurbs move and updates the position of the tool
  */
 
-static unsigned int nurbs_order;
+static unsigned int nurbs_order = 0;
 static std::vector<CONTROL_POINT> nurbs_control_points;
+static std::vector<double> nurbs_knot_vector;
 
 int Interp::convert_nurbs(int mode,
       block_pointer block,     //!< pointer to a block of RS274 instructions
@@ -176,27 +177,98 @@ int Interp::convert_nurbs(int mode,
             nurbs_control_points.push_back(CP);
             }
 
-//for (i=0;i<nurbs_control_points.size();i++){
-//                printf( "X %8.4f, Y %8.4f, W %8.4f\n",
-//              nurbs_control_points[i].X,
-//               nurbs_control_points[i].Y,
-//               nurbs_control_points[i].W);
-//       }
-//        printf("*-----------------------------------------*\n");
+//debug:        for (int i=0;i<nurbs_control_points.size();i++){
+//debug:            printf( "X %8.4f, Y %8.4f, W %8.4f\n",
+//debug:            nurbs_control_points[i].X,
+//debug:            nurbs_control_points[i].Y,
+//debug:            nurbs_control_points[i].W);
+//debug:        }
+//debug:        printf("*-----------------------------------------*\n");
+//debug:	printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
+//debug:                __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+
         settings->motion_mode = mode;
-    }
-    
-    else if (mode == G_5_3){
-        CHKS((settings->motion_mode != G_5_2), (
-             "Cannot use G5.3 without G5.2 first"));
-        CHKS((nurbs_control_points.size()<nurbs_order), _("You must specify a number of control points at least equal to the order L = %d"), nurbs_order);
-	settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
-        settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
-        NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
-	//printf("hello\n");
-	nurbs_control_points.clear();
-	//printf("%d\n", 	nurbs_control_points.size());
-	settings->motion_mode = -1;
+    } else if (mode == G_6_2) { 
+        // FANUC NURBS Format
+        // G6.2 P_K_X_Y_Z_A_B_C_U_V_W_R_F;
+        //      G6.2: NURBS interpolation
+        //      P: NURBS curve order
+        //      X, Y, Z, A, B, C, U, V, W: Control point
+        //      R: Weight
+        //      K: Knot
+        //      F: Feedrate
+        
+        if (settings->feed_mode == UNITS_PER_MINUTE) {
+            CHKS((settings->feed_rate == 0.0), (
+                 "Cannot make a NURBS with 0 feedrate"));
+        }
+	CHKS((!(block->k_flag)), ("You must specify Knots"));
+
+        // P: NURBS curve order
+        if (block->p_flag == ON) {
+            CHKS((!nurbs_control_points.empty()), 
+                 ("Must specify NURBS curve order at 1st Control Point"));
+            nurbs_order = block->p_number;  
+        }
+        
+        // obtain CONTROL_POINT
+        CHP(find_ends(block, settings, &CP.X, &CP.Y, &CP.Z, &CP.A, &CP.B,
+                      &CP.C, &CP.U, &CP.V, &CP.W));
+        // R: Weight
+        if (block->r_flag == ON) {
+            CHKS((block->r_number <= 0), 
+                 ("Must specify positive weight R for every Control Point"));
+            CP.R = block->r_number;
+            nurbs_control_points.push_back(CP);
+        }
+
+        // K: Knot
+        nurbs_knot_vector.push_back(block->k_number);
+
+//debug:        for (int i=0;i<nurbs_control_points.size();i++){
+//debug:            printf( "X %8.4f, Y %8.4f, W %8.4f\n",
+//debug:            nurbs_control_points[i].X,
+//debug:            nurbs_control_points[i].Y,
+//debug:            nurbs_control_points[i].W);
+//debug:        }
+//debug:        printf("*-----------------------------------------*\n");
+//debug:	printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
+//debug:                __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+
+        settings->motion_mode = mode;
+    } else if (mode == G_5_3) { // End of NURBS
+        if (settings->motion_mode == G_5_2) {
+            CHKS((nurbs_control_points.size()<nurbs_order), _("You must specify a number of control points at least equal to the order L = %d"), nurbs_order);
+            settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
+            settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
+            printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED()\n",
+                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+            NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
+            nurbs_control_points.clear();
+            printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
+                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+            settings->motion_mode = -1;
+        } else if (settings->motion_mode == G_6_2) {
+            // terminate G_6_2
+            CHKS((nurbs_control_points.size()<nurbs_order), _("You must specify a number of control points at least equal to the order P(%d)"), nurbs_order);
+            settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
+            settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
+            settings->current_z = nurbs_control_points[nurbs_control_points.size()-1].Z;
+            settings->AA_current = nurbs_control_points[nurbs_control_points.size()-1].A;
+            settings->BB_current = nurbs_control_points[nurbs_control_points.size()-1].B;
+            settings->CC_current = nurbs_control_points[nurbs_control_points.size()-1].C;
+            settings->u_current = nurbs_control_points[nurbs_control_points.size()-1].U;
+            settings->v_current = nurbs_control_points[nurbs_control_points.size()-1].V;
+            settings->w_current = nurbs_control_points[nurbs_control_points.size()-1].W;
+            printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED_3D()\n",
+                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+            NURBS_FEED_3D (block->line_number, nurbs_control_points, nurbs_knot_vector, nurbs_order);
+            nurbs_control_points.clear();
+            nurbs_knot_vector.clear();
+            settings->motion_mode = -1;
+        } else {
+            ERS("Cannot use G5.3 without G5.2/G6.2 first\n");
+        }
     }
     return INTERP_OK;
 }
@@ -2144,8 +2216,8 @@ G codes are are executed in the following order.
 9.  mode 3, one of (G90, G91) - distance mode.
 10.  mode 4, one of (G90.1, G91.1) - arc i,j,k mode.
 11. mode 10, one of (G98, G99) - retract mode.
-12. mode 0, one of (G10, G28, G30, G92, G92.1, G92.2, G92.3) -
-13. mode 1, one of (G0, G1, G2, G3, G38.2, G80, G81 to G89, G33, G33.1, G76) - motion or cancel.
+12. mode 0, one of (G5.3, G10, G28, G30, G92, G92.1, G92.2, G92.3) -
+13. mode 1, one of (G0, G1, G2, G3, G5.2, G6.2, G38.2, G80, G81 to G89, G33, G33.1, G76) - motion or cancel.
     G53 from mode 0 is also handled here, if present.
 
 Some mode 0 and most mode 1 G codes must be executed after the length units
@@ -2837,6 +2909,7 @@ Returned Value: int
       convert_axis_offsets
       convert_home
       convert_setup
+      convert_nurbs
    If any of the following errors occur, this returns the error code shown.
    Otherwise, it returns INTERP_OK.
    1. code is not G_4, G_10, G_28, G_30, G_53, G92, G_92_1, G_92_2, or G_92_3:
@@ -2846,7 +2919,7 @@ Side effects: See below
 
 Called by: convert_g
 
-If the g_code is g10, g28, g30, g92, g92.1, g92.2, or g92.3 (all are in
+If the g_code is g5.3, g10, g28, g30, g92, g92.1, g92.2, or g92.3 (all are in
 modal group 0), it is executed. The other two in modal group 0 (G4 and
 G53) are executed elsewhere.
 
@@ -2869,7 +2942,7 @@ int Interp::convert_modal_0(int code,    //!< G code, must be from group 0
   } else if ((code == G_92) || (code == G_92_1) ||
              (code == G_92_2) || (code == G_92_3)) {
     CHP(convert_axis_offsets(code, block, settings));
-  } else if (code == G_5_3) {
+  } else if (code == G_5_3) { // terminate a NURBS block
     CHP(convert_nurbs(code, block, settings));
   } else if ((code == G_4) || (code == G_53));  /* handled elsewhere */
   else
@@ -2921,7 +2994,8 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
     CHP(convert_cycle(motion, block, settings));
   } else if ((motion == G_5) || (motion == G_5_1)) {
     CHP(convert_spline(motion, block, settings));
-  } else if (motion == G_5_2) {
+  } else if ((motion == G_5_2) || (motion == G_6_2)) {
+    // Leto NURBS (G_5_2) or Fanuc NURBS (G_6_2)
     CHP(convert_nurbs(motion, block, settings));
   } else {
     ERS(NCE_BUG_UNKNOWN_MOTION_CODE);
@@ -4615,3 +4689,5 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
   settings->selected_pocket = pocket;
   return INTERP_OK;
 }
+
+// vim:sw=4:sts=4:et:

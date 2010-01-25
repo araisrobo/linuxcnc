@@ -220,7 +220,7 @@ int Interp::execute(const char *command)
     }
   }
 
-  logDebug("MDImode = 1");
+  logDebug("MDImode = %d", MDImode);
   logDebug("Interp::execute(%s)", command);
   // process control functions -- will skip if skipping
   //  if (_setup.block1.o_number != 0)
@@ -281,6 +281,7 @@ int Interp::execute(const char *command)
   }
 
   _setup.named_parameter_occurrence = 0;
+  logDebug("_setup.line_length = %d", _setup.line_length);
 
   if (_setup.line_length != 0) {        /* line not blank */
     status = execute_block(&(_setup.block1), &_setup);

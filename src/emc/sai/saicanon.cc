@@ -378,6 +378,22 @@ void STOP_SPEED_FEED_SYNCH()
 
 /* Machining Functions */
 
+void NURBS_FEED_3D (
+    int line_number, 
+    const std::vector<CONTROL_POINT> & nurbs_control_points, 
+    const std::vector<double> & nurbs_knot_vector, 
+    unsigned int order )
+{
+  fprintf(stderr, "%s: (%s:%d): TODO: implement NURBS_FEED_3D()\n",
+                  __FILE__, __FUNCTION__, __LINE__);
+  fprintf(_outfile, "%5d ", _line_number++);
+  print_nc_line_number();
+  fprintf(_outfile, "NURBS_FEED_3D(%lu, ...)\n", (unsigned long)nurbs_control_points.size());
+
+  _program_position_x = nurbs_control_points[nurbs_control_points.size()].X;
+  _program_position_y = nurbs_control_points[nurbs_control_points.size()].Y;
+}
+
 void NURBS_FEED(
 int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
 {

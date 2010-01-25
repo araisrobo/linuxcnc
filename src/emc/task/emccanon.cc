@@ -1183,6 +1183,63 @@ biarc(int line_number, double p0x, double p0y, double tsx, double tsy,
 
 
 /* Canon calls */
+void NURBS_FEED_3D (
+    int line_number, 
+    const std::vector<CONTROL_POINT> & nurbs_control_points, 
+    const std::vector<double> & nurbs_knot_vector, 
+    unsigned int k )
+{
+    double u = 0.0;
+    unsigned int n = nurbs_control_points.size() - 1;
+    double umax = n - k + 2;
+    unsigned int div = nurbs_control_points.size()*4;
+    double dxs,dys,dx1,dy1,dx2,dy2,dxe,dye,alpha1,alpha2, alphaM;
+//TODO:    std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
+//TODO:    PLANE_POINT P0, P1, P2;
+//TODO:
+//TODO:    P0 = nurbs_point(u,k,nurbs_control_points,knot_vector);
+//TODO:    P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
+//TODO:
+//TODO:
+//TODO:    dxs = nurbs_control_points[1].X-nurbs_control_points[0].X;
+//TODO:    dys = nurbs_control_points[1].Y-nurbs_control_points[0].Y;
+//TODO:    unit(&dxs,&dys);
+//TODO:    u = u + umax/div;
+//TODO:    while (u+umax/div <= umax) {
+//TODO:        P2= nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
+//TODO:        dx1 = P1.X-P0.X;
+//TODO:	dy1 = P1.Y-P0.Y;
+//TODO:        dx2 = P2.X-P1.X;
+//TODO:        dy2 = P2.Y-P1.Y;
+//TODO:        alpha1 = alpha_finder(dx1,dy1);
+//TODO:        alpha2 = alpha_finder(dx2,dy2);
+//TODO:	if (alpha2 > alpha1 + M_PI)
+//TODO:            alphaM = (alpha1+alpha2)/2 + M_PI;
+//TODO:        else
+//TODO:            alphaM = (alpha1+alpha2)/2;
+//TODO:        dxe = cos(alphaM);
+//TODO:        dye = sin(alphaM);
+//TODO: 	unit(&dxe,&dye);
+//TODO:        biarc(line_number, P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
+//TODO:        DP("___________________________________________\n");
+//TODO:        DP("X %8.4f Y %8.4f\n", P0.X, P0.Y); 
+//TODO:        dxs = dxe;
+//TODO:        dys = dye;
+//TODO:        P0 = P1;
+//TODO:        P1 = P2;   
+//TODO:        DP("u = %f\n", u);
+//TODO:        u = u + umax/div;      
+//TODO:    }
+//TODO:    P1.X = nurbs_control_points[n].X;
+//TODO:    P1.Y = nurbs_control_points[n].Y;	   
+//TODO:    dxe = nurbs_control_points[n].X - nurbs_control_points[n-1].X;
+//TODO:    dye = nurbs_control_points[n].Y - nurbs_control_points[n-1].Y;
+//TODO:    unit(&dxe,&dye);
+//TODO:    biarc(line_number, P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
+//TODO:    DP("parameters: n = %d, umax = %f, div= %d, u = %f, k = %d\n",n,umax,div,u,k);
+//TODO:    knot_vector.clear();
+    printf("TODO\n");
+}
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
@@ -2968,3 +3025,5 @@ int WAIT(int index, /* index of the motion exported input */
  interp_list.append(wait_msg);
  return 0;
 }
+
+// vim:sw=4:sts=4:et:

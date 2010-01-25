@@ -42,7 +42,14 @@
 typedef struct {          /* type for NURBS control points */
       double X,                     
              Y,
-             W;
+             Z,
+             A,
+             B,
+             C,
+             U,
+             V,
+             W,
+             R;
       } CONTROL_POINT;
 
 typedef struct {
@@ -494,6 +501,16 @@ extern double alpha_finder(double dx, double dy);
 /* Canon calls */
 
 extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k);
+/* Move at the feed rate along an approximation of a NURBS with a variable number
+ * of control points
+ */
+
+extern void NURBS_FEED_3D (
+        int lineno, 
+        const std::vector<CONTROL_POINT>  & nurbs_control_points, 
+        const std::vector<double> & nurbs_knot_vector, 
+        unsigned int order
+);
 /* Move at the feed rate along an approximation of a NURBS with a variable number
  * of control points
  */
