@@ -88,7 +88,7 @@ class hal_interface:
         self.jogaxis(0)
         print "touchy.hal init -----"
 
-    def wheel(self):
+    def wheel(self):# read the difference between now and last wheel count
         counts = self.c["wheel-counts"]/4
         ret = counts - self.counts
         self.counts = counts
@@ -114,6 +114,28 @@ class hal_interface:
     def jogactive(self, active):
         self.active = active
         self.c["jog.active"] = active;
+        
+    def setjogplus(self,n):
+        self.xp = n == 0 ^ self.xp 
+        self.yp = n == 1 ^ self.yp 
+        self.zp = n == 2 ^ self.zp 
+        self.ap = n == 3 ^ self.ap 
+        self.bp = n == 4 ^ self.bp 
+        self.cp = n == 5 ^ self.cp 
+        self.up = n == 6 ^ self.up 
+        self.vp = n == 7 ^ self.vp 
+        self.wp = n == 8 ^ self.wp 
+        
+    def setjogminus(self,n):
+        self.xn = n == 0 ^ self.xn 
+        self.yn = n == 1 ^ self.yn
+        self.zn = n == 2 ^ self.zn
+        self.an = n == 3 ^ self.an
+        self.bn = n == 4 ^ self.bn
+        self.cn = n == 5 ^ self.cn
+        self.un = n == 6 ^ self.un
+        self.vn = n == 7 ^ self.vn
+        self.wn = n == 8 ^ self.wn
 
     def periodic(self, mdi_mode):
         # edge detection

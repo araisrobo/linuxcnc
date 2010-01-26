@@ -47,7 +47,9 @@ def set_active(w, s):
     #print "call set_active"
     if not w: return
     os = w.get_active()
-    if os != s: w.set_active(s)
+    if os != s: 
+        w.set_active(s)
+            
 
 def set_label(w, l):
     #print "call set_label"
@@ -185,27 +187,38 @@ class touchy:
             absolute = [self.wTree.get_widget(i) for i in absolute]
             distance = [self.wTree.get_widget(i) for i in distance]
                 
+            self.jogsplus = ['xp','yp','zp','ap','bp','cp','up','vp','wp']
+            self.jogsminus =  ['xn','yn','zn','an','bn','cn','un','vn','wn']   
+                
             estops = ['estop_reset', 'estop']
             estops = dict((i, self.wTree.get_widget(i)) for i in estops)
+            print "estops",estops
             machines = ['on', 'off']
             machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
+            print "machines",machines
             floods = ['on', 'off']
             floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
+            print "floods",floods
             mists = ['on', 'off']
             mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
+            print "mists",mists
             spindles = ['forward', 'off', 'reverse']
             spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
+            print "spindles",spindles
             stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
                          'spindledir', 'spindlespeed', 'loadedtool', 'preppedtool',
                          'xyrotation', 'tlo', 'activecodes']
             stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
+            print "stats",stats
             prefs = ['actual', 'commanded', 'inch', 'mm']
             prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
+            print "prefs",prefs
             opstop = ['on', 'off']
             opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
+            print "opstop",opstop
             blockdel = ['on', 'off']
             blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
-        
+            print "blockdel",blockdel
             self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
                                                        self.wTree.get_widget("dro_table"),
                                                        self.wTree.get_widget("error"),
@@ -313,6 +326,9 @@ class touchy:
                         "on_spindle_reverse_clicked" : self.emc.spindle_reverse,
                         "on_spindle_slower_clicked" : self.emc.spindle_slower,
                         "on_spindle_faster_clicked" : self.emc.spindle_faster,
+                        "on_jogplus_clicked" : self.jogplus,
+                        "on_jogminus_clicked" : self.jogminus,
+                        "on_jogmode_clicked" : self.jogmode,
                         }
             self.wTree.signal_autoconnect(dic)
 
@@ -378,11 +394,6 @@ class touchy:
                 print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
-                if self.hal.xp is 1:
-                    self.hal.xp = 0
-                else:
-                    self.hal.xp=1
-                
 
         def wheely(self, b):
                 if self.radiobutton_mask: return
@@ -457,7 +468,7 @@ class touchy:
                 if self.radiobutton_mask: return
                 self.wheel = "jogging"
                 self.emc.jogging(b)
-                self.jogsettings_activate(1)
+                self.jogsettings_activate(1) #enable jog incr button set
 
         def jogsettings_activate(self, active):
                 for i in ["wheelinc1", "wheelinc2", "wheelinc3"]:
@@ -490,7 +501,7 @@ class touchy:
                 self.setfont()
 
         def setfont(self):
-                # buttons
+                # set font of widget on the widge tree by the name listed
                 for i in ["1", "2", "3", "4", "5", "6", "7",
                           "8", "9", "0", "minus", "decimal",
                           "flood_on", "flood_off", "mist_on", "mist_off",
@@ -506,7 +517,8 @@ class touchy:
                           "spindle_faster", "spindle_slower",
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
-                          "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show"]:
+                          "blockdel_on", "blockdel_off", "pointer_hide",
+                           "pointer_show","jogplus","jogminus","jogmode"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
@@ -605,15 +617,13 @@ class touchy:
                 self.radiobutton_mask = 0
 
                 if self.wheel == "jogging":
-                       # print "touchy.wheelxyz=",self.wheelxyz
-                        print "enable",touchy.wheelxyz
-                        self.hal.jogaxis(self.wheelxyz)
+                        self.hal.jogaxis(self.wheelxyz) # output enable single to hal pin
                 else:
                         # disable all
                         self.hal.jogaxis(-1)
                 self.hal.jogincrement(self.wheelinc)
 
-                d = self.hal.wheel()
+                d = self.hal.wheel() # get wheel count from hal S32 pin
                 if self.wheel == "fo":
                         self.fo_val += d
                         if self.fo_val < 0: self.fo_val = 0
@@ -638,6 +648,32 @@ class touchy:
 
                         
                 return True
+        def jogplus(self,b):  
+            print "on_jogplus_clicked"
+            self.hal.setjogplus(self.wheelxyz)
+        
+        def jogminus(self,b):
+            print "on_jogminus_clicked"
+            self.hal.setjogminus(self.wheelxyz)
+        
+        def jogmode(self,b):
+            print "on_jogmode_clicked"
+            return      
+        def foplus(self,b):
+            print "on_foplus_clicked"
+            return
+        def fominus(self,b):
+            print "on_fominus_clicked"
+            return
+        def mvplus(self,b):
+            print "on_mvplus_clicked"
+            return
+        def foplus(self,b):
+            print "on_foplus_clicked"
+            return
+        def fominus(self,b):
+            print "on_fominus_clicked"
+            return
 
 if __name__ == "__main__":
     print "touchy main +++"
