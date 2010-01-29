@@ -3301,87 +3301,183 @@ F1 S1</property>
                             <property name="visible">True</property>
                             <property name="border_width">5</property>
                             <child>
-                              <widget class="GtkToggleButton" id="fo">
-                                <property name="label" translatable="yes">FO: 100%</property>
+                              <widget class="GtkHBox" id="hbox4">
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="use_underline">True</property>
-                                <property name="focus_on_click">False</property>
-                                <property name="active">True</property>
-                                <signal name="clicked" handler="on_fo_clicked"/>
+                                <property name="homogeneous">True</property>
+                                <child>
+                                  <widget class="GtkToggleButton" id="fo">
+                                    <property name="label" translatable="yes">FO: 100%</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <property name="use_underline">True</property>
+                                    <property name="focus_on_click">False</property>
+                                    <property name="active">True</property>
+                                    <signal name="clicked" handler="on_fo_clicked"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkToggleButton" id="foplus">
+                                    <property name="label" translatable="yes">+</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="pressed" handler="on_foplus_pressed"/>
+                                    <signal name="released" handler="on_foplus_released"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkToggleButton" id="fominus">
+                                    <property name="label" translatable="yes">-
+</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="pressed" handler="on_fominus_pressed"/>
+                                    <signal name="released" handler="on_fominus_released"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">2</property>
+                                  </packing>
+                                </child>
                               </widget>
                               <packing>
                                 <property name="position">0</property>
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkToggleButton" id="so">
-                                <property name="label" translatable="yes">SO: 100%</property>
+                              <widget class="GtkHBox" id="hbox3">
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="use_underline">True</property>
-                                <property name="focus_on_click">False</property>
-                                <signal name="clicked" handler="on_so_clicked"/>
+                                <property name="homogeneous">True</property>
+                                <child>
+                                  <widget class="GtkToggleButton" id="so">
+                                    <property name="label" translatable="yes">SO: 100%</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <property name="use_underline">True</property>
+                                    <property name="focus_on_click">False</property>
+                                    <signal name="clicked" handler="on_so_clicked"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkToggleButton" id="soplus">
+                                    <property name="label" translatable="yes">+</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="pressed" handler="on_soplus_pressed"/>
+                                    <signal name="released" handler="on_soplus_released"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkToggleButton" id="sominus">
+                                    <property name="label" translatable="yes">-</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="pressed" handler="on_sominus_pressed"/>
+                                    <signal name="released" handler="on_sominus_released"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">2</property>
+                                  </packing>
+                                </child>
                               </widget>
                               <packing>
                                 <property name="position">1</property>
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkToggleButton" id="mv">
-                                <property name="label" translatable="yes">MV: 100</property>
+                              <widget class="GtkHBox" id="hbox1">
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="use_underline">True</property>
-                                <property name="focus_on_click">False</property>
-                                <signal name="clicked" handler="on_mv_clicked"/>
+                                <property name="homogeneous">True</property>
+                                <child>
+                                  <widget class="GtkToggleButton" id="mv">
+                                    <property name="label" translatable="yes">MV: 100</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <property name="use_underline">True</property>
+                                    <property name="focus_on_click">False</property>
+                                    <signal name="clicked" handler="on_mv_clicked"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkToggleButton" id="mvplus">
+                                    <property name="label" translatable="yes">+</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="pressed" handler="on_mvplus_pressed"/>
+                                    <signal name="released" handler="on_mvplus_released"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkToggleButton" id="mvminus">
+                                    <property name="label" translatable="yes">-</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="pressed" handler="on_mvminus_pressed"/>
+                                    <signal name="released" handler="on_mvminus_released"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">2</property>
+                                  </packing>
+                                </child>
                               </widget>
                               <packing>
                                 <property name="position">2</property>
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkToggleButton" id="jogging">
-                                <property name="label" translatable="yes">Jogging</property>
+                              <widget class="GtkHBox" id="hbox2">
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="use_underline">True</property>
-                                <property name="focus_on_click">False</property>
-                                <signal name="clicked" handler="on_jogging_clicked"/>
-                              </widget>
-                              <packing>
-                                <property name="position">3</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkToggleButton" id="jogmode">
-                                <property name="label" translatable="yes">Continus Jogging</property>
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
-                                <signal name="clicked" handler="on_jogmode_clicked"/>
-                              </widget>
-                              <packing>
-                                <property name="position">4</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkHBox" id="hbox1">
-                                <property name="visible">True</property>
+                                <property name="homogeneous">True</property>
+                                <child>
+                                  <widget class="GtkToggleButton" id="jogging">
+                                    <property name="label" translatable="yes">Jogging</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <property name="use_underline">True</property>
+                                    <property name="focus_on_click">False</property>
+                                    <signal name="clicked" handler="on_jogging_clicked"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
                                 <child>
                                   <widget class="GtkButton" id="jogplus">
                                     <property name="label" translatable="yes">+</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
-                                    <signal name="clicked" handler="on_jogplus_clicked"/>
+                                    <signal name="pressed" handler="on_jogplus_pressed"/>
+                                    <signal name="released" handler="on_jogplus_released"/>
                                   </widget>
                                   <packing>
-                                    <property name="position">0</property>
+                                    <property name="position">1</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -3390,15 +3486,16 @@ F1 S1</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
-                                    <signal name="clicked" handler="on_jogminus_clicked"/>
+                                    <signal name="pressed" handler="on_jogminus_pressed"/>
+                                    <signal name="released" handler="on_jogminus_released"/>
                                   </widget>
                                   <packing>
-                                    <property name="position">1</property>
+                                    <property name="position">2</property>
                                   </packing>
                                 </child>
                               </widget>
                               <packing>
-                                <property name="position">5</property>
+                                <property name="position">3</property>
                               </packing>
                             </child>
                           </widget>

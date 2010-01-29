@@ -116,6 +116,11 @@ class touchy:
             self.wheel = "fo"
             self.radiobutton_mask = 0
             self.resized_wheelbuttons = 0
+            for i in ["wheelinc1", "wheelinc2", "wheelinc3","jogplus","jogminus",
+                      "mvplus","mvminus","foplus","fominus","soplus","sominus"]:
+                        w = self.wTree.get_widget(i)
+                        w.set_sensitive(0)
+            
         
             self.tab = 0
         
@@ -186,9 +191,7 @@ class touchy:
             relative = [self.wTree.get_widget(i) for i in relative]
             absolute = [self.wTree.get_widget(i) for i in absolute]
             distance = [self.wTree.get_widget(i) for i in distance]
-                
-            self.jogsplus = ['xp','yp','zp','ap','bp','cp','up','vp','wp']
-            self.jogsminus =  ['xn','yn','zn','an','bn','cn','un','vn','wn']   
+                 
                 
             estops = ['estop_reset', 'estop']
             estops = dict((i, self.wTree.get_widget(i)) for i in estops)
@@ -326,9 +329,22 @@ class touchy:
                         "on_spindle_reverse_clicked" : self.emc.spindle_reverse,
                         "on_spindle_slower_clicked" : self.emc.spindle_slower,
                         "on_spindle_faster_clicked" : self.emc.spindle_faster,
-                        "on_jogplus_clicked" : self.jogplus,
-                        "on_jogminus_clicked" : self.jogminus,
-                        "on_jogmode_clicked" : self.jogmode,
+                        "on_jogplus_pressed" : self.jogplus_pressed,
+                        "on_jogplus_released" : self.jogplus_released,
+                        "on_jogminus_pressed" : self.jogminus_pressed,
+                        "on_jogminus_released" : self.jogminus_released,
+                        "on_mvplus_pressed" : self.mvplus_pressed,
+                        "on_mvplus_released" : self.mvplus_released,
+                        "on_mvminus_pressed" : self.mvminus_pressed,
+                        "on_mvminus_released" : self.mvminus_released,
+                        "on_foplus_pressed" : self.foplus_pressed,
+                        "on_foplus_released" : self.foplus_released,
+                        "on_fominus_pressed" : self.fominus_pressed,
+                        "on_fominus_released" : self.fominus_released,
+                        "on_soplus_pressed" : self.soplus_pressed,
+                        "on_soplus_released" : self.soplus_released,
+                        "on_sominus_pressed" : self.sominus_pressed,
+                        "on_sominus_released" : self.sominus_released,
                         }
             self.wTree.signal_autoconnect(dic)
 
@@ -452,16 +468,25 @@ class touchy:
                 if self.radiobutton_mask: return
                 self.wheel = "fo"
                 self.jogsettings_activate(0)
+                self.mvsettings_activate(0)
+                self.sosettings_activate(0)
+                self.fosettings_activate(1)
 
         def so(self, b):
                 if self.radiobutton_mask: return
                 self.wheel = "so"
-                self.jogsettings_activate(0)
+                self.jogsettings_activate(0) #enable jog incr button set
+                self.mvsettings_activate(0)
+                self.sosettings_activate(1)
+                self.fosettings_activate(0)
 
         def mv(self, b):
                 if self.radiobutton_mask: return
                 self.wheel = "mv"
                 self.jogsettings_activate(0)
+                self.mvsettings_activate(1)
+                self.sosettings_activate(0)
+                self.fosettings_activate(0)
 
         def jogging(self, b):# b is gtk widget itself
                 print "click on jogging"  
@@ -469,12 +494,27 @@ class touchy:
                 self.wheel = "jogging"
                 self.emc.jogging(b)
                 self.jogsettings_activate(1) #enable jog incr button set
+                self.mvsettings_activate(0)
+                self.sosettings_activate(0)
+                self.fosettings_activate(0)
 
         def jogsettings_activate(self, active):
-                for i in ["wheelinc1", "wheelinc2", "wheelinc3"]:
+                for i in ["wheelinc1", "wheelinc2", "wheelinc3","jogplus","jogminus"]:
                         w = self.wTree.get_widget(i)
                         w.set_sensitive(active)
                 self.hal.jogactive(active)
+        def fosettings_activate(self, active):
+                for i in ["foplus","fominus"]:
+                        w = self.wTree.get_widget(i)
+                        w.set_sensitive(active)
+        def sosettings_activate(self, active):
+                for i in ["soplus","sominus"]:
+                        w = self.wTree.get_widget(i)
+                        w.set_sensitive(active)
+        def mvsettings_activate(self, active):
+                for i in ["mvplus","mvminus"]:
+                        w = self.wTree.get_widget(i)
+                        w.set_sensitive(active)
         
         def change_control_font(self, fontbutton):
                 self.control_font_name = fontbutton.get_font_name()
@@ -648,32 +688,44 @@ class touchy:
 
                         
                 return True
-        def jogplus(self,b):  
-            print "on_jogplus_clicked"
-            self.hal.setjogplus(self.wheelxyz)
+        def jogplus_pressed(self,b):  
+            print "on_jogplus_pressed"
+#            self.hal.setjogplus(self.wheelxyz)
+        def jogplus_released(self,b):
+            print "on_jogplus_released"           
+        def jogminus_pressed(self,b):
+            print "on_jogminus_pressed"
+        #    self.hal.setjogminus(self.wheelxyz)
+        def jogminus_released(self,b):
+            print "on_jogminus_released"
         
-        def jogminus(self,b):
-            print "on_jogminus_clicked"
-            self.hal.setjogminus(self.wheelxyz)
+        def foplus_pressed(self,b):
+            print "on_foplus_pressed"    
+        def foplus_released(self,b):
+            print "on_foplus_released"
+        def fominus_pressed(self,b):
+            print "fominus_pressed"
+        def fominus_released(self,b):
+            print "on_fominus_released"
+            
+        def mvplus_pressed(self,b):
+            print "on_mvplus_pressed"
+        def mvplus_released(self,b):
+            print "on_mvplus_released"
+        def mvminus_pressed(self,b):
+            print "on_mvminus_pressed"
+        def mvminus_released(self,b):
+            print "on_mvminus_released"
         
-        def jogmode(self,b):
-            print "on_jogmode_clicked"
-            return      
-        def foplus(self,b):
-            print "on_foplus_clicked"
-            return
-        def fominus(self,b):
-            print "on_fominus_clicked"
-            return
-        def mvplus(self,b):
-            print "on_mvplus_clicked"
-            return
-        def foplus(self,b):
-            print "on_foplus_clicked"
-            return
-        def fominus(self,b):
-            print "on_fominus_clicked"
-            return
+        def soplus_pressed(self,b):
+            print "on_soplus_pressed"
+        def soplus_released(self,b):
+            print "on_soplus_released"
+        def sominus_pressed(self,b):
+            print "on_sominus_pressed"
+        def sominus_released(self,b):
+            print "on_sominus_released"
+       
 
 if __name__ == "__main__":
     print "touchy main +++"
