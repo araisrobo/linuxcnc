@@ -450,7 +450,6 @@
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_underline">True</property>
-                                        <property name="focus_on_click">False</property>
                                         <signal name="clicked" handler="on_estop_reset_clicked"/>
                                       </widget>
                                     </child>
@@ -461,7 +460,6 @@
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_underline">True</property>
-                                        <property name="focus_on_click">False</property>
                                         <property name="active">True</property>
                                         <signal name="clicked" handler="on_estop_clicked"/>
                                       </widget>
@@ -477,7 +475,6 @@
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_underline">True</property>
-                                        <property name="focus_on_click">False</property>
                                         <signal name="clicked" handler="on_machine_on_clicked"/>
                                       </widget>
                                       <packing>
@@ -492,7 +489,6 @@
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_underline">True</property>
-                                        <property name="focus_on_click">False</property>
                                         <property name="active">True</property>
                                         <signal name="clicked" handler="on_machine_off_clicked"/>
                                       </widget>
@@ -510,7 +506,6 @@
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_underline">True</property>
-                                        <property name="focus_on_click">False</property>
                                         <signal name="clicked" handler="on_override_limits_clicked"/>
                                       </widget>
                                       <packing>
@@ -3311,7 +3306,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_fo_clicked"/>
                                   </widget>
@@ -3334,8 +3328,7 @@ F1 S1</property>
                                 </child>
                                 <child>
                                   <widget class="GtkToggleButton" id="fominus">
-                                    <property name="label" translatable="yes">-
-</property>
+                                    <property name="label" translatable="yes">-</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
@@ -3362,7 +3355,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_so_clicked"/>
                                   </widget>
                                   <packing>
@@ -3411,7 +3403,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_mv_clicked"/>
                                   </widget>
                                   <packing>
@@ -3460,7 +3451,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_jogging_clicked"/>
                                   </widget>
                                   <packing>
@@ -3519,7 +3509,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelinc1_clicked"/>
                                   </widget>
@@ -3532,7 +3521,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_wheelinc2_clicked"/>
                                   </widget>
                                   <packing>
@@ -3548,7 +3536,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_wheelinc3_clicked"/>
                                   </widget>
                                   <packing>
@@ -3575,7 +3562,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelx_clicked"/>
                                   </widget>
@@ -3587,7 +3573,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_wheely_clicked"/>
                                   </widget>
                                   <packing>
@@ -3602,7 +3587,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <signal name="clicked" handler="on_wheelz_clicked"/>
                                   </widget>
                                   <packing>
@@ -3617,7 +3601,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheela_clicked"/>
                                   </widget>
@@ -3633,7 +3616,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelb_clicked"/>
                                   </widget>
@@ -3651,7 +3633,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelc_clicked"/>
                                   </widget>
@@ -3669,7 +3650,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelu_clicked"/>
                                   </widget>
@@ -3685,7 +3665,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelv_clicked"/>
                                   </widget>
@@ -3703,7 +3682,6 @@ F1 S1</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="use_underline">True</property>
-                                    <property name="focus_on_click">False</property>
                                     <property name="active">True</property>
                                     <signal name="clicked" handler="on_wheelw_clicked"/>
                                   </widget>

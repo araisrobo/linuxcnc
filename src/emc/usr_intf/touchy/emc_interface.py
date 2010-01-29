@@ -132,7 +132,7 @@ class emc_control:
                         print "continuous_jog direction ==0"
                         self.emccommand.jog(self.emc.JOG_STOP, axis)
                 else:
-                        print "continous_jog direction !=0"
+                        print "continous_jog direction !=0","direction",direction
                         self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
                 
 	def quill_up(self):

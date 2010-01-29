@@ -405,28 +405,28 @@ class touchy:
                 if self.radiobutton_mask: return
                 self.prefs.putpref('blockdel', 0)
                 self.emc.blockdel_off(b)
-
+  
         def wheelx(self, b):
                 print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
-
+          
         def wheely(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 1
-
+            
         def wheelz(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 2
-
+            
         def wheela(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 3
-
+              
         def wheelb(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 4
-
+              
         def wheelc(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 5
@@ -558,7 +558,8 @@ class touchy:
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
                           "blockdel_on", "blockdel_off", "pointer_hide",
-                           "pointer_show","jogplus","jogminus","jogmode"]:
+                           "pointer_show","jogplus","jogminus","foplus","fominus","mvplus",
+                           "mvminus","soplus","sominus"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
@@ -690,15 +691,16 @@ class touchy:
                 return True
         def jogplus_pressed(self,b):  
             print "on_jogplus_pressed"
-#            self.hal.setjogplus(self.wheelxyz)
+            self.hal.setjogplus(self.wheelxyz)
         def jogplus_released(self,b):
-            print "on_jogplus_released"           
+            print "on_jogplus_released"
+            self.hal.stopjog()
         def jogminus_pressed(self,b):
             print "on_jogminus_pressed"
-        #    self.hal.setjogminus(self.wheelxyz)
+            self.hal.setjogminus(self.wheelxyz)
         def jogminus_released(self,b):
             print "on_jogminus_released"
-        
+            self.hal.stopjog()
         def foplus_pressed(self,b):
             print "on_foplus_pressed"    
         def foplus_released(self,b):
