@@ -697,68 +697,60 @@ class touchy:
                         
                 return True
         def jogplus_pressed(self,b):  
-            print "on_jogplus_pressed"
             self.hal.setjogplus(self.wheelxyz)
         def jogplus_released(self,b):
-            print "on_jogplus_released"
             self.hal.stopjog()
         def jogminus_pressed(self,b):
-            print "on_jogminus_pressed"
             self.hal.setjogminus(self.wheelxyz)
         def jogminus_released(self,b):
-            print "on_jogminus_released"
             self.hal.stopjog()
         def foplus_pressed(self,b):
             self.is_on_sw_wheel = True
-            self.sw_wheel_direction = 1
-            print "on_foplus_pressed"    
+            self.sw_wheel_direction = 1    
         def foplus_released(self,b):
             self.is_on_sw_wheel = False
-            print "on_foplus_released"
+            self.sw_wheel_reset()
         def fominus_pressed(self,b):
             self.is_on_sw_wheel = True
-            self.sw_wheel_direction = -1
-            print "fominus_pressed"
         def fominus_released(self,b):
             self.is_on_sw_wheel = False
-            print "on_fominus_released"
-            
+            self.sw_wheel_reset()
         def mvplus_pressed(self,b):
             self.is_on_sw_wheel = True
             self.sw_wheel_direction = 1
-            print "on_mvplus_pressed"
         def mvplus_released(self,b):
             self.is_on_sw_wheel = False
-            print "on_mvplus_released"
+            self.sw_wheel_reset()
         def mvminus_pressed(self,b):
             self.is_on_sw_wheel = True
             self.sw_wheel_direction = -1
-            print "on_mvminus_pressed"
         def mvminus_released(self,b):
             self.is_on_sw_wheel = False
-            print "on_mvminus_released"
+            self.sw_wheel_reset()
         
         def soplus_pressed(self,b):
             self.is_on_sw_wheel = True
             self.sw_wheel_direction = 1
-            print "on_soplus_pressed"
         def soplus_released(self,b):
             self.is_on_sw_wheel = False
-            print "on_soplus_released"
+            self.sw_wheel_reset()
         def sominus_pressed(self,b):
             self.is_on_sw_wheel = True
             self.sw_wheel_direction = -1
-            print "on_sominus_pressed"
         def sominus_released(self,b):
             self.is_on_sw_wheel = False
-            print "on_sominus_released"
+            self.sw_wheel_reset()
         def sw_wheel_reset(self):
             self.sw_wheelcount = 0
             self.sw_wheel_direction = 0
         def sw_wheel_incr(self,direction):
-            wheel_incr = 1
-            self.sw_wheelcount = self.sw_wheelcount + wheel_incr*direction
-            return 1*direction
+            if direction > 0:
+                wheel_incr = 1+self.sw_wheelcount
+            else:
+                wheel_incr = -1*(1+self.sw_wheelcount)
+            self.sw_wheelcount =   wheel_incr*direction
+
+            return wheel_incr
        
 
 if __name__ == "__main__":
