@@ -127,6 +127,10 @@ class touchy:
             self.fo_val = 100
             self.so_val = 100
             self.mv_val = 100
+            self.sw_wheelcount = 0
+            self.is_on_sw_wheel = False
+            self.sw_wheel_direction = 1
+            
         
             self.prefs = preferences.preferences() #touchy.preference.py
             self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
@@ -663,8 +667,11 @@ class touchy:
                         # disable all
                         self.hal.jogaxis(-1)
                 self.hal.jogincrement(self.wheelinc)
-
-                d = self.hal.wheel() # get wheel count from hal S32 pin
+                if not self.is_on_sw_wheel:
+                    d = self.hal.wheel() # get wheel count from hal S32 pin
+                else:
+                    print "sw wheel"
+                    d = self.sw_wheel_incr(self.sw_wheel_direction)
                 if self.wheel == "fo":
                         self.fo_val += d
                         if self.fo_val < 0: self.fo_val = 0
@@ -702,31 +709,56 @@ class touchy:
             print "on_jogminus_released"
             self.hal.stopjog()
         def foplus_pressed(self,b):
+            self.is_on_sw_wheel = True
+            self.sw_wheel_direction = 1
             print "on_foplus_pressed"    
         def foplus_released(self,b):
+            self.is_on_sw_wheel = False
             print "on_foplus_released"
         def fominus_pressed(self,b):
+            self.is_on_sw_wheel = True
+            self.sw_wheel_direction = -1
             print "fominus_pressed"
         def fominus_released(self,b):
+            self.is_on_sw_wheel = False
             print "on_fominus_released"
             
         def mvplus_pressed(self,b):
+            self.is_on_sw_wheel = True
+            self.sw_wheel_direction = 1
             print "on_mvplus_pressed"
         def mvplus_released(self,b):
+            self.is_on_sw_wheel = False
             print "on_mvplus_released"
         def mvminus_pressed(self,b):
+            self.is_on_sw_wheel = True
+            self.sw_wheel_direction = -1
             print "on_mvminus_pressed"
         def mvminus_released(self,b):
+            self.is_on_sw_wheel = False
             print "on_mvminus_released"
         
         def soplus_pressed(self,b):
+            self.is_on_sw_wheel = True
+            self.sw_wheel_direction = 1
             print "on_soplus_pressed"
         def soplus_released(self,b):
+            self.is_on_sw_wheel = False
             print "on_soplus_released"
         def sominus_pressed(self,b):
+            self.is_on_sw_wheel = True
+            self.sw_wheel_direction = -1
             print "on_sominus_pressed"
         def sominus_released(self,b):
+            self.is_on_sw_wheel = False
             print "on_sominus_released"
+        def sw_wheel_reset(self):
+            self.sw_wheelcount = 0
+            self.sw_wheel_direction = 0
+        def sw_wheel_incr(self,direction):
+            wheel_incr = 1
+            self.sw_wheelcount = self.sw_wheelcount + wheel_incr*direction
+            return 1*direction
        
 
 if __name__ == "__main__":
