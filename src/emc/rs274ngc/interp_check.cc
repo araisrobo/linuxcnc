@@ -274,9 +274,9 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->k_flag == ON) {    /* could still be useless if xy_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_33) &&
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_6_2) && (motion != G_33) &&
         (motion != G_33_1) && (motion != G_76) && (motion != G_87) && (block->g_modes[8] != G_43_1)),
-        _("K word with no G2, G3, G33, G33.1, G76, G87 or G43.1 to use it"));
+        _("K word with no G2, G3, G6.2, G33, G33.1, G76, G87 or G43.1 to use it"));
   }
 
   if (block->l_number != -1) {
@@ -292,12 +292,12 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   if (block->p_flag == ON) {
       CHKS(((block->g_modes[0] != G_10) && (block->g_modes[0] != G_4) && (block->g_modes[13] != G_64) &&
           (motion != G_76) && (motion != G_82) && (motion != G_86) && (motion != G_88) && 
-          (motion != G_89) && (motion != G_5) && (motion != G_5_2) &&
+          (motion != G_89) && (motion != G_5) && (motion != G_5_2) && (motion != G_6_2) &&
           (block->m_modes[9] != 50) && (block->m_modes[9] != 51) && (block->m_modes[9] != 52) &&
           (block->m_modes[9] != 53) && (block->m_modes[5] != 62) && (block->m_modes[5] != 63) &&
           (block->m_modes[5] != 64) && (block->m_modes[5] != 65) && (block->m_modes[5] != 66) &&
           (block->user_m != 1)),
-          _("P word with no G4 G10 G64 G5 G5.2 G76 G82 G86 G88 G89"
+          _("P word with no G4 G10 G64 G5 G5.2 G6.2 G76 G82 G86 G88 G89"
             " or M50 M51 M52 M53 M62 M63 M64 M65 M66 or user M code to use it"));
   }
 
@@ -309,7 +309,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->r_flag == ON) {
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_76) &&
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_6_2) && (motion != G_76) &&
          ((motion < G_81) || (motion > G_89)) && (motion != G_73) && 
          (block->g_modes[7] != G_41_1) && (block->g_modes[7] != G_42_1) &&
          (block->g_modes[0] != G_10)),

@@ -13,8 +13,8 @@
 #include <math.h>
 #include "canon.hh"
 
-std::vector<unsigned int> knot_vector_creator(unsigned int n, unsigned int k) {
-    
+std::vector<unsigned int> knot_vector_creator(unsigned int n, unsigned int k) 
+{
     unsigned int i;
     std::vector<unsigned int> knot_vector;
     for (i=0; i<=n+k; i++) {
@@ -96,3 +96,5 @@ double alpha_finder(double dx, double dy) {
         return atan(dy/dx) + M_PI; 
     }
 }   
+
+// vim:sw=4:sts=4:et:

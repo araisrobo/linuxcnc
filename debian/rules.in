@@ -31,11 +31,12 @@ build-stamp:
 # Add here commands to compile the package.
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=pdf
+	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=pdf --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=pdf
 endif
-	(cd src; $(MAKE) && $(MAKE) docs)
+	(cd src; $(MAKE))
 	touch build-stamp
 
 clean: debian/control
@@ -45,7 +46,8 @@ clean: debian/control
 
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
+	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version)
 endif
@@ -67,13 +69,13 @@ install: build
 	find debian/tmp/usr/lib/python@PYTHON_VERSION@ -name \*.py -exec rm {} \;
 	mkdir -p debian/tmp/usr/lib debian/tmp/usr/include/emc2
 	cp lib/*.a debian/tmp/usr/lib
-	mkdir -p debian/tmp/usr/share/doc/emc2-dev
-	mv debian/tmp/usr/share/doc/emc2/EMC2_Developer_Manual.pdf \
-		debian/tmp/usr/share/doc/emc2-dev/
-	cp docs/html/gcode*.html debian/tmp/usr/share/doc/emc2/
-	rm debian/tmp/usr/share/doc/emc2/EMC2_Manual_Pages.pdf 
+	# mkdir -p debian/tmp/usr/share/doc/emc2-dev
+	# mv debian/tmp/usr/share/doc/emc2/EMC2_Developer_Manual.pdf \
+	# 		debian/tmp/usr/share/doc/emc2-dev/
+	# cp docs/html/gcode*.html debian/tmp/usr/share/doc/emc2/
+	# rm debian/tmp/usr/share/doc/emc2/EMC2_Manual_Pages.pdf 
 	rm -rf debian/tmp/usr/share/doc/emc2/html
-	-rm debian/tmp/emc2*.files
+	-rm -f debian/tmp/emc2*.files
 	-rm -f debian/tmp/usr/share/doc/emc2/examples/sample-configs/*/*position*.txt
 	dh_movefiles
 	if [ `find debian/tmp -type f | wc -c` != 0 ]; then \
@@ -91,7 +93,7 @@ binary-arch: build install
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs
-	dh_installdocs
+	# dh_installdocs
 	dh_installexamples
 	dh_installman
 	dh_link
@@ -104,6 +106,7 @@ endif
 	dh_makeshlibs
 	cat debian/@EMC2_PACKAGE_NAME@/DEBIAN/shlibs debian/shlibs.pre > debian/shlibs.local
 	dh_shlibdeps -l debian/@EMC2_PACKAGE_NAME@/usr/lib
+	# dh_pysupport
 	dh_python /usr/lib/python@PYTHON_VERSION@/site-packages /usr/lib/python@PYTHON_VERSION@/dist-packages
 	dh_gencontrol
 	dh_md5sums

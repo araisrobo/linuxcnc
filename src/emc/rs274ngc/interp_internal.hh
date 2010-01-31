@@ -143,6 +143,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_5_1   51
 #define G_5_2   52
 #define G_5_3   53
+#define G_6_2   62    // FANUC NURBS G-code: G06.2
 #define G_7     70
 #define G_8     80
 #define G_10   100

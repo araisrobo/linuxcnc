@@ -1,0 +1,195 @@
+# core HAL config file for simulation - 4 joint
+
+# load RT modules
+loadrt [KINS]KINEMATICS
+loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[EMCMOT]TRAJ_PERIOD num_joints=[KINS]JOINTS
+
+# loadrt ddt count=12
+# stepper module
+# loadrt wou step_type=0,0,0,0  # type(0): step + dir
+# TODO: add fpga-bitfile as a parameter to "loadrt wou"
+loadrt wou step_type=2,2,2,2  # type(2): Quadrature 
+loadrt not count=7
+
+# add motion controller functions to servo thread
+addf motion-command-handler servo-thread
+addf motion-controller servo-thread
+# addf ddt.0 servo-thread
+# addf ddt.1 servo-thread
+# addf ddt.2 servo-thread
+# addf ddt.3 servo-thread
+# addf ddt.4 servo-thread
+# addf ddt.5 servo-thread
+# addf ddt.6 servo-thread
+# addf ddt.7 servo-thread
+# addf ddt.8 servo-thread
+# addf wou.stepgen.make-pulses servo-thread
+# TODO: addf wou.stepgen.capture-position servo-thread
+addf wou.stepgen.update-freq  servo-thread
+addf not.0                    servo-thread
+addf not.1                    servo-thread
+addf not.2                    servo-thread
+addf not.3                    servo-thread
+addf not.4                    servo-thread
+addf not.5                    servo-thread
+addf not.6                    servo-thread
+
+
+# create HAL signals for position commands from motion module
+newsig J0pos float
+linksp J0pos <= joint.0.motor-pos-cmd
+newsig J1pos float
+linksp J1pos <= joint.1.motor-pos-cmd
+newsig J2pos float
+linksp J2pos <= joint.2.motor-pos-cmd
+newsig J3pos float
+linksp J3pos <= joint.3.motor-pos-cmd
+
+# connect position commands from motion module to step generator
+linksp J0pos => wou.stepgen.0.position-cmd
+linksp J1pos => wou.stepgen.1.position-cmd
+linksp J2pos => wou.stepgen.2.position-cmd
+linksp J3pos => wou.stepgen.3.position-cmd
+
+# loop position commands back to motion module feedback
+#TODO: net J0pos-fb wou.stepgen.0.position-fb => joint.0.motor-pos-fb
+#TODO: net J1pos-fb wou.stepgen.1.position-fb => joint.1.motor-pos-fb
+#TODO: net J2pos-fb wou.stepgen.2.position-fb => joint.2.motor-pos-fb
+#TODO: net J3pos-fb wou.stepgen.3.position-fb => joint.3.motor-pos-fb
+linksp J0pos => joint.0.motor-pos-fb
+linksp J1pos => joint.1.motor-pos-fb
+linksp J2pos => joint.2.motor-pos-fb
+linksp J3pos => joint.3.motor-pos-fb
+
+# # send the position commands thru differentiators to
+# # generate velocity and accel signals
+# # define the signals, and hook them up
+# newsig J0vel float
+# newsig J0acc float
+# linksp J0pos => ddt.0.in
+# linkps ddt.0.out => J0vel
+# linksp J0vel => ddt.1.in
+# linkps ddt.1.out => J0acc
+# 
+# newsig J1vel float
+# newsig J1acc float
+# linksp J1pos => ddt.2.in
+# linkps ddt.2.out => J1vel
+# linksp J1vel => ddt.3.in
+# linkps ddt.3.out => J1acc
+# 
+# newsig J2vel float
+# newsig J2acc float
+# linksp J2pos => ddt.4.in
+# linkps ddt.4.out => J2vel
+# linksp J2vel => ddt.5.in
+# linkps ddt.5.out => J2acc
+# 
+# newsig J3vel float
+# newsig J3acc float
+# linksp J3pos => ddt.6.in
+# linkps ddt.6.out => J3vel
+# linksp J3vel => ddt.7.in
+# linkps ddt.7.out => J3acc
+
+# estop loopback
+net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
+
+# create signals for tool loading loopback
+net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
+net tool-change-loop iocontrol.0.tool-change iocontrol.0.tool-changed
+
+# amp control
+newsig xena bit
+newsig yena bit
+newsig zena bit
+newsig aena bit
+linksp xena <= joint.0.amp-enable-out
+linksp yena <= joint.1.amp-enable-out
+linksp zena <= joint.2.amp-enable-out
+linksp aena <= joint.3.amp-enable-out
+linksp xena => wou.stepgen.0.enable
+linksp yena => wou.stepgen.1.enable
+linksp zena => wou.stepgen.2.enable
+linksp aena => wou.stepgen.3.enable
+
+setp wou.stepgen.0.steplen  [JOINT_0]STEPLEN
+setp wou.stepgen.1.steplen  [JOINT_1]STEPLEN
+setp wou.stepgen.2.steplen  [JOINT_2]STEPLEN
+setp wou.stepgen.3.steplen  [JOINT_3]STEPLEN
+setp wou.stepgen.0.dirdelay [JOINT_0]DIRDELAY 
+setp wou.stepgen.1.dirdelay [JOINT_1]DIRDELAY
+setp wou.stepgen.2.dirdelay [JOINT_2]DIRDELAY
+setp wou.stepgen.3.dirdelay [JOINT_3]DIRDELAY
+
+# connect signals from FPGA.
+# pulse_cmd: the actual pulse_cmd sent to servo drive.
+net pulse_cmd_j0  <= wou.stepgen.0.pulse_cmd
+net pulse_cmd_j1  <= wou.stepgen.1.pulse_cmd
+net pulse_cmd_j2  <= wou.stepgen.2.pulse_cmd
+net pulse_cmd_j3  <= wou.stepgen.3.pulse_cmd
+# enc_pos: the encoder position read from FPGA.
+net enc_pos_j0    <= wou.stepgen.0.enc_pos  
+net enc_pos_j1    <= wou.stepgen.1.enc_pos  
+net enc_pos_j2    <= wou.stepgen.2.enc_pos  
+net enc_pos_j3    <= wou.stepgen.3.enc_pos  
+
+# refer to proto/doc/wiring.txt
+# xena also served as servo_on
+net xena          =>  wou.gpio.out.00
+net servo_rst     =>  wou.gpio.out.01
+# the alarm signal is shared by 4 axes
+# for real SCARA: net alarm_in not.0.in <=  wou.gpio.in.00
+# for real SCARA: net alarm             <=  not.0.out
+net alarm         <=  wou.gpio.in.00
+    net alarm         =>  joint.0.amp-fault-in
+    net alarm         =>  joint.1.amp-fault-in
+    net alarm         =>  joint.2.amp-fault-in
+    net alarm         =>  joint.3.amp-fault-in
+net servo_ready   <=  wou.gpio.in.01
+# TODO: forward servo_ready to AXIS, the servo could not be ON while (!servo_ready)
+# switches.hal, simulated_home.hal: definition for home_j0 ~ home_j3
+
+# set wou module scaling - get values from ini file
+setp wou.stepgen.0.position-scale [JOINT_0]INPUT_SCALE
+setp wou.stepgen.1.position-scale [JOINT_1]INPUT_SCALE
+setp wou.stepgen.2.position-scale [JOINT_2]INPUT_SCALE
+setp wou.stepgen.3.position-scale [JOINT_3]INPUT_SCALE
+
+# set wou module velocity limits - get values from ini file
+setp wou.stepgen.0.maxvel [JOINT_0]MAX_VELOCITY
+setp wou.stepgen.1.maxvel [JOINT_1]MAX_VELOCITY
+setp wou.stepgen.2.maxvel [JOINT_2]MAX_VELOCITY
+setp wou.stepgen.3.maxvel [JOINT_3]MAX_VELOCITY
+
+# set wou module accel limits - get values from ini file
+setp wou.stepgen.0.maxaccel [JOINT_0]MAX_ACCELERATION
+setp wou.stepgen.1.maxaccel [JOINT_1]MAX_ACCELERATION
+setp wou.stepgen.2.maxaccel [JOINT_2]MAX_ACCELERATION
+setp wou.stepgen.3.maxaccel [JOINT_3]MAX_ACCELERATION
+
+# for art_scarakins.c
+setp scarakins.D1  [SCARAKINS]D1
+setp scarakins.D2  [SCARAKINS]D2
+setp scarakins.D3  [SCARAKINS]D3
+setp scarakins.D4  [SCARAKINS]D4
+setp scarakins.D5  [SCARAKINS]D5
+setp scarakins.D6  [SCARAKINS]D6
+setp scarakins.PPD [SCARAKINS]PPD
+
+# for src/hal/user_comps/vismach/art_scaragui.py 
+loadusr -W art_scaragui
+net j0 joint.0.pos-fb art_scaragui.joint0
+net j1 joint.1.pos-fb art_scaragui.joint1
+net j2 joint.2.pos-fb art_scaragui.joint2
+net j3 joint.3.pos-fb art_scaragui.joint3
+setp art_scaragui.D1        [SCARAKINS]D1
+setp art_scaragui.D2        [SCARAKINS]D2
+setp art_scaragui.D3        [SCARAKINS]D3
+setp art_scaragui.D4        [SCARAKINS]D4
+setp art_scaragui.D5        [SCARAKINS]D5
+setp art_scaragui.D6        [SCARAKINS]D6
+setp art_scaragui.J3MIN     [JOINT_2]MIN_LIMIT
+setp art_scaragui.J3MAX     [JOINT_2]MAX_LIMIT
+setp art_scaragui.PPD       [SCARAKINS]PPD
+

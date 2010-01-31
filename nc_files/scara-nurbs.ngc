@@ -1,0 +1,45 @@
+( by Yishin Li, Arais Robot Technology - 2009 )
+
+(for SONY SCARA-500)
+(for SONY SCARA-500)(#1000 = 325.0000  )( Safe Z )
+(for SONY SCARA-500)(#1001 = 255.0000  )( Engraving Depth Z )
+(for SONY SCARA-500)(#1002 = 105.0000  )( X Start )
+(for SONY SCARA-500)(#1003 = 390.0000  )( Y Start )
+(for SONY SCARA-500)(#1004 = 50.0      )( Circle Radius)
+
+(for EPSON SCARA E2C351C)
+#1000 = 190.0000  ( Safe Z )
+#1001 = 113.0000  ( Engraving Depth Z )
+#1002 = 150.0000  ( X Start )
+#1003 = 125.0000  ( Y Start )
+#1004 = 50.0      ( Circle Radius )
+#1005 = 340.0000  ( X init )
+#1006 =   0.0000  ( Y init )
+
+(===================================================================)
+(F25000: feed rate: 25000mm/min)
+(P0.003: tolerance for blending: 0.003mm) 
+(G17 G21 G90 G64 P0.003 /* P0:tolerance for blending */ M3 S3000 M7 F60000)
+G17 G21 G90 G64 P0.003 F60000
+
+G1 Z#1000
+G1 X#1005 Y#1006 A45 (init)
+
+G5.2  X330 Y20 P1 
+      X315 Y0 P2
+      X295 Y15 P1
+      X280 Y10 P1
+G5.3
+
+G6.2  P3 K0   X280  Y20    R1 F1000
+      K0      X250  Y0     R2
+      K0      X275  Y-15   R1
+      K0.5    X280  Y10    R1
+      K1
+      K1
+      K1
+G5.3
+
+
+M5 M9 M2
+

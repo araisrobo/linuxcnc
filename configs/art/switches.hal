@@ -1,0 +1,16 @@
+# home: home switch status from FPGA
+net home_j0       wou.gpio.in.02    =>  joint.0.home-sw-in
+net home_j1       wou.gpio.in.03    =>  joint.1.home-sw-in
+net home_j2       wou.gpio.in.04    =>  joint.2.home-sw-in
+net home_j3       wou.gpio.in.05    =>  joint.3.home-sw-in
+
+# # net ccwl_j0_in    not.1.in          <=  wou.gpio.in.06 
+# # net ccwl_j0                         <=  not.1.out
+# # net ccwl_j0                         => axis.0.???
+# net ccwl_j2_in    not.3.in          <=  wou.gpio.in.08 
+# # net ccwl_j2       not.3.out         =>  axis.2.neg-lim-sw-in
+# net ccwl_j2       not.3.out         
+# 
+# net cwl_j2_in     not.6.in          <=  wou.gpio.in.11 
+# # net cwl_j2        not.6.out         =>  axis.2.pos-lim-sw-in
+# net cwl_j2        not.6.out         

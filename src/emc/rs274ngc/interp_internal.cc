@@ -177,7 +177,7 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
     } else {
       CHKS(mode_zero_covets_axes,
           NCE_CANNOT_USE_TWO_G_CODES_THAT_BOTH_USE_AXIS_VALUES);
-      CHKS(((!axis_flag) && (mode1 != G_0) && (mode1 != G_1) && mode1 != G_2 && mode1 != G_3 && mode1 != G_5_2),
+      CHKS(((!axis_flag) && (mode1 != G_0) && (mode1 != G_1) && mode1 != G_2 && mode1 != G_3 && mode1 != G_5_2 && mode1 != G_6_2),
           NCE_ALL_AXES_MISSING_WITH_MOTION_CODE);
     }
     block->motion_to_be = mode1;
@@ -188,6 +188,9 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
     CHKS(((settings->motion_mode == -1)
          || (settings->motion_mode == G_80)),
         NCE_CANNOT_USE_AXIS_VALUES_WITHOUT_A_G_CODE_THAT_USES_THEM);
+    block->motion_to_be = settings->motion_mode;
+  } else if (block->k_flag && (settings->motion_mode == G_6_2)) {
+    // for FANUC NURBS Code
     block->motion_to_be = settings->motion_mode;
   } else if (!axis_flag && ijk_flag && (settings->motion_mode == G_2 || settings->motion_mode == G_3)) {
     // this is a block like simply "i1" which should be accepted if we're in arc mode

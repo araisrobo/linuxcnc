@@ -1,0 +1,8 @@
+The configuration files for generating 4-axis stepper pulses with a Mesa
+Anything IO board with USB interface (7i43 usb). It packs position commands
+along with corresponding time information into wishbone-over-usb stream.
+The realtime task is done by the FPGA of 7i43. As a result, the RTAI is not
+required.
+
+Those configurations were taken from configs/scara/, and modified by Yishin
+Li, Arais Robot Technology Inc.

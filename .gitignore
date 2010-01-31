@@ -14,4 +14,7 @@ share
 *.mod.c
 *.cmd
 .tmp*
+*.log
+*.swp
+run.sh
 debian/*.debhelper.log

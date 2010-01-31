@@ -146,14 +146,22 @@ INCLUDE += -I$(INCLUDEPY)
 endif
 
 # Compilation options.  Perhaps some of these should come from Makefile.inc?
-OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
+# original: OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
+# for debug: 
+OPT := -O0
+# for release: 
+# OPT := -O2
+
 # NOTE: Wwrite-strings is supposed to be OFF unless explicitly requested, even with -Wall,
 # since it produces a mess of warnings on any code that doesn't use "const" fastidiously
 # There is a bug in some versions of gcc that turns it on.
 # ( see http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=442950 )
 # So we explicitly turn it off here, to avoid a flood of meaningless warnings that
 # might be hiding a few real ones.
+# for debug: 
 DEBUG := -g -Wall $(call cc-option,-Wno-write-strings)
+# for release: 
+# DEBUG := -Wall $(call cc-option,-Wno-write-strings)
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
@@ -178,12 +186,12 @@ $(sort $(call TODEPS, $(filter %.c,$(USERSRCS)))): depends/%.d: %.c
 $(sort $(CUSEROBJS)) : objects/%.o: %.c
 	$(ECHO) Compiling $<
 	@mkdir -p $(dir $@)
-	@$(CC) -c $(CFLAGS) $(EXTRAFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $(EXTRAFLAGS) $< -o $@
 
 $(sort $(CXXUSEROBJS)) : objects/%.o: %.cc
 	$(ECHO) Compiling $<
 	@mkdir -p $(dir $@)
-	@$(CXX) -c $(CXXFLAGS) $(EXTRAFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $(EXTRAFLAGS) $< -o $@
 
 # Rules to make .i (preprocessed) files
 $(sort $(patsubst %.c,%.i,$(CUSERSRCS))): %.i: %.c
@@ -226,6 +234,7 @@ HEADERS := \
     config.h \
     emc/ini/emcIniFile.hh \
     emc/ini/iniaxis.hh \
+    emc/ini/inijoint.hh \
     emc/ini/initool.hh \
     emc/ini/initraj.hh \
     emc/kinematics/cubic.h \
@@ -568,6 +577,14 @@ ifeq ($(RTARCH),x86_64)
 EXTRA_CFLAGS += -msse
 endif
 
+# for libwou
+ifneq ($(WOU_VERSION),)
+EXTRA_CFLAGS += $(WOU_CFLAGS)
+EXTRALINK += $(WOU_LIBS)
+# LDFLAGS += $(WOU_LIBS)
+endif
+
+
 ifeq "$(USE_STUBS)" "1"
 MATHSTUB := rtapi/mathstubs.o
 endif
@@ -603,6 +620,10 @@ obj-$(CONFIG_ENCODER_RATIO) += encoder_ratio.o
 encoder_ratio-objs := hal/components/encoder_ratio.o $(MATHSTUB)
 obj-$(CONFIG_STEPGEN) += stepgen.o
 stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
+# WOU: wishbone over usb
+# wou.o is composed of (multiple) wou-objs
+obj-$(CONFIG_WOU) += wou.o
+wou-objs := hal/components/wou_stepgen.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -712,6 +733,9 @@ maxkins-objs := emc/kinematics/maxkins.o
 obj-m += gantrykins.o
 gantrykins-objs := emc/kinematics/gantrykins.o
 
+obj-m += gentrivkins.o
+gentrivkins-objs := emc/kinematics/gentrivkins.o
+
 obj-m += rotatekins.o
 rotatekins-objs := emc/kinematics/rotatekins.o
 
@@ -738,6 +762,11 @@ scarakins-objs := emc/kinematics/scarakins.o
 scarakins-objs += libnml/posemath/_posemath.o
 scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
+obj-m += art_scarakins.o
+art_scarakins-objs := emc/kinematics/art_scarakins.o
+art_scarakins-objs += libnml/posemath/_posemath.o
+art_scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
+
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o 
 motmod-objs += emc/kinematics/tc.o 
@@ -746,6 +775,7 @@ motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/command.o 
 motmod-objs += emc/motion/control.o 
 motmod-objs += emc/motion/homing.o 
+motmod-objs += emc/motion/simple_tp.o 
 motmod-objs += emc/motion/emcmotglb.o 
 motmod-objs += emc/motion/emcmotutil.o 
 motmod-objs += libnml/posemath/_posemath.o
@@ -753,7 +783,7 @@ motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
 ifeq ($(BUILD_SYS),sim)
-EXTRA_CFLAGS += -fPIC -Os
+EXTRA_CFLAGS += -fPIC
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
@@ -761,21 +791,27 @@ IS_POWERPC = test `uname -m` = ppc -o `uname -m` = ppc64
 modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 ../rtlib/%.so:
 	$(ECHO) Linking $@
-	@ld -r -o objects/$*.tmp $^
+	ld -g -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	@ld -shared -Bsymbolic -o $@ objects/$*.tmp -lm
+	@# original: ld -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
+	@# to fix the "undefined reference to `__stack_chk_fail_local'" error
+	@# replace "ld" with "gcc" for linking with '-shared' parameter
+	@# http://nsnam.isi.edu/nsnam/index.php/User_Information#Ubuntu_Installation_Guide
+	gcc -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)
 	$(ECHO) Depending $<
-	@$(call DEP,$(CC),$@ $(patsubst depends/%.d,objects/%.o,$@),$@,$(OPT) $(DEBUG) -DSIM -DRTAPI $(EXTRA_CFLAGS) $<)
+	$(call DEP,$(CC),$@ $(patsubst depends/%.d,objects/%.o,$@),$@,$(OPT) $(DEBUG) -DSIM -DRTAPI $(EXTRA_CFLAGS) $<)
 
 # Rules to make .o (object) files
 $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	$(ECHO) Compiling realtime $<
 	@mkdir -p $(dir $@)
-	@$(CC) -c $(OPT) $(DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
+	$(CC) -c $(OPT) $(DEBUG) -DSIM $(EXTRA_CFLAGS) $< -o $@
+	@# orig: $(CC) -c $(OPT) $(DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
+	@#   NB: -DSIM and -DSIMULATOR are defined at EXTRA_CFLAGS
 endif
 
 ifeq ($(BUILD_SYS),normal)
@@ -811,6 +847,7 @@ endif
 ../rtlib/counter$(MODULE_EXT): $(addprefix objects/rt,$(counter-objs))
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
+../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
@@ -840,6 +877,7 @@ endif
 ../rtlib/hal_lib$(MODULE_EXT): $(addprefix objects/rt,$(hal_lib-objs))
 ../rtlib/motmod$(MODULE_EXT): $(addprefix objects/rt,$(motmod-objs))
 ../rtlib/trivkins$(MODULE_EXT): $(addprefix objects/rt,$(trivkins-objs))
+../rtlib/gentrivkins$(MODULE_EXT): $(addprefix objects/rt,$(gentrivkins-objs))
 ../rtlib/5axiskins$(MODULE_EXT): $(addprefix objects/rt,$(5axiskins-objs))
 ../rtlib/maxkins$(MODULE_EXT): $(addprefix objects/rt,$(maxkins-objs))
 ../rtlib/gantrykins$(MODULE_EXT): $(addprefix objects/rt,$(gantrykins-objs))
@@ -849,6 +887,7 @@ endif
 ../rtlib/genserkins$(MODULE_EXT): $(addprefix objects/rt,$(genserkins-objs))
 ../rtlib/pumakins$(MODULE_EXT): $(addprefix objects/rt,$(pumakins-objs))
 ../rtlib/scarakins$(MODULE_EXT): $(addprefix objects/rt,$(scarakins-objs))
+../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))

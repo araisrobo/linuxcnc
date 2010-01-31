@@ -181,24 +181,87 @@ static double TO_PROG_LEN(double p) {
     return p;
 }
 
-void NURBS_FEED(std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
+void NURBS_FEED_3D (
+    int line_number, 
+    const std::vector<CONTROL_POINT> & nurbs_control_points, 
+    const std::vector<double> & nurbs_knot_vector, 
+    unsigned int order ) 
+{
+    double u = 0.0;
+    // unsigned int n = nurbs_control_points.size() - 1;
+    unsigned int n, i;
+    // double umax = n - k + 2;
+    // double div = (double) nurbs_control_points.size() * 15.0;
+    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() begin\n",
+            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+    n = nurbs_control_points.size();
+    for (i = 0; i < n; i++) {
+        printf("%s: CP[%u] R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f) B(%.2f) C(%.2f) U(%.2f) V(%.2f) W(%.2f)\n",
+                __FILE__, i, 
+                nurbs_control_points[i].R,
+                nurbs_control_points[i].X,
+                nurbs_control_points[i].Y,
+                nurbs_control_points[i].Z,
+                nurbs_control_points[i].A,
+                nurbs_control_points[i].B,
+                nurbs_control_points[i].C,
+                nurbs_control_points[i].U,
+                nurbs_control_points[i].V,
+                nurbs_control_points[i].W
+        );
+    }
+    
+    n = nurbs_knot_vector.size();
+    printf("%s: KNOT[0:%u]: ", __FILE__, (n-1));
+    for (i = 0; i < n; i++) {
+        printf("%.2f ", nurbs_knot_vector[i]);
+    }
+    printf("\n");
+
+//    std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
+//    PLANE_POINT P1;
+//    while (u+umax/div < umax) {
+//        printf("%s: (%s:%d): (u(%f)+umax(%f))/div(%f)=%f\n",
+//            __FILE__, __FUNCTION__, __LINE__, u, umax, div, u+umax/div);
+//        PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
+//        // EBo -- replace 12345 with *whatever* gives us the line_number
+//        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+//        u = u + umax/div;
+//    } 
+//    P1.X = nurbs_control_points[n].X;
+//    P1.Y = nurbs_control_points[n].Y;
+//    // EBo -- replace 12345 with *whatever* gives us the line_number
+//    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+//    knot_vector.clear();
+
+    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() end\n",
+            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+}
+
+void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
     unsigned int n = nurbs_control_points.size() - 1;
     double umax = n - k + 2;
-    unsigned int div = nurbs_control_points.size()*15;
+    double div = (double) nurbs_control_points.size() * 15.0;
+    // printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() begin\n",
+    //         __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
     std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
     PLANE_POINT P1;
     while (u+umax/div < umax) {
+        // printf("%s: (%s:%d): (u(%f)+umax(%f))/div(%f)=%f\n",
+        //     __FILE__, __FUNCTION__, __LINE__, u, umax, div, u+umax/div);
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
         // EBo -- replace 12345 with *whatever* gives us the line_number
-        STRAIGHT_FEED(12345, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
         u = u + umax/div;
     } 
     P1.X = nurbs_control_points[n].X;
     P1.Y = nurbs_control_points[n].Y;
     // EBo -- replace 12345 with *whatever* gives us the line_number
-    STRAIGHT_FEED(12345, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
     knot_vector.clear();
+    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() end\n",
+            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
 }
 
 void SPLINE_FEED(double x1, double y1, double x2, double y2) {
@@ -781,3 +844,5 @@ initgcode(void) {
     PyObject_SetAttrString(m, "MIN_ERROR",
             PyInt_FromLong(INTERP_MIN_ERROR));
 }
+
+// vim:sw=4:sts=4:et:

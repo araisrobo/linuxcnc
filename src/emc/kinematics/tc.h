@@ -61,15 +61,25 @@ typedef struct {
     RIGIDTAP_STATE state;
 } PmRigidTap;
 
+enum state_type {
+  ACCEL_S0=0, ACCEL_S1, ACCEL_S2, ACCEL_S3, ACCEL_S4, ACCEL_S5, ACCEL_S6
+};
+
 typedef struct {
     double cycle_time;
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
+    double distance_to_go;  // distance to go for target target..0
     double reqvel;          // vel requested by F word, calc'd by task
     double maxaccel;        // accel calc'd by task
+    double jerk;            // the accelrate of accel
     double feed_override;   // feed override requested by user
     double maxvel;          // max possible vel (feed override stops here)
     double currentvel;      // keep track of current step (vel * cycle_time)
+    double cur_accel;       // keep track of current acceleration
+    double accel_dist;      // keep track of acceleration distance
+    double accel_time;      // keep track of acceleration time
+    enum state_type accel_state;
     
     int id;                 // segment's serial number
 
@@ -86,14 +96,16 @@ typedef struct {
     int canon_motion_type;  // this motion is due to which canon function?
     int blend_with_next;    // gcode requests continuous feed at the end of 
                             // this segment (g64 mode)
-    int blending;           // segment is being blended into following segment
-    double blend_vel;       // velocity below which we should start blending
+    // int blending;           // segment is being blended into following segment
+    // double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move, 
                             // stay within this distance from the path.
+    // double vel_at_blend_start;
+    // double nexttc_vel;
+    
     int synchronized;       // spindle sync required for this move
     int velocity_mode;	    // TRUE if spindle sync is in velocity mode, FALSE if in position mode
     double uu_per_rev;      // for sync, user units per rev (e.g. 0.0625 for 16tpi)
-    double vel_at_blend_start;
     int sync_accel;         // we're accelerating up to sync with the spindle
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     char atspeed;           // wait for the spindle to be at-speed before starting this move
