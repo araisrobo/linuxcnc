@@ -97,4 +97,101 @@ double alpha_finder(double dx, double dy) {
     }
 }   
 
+int nurbs_findspan (int n, int p, double u, const std::vector<double> & U)
+// Find the knot span of the parametric point u. 
+//
+// INPUT:
+//
+//   n - number of control points - 1
+//   p - spline degree       
+//   u - parametric point    
+//   U - knot sequence
+//
+// RETURN:
+//
+//   s - knot span
+//
+// Note: This is NOT
+// Algorithm A2.1 from 'The NURBS BOOK' pg68
+// as that algorithm only works for nonperiodic
+// knot vectors, nonetheless the results should 
+// be EXACTLY the same if U is nonperiodic
+
+/*
+Below is the original implementation from the NURBS Book
+{
+  int low, high, mid;
+  // special case
+  if (u == U(n+1)) return(n);
+
+  // do binary search
+  low = p;
+  high = n + 1;
+  mid = (low + high) / 2;
+  while (u < U(mid) || u >= U(mid+1))
+    {
+
+      if (u < U(mid))
+	high = mid;
+      else
+	low = mid;
+      mid = (low + high) / 2;
+    }  
+
+  return(mid);
+}
+*/
+{
+  // FIXME : this implementation has linear, rather than log complexity
+  int ret = 0;
+  while ((ret++ < n) && (U[ret] <= u)) {
+  };
+  return (ret-1);
+}
+
+void nurbs_basisfun(int i, double u, int p, 
+              const std::vector<double> & U, 
+              std::vector<double> & N)
+
+// Basis Function. 
+//
+// INPUT:
+//
+//   i - knot span  ( from FindSpan() )
+//   u - parametric point
+//   p - spline degree
+//   U - knot sequence
+//
+// OUTPUT:
+//
+//   N - Basis functions vector[p+1]
+//
+// Algorithm A2.2 from 'The NURBS BOOK' pg70.
+{
+  int j,r;
+  double saved, temp;
+
+  // work space
+  std::vector<double> left(p+1);
+  std::vector<double> right(p+1);
+  
+  N[0] = 1.0;
+  for (j = 1; j <= p; j++)
+    {
+      left[j]  = u - U[i+1-j];
+      right[j] = U[i+j] - u;
+      saved = 0.0;
+      
+      for (r = 0; r < j; r++)
+	{
+	  temp = N[r] / (right[r+1] + left[j-r]);
+	  N[r] = saved + right[r+1] * temp;
+	  saved = left[j-r] * temp;
+	} 
+      
+      N[j] = saved;
+    }
+
+}
+
 // vim:sw=4:sts=4:et:

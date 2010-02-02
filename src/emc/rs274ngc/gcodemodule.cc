@@ -184,59 +184,106 @@ static double TO_PROG_LEN(double p) {
 
 void NURBS_FEED_3D (
     int line_number, 
-    const std::vector<CONTROL_POINT> & nurbs_control_points, 
-    const std::vector<double> & nurbs_knot_vector, 
+    const std::vector<CONTROL_POINT> & c, // nurbs_control_points
+    const std::vector<double> & k,  // nurbs_knot_vector 
     unsigned int order ) 
 {
     double u = 0.0;
-    // unsigned int n = nurbs_control_points.size() - 1;
-    unsigned int n, i;
-    // double umax = n - k + 2;
-    // double div = (double) nurbs_control_points.size() * 15.0;
-    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() begin\n",
-            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
-    n = nurbs_control_points.size();
-    for (i = 0; i < n; i++) {
-        printf("%s: CP[%u] R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f) B(%.2f) C(%.2f) U(%.2f) V(%.2f) W(%.2f)\n",
-                __FILE__, i, 
-                nurbs_control_points[i].R,
-                nurbs_control_points[i].X,
-                nurbs_control_points[i].Y,
-                nurbs_control_points[i].Z,
-                nurbs_control_points[i].A,
-                nurbs_control_points[i].B,
-                nurbs_control_points[i].C,
-                nurbs_control_points[i].U,
-                nurbs_control_points[i].V,
-                nurbs_control_points[i].W
-        );
-    }
+    int n, i;
+    printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n",
+            __FILE__, __FUNCTION__, __LINE__, c.size());
     
-    n = nurbs_knot_vector.size();
-    printf("%s: KNOT[0:%u]: ", __FILE__, (n-1));
-    for (i = 0; i < n; i++) {
-        printf("%.2f ", nurbs_knot_vector[i]);
-    }
-    printf("\n");
+    // n = c.size();
+    // for (i = 0; i < n; i++) {
+    //     printf("%s: CP[%u] R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f) B(%.2f) C(%.2f) U(%.2f) V(%.2f) W(%.2f)\n",
+    //             __FILE__, i, 
+    //             c[i].R,
+    //             c[i].X,
+    //             c[i].Y,
+    //             c[i].Z,
+    //             c[i].A,
+    //             c[i].B,
+    //             c[i].C,
+    //             c[i].U,
+    //             c[i].V,
+    //             c[i].W
+    //     );
+    // }
+    // 
+    // n = k.size();
+    // printf("%s: KNOT[0:%u]: ", __FILE__, (n-1));
+    // for (i = 0; i < n; i++) {
+    //     printf("%.2f ", k[i]);
+    // }
+    // printf("\n");
 
-//    std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
-//    PLANE_POINT P1;
-//    while (u+umax/div < umax) {
-//        printf("%s: (%s:%d): (u(%f)+umax(%f))/div(%f)=%f\n",
-//            __FILE__, __FUNCTION__, __LINE__, u, umax, div, u+umax/div);
-//        PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-//        // EBo -- replace 12345 with *whatever* gives us the line_number
-//        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
-//        u = u + umax/div;
-//    } 
-//    P1.X = nurbs_control_points[n].X;
-//    P1.Y = nurbs_control_points[n].Y;
-//    // EBo -- replace 12345 with *whatever* gives us the line_number
-//    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
-//    knot_vector.clear();
 
-    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() end\n",
-            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+    // INPUT:
+    //    d - Degree of the B-Spline.
+    //    c - Control Points, matrix of size (dim,nc).
+    //    k - Knot sequence, row vector of size nk.
+    //    u - Parametric evaluation points, row vector of size nu.
+    // OUTPUT:
+    //    p - Evaluated points, matrix of size (dim,nu)
+
+    int d = order-1;
+    int nu = c.size() * 10 + 1; // u.length();
+    int nc = c.size();
+
+    std::vector<double> N(order);
+    double R, X, Y, Z, A/* , B, C, U, V, W */;
+
+    if (nc + d == (int)(k.size() - 1)) 
+      {	 
+        int s, tmp1;
+        
+        for (int col(0); col<nu; col++)
+          {	
+            u = (double) col / (nu - 1.0);
+            s = nurbs_findspan(nc-1, d, u, k);
+            nurbs_basisfun(s, u, d, k, N);    
+            tmp1 = s - d;                
+            
+            R = 0.0;
+            for (i=0; i<=d; i++) {
+                R += N[i]*c[tmp1+i].R;
+            }
+
+            X = 0.0;
+            for (i=0; i<=d; i++) {
+                X += N[i]*c[tmp1+i].X;
+            }
+
+            Y = 0.0;
+            for (i=0; i<=d; i++) {
+                Y += N[i]*c[tmp1+i].Y;
+            }
+
+            Z = 0.0;
+            for (i=0; i<=d; i++) {
+                Z += N[i]*c[tmp1+i].Z;
+            }
+
+            A = 0.0;
+            for (i=0; i<=d; i++) {
+                A += N[i]*c[tmp1+i].A;
+            }
+            
+            X = X/R;
+            Y = Y/R;
+            Z = Z/R;
+            A = A/R;
+            STRAIGHT_FEED(line_number, X, Y, Z, A, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+            printf("R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n", R, X, Y, Z, A); 
+          }   
+      } 
+    else 
+      {
+        fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k) - 1.\n");
+      }
+
+    printf("%s: (%s:%d): c.size(%d); NURBS_FEED_3D() end\n",
+            __FILE__, __FUNCTION__, __LINE__, c.size());
 }
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {

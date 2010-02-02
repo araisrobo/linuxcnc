@@ -498,6 +498,11 @@ extern PLANE_POINT nurbs_point(double u, unsigned int k,
                   std::vector<unsigned int> knot_vector);
 extern double alpha_finder(double dx, double dy);
 
+extern int nurbs_findspan(int n, int p, double u, const std::vector<double> & U);
+extern void nurbs_basisfun(int i, double u, int p, 
+                  const std::vector<double> & U, 
+                  std::vector<double> & N);
+
 /* Canon calls */
 
 extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k);
