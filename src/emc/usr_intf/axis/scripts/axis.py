@@ -3718,7 +3718,7 @@ update_ms = int(1000 * float(inifile.find("DISPLAY","CYCLE_TIME") or 0.020))
 widgets.unhomemenu.add_command(command=commands.unhome_all_axes)
 root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end", _("Unhome All Axes"))
 
-s = emc.stat();
+s = emc.stat(); #in the axis self.stat = emc.stat()
 s.poll()
 statfail=0
 while s.axes == 0:
