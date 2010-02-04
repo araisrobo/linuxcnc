@@ -127,12 +127,11 @@ class emc_control:
                 self.jog_velocity = velocity / 60.0
         
         def continuous_jog(self, axis, direction):
-                if self.masked: return
+                if self.masked:
+                    return
                 if direction == 0:
-                        print "continuous_jog direction ==0"
                         self.emccommand.jog(self.emc.JOG_STOP, axis)
                 else:
-                        print "continous_jog direction !=0","direction",direction
                         self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
                 
 	def quill_up(self):
@@ -343,7 +342,7 @@ class emc_status:
                 set_active(self.machines['on'], on)
                 set_active(self.machines['off'], not on)
 
-                ovl = self.emcstat.axis[0]['override_limits']
+                ovl = self.emcstat.joint[0]['override_limits']
                 set_active(self.override_limit, ovl)
 
                 set_text(self.status['file'], self.emcstat.file)

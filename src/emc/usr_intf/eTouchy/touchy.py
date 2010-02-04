@@ -64,6 +64,12 @@ def set_text(w, t):#set_text(widget,text)
     ot = w.get_label()
     if ot != t: w.set_label(t)
 
+debug = True
+def dbgprint(s):
+    global debug
+    if debug == True:
+        print s
+
 import emc
 print emc
 from eTouchy import emc_interface  #emc_control
@@ -412,7 +418,6 @@ class touchy:
                 self.emc.blockdel_off(b)
   
         def wheelx(self, b):
-                print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
           
@@ -713,6 +718,7 @@ class touchy:
             self.sw_wheel_reset()
         def fominus_pressed(self,b):
             self.is_on_sw_wheel = True
+            self.sw_wheel_direction = -1
         def fominus_released(self,b):
             self.is_on_sw_wheel = False
             self.sw_wheel_reset()
