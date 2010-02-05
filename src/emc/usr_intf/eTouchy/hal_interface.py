@@ -185,7 +185,6 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xp = self.xp_sw
         if xp ^ self.xp: 
-            print "run xp"
             self.emc_control.continuous_jog(0, xp)
         self.xp = xp
 
@@ -193,7 +192,6 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xn = self.xn_sw
         if xn ^ self.xn:
-            print "run xn" 
             self.emc_control.continuous_jog(0, -xn)
         self.xn = xn
 

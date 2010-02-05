@@ -127,11 +127,12 @@ class emc_control:
                 self.jog_velocity = velocity / 60.0
         
         def continuous_jog(self, axis, direction):
-                if self.masked:
-                    return
+                if self.masked: return
                 if direction == 0:
+                        print "continuous_jog direction ==0"
                         self.emccommand.jog(self.emc.JOG_STOP, axis)
                 else:
+                        print "continous_jog direction !=0","direction",direction
                         self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
                 
 	def quill_up(self):
@@ -227,7 +228,7 @@ class emc_status:
                 self.opstop = opstop
                 self.blockdel = blockdel
                 self.resized_dro = 0
-                
+                self.is_on_world_mode = False
                 self.mm = 0
                 self.actual = 0
                 self.emcstat = emc.stat()
@@ -258,7 +259,13 @@ class emc_status:
                         elif i >= 590 and i <= 593:
                                 return i - 584
                 return 1
-
+        def switch_world_mode(self):
+            if self.is_on_world_mode == True:
+                self.is_on_world_mode = False
+                return False
+            else:
+                self.is_on_world_mode = True
+                return True
         def periodic(self):
                 self.emcstat.poll()
                 am = self.emcstat.axis_mask
@@ -280,9 +287,15 @@ class emc_status:
                         self.resized_dro = 1
                                         
                 if self.actual:
-                        p = self.emcstat.actual_position
+                        if self.is_on_world_mode == True:
+                            p = self.emcstat.actual_position
+                        else:
+                            p = self.emcstat.joint_actual_position
                 else:
-                        p = self.emcstat.position
+                        if self.is_on_world_mode == True:
+                            p = self.emcstat.position
+                        else:
+                            p = self.emcstat.joint_position
 
                 x = p[0] - self.emcstat.origin[0] - self.emcstat.tool_offset[0]
                 y = p[1] - self.emcstat.origin[1]

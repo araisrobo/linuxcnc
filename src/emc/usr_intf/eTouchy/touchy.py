@@ -137,8 +137,8 @@ class touchy:
             self.sw_wheelcount = 0
             self.is_on_sw_wheel = False
             self.sw_wheel_direction = 1
-            
-        
+            self.is_world_mode = False
+             
             self.prefs = preferences.preferences() #touchy.preference.py
             self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
             self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
@@ -356,6 +356,7 @@ class touchy:
                         "on_soplus_released" : self.soplus_released,
                         "on_sominus_pressed" : self.sominus_pressed,
                         "on_sominus_released" : self.sominus_released,
+                        "on_axis_joint_switch_clicked" : self.axis_joint_switch,
                         }
             self.wTree.signal_autoconnect(dic)
 
@@ -569,7 +570,7 @@ class touchy:
                           "reload_tooltable", "opstop_on", "opstop_off",
                           "blockdel_on", "blockdel_off", "pointer_hide",
                            "pointer_show","jogplus","jogminus","foplus","fominus","mvplus",
-                           "mvminus","soplus","sominus"]:
+                           "mvminus","soplus","sominus","axis_joint_switch"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
@@ -699,8 +700,8 @@ class touchy:
                 set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
                 set_label(self.wTree.get_widget("so").child, "SO: %d%%" % self.so_val)
                 set_label(self.wTree.get_widget("mv").child, "MV: %d" % self.mv_val)
+               
 
-                        
                 return True
         def jogplus_pressed(self,b):  
             self.hal.setjogplus(self.wheelxyz)
@@ -758,6 +759,19 @@ class touchy:
             self.sw_wheelcount =   wheel_incr*direction
 
             return wheel_incr
+        def axis_joint_switch(self,b):
+            print "axis_joint_switch"
+            self.is_world_mode = self.status.switch_world_mode()
+            w = self.wTree.get_widget("axis_joint_switch")
+            w = w.child
+            if self.is_world_mode == True:
+                print "world mode"
+                set_label( w,"World Mode")
+                w.modify_font(self.control_font)
+            else:
+                print "joint mode"
+                set_label( w,"Joint Mode")
+                 
        
 
 if __name__ == "__main__":
