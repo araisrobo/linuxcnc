@@ -138,7 +138,8 @@ class touchy:
             self.is_on_sw_wheel = False
             self.sw_wheel_direction = 1
             self.is_world_mode = False
-             
+            self.is_cycle_start = False
+            
             self.prefs = preferences.preferences() #touchy.preference.py
             self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
             self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
@@ -357,6 +358,7 @@ class touchy:
                         "on_sominus_pressed" : self.sominus_pressed,
                         "on_sominus_released" : self.sominus_released,
                         "on_axis_joint_switch_clicked" : self.axis_joint_switch,
+                        "on_cycle_start_stop_clicked" : self.cycle_start_stop,
                         }
             self.wTree.signal_autoconnect(dic)
 
@@ -570,7 +572,7 @@ class touchy:
                           "reload_tooltable", "opstop_on", "opstop_off",
                           "blockdel_on", "blockdel_off", "pointer_hide",
                            "pointer_show","jogplus","jogminus","foplus","fominus","mvplus",
-                           "mvminus","soplus","sominus","axis_joint_switch"]:
+                           "mvminus","soplus","sominus","axis_joint_switch","cycle_start_stop"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
@@ -760,7 +762,6 @@ class touchy:
 
             return wheel_incr
         def axis_joint_switch(self,b):
-            print "axis_joint_switch"
             self.is_world_mode = self.status.switch_world_mode()
             w = self.wTree.get_widget("axis_joint_switch")
             w = w.child
@@ -771,6 +772,21 @@ class touchy:
             else:
                 print "joint mode"
                 set_label( w,"Joint Mode")
+        def cycle_start_stop(self,b):
+            w = self.wTree.get_widget("cycle_start_stop")
+            w = w.child
+            if self.is_cycle_start == False:
+                self.is_cycle_start = True
+                set_label(w,"Cycle Start")
+                print "Cycle Start"
+                w.modify_font(self.control_font)
+                self.hal.set_cycle_start_stop(1)
+            else:
+                self.is_cycle_start = False
+                set_label(w,"Cycle Stop")
+                print "Cycle Stop"
+                w.modify_font(self.control_font)
+                self.hal.set_cycle_start_stop(0)
                  
        
 

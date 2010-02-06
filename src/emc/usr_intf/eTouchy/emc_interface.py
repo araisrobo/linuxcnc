@@ -190,16 +190,21 @@ class emc_control:
                 self.emcstat.poll()
                 if self.emcstat.paused:
                         if self.sb:
+                                print "AUTO_STEP"
                                 self.emccommand.auto(self.emc.AUTO_STEP)
                         else:
+                                print "AUTO_RESUME"
                                 self.emccommand.auto(self.emc.AUTO_RESUME)
 
                 if self.emcstat.interp_state == self.emc.INTERP_IDLE:
+                        print "INTERP_IDLE"
                         self.emccommand.mode(self.emc.MODE_AUTO)
                         self.emccommand.wait_complete()
                         if self.sb:
                                 self.emccommand.auto(self.emc.AUTO_STEP)
+                                print "AUTO_STEP2"
                         else:
+                                print "AUTO_RUN->startline"
                                 self.emccommand.auto(self.emc.AUTO_RUN, self.listing.get_startline())
                                 self.listing.clear_startline()
 
