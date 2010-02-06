@@ -22,6 +22,7 @@ datadir = os.path.join(BASE, "share", "emc")
 #BASE = /home/eric/EMC2/YSL
 #libdir = /home/eric/EMC2/YSL/lib/python
 #datadir = /home/eric/EMC2/YSL/share/emc
+
 sys.path.insert(0, libdir)
 try:
         import pygtk
@@ -63,14 +64,20 @@ def set_text(w, t):#set_text(widget,text)
     ot = w.get_label()
     if ot != t: w.set_label(t)
 
+debug = True
+def dbgprint(s):
+    global debug
+    if debug == True:
+        print s
+
 import emc
 print emc
-from touchy import emc_interface  #emc_control
-from touchy import mdi #mdi
-from touchy import hal_interface #hal_interface
-from touchy import filechooser
-from touchy import listing
-from touchy import preferences
+from eTouchy import emc_interface  #emc_control
+from eTouchy import mdi #mdi
+from eTouchy import hal_interface #hal_interface
+from eTouchy import filechooser
+from eTouchy import listing
+from eTouchy import preferences
 print emc
 
 # gtk.rc_parse_ing() a string to parse for resource data
@@ -104,7 +111,7 @@ invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 class touchy:
         def __init__(self):
     #Set the Glade file
-            self.gladefile = os.path.join(datadir, "touchy.glade")#share/emc/touchy.glade
+            self.gladefile = os.path.join(datadir, "eTouchy.glade")#share/emc/touchy.glade
             self.wTree = gtk.glade.XML(self.gladefile) # loading of user interfaces from XML descriptions.
                                                            # this return gtk.glade.XML object
             self.num_mdi_labels = 11
@@ -130,8 +137,9 @@ class touchy:
             self.sw_wheelcount = 0
             self.is_on_sw_wheel = False
             self.sw_wheel_direction = 1
+            self.is_world_mode = False
+            self.is_cycle_start = False
             
-        
             self.prefs = preferences.preferences() #touchy.preference.py
             self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
             self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
@@ -349,6 +357,8 @@ class touchy:
                         "on_soplus_released" : self.soplus_released,
                         "on_sominus_pressed" : self.sominus_pressed,
                         "on_sominus_released" : self.sominus_released,
+                        "on_axis_joint_switch_clicked" : self.axis_joint_switch,
+                        "on_cycle_start_stop_clicked" : self.cycle_start_stop,
                         }
             self.wTree.signal_autoconnect(dic)
 
@@ -411,7 +421,6 @@ class touchy:
                 self.emc.blockdel_off(b)
   
         def wheelx(self, b):
-                print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
           
@@ -563,7 +572,7 @@ class touchy:
                           "reload_tooltable", "opstop_on", "opstop_off",
                           "blockdel_on", "blockdel_off", "pointer_hide",
                            "pointer_show","jogplus","jogminus","foplus","fominus","mvplus",
-                           "mvminus","soplus","sominus"]:
+                           "mvminus","soplus","sominus","axis_joint_switch","cycle_start_stop"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
@@ -693,8 +702,8 @@ class touchy:
                 set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
                 set_label(self.wTree.get_widget("so").child, "SO: %d%%" % self.so_val)
                 set_label(self.wTree.get_widget("mv").child, "MV: %d" % self.mv_val)
+               
 
-                        
                 return True
         def jogplus_pressed(self,b):  
             self.hal.setjogplus(self.wheelxyz)
@@ -712,6 +721,7 @@ class touchy:
             self.sw_wheel_reset()
         def fominus_pressed(self,b):
             self.is_on_sw_wheel = True
+            self.sw_wheel_direction = -1
         def fominus_released(self,b):
             self.is_on_sw_wheel = False
             self.sw_wheel_reset()
@@ -751,6 +761,33 @@ class touchy:
             self.sw_wheelcount =   wheel_incr*direction
 
             return wheel_incr
+        def axis_joint_switch(self,b):
+            self.is_world_mode = self.status.switch_world_mode()
+            w = self.wTree.get_widget("axis_joint_switch")
+            w = w.child
+            if self.is_world_mode == True:
+                print "world mode"
+                set_label( w,"World Mode")
+                w.modify_font(self.control_font)
+            else:
+                print "joint mode"
+                set_label( w,"Joint Mode")
+        def cycle_start_stop(self,b):
+            w = self.wTree.get_widget("cycle_start_stop")
+            w = w.child
+            if self.is_cycle_start == False:
+                self.is_cycle_start = True
+                set_label(w,"Cycle Start")
+                print "Cycle Start"
+                w.modify_font(self.control_font)
+                self.hal.set_cycle_start_stop(1)
+            else:
+                self.is_cycle_start = False
+                set_label(w,"Cycle Stop")
+                print "Cycle Stop"
+                w.modify_font(self.control_font)
+                self.hal.set_cycle_start_stop(0)
+                 
        
 
 if __name__ == "__main__":

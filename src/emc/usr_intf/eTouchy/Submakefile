@@ -1,0 +1,28 @@
+ETOUCHY_MODULES = mdi emc_interface hal_interface filechooser listing preferences
+
+PYTARGETS += ../bin/eTouchy ../lib/python/eTouchy/__init__.py $(patsubst %,../lib/python/eTouchy/%.py,$(ETOUCHY_MODULES)) \
+	../share/emc/eTouchy.glade
+PYI18NSRCS += emc/usr_intf/eTouchy/touchy.py $(patsubst %,emc/usr_intf/eTouchy/%.py,$(ETOUCHY_MODULES)) \
+	emc/usr_intf/eTouchy/eTouchy.glade
+
+../lib/python/eTouchy/__init__.py:
+	@mkdir -p ../lib/python/eTouchy
+	@touch $@
+
+../lib/python/eTouchy/%: emc/usr_intf/eTouchy/%
+	@$(ECHO) Syntax checking python script $(notdir $@)
+	@$(PYTHON) -c 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")' $<
+	$(ECHO) Copying python script $(notdir $@)
+	@mkdir -p ../lib/python/eTouchy
+	@cp $< $@
+
+../share/emc/eTouchy.glade: emc/usr_intf/eTouchy/eTouchy.glade
+	$(ECHO) Copying glade file $(notdir $@)
+	mkdir -p $(dir $@)
+	cp -f $< $@
+
+../bin/eTouchy: emc/usr_intf/eTouchy/touchy.py
+	@$(ECHO) Syntax checking python script $(notdir $@)
+	@$(PYTHON) -c 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")' $<
+	$(ECHO) Copying python script $(notdir $@)
+	@(echo '#!$(PYTHON)'; sed '1 { /^#!/d; }' $<) > $@.tmp && chmod +x $@.tmp && mv -f $@.tmp $@

@@ -190,16 +190,21 @@ class emc_control:
                 self.emcstat.poll()
                 if self.emcstat.paused:
                         if self.sb:
+                                print "AUTO_STEP"
                                 self.emccommand.auto(self.emc.AUTO_STEP)
                         else:
+                                print "AUTO_RESUME"
                                 self.emccommand.auto(self.emc.AUTO_RESUME)
 
                 if self.emcstat.interp_state == self.emc.INTERP_IDLE:
+                        print "INTERP_IDLE"
                         self.emccommand.mode(self.emc.MODE_AUTO)
                         self.emccommand.wait_complete()
                         if self.sb:
                                 self.emccommand.auto(self.emc.AUTO_STEP)
+                                print "AUTO_STEP2"
                         else:
+                                print "AUTO_RUN->startline"
                                 self.emccommand.auto(self.emc.AUTO_RUN, self.listing.get_startline())
                                 self.listing.clear_startline()
 
@@ -228,7 +233,7 @@ class emc_status:
                 self.opstop = opstop
                 self.blockdel = blockdel
                 self.resized_dro = 0
-                
+                self.is_on_world_mode = False
                 self.mm = 0
                 self.actual = 0
                 self.emcstat = emc.stat()
@@ -259,7 +264,13 @@ class emc_status:
                         elif i >= 590 and i <= 593:
                                 return i - 584
                 return 1
-
+        def switch_world_mode(self):
+            if self.is_on_world_mode == True:
+                self.is_on_world_mode = False
+                return False
+            else:
+                self.is_on_world_mode = True
+                return True
         def periodic(self):
                 self.emcstat.poll()
                 am = self.emcstat.axis_mask
@@ -281,9 +292,15 @@ class emc_status:
                         self.resized_dro = 1
                                         
                 if self.actual:
-                        p = self.emcstat.actual_position
+                        if self.is_on_world_mode == True:
+                            p = self.emcstat.actual_position
+                        else:
+                            p = self.emcstat.joint_actual_position
                 else:
-                        p = self.emcstat.position
+                        if self.is_on_world_mode == True:
+                            p = self.emcstat.position
+                        else:
+                            p = self.emcstat.joint_position
 
                 x = p[0] - self.emcstat.origin[0] - self.emcstat.tool_offset[0]
                 y = p[1] - self.emcstat.origin[1]
@@ -343,7 +360,7 @@ class emc_status:
                 set_active(self.machines['on'], on)
                 set_active(self.machines['off'], not on)
 
-                ovl = self.emcstat.axis[0]['override_limits']
+                ovl = self.emcstat.joint[0]['override_limits']
                 set_active(self.override_limit, ovl)
 
                 set_text(self.status['file'], self.emcstat.file)

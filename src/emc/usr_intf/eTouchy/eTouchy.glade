@@ -514,7 +514,19 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <placeholder/>
+                                      <widget class="GtkToggleButton" id="axis_joint_switch">
+                                        <property name="label" translatable="yes">Joint Mode</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">True</property>
+                                        <signal name="clicked" handler="on_axis_joint_switch_clicked"/>
+                                      </widget>
+                                      <packing>
+                                        <property name="left_attach">2</property>
+                                        <property name="right_attach">3</property>
+                                        <property name="top_attach">1</property>
+                                        <property name="bottom_attach">2</property>
+                                      </packing>
                                     </child>
                                   </widget>
                                 </child>
@@ -3486,6 +3498,35 @@ F1 S1</property>
                               </widget>
                               <packing>
                                 <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkHBox" id="hbox6">
+                                <property name="visible">True</property>
+                                <child>
+                                  <widget class="GtkToggleButton" id="cycle_start_stop">
+                                    <property name="label" translatable="yes">Cycle Stop</property>
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">True</property>
+                                    <signal name="clicked" handler="on_cycle_start_stop_clicked"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="position">4</property>
                               </packing>
                             </child>
                           </widget>

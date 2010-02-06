@@ -2319,11 +2319,9 @@ class _prompt_touchoff(_prompt_float):
             tool_offset_axes = "xz"
         else:
             tool_offset_axes = "z"
-        if vars.current_axis.get() not in tool_offset_axes:
+        if (vars.current_axis.get() not in tool_offset_axes) or (s.tool_in_spindle == 0):
             del systems[-1]
             if defaultsystem.startswith("T"): defaultsystem = systems[0]
-        if s.tool_in_spindle == 0:
-            del systems[-1]
         linear_axis = vars.current_axis.get() in "xyzuvw"
         if linear_axis:
             if vars.metric.get(): unit_str = " " + _("mm")
@@ -2719,6 +2717,22 @@ class TclCommands(nf.TclCommands):
         f = str(f)
         open_directory = os.path.dirname(f)
         commands.open_file_name(f)
+
+    def remote (cmd,arg=""):
+        if cmd == "clear_live_plot":
+            commands.clear_live_plot()
+            return ""
+        if running():
+            return _("axis cannot accept remote command while running")
+        if cmd == "open_file_name":
+            commands.open_file_name(arg)
+        elif cmd == "send_mdi_command":
+            commands.send_mdi_command(arg)
+        elif cmd == "reload_file":
+            commands.reload_file()
+        elif cmd == "destroy":
+            root_window.tk.call("destroy", ".")
+        return ""
 
     def open_file_name(f):
         open_file_guts(f)
@@ -3487,6 +3501,8 @@ def jog(*args):
     ensure_mode(emc.MODE_MANUAL)
     c.jog(*args)
 
+#<<<<<<< HEAD:src/emc/usr_intf/axis/scripts/axis.py
+#=======
 # mouse wheel deferred functions
 
 
@@ -3526,6 +3542,7 @@ def jog_minus(incr=False):
     jog_on(a, -speed)
 def jog_stop(event=None):
     jog_off(vars.current_axis.get())
+#>>>>>> df83cb8777d443d2065e9ae67e5591590fb1a04b:src/emc/usr_intf/axis/scripts/axis.py
 
 # XXX correct for machines with more than six axes
 jog_after = [None] * 9
@@ -3701,7 +3718,7 @@ update_ms = int(1000 * float(inifile.find("DISPLAY","CYCLE_TIME") or 0.020))
 widgets.unhomemenu.add_command(command=commands.unhome_all_axes)
 root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end", _("Unhome All Axes"))
 
-s = emc.stat();
+s = emc.stat(); #in the axis self.stat = emc.stat()
 s.poll()
 statfail=0
 while s.axes == 0:
@@ -3884,6 +3901,7 @@ t.bind("<Button-5>", scroll_down)
 t.configure(state="disabled")
 
 if hal_present == 1 :
+    print "*********** axis hal prsent *********"
     comp = hal.component("axisui")
     comp.newpin("jog.x", hal.HAL_BIT, hal.HAL_OUT)
     comp.newpin("jog.y", hal.HAL_BIT, hal.HAL_OUT)

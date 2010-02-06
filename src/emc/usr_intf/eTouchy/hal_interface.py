@@ -91,6 +91,8 @@ class hal_interface:
         self.wp_sw = 0
         self.wn_sw = 0
         self.sw_button_presented = 0
+        self.cycle_start_stop = 0
+        self.cycle_button_trigged = 0
 
         self.c.newpin("quill-up", hal.HAL_BIT, hal.HAL_IN)
         self.quillup = 0
@@ -178,6 +180,11 @@ class hal_interface:
         self.vn_sw = n == 7  
         self.wn_sw = n == 8 
         self.sw_button_presented = 1
+    def set_cycle_start_stop(self,n):
+        print "set_cycle_start_stop",n
+        self.cycle_start_stop = n
+        self.cycle_button_trigged = 1
+        
     def periodic(self, mdi_mode):
         # edge detection
         # print "hal_interface periodic +++++"
@@ -185,7 +192,6 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xp = self.xp_sw
         if xp ^ self.xp: 
-            print "run xp"
             self.emc_control.continuous_jog(0, xp)
         self.xp = xp
 
@@ -193,7 +199,6 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xn = self.xn_sw
         if xn ^ self.xn:
-            print "run xn" 
             self.emc_control.continuous_jog(0, -xn)
         self.xn = xn
 
@@ -299,12 +304,23 @@ class hal_interface:
         self.quillup = quillup
 
         cyclestart = self.c["cycle-start"]
+        if self.cycle_button_trigged == 1:
+            cyclestart = self.cycle_start_stop
+            self.cycle_button_trigged = 0
+            self.cycle_start_stop = 0
+            if self.cycle_start_stop == 0:
+                self.emc_control.abort()
         if cyclestart and not self.cyclestart:
-            if self.gui.wheel == "jogging": self.gui.wheel = "mv"
+            print "cyclestart"
+            if self.gui.wheel == "jogging":
+                print "set gui wheel mv" 
+                self.gui.wheel = "mv"
             self.gui.jogsettings_activate(0)
             if mdi_mode:
+                print "in mdi_mode"
                 self.mdi_control.ok(0)
             else:
+                print "cycle_start"
                 self.emc_control.cycle_start()
         self.cyclestart = cyclestart
 
