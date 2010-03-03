@@ -26,7 +26,6 @@ class emc_control:
                 self.mdi = 0
                 self.listing = listing
                 self.error = error
-
         def mask(self):
                 # updating toggle button active states dumbly causes spurious events
                 self.masked = 1
@@ -284,9 +283,9 @@ class emc_status:
                                         continue
                                 if not (am & (1<<i)):
                                         height -= 1
-                                        self.dro_table.remove(self.relative[height])
-                                        self.dro_table.remove(self.absolute[height])
-                                        self.dro_table.remove(self.distance[height])
+                                        if self.relative[height]:self.dro_table.remove(self.relative[height])
+                                        if self.absolute[height]:self.dro_table.remove(self.absolute[height])
+                                        if self.distance[height]:self.dro_table.remove(self.distance[height])
                                         
                         self.dro_table.resize(height, 3)
                         self.resized_dro = 1
@@ -318,9 +317,9 @@ class emc_status:
                         p = [i*25.4 for i in p]
                         relp = [i*25.4 for i in relp]
                         dtg = [i*25.4 for i in dtg]
-                        fmt = "%c:% 10.3f"
+                        fmt = "%s:% 10.3f"
                 else:
-                        fmt = "%c:% 9.4f"
+                        fmt = "%s:% 9.4f"
 
                 d = 0
                 if (am & 1):
@@ -336,17 +335,24 @@ class emc_status:
                                 set_text(self.absolute[d], " " + fmt % ('D', p[0] * 2.0))
                                 set_text(self.distance[d], fmt % ('D', dtg[0] * 2.0))
                         else:
-                                set_text(self.relative[d], fmt % ('X', relp[0]))
-                                set_text(self.absolute[d], h + fmt % ('X', p[0]))
-                                set_text(self.distance[d], fmt % ('X', dtg[0]))
-
+                                if 0:
+                                    set_text(self.relative[d], fmt % ('X', relp[0]))
+                                    set_text(self.absolute[d], h + fmt % ('X', p[0]))
+                                    set_text(self.distance[d], fmt % ('X', dtg[0]))
+                                else:
+                                    set_text(self.relative[d], fmt % ('Joint 0', relp[0]))
+                                    set_text(self.absolute[d], h + fmt % ('Joint 0', p[0]))
+                                    set_text(self.distance[d], fmt % ('Joint 0', dtg[0]))
                         d += 1
                         
                 for i in range(1, 9):
                         h = " "
                         if self.emcstat.homed[i]: h = "*"
                         if am & (1<<i):
-                                letter = 'XYZABCUVW'[i]
+                                if 0:
+                                    letter = 'XYZABCUVW'[i]
+                                else:
+                                    letter = 'Joint '+'%d' % i
                                 set_text(self.relative[d], fmt % (letter, relp[i]))
                                 set_text(self.absolute[d], h + fmt % (letter, p[i]))
                                 set_text(self.distance[d], fmt % (letter, dtg[i]))
