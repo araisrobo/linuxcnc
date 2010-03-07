@@ -581,17 +581,17 @@ class touchy:
                 # labels
                 for i in range(self.num_mdi_labels):
                         w = self.wTree.get_widget("mdi%d" % i)
-                        w.modify_font(self.control_font)
+                        if w:w.modify_font(self.control_font)
                 for i in range(self.num_filechooser_labels):
                         w = self.wTree.get_widget("filechooser%d" % i)
-                        w.modify_font(self.control_font)
+                        if w:w.modify_font(self.control_font)
                 for i in range(self.num_listing_labels):
                         w = self.wTree.get_widget("listing%d" % i)
-                        w.modify_font(self.listing_font)
+                        if w:w.modify_font(self.listing_font)
                 for i in ["mdi", "startup", "manual", "auto", "preferences", "status",
                           "relative", "absolute", "dtg"]:
                         w = self.wTree.get_widget(i)
-                        w.modify_font(self.control_font)
+                        if w:w.modify_font(self.control_font)
 
                 # dro
                 for i in ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr',
@@ -603,7 +603,7 @@ class touchy:
                 # status bar
                 for i in ["error"]:
                         w = self.wTree.get_widget(i)
-                        w.modify_font(self.error_font)
+                        if w:w.modify_font(self.error_font)
 
 		self.wTree.get_widget("MainWindow").window.maximize()
 
