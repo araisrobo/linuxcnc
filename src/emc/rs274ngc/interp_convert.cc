@@ -180,7 +180,7 @@ int Interp::convert_nurbs(int mode,
 
         settings->motion_mode = mode;
     } else if (mode == G_6_2) { 
-        // FANUC NURBS Format
+        // ARTek NURBS Format
         // G6.2 P_K_X_Y_Z_A_B_C_U_V_W_R_F;
         //      G6.2: NURBS interpolation
         //      P: NURBS curve order
