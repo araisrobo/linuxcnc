@@ -475,6 +475,33 @@ int emcAxisSetMaxAcceleration(int axis, double acc)
     }
     return 0;
 }
+int emcAxisSetMaxJerk(int axis, double jerk)
+{
+
+    if (axis < 0 || axis >= EMCMOT_MAX_AXIS) {
+        return 0;
+    }
+    if (jerk < 0.0) {
+        jerk = 0.0;
+    }
+
+    AxisConfig[axis].MaxJerk = jerk;
+    //FIXME-AJ: need to see if we want to send these to motion
+    // disabled for now
+    //FIXME-eric: since AJ decide not to config motion for now , I will also disable jerk config for now
+#if 0
+    //TODO-eric: modify if we want to do jerk setting
+    emcmotCommand.command = EMCMOT_SET_JOINT_ACC_LIMIT;
+    emcmotCommand.joint = joint;
+    emcmotCommand.acc = acc;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+#endif
+
+    if (EMC_DEBUG & EMC_DEBUG_CONFIG) {
+        rcs_print("%s(%d, %.4f)\n", __FUNCTION__, axis, jerk);
+    }
+    return 0;
+}
 
 int emcAxisSetHome(int axis, double home)
 {
@@ -507,6 +534,15 @@ double emcAxisGetMaxAcceleration(int axis)
     }
 
     return AxisConfig[axis].MaxAccel;
+}
+
+double emcAxisGetMaxJerk(int axis)
+{
+    if (axis < 0 || axis >= EMCMOT_MAX_AXIS) {
+        return 0;
+    }
+
+    return AxisConfig[axis].MaxJerk;
 }
 
 int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
@@ -1264,7 +1300,30 @@ int emcTrajSetTloAxis(bool use_w_axis) {
     return 0;
 }
 
-int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, double acc)
+int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel, double ini_maxacc, double ini_maxjerk)
+{
+#ifdef ISNAN_TRAP
+    if (isnan(end.tran.x) || isnan(end.tran.y) || isnan(end.tran.z) ||
+        isnan(end.a) || isnan(end.b) || isnan(end.c) ||
+        isnan(end.u) || isnan(end.v) || isnan(end.w)) {
+    printf("isnan error in emcTrajLinearMove()\n");
+    return 0;       // ignore it for now, just don't send it
+    }
+#endif
+
+    emcmotCommand.command = EMCMOT_SET_NURBS;
+
+    emcmotCommand.pos = end;
+
+    emcmotCommand.id = TrajConfig.MotionId;
+    emcmotCommand.motion_type = type;
+    emcmotCommand.ini_maxvel = ini_maxvel;
+    emcmotCommand.ini_maxacc = ini_maxacc;
+    emcmotCommand.ini_maxjerk = ini_maxjerk;
+    memcpy(&emcmotCommand.nurbs_block,&nurbs_block,sizeof(nurbs_block_t));
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, double acc, double jerk)
 {
 #ifdef ISNAN_TRAP
     if (isnan(end.tran.x) || isnan(end.tran.y) || isnan(end.tran.z) ||
@@ -1284,7 +1343,7 @@ int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, doub
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
-
+    emcmotCommand.ini_maxjerk = jerk;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

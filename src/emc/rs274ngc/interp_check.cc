@@ -262,7 +262,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->i_flag == ON) {    /* could still be useless if yz_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) &&
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) && (motion != G_6_2) &&
           (motion != G_76) && (motion != G_87) && (block->g_modes[8] != G_43_1)),
         _("I word with no G2, G3, G5, G5.1, G76, G87 or G43.1 to use it"));
   }

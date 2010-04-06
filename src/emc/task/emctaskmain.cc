@@ -341,6 +341,7 @@ static EMC_TRAJ_SET_SPINDLE_SCALE *emcTrajSetSpindleScaleMsg;
 static EMC_TRAJ_SET_VELOCITY *emcTrajSetVelocityMsg;
 static EMC_TRAJ_SET_ACCELERATION *emcTrajSetAccelerationMsg;
 static EMC_TRAJ_LINEAR_MOVE *emcTrajLinearMoveMsg;
+static EMC_TRAJ_NURBS_MOVE *emcTrajNurbsMoveMsg;
 static EMC_TRAJ_CIRCULAR_MOVE *emcTrajCircularMoveMsg;
 static EMC_TRAJ_DELAY *emcTrajDelayMsg;
 static EMC_TRAJ_SET_TERM_COND *emcTrajSetTermCondMsg;
@@ -398,6 +399,7 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 #define operator_error_msg ((EMC_OPERATOR_ERROR *) cmd)
 #define linear_move ((EMC_TRAJ_LINEAR_MOVE *) cmd)
 #define circular_move ((EMC_TRAJ_CIRCULAR_MOVE *) cmd)
+#define nurbs_move ((EMC_TRAJ_NURBS_MOVE *)cmd)
 
     while (il->len() > 0) {
 	cmd = il->get();
@@ -411,6 +413,9 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 
 //FIXME-AJ: investigate removing these tests. it seems odd to test only a few.
 //otoh, they are busted. they check axis limits, but refer joints
+	case EMC_TRAJ_NURBS_MOVE_TYPE:
+//TODO-eric: NURBS check
+		break;
 	case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	    if (linear_move->end.tran.x >
 		stat->motion.joint[0].maxPositionLimit) {
@@ -488,6 +493,7 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 #undef circular_move_msg
 #undef linear_move_msg
 #undef operator_error_msg
+#undef nurbs_move_msg
 }
 
 void readahead_reading(void)
@@ -932,6 +938,7 @@ static int emcTaskPlan(void)
 		case EMC_AUX_INPUT_WAIT_TYPE:
 		case EMC_TRAJ_RIGID_TAP_TYPE:
 		case EMC_SET_DEBUG_TYPE:
+		    // Issue auto
 		    retval = emcTaskIssueCommand(emcCommand);
 		    break;
 
@@ -1036,6 +1043,7 @@ static int emcTaskPlan(void)
 		}		// switch (type) in ON, AUTO, READING
 
                // handle interp readahead logic
+		        printf("check interpList \n");
                 readahead_reading();
                 
 		break;		// EMC_TASK_INTERP_READING
@@ -1320,6 +1328,8 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
+    case EMC_TRAJ_NURBS_MOVE_TYPE:
+//TODO-eric:nurbs preconditions check
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
     case EMC_TRAJ_SET_VELOCITY_TYPE:
@@ -1618,12 +1628,23 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	emcTrajSetAccelerationMsg = (EMC_TRAJ_SET_ACCELERATION *) cmd;
 	retval = emcTrajSetAcceleration(emcTrajSetAccelerationMsg->acceleration);
 	break;
-
+    case EMC_TRAJ_NURBS_MOVE_TYPE:
+        emcTrajNurbsMoveMsg = (EMC_TRAJ_NURBS_MOVE *) cmd;
+        retval = emcTrajNurbsMove(emcTrajNurbsMoveMsg->end,
+                                emcTrajNurbsMoveMsg->type,
+                                emcTrajNurbsMoveMsg->nurbs_block,
+                                emcTrajNurbsMoveMsg->ini_maxvel,
+                                emcTrajNurbsMoveMsg->ini_maxacc,
+                                emcTrajNurbsMoveMsg->ini_maxjerk); // TO NML channel
+        break;
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	emcTrajLinearMoveMsg = (EMC_TRAJ_LINEAR_MOVE *) cmd;
         retval = emcTrajLinearMove(emcTrajLinearMoveMsg->end,
-                emcTrajLinearMoveMsg->type, emcTrajLinearMoveMsg->vel,
-                emcTrajLinearMoveMsg->ini_maxvel, emcTrajLinearMoveMsg->acc);
+                emcTrajLinearMoveMsg->type,
+                emcTrajLinearMoveMsg->vel,
+                emcTrajLinearMoveMsg->ini_maxvel,
+                emcTrajLinearMoveMsg->acc,
+                emcTrajLinearMoveMsg->ini_maxjerk);
 	break;
 
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
@@ -2104,6 +2125,8 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
 	return EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD;
 	break;
 
+    case EMC_TRAJ_NURBS_MOVE_TYPE:
+//TODO-eric: NURBS postcondition check
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
     case EMC_TRAJ_SET_VELOCITY_TYPE:
@@ -2199,8 +2222,12 @@ static int emcTaskExecute(void)
     int retval = 0;
     int status;			// status of child from EMC_SYSTEM_CMD
     pid_t pid;			// pid returned from waitpid()
-
+ /*   static int emcTaskExecuteWatchDog = 0;
+    emcTaskExecuteWatchDog+=1;
+    if(emcTaskExecuteWatchDog%10000==0)
+        printf("emcTaskExecute Test Point \n");*/
     // first check for an abandoned system command and abort it
+
     if (emcSystemCmdPid != 0 &&
 	emcStatus->task.execState !=
 	EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD) {
@@ -2214,7 +2241,7 @@ static int emcTaskExecute(void)
 
     switch (emcStatus->task.execState) {
     case EMC_TASK_EXEC_ERROR:
-
+   //     printf("EMC_TASK_EXEC_ERROR\n");
 	/*! \todo FIXME-- duplicate code for abort,
 	   also near end of main, when aborting on subordinate errors,
 	   and in emcTaskIssueCommand() */
@@ -2292,6 +2319,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_MOTION_QUEUE:
+
 	STEPPING_CHECK();
 	if (!emcStatus->motion.traj.queueFull) {
 	    if (0 != emcTaskCommand) {
@@ -2306,6 +2334,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_PAUSE:
+        //printf("EMC_TASK_EXEC_WAITING_FOR_PAUSE\n");
 	STEPPING_CHECK();
 	if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
 	    if (0 != emcTaskCommand) {
@@ -2325,6 +2354,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_MOTION:
+        //printf("EMC_TASK_EXEC_WAITING_FOR_MOTION\n");
 	STEPPING_CHECK();
 	if (emcStatus->motion.status == RCS_ERROR) {
 	    // emcOperatorError(0, "error in motion controller");
@@ -2336,6 +2366,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_IO:
+        //printf("EMC_TASK_EXEC_WAITING_FOR_IO\n");
 	STEPPING_CHECK();
 	if (emcStatus->io.status == RCS_ERROR) {
 	    // emcOperatorError(0, "error in IO controller");
@@ -2347,6 +2378,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO:
+        //printf("EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO\n");
 	STEPPING_CHECK();
 	if (emcStatus->motion.status == RCS_ERROR) {
 	    // emcOperatorError(0, "error in motion controller");
@@ -2362,6 +2394,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_DELAY:
+        //printf("EMC_TASK_EXEC_WAITING_FOR_DELAY\n");
 	STEPPING_CHECK();
 	// check if delay has passed
 	emcStatus->task.delayLeft = taskExecDelayTimeout - etime();
@@ -2420,6 +2453,7 @@ static int emcTaskExecute(void)
 	break;
 
     case EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD:
+        //printf("EMC_TASK_EXEC_WAITING_FOR_DELAY\n");
 	STEPPING_CHECK();
 
 	// if we got here without a system command pending, say we're done
@@ -2895,7 +2929,6 @@ int main(int argc, char *argv[])
     int taskExecuteError = 0;
     double startTime, endTime, deltaTime;
     double minTime, maxTime;
-
     bindtextdomain("emc2", EMC2_PO_DIR);
     setlocale(LC_MESSAGES,"");
     setlocale(LC_CTYPE,"");

@@ -57,6 +57,8 @@ extern "C" {
 /* default axis acceleration, in user units per second per second */
 #define DEFAULT_AXIS_MAX_ACCELERATION 1.0
 
+#define DEFAULT_AXIS_MAX_JERK 1.0
+
 #ifdef __cplusplus
 }				/* matches extern "C" at top */
 #endif

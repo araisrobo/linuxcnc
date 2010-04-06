@@ -9,7 +9,7 @@
  ********************************************************************/
 
 /* Those functions are needed to calculate NURBS points */
-
+#include <stdlib.h>
 #include <math.h>
 #include "canon.hh"
 
@@ -97,7 +97,7 @@ double alpha_finder(double dx, double dy) {
     }
 }   
 
-int nurbs_findspan (int n, int p, double u, const std::vector<double> & U)
+//int nurbs_findspan (int n, int p, double u, const std::vector<double> & U)
 // Find the knot span of the parametric point u. 
 //
 // INPUT:
@@ -141,6 +141,11 @@ Below is the original implementation from the NURBS Book
   return(mid);
 }
 */
+//   n - number of control points - 1
+//   p - spline degree
+//   u - parametric point
+//   U - knot sequence
+int nurbs_findspan (int n, int p, double u, double *U)
 {
   // FIXME : this implementation has linear, rather than log complexity
   int ret = 0;
@@ -149,10 +154,14 @@ Below is the original implementation from the NURBS Book
   return (ret-1);
 }
 
+/*
 void nurbs_basisfun(int i, double u, int p, 
               const std::vector<double> & U, 
               std::vector<double> & N)
-
+*/
+void nurbs_basisfun(int i, double u, int p,
+              double *U,
+              double *N)
 // Basis Function. 
 //
 // INPUT:
@@ -164,7 +173,7 @@ void nurbs_basisfun(int i, double u, int p,
 //
 // OUTPUT:
 //
-//   N - Basis functions vector[p+1]
+//   N - Basis functions vector[p+1]  sizeof(double)*(p+1)
 //
 // Algorithm A2.2 from 'The NURBS BOOK' pg70.
 {
@@ -172,9 +181,14 @@ void nurbs_basisfun(int i, double u, int p,
   double saved, temp;
 
   // work space
-  std::vector<double> left(p+1);
-  std::vector<double> right(p+1);
+  //std::vector<double> left(p+1);
+  //std::vector<double> right(p+1);
+
+  double *left = (double*)malloc(sizeof(double)*(p+1));
+  double *right = (double*)malloc(sizeof(double)*(p+1));
+
   
+
   N[0] = 1.0;
   for (j = 1; j <= p; j++)
     {
@@ -191,6 +205,8 @@ void nurbs_basisfun(int i, double u, int p,
       
       N[j] = saved;
     }
+  free(left);
+  free(right);
 
 }
 

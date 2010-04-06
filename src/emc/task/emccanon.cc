@@ -36,6 +36,8 @@
 #include <math.h>
 #include <string.h>		// strncpy()
 #include <ctype.h>		// isspace()
+#include <stdlib.h>
+#include <assert.h>
 #include "emc.hh"		// EMC NML
 #include "emc_nml.hh"
 #include "canon.hh"		// these decls
@@ -73,6 +75,10 @@ static const double tiny = 1e-7;
 
 #ifndef MIN3
 #define MIN3(a,b,c) (MIN(MIN((a),(b)),(c)))
+#endif
+
+#ifndef MIN4
+#define MIN4(a,b,c,d) (MIN(MIN((a),(b)),MIN((c),(d))))
 #endif
 
 #ifndef MAX
@@ -469,7 +475,89 @@ void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
 {
     // nothing need be done here
 }
+double getStraightJerk(double x, double y, double z,
+                               double a, double b, double c,
+                               double u, double v, double w)
+{
+    double dx, dy, dz, du, dv, dw, da, db, dc;
+    double  jerk;
 
+    jerk = 0.0; // if a move to nowhere
+
+    // Compute absolute travel distance for each axis:
+    dx = fabs(x - canon.endPoint.x);
+    dy = fabs(y - canon.endPoint.y);
+    dz = fabs(z - canon.endPoint.z);
+    da = fabs(a - canon.endPoint.a);
+    db = fabs(b - canon.endPoint.b);
+    dc = fabs(c - canon.endPoint.c);
+    du = fabs(u - canon.endPoint.u);
+    dv = fabs(v - canon.endPoint.v);
+    dw = fabs(w - canon.endPoint.w);
+
+    if(!axis_valid(0) || dx < tiny) dx = 0.0;
+    if(!axis_valid(1) || dy < tiny) dy = 0.0;
+    if(!axis_valid(2) || dz < tiny) dz = 0.0;
+    if(!axis_valid(3) || da < tiny) da = 0.0;
+    if(!axis_valid(4) || db < tiny) db = 0.0;
+    if(!axis_valid(5) || dc < tiny) dc = 0.0;
+    if(!axis_valid(6) || du < tiny) du = 0.0;
+    if(!axis_valid(7) || dv < tiny) dv = 0.0;
+    if(!axis_valid(8) || dw < tiny) dw = 0.0;
+
+    if(debug_velacc)
+        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
+               dx, dy, dz, da, db, dc, du, dv, dw);
+
+    // Figure out what kind of move we're making.  This is used to determine
+    // the units of vel/acc.
+    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
+        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
+        canon.cartesian_move = 0;
+    } else {
+        canon.cartesian_move = 1;
+    }
+    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
+        canon.angular_move = 0;
+    } else {
+        canon.angular_move = 1;
+    }
+
+    // Pure linear move:
+    if (canon.cartesian_move && !canon.angular_move) {
+
+        jerk = MAX3((dx?emcAxisGetMaxJerk(0): 0.0),
+                    (dy?emcAxisGetMaxJerk(1): 0.0),
+                    (dz?emcAxisGetMaxJerk(2): 0.0));
+        jerk = FROM_EXT_LEN(MAX4((jerk),
+                        (da?emcAxisGetMaxJerk(6): 0.0),
+                        (db?emcAxisGetMaxJerk(7): 0.0),
+                        (dc?emcAxisGetMaxJerk(8): 0.0)));
+    }
+    // Pure angular move:
+    else if (!canon.cartesian_move && canon.angular_move) {
+
+        jerk = FROM_EXT_LEN(MAX3(
+                    (du?emcAxisGetMaxJerk(3): 0.0),
+                    (dv?emcAxisGetMaxJerk(4): 0.0),
+                    (dw?emcAxisGetMaxJerk(5): 0.0)));
+    }
+    // Combination angular and linear move:
+    else if (canon.cartesian_move && canon.angular_move) {
+
+        jerk = FROM_EXT_LEN(MAX9(
+                (dx?emcAxisGetMaxJerk(0): 0.0),
+                (dy?emcAxisGetMaxJerk(1): 0.0),
+                (dz?emcAxisGetMaxJerk(2): 0.0),
+                (du?emcAxisGetMaxJerk(3): 0.0),
+                (dv?emcAxisGetMaxJerk(4): 0.0),
+                (dw?emcAxisGetMaxJerk(5): 0.0),
+                (da?emcAxisGetMaxJerk(6): 0.0),
+                (db?emcAxisGetMaxJerk(7): 0.0),
+                (dc?emcAxisGetMaxJerk(8): 0.0)));
+    }
+    return jerk;
+}
 double getStraightAcceleration(double x, double y, double z,
                                double a, double b, double c,
                                double u, double v, double w)
@@ -641,7 +729,7 @@ double getStraightVelocity(double x, double y, double z,
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+        tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
 	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
 	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
 	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
@@ -780,6 +868,7 @@ static void flush_segments(void)
 
     linearMoveMsg.vel = toExtVel(vel);
     linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
+    linearMoveMsg.ini_maxjerk = TO_EXT_LEN(getStraightJerk(x, y, z, a, b, c, u, v, w));
     double acc = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
     linearMoveMsg.acc = toExtAcc(acc);
 
@@ -915,7 +1004,6 @@ void STRAIGHT_FEED(int line_number,
 {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = canon.feed_mode;
-
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
     see_segment(line_number, x, y, z, a, b, c, u, v, w);
@@ -1138,6 +1226,7 @@ arc(int line_number, double x0, double y0, double x1, double y1, double dx, doub
                TO_PROG_ANG(canon.endPoint.u),TO_PROG_ANG(canon.endPoint.v), 
                TO_PROG_ANG(canon.endPoint.w));
     } else { 
+
         STRAIGHT_FEED(line_number, x1,y1, 
                TO_PROG_LEN(canon.endPoint.z), TO_PROG_ANG(canon.endPoint.a),
                TO_PROG_ANG(canon.endPoint.b), TO_PROG_ANG(canon.endPoint.c),
@@ -1185,60 +1274,178 @@ biarc(int line_number, double p0x, double p0y, double tsx, double tsy,
 /* Canon calls */
 void NURBS_FEED_3D (
     int line_number, 
-    const std::vector<CONTROL_POINT> & nurbs_control_points, 
-    const std::vector<double> & nurbs_knot_vector, 
-    unsigned int k )
+    const std::vector<CONTROL_POINT> & nurbs_control_points ,
+    const std::vector<double> & nurbs_knot_vector,
+    unsigned int k, double curve_length)
 {
-    double u = 0.0;
-    unsigned int n = nurbs_control_points.size() - 1;
-    double umax = n - k + 2;
-    unsigned int div = nurbs_control_points.size()*4;
-    double dxs,dys,dx1,dy1,dx2,dy2,dxe,dye,alpha1,alpha2, alphaM;
-//TODO:    std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
-//TODO:    PLANE_POINT P0, P1, P2;
-//TODO:
-//TODO:    P0 = nurbs_point(u,k,nurbs_control_points,knot_vector);
-//TODO:    P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-//TODO:
-//TODO:
-//TODO:    dxs = nurbs_control_points[1].X-nurbs_control_points[0].X;
-//TODO:    dys = nurbs_control_points[1].Y-nurbs_control_points[0].Y;
-//TODO:    unit(&dxs,&dys);
-//TODO:    u = u + umax/div;
-//TODO:    while (u+umax/div <= umax) {
-//TODO:        P2= nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-//TODO:        dx1 = P1.X-P0.X;
-//TODO:	dy1 = P1.Y-P0.Y;
-//TODO:        dx2 = P2.X-P1.X;
-//TODO:        dy2 = P2.Y-P1.Y;
-//TODO:        alpha1 = alpha_finder(dx1,dy1);
-//TODO:        alpha2 = alpha_finder(dx2,dy2);
-//TODO:	if (alpha2 > alpha1 + M_PI)
-//TODO:            alphaM = (alpha1+alpha2)/2 + M_PI;
-//TODO:        else
-//TODO:            alphaM = (alpha1+alpha2)/2;
-//TODO:        dxe = cos(alphaM);
-//TODO:        dye = sin(alphaM);
-//TODO: 	unit(&dxe,&dye);
-//TODO:        biarc(line_number, P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
-//TODO:        DP("___________________________________________\n");
-//TODO:        DP("X %8.4f Y %8.4f\n", P0.X, P0.Y); 
-//TODO:        dxs = dxe;
-//TODO:        dys = dye;
-//TODO:        P0 = P1;
-//TODO:        P1 = P2;   
-//TODO:        DP("u = %f\n", u);
-//TODO:        u = u + umax/div;      
-//TODO:    }
-//TODO:    P1.X = nurbs_control_points[n].X;
-//TODO:    P1.Y = nurbs_control_points[n].Y;	   
-//TODO:    dxe = nurbs_control_points[n].X - nurbs_control_points[n-1].X;
-//TODO:    dye = nurbs_control_points[n].Y - nurbs_control_points[n-1].Y;
-//TODO:    unit(&dxe,&dye);
-//TODO:    biarc(line_number, P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
-//TODO:    DP("parameters: n = %d, umax = %f, div= %d, u = %f, k = %d\n",n,umax,div,u,k);
-//TODO:    knot_vector.clear();
-    printf("TODO\n");
+    EMC_TRAJ_NURBS_MOVE nurbsMoveMsg;
+    uint32_t nr_of_ctrl_pt,nr_of_knot,i;
+    double x,y,z,a,b,c,u,v,w,vel;
+    double dx, dy, dz, da, db, dc, du, dv, dw;
+    nurbsMoveMsg.feed_mode = canon.feed_mode;
+    nurbsMoveMsg.type = EMC_MOTION_TYPE_FEED;
+
+    nr_of_ctrl_pt = nurbs_control_points.size();
+    nr_of_knot = nurbs_knot_vector.size();
+
+    x = nurbs_control_points[nr_of_ctrl_pt-1].X;
+    y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
+    z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
+    u = nurbs_control_points[nr_of_ctrl_pt-1].U;
+    v = nurbs_control_points[nr_of_ctrl_pt-1].V;
+    w = nurbs_control_points[nr_of_ctrl_pt-1].W;
+    a = nurbs_control_points[nr_of_ctrl_pt-1].A;
+    b = nurbs_control_points[nr_of_ctrl_pt-1].B;
+    c = nurbs_control_points[nr_of_ctrl_pt-1].C;
+    // assume NURBS_3D considered only xyz coord.
+//TODO: do simplify numerical compare mechanism ( form ini load)
+    // Figure out what kind of move we're making:
+
+    dx = fabs(x - canon.endPoint.x);
+    dy = fabs(y - canon.endPoint.y);
+    dz = fabs(z - canon.endPoint.z);
+    da = fabs(a - canon.endPoint.a);
+    db = fabs(b - canon.endPoint.b);
+    dc = fabs(c - canon.endPoint.c);
+    du = fabs(u - canon.endPoint.u);
+    dv = fabs(v - canon.endPoint.v);
+    dw = fabs(w - canon.endPoint.w);
+
+    if(!axis_valid(0) || dx < tiny) dx = 0.0;
+    if(!axis_valid(1) || dy < tiny) dy = 0.0;
+    if(!axis_valid(2) || dz < tiny) dz = 0.0;
+    if(!axis_valid(3) || da < tiny) da = 0.0;
+    if(!axis_valid(4) || db < tiny) db = 0.0;
+    if(!axis_valid(5) || dc < tiny) dc = 0.0;
+    if(!axis_valid(6) || du < tiny) du = 0.0;
+    if(!axis_valid(7) || dv < tiny) dv = 0.0;
+    if(!axis_valid(8) || dw < tiny) dw = 0.0;
+
+    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
+        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
+        canon.cartesian_move = 0;
+    } else {
+        canon.cartesian_move = 1;
+    }
+    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
+        canon.angular_move = 0;
+    } else {
+        canon.angular_move = 1;
+    }
+
+    if (canon.cartesian_move ) {
+        nurbsMoveMsg.ini_maxvel = MAX3(FROM_EXT_LEN(emcAxisGetMaxVelocity(0)),
+                                       FROM_EXT_LEN(emcAxisGetMaxVelocity(1)),
+                                       FROM_EXT_LEN(emcAxisGetMaxVelocity(2)));
+
+        nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MAX4(nurbsMoveMsg.ini_maxvel,
+                                             FROM_EXT_LEN(emcAxisGetMaxVelocity(6)),
+                                             FROM_EXT_LEN(emcAxisGetMaxVelocity(7)),
+                                             FROM_EXT_LEN(emcAxisGetMaxVelocity(8))));
+
+        nurbsMoveMsg.ini_maxacc = MAX3(FROM_EXT_LEN(emcAxisGetMaxAcceleration(0)),
+                                      FROM_EXT_LEN(emcAxisGetMaxAcceleration(1)),
+                                      FROM_EXT_LEN(emcAxisGetMaxAcceleration(2)));
+
+        nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MAX4(nurbsMoveMsg.ini_maxacc,
+                                             FROM_EXT_LEN(emcAxisGetMaxAcceleration(6)),
+                                             FROM_EXT_LEN(emcAxisGetMaxAcceleration(7)),
+                                             FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))));
+        //nurbsMoveMsg.ini_maxjerk = 9*nurbsMoveMsg.ini_maxacc;
+        nurbsMoveMsg.ini_maxjerk = MAX3(FROM_EXT_LEN(emcAxisGetMaxJerk(0)),
+                                        FROM_EXT_LEN(emcAxisGetMaxJerk(1)),
+                                        FROM_EXT_LEN(emcAxisGetMaxJerk(2)));
+        nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MAX4(nurbsMoveMsg.ini_maxjerk,
+                                                   FROM_EXT_LEN(emcAxisGetMaxJerk(6)),
+                                                   FROM_EXT_LEN(emcAxisGetMaxJerk(7)),
+                                                   FROM_EXT_LEN(emcAxisGetMaxJerk(8))));
+        vel = nurbsMoveMsg.ini_maxvel;
+        if (vel > canon.linearFeedRate) {
+            vel = canon.linearFeedRate;
+        }
+     } else {
+         assert(canon.angular_move);
+         nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxVelocity(3)),
+                                        FROM_EXT_LEN(emcAxisGetMaxVelocity(4)),
+                                        FROM_EXT_LEN(emcAxisGetMaxVelocity(5))));
+
+
+
+         nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxAcceleration(3)),
+                                       FROM_EXT_LEN(emcAxisGetMaxAcceleration(4)),
+                                       FROM_EXT_LEN(emcAxisGetMaxAcceleration(5))));
+
+
+         //nurbsMoveMsg.ini_maxjerk = 9*nurbsMoveMsg.ini_maxacc;
+         nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxJerk(3)),
+                                         FROM_EXT_LEN(emcAxisGetMaxJerk(4)),
+                                         FROM_EXT_LEN(emcAxisGetMaxJerk(5))));
+
+         vel = nurbsMoveMsg.ini_maxvel;
+         if (vel > canon.angularFeedRate) {
+             vel = canon.angularFeedRate;
+         }
+     }
+    nurbsMoveMsg.vel = vel;
+
+
+    for(i=0;i<nr_of_ctrl_pt;i++){
+        x = nurbs_control_points[i].X;
+        y = nurbs_control_points[i].Y;
+        z = nurbs_control_points[i].Z;
+        a = nurbs_control_points[i].A;
+        b = nurbs_control_points[i].B;
+        c = nurbs_control_points[i].C;
+        u = nurbs_control_points[i].U;
+        v = nurbs_control_points[i].V;
+        w = nurbs_control_points[i].W;
+        from_prog(x, y, z, a, b, c, u, v, w);
+        to_ext_pose(x, y, z, a, b, c, u, v, w);
+        nurbsMoveMsg.vel = canon.linearFeedRate;
+        nurbsMoveMsg.nurbs_block.nr_of_ctrl_pts = nr_of_ctrl_pt;
+        nurbsMoveMsg.nurbs_block.nr_of_knots = nr_of_knot;
+        nurbsMoveMsg.nurbs_block.curve_len = curve_length;
+        nurbsMoveMsg.nurbs_block.order = k;
+        nurbsMoveMsg.nurbs_block.knot = nurbs_knot_vector[i];
+        nurbsMoveMsg.nurbs_block.weight = nurbs_control_points[i].R;
+        nurbsMoveMsg.end.tran.x = x;
+        nurbsMoveMsg.end.tran.y = y;
+        nurbsMoveMsg.end.tran.z = z;
+        nurbsMoveMsg.end.a =  a;
+        nurbsMoveMsg.end.b =  b;
+        nurbsMoveMsg.end.c =  c;
+        nurbsMoveMsg.end.u =  u;
+        nurbsMoveMsg.end.v =  v;
+        nurbsMoveMsg.end.w =  w;
+        interp_list.set_line_number(line_number);
+        interp_list.append(nurbsMoveMsg);
+        canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
+    }
+    for(;i<nr_of_knot;i++){
+
+        nurbsMoveMsg.vel = canon.linearFeedRate;
+        nurbsMoveMsg.nurbs_block.nr_of_ctrl_pts = nr_of_ctrl_pt;
+        nurbsMoveMsg.nurbs_block.nr_of_knots = nr_of_knot;
+        nurbsMoveMsg.nurbs_block.curve_len = curve_length;
+        nurbsMoveMsg.nurbs_block.order = k;
+        nurbsMoveMsg.nurbs_block.knot = nurbs_knot_vector[i];
+        nurbsMoveMsg.nurbs_block.weight = 0;
+        nurbsMoveMsg.end.tran.x = -1;
+        nurbsMoveMsg.end.tran.y = -1;
+        nurbsMoveMsg.end.tran.z = -1;
+        nurbsMoveMsg.end.a =  -1;
+        nurbsMoveMsg.end.b =  -1;
+        nurbsMoveMsg.end.c =  -1;
+        nurbsMoveMsg.end.u =  -1;
+        nurbsMoveMsg.end.v =  -1;
+        nurbsMoveMsg.end.w =  -1;
+        interp_list.set_line_number(line_number);
+        interp_list.append(nurbsMoveMsg);
+    }
+
+    printf("emccanon.cc NURBS_FEED_3D TODO line_number %d\n",line_number);
+
+
 }
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
@@ -1252,7 +1459,6 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
 
     P0 = nurbs_point(u,k,nurbs_control_points,knot_vector);
     P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-
 
     dxs = nurbs_control_points[1].X-nurbs_control_points[0].X;
     dys = nurbs_control_points[1].Y-nurbs_control_points[0].Y;
@@ -1382,7 +1588,6 @@ void ARC_FEED(int line_number,
     double lx, ly, lz;
     double unused=0;
     int i;
-    
     DP ("TODO: study this for non-triv-kins\n");
 
     for (i = 0; i < 3; i++) {
@@ -1667,6 +1872,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.vel = toExtVel(vel);
         linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
         linearMoveMsg.acc = toExtAcc(acc);
+
         if(vel && acc){
             interp_list.set_line_number(line_number);
             interp_list.append(linearMoveMsg);

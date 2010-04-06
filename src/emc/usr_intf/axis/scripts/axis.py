@@ -1925,6 +1925,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
             l = l.expandtabs().replace("\r", "")
             #t.insert("end", "%6d: " % (i+1), "lineno", l)
             code.extend(["%6d: " % (i+1), "lineno", l, ""])
+          #  print code
             if i % 1000 == 0:
                 t.insert("end", *code)
                 del code[:]
@@ -2782,9 +2783,8 @@ class TclCommands(nf.TclCommands):
             e.append(tooltable)
             os.spawnvp(os.P_NOWAIT, e[0], e)
 
-    def task_run(*event):
+    def task_run(*event):#run command read from ngc
         if run_warn(): return
-
         global program_start_line, program_start_line_last
         program_start_line_last = program_start_line;
         ensure_mode(emc.MODE_AUTO)

@@ -16,10 +16,10 @@
 #define EMC_HH
 
 #include "config.h"
-#include "emcglb.h"		// EMC_JOINT_MAX, EMC_AXIS_MAX
+#include "emcglb.h"             // EMC_JOINT_MAX, EMC_AXIS_MAX
 #include "nml_type.hh"
 #include "motion_types.h"
-
+#include "nurbs.h"
 // Forward class declarations
 class EMC_JOINT_STAT;
 class EMC_AXIS_STAT;
@@ -130,6 +130,7 @@ class PM_CARTESIAN;
 #define EMC_TRAJ_SET_ORIGIN_TYPE                     ((NMLTYPE) 224)
 #define EMC_TRAJ_SET_HOME_TYPE                       ((NMLTYPE) 225)
 #define EMC_TRAJ_SET_ROTATION_TYPE                   ((NMLTYPE) 226)
+#define EMC_TRAJ_NURBS_MOVE_TYPE                    ((NMLTYPE) 227)
 /* gap because of removed messages */
 
 #define EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE       ((NMLTYPE) 228)
@@ -294,8 +295,8 @@ enum {
 // EMC aggregate class type declaration
 
 // these are placeholders
-#define EMC_LOG_TYPE_IO_CMD      21	// command into EMC IO controller
-#define EMC_LOG_TYPE_TASK_CMD    51	// command into EMC Task controller
+#define EMC_LOG_TYPE_IO_CMD      21     // command into EMC IO controller
+#define EMC_LOG_TYPE_TASK_CMD    51     // command into EMC Task controller
 
 #define EMC_INIT_TYPE                                ((NMLTYPE) 1901)
 #define EMC_HALT_TYPE                                ((NMLTYPE) 1902)
@@ -341,9 +342,9 @@ enum EMC_TASK_INTERP_ENUM {
 
 // types for motion control
 enum EMC_TRAJ_MODE_ENUM {
-    EMC_TRAJ_MODE_FREE = 1,	// independent-axis motion,
-    EMC_TRAJ_MODE_COORD = 2,	// coordinated-axis motion,
-    EMC_TRAJ_MODE_TELEOP = 3	// velocity based world coordinates motion,
+    EMC_TRAJ_MODE_FREE = 1,     // independent-axis motion,
+    EMC_TRAJ_MODE_COORD = 2,    // coordinated-axis motion,
+    EMC_TRAJ_MODE_TELEOP = 3    // velocity based world coordinates motion,
 };
 
 // --------------
@@ -385,10 +386,11 @@ extern int emcAxisSetMinPositionLimit(int axis, double limit);
 extern int emcAxisSetMaxPositionLimit(int axis, double limit);
 extern int emcAxisSetMaxVelocity(int axis, double vel);
 extern int emcAxisSetMaxAcceleration(int axis, double acc);
+extern int emcAxisSetMaxJerk(int axis,double jerk);
 extern int emcAxisSetHome(int axis, double home);
 extern double emcAxisGetMaxVelocity(int axis);
 extern double emcAxisGetMaxAcceleration(int axis);
-
+extern double emcAxisGetMaxJerk(int axis);
 extern int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes);
 
 // implementation functions for EMC_JOINT types
@@ -402,9 +404,9 @@ extern int emcJointSetMotorOffset(int joint, double offset);
 extern int emcJointSetFerror(int joint, double ferror);
 extern int emcJointSetMinFerror(int joint, double ferror);
 extern int emcJointSetHomingParams(int joint, double home, double offset, double home_vel,
-				  double search_vel, double latch_vel,
-				  int use_index, int ignore_limits,
-				  int is_shared, int home_sequence, int volatile_home);
+                                  double search_vel, double latch_vel,
+                                  int use_index, int ignore_limits,
+                                  int is_shared, int home_sequence, int volatile_home);
 extern int emcJointSetMaxVelocity(int joint, double vel);
 extern int emcJointSetMaxAcceleration(int joint, double acc);
 
@@ -456,8 +458,10 @@ extern int emcTrajPause();
 extern int emcTrajStep();
 extern int emcTrajResume();
 extern int emcTrajDelay(double delay);
-extern int emcTrajLinearMove(EmcPose end, int type, double vel, double
-        ini_maxvel, double acc);
+extern int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel,
+        double acc, double jerk);
+extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel,
+                            double ini_maxacc,double ini_maxjerk);
 extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
         normal, int turn, int type, double vel, double ini_maxvel, double acc);
 extern int emcTrajSetTermCond(int cond, double tolerance);
@@ -468,7 +472,7 @@ extern int emcTrajSetRotation(double rotation);
 extern int emcTrajSetHome(EmcPose home);
 extern int emcTrajSetTloAxis(bool use_w_axis);
 extern int emcTrajClearProbeTrippedFlag();
-extern int emcTrajProbe(EmcPose pos, int type, double vel, 
+extern int emcTrajProbe(EmcPose pos, int type, double vel,
                         double ini_maxvel, double acc, unsigned char probe_type);
 extern int emcAuxInputWait(int index, int input_type, int wait_type, int timeout);
 extern int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc);
@@ -484,7 +488,7 @@ extern int emcMotionSetDebug(int debug);
 extern int emcMotionSetAout(unsigned char index, double start, double end,
                             unsigned char now);
 extern int emcMotionSetDout(unsigned char index, unsigned char start,
-			    unsigned char end, unsigned char now);
+                            unsigned char end, unsigned char now);
 
 extern int emcMotionUpdate(EMC_MOTION_STAT * stat);
 
@@ -616,4 +620,4 @@ enum EmcJointType {
 typedef double                  EmcLinearUnits;
 typedef double                  EmcAngularUnits;
 
-#endif				// #ifndef EMC_HH
+#endif                          // #ifndef EMC_HH

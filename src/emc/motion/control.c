@@ -43,6 +43,7 @@ double servo_period;
 double servo_freq;
 
 // to disable DP(): #define TRACE 0
+#define DBGMSG 1
 #define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -1043,7 +1044,6 @@ static void get_pos_cmds(long period)
     double positions[EMCMOT_MAX_JOINTS];
     double old_pos_cmd;
     double vel_lim;
-
     /* used in teleop mode to compute the max accell requested */
     double accell_mag;
     int onlimit = 0;
@@ -1074,6 +1074,7 @@ static void get_pos_cmds(long period)
     /* run traj planner code depending on the state */
     switch ( emcmotStatus->motion_state) {
     case EMCMOT_MOTION_FREE:
+    	rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_FREE ++++\n");
 	/* in free mode, each joint is planned independently */
 	/* initial value for flag, if needed it will be cleared below */
 	SET_MOTION_INPOS_FLAG(1);
@@ -1139,6 +1140,7 @@ static void get_pos_cmds(long period)
 	switch (kinType) {
 
 	case KINEMATICS_IDENTITY:
+		rtapi_print_msg(RTAPI_MSG_DBG,"KINEMATICS_IDENTITY ++++\n");
 	    kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
 	    if (checkAllHomed()) {
 		emcmotStatus->carte_pos_cmd_ok = 1;
@@ -1148,6 +1150,7 @@ static void get_pos_cmds(long period)
 	    break;
 
 	case KINEMATICS_BOTH:
+		rtapi_print_msg(RTAPI_MSG_DBG,"KINEMATICS_BOTH ++++\n");
 	    if (checkAllHomed()) {
 		/* is previous value suitable for use as initial guess? */
 		if (!emcmotStatus->carte_pos_cmd_ok) {
@@ -1171,6 +1174,7 @@ static void get_pos_cmds(long period)
 	    break;
 
 	case KINEMATICS_INVERSE_ONLY:
+		rtapi_print_msg(RTAPI_MSG_DBG,"KINEMATICS_INVERSE_ONLY ++++\n");
 	    emcmotStatus->carte_pos_cmd_ok = 0;
 	    break;
 
@@ -1181,6 +1185,8 @@ static void get_pos_cmds(long period)
         /* end of FREE mode */
 	break;
     case EMCMOT_MOTION_COORD:
+        rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_COORD ++++\n");
+
 	/* check joint 0 to see if the interpolators are empty */
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
@@ -1231,7 +1237,7 @@ static void get_pos_cmds(long period)
 	}
 	break;
     case EMCMOT_MOTION_TELEOP:
-
+        rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_TELEOP ++++\n");
 	/* first the desired Accell's are computed based on
 	    desired Velocity, current velocity and period */
 	emcmotDebug->teleop_data.desiredAccell.tran.x =
@@ -1372,6 +1378,7 @@ static void get_pos_cmds(long period)
 	break;
 
     case EMCMOT_MOTION_DISABLED:
+        rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_DISABLED ++++\n");
 	/* set position commands to match feedbacks, this avoids
 	   disturbances and/or following errors when enabling */
 	emcmotStatus->carte_pos_cmd = emcmotStatus->carte_pos_fb;
