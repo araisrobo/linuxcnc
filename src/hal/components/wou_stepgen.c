@@ -506,14 +506,17 @@ int rtapi_app_main(void)
                    1,
                    data);
     assert (ret==0);
-    // JCMD_TBASE: 0: sif base_period is "32768" ticks
-    data[0] = 0; 
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   (JCMD_BASE | JCMD_TBASE),
-                   1,
-                   data);
-    assert (ret==0);
+
+    //obsolete: // JCMD_TBASE: 0: sif base_period is "32768" ticks
+    //obsolete: // TODO: obtain TBASE value from .ini file
+    //obsolete: data[0] = 0; 
+    //obsolete: ret = wou_cmd (&w_param,
+    //obsolete:                (WB_WR_CMD | WB_AI_MODE),
+    //obsolete:                (JCMD_BASE | JCMD_TBASE),
+    //obsolete:                1,
+    //obsolete:                data);
+    //obsolete: assert (ret==0);
+    
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SIF_EN, servo interface enable
