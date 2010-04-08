@@ -79,6 +79,7 @@ to another.
 #include "emcmotcfg.h"		/* EMCMOT_MAX_JOINTS */
 #include "kinematics.h"
 #include "simple_tp.h"
+#include "nurbs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -117,6 +118,7 @@ extern "C" {
 
 	EMCMOT_SET_LINE,	/* queue up a linear move */
 	EMCMOT_SET_CIRCLE,	/* queue up a circular move */
+	EMCMOT_SET_NURBS,  /* queue up a nurbs move */
 	EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
 	EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
@@ -204,6 +206,8 @@ extern "C" {
         int motion_type;        /* this move is because of traverse, feed, arc, or toolchange */
         double spindlesync;     /* user units per spindle revolution, 0 = no sync */
 	double acc;		/* max acceleration */
+	double ini_maxacc;
+	double ini_maxjerk;
 	double backlash;	/* amount of backlash */
 	int id;			/* id for motion */
 	int termCond;		/* termination condition */
@@ -231,6 +235,7 @@ extern "C" {
                                      ~2 = move until probe trips (ngc default)
                                      |2 = move until probe clears */
         double tooloffset_z, tooloffset_x, tooloffset_w;
+        nurbs_block_t nurbs_block;
 	unsigned char tail;	/* flag count for mutex detect */
     } emcmot_command_t;
 

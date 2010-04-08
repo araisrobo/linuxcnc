@@ -185,38 +185,13 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & c, // nurbs_control_points
     const std::vector<double> & k,  // nurbs_knot_vector 
-    unsigned int order ) 
+    unsigned int order,double length )
 {
     double u = 0.0;
-    int n, i;
+    int   i;
     printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n",
             __FILE__, __FUNCTION__, __LINE__, c.size());
     
-    // n = c.size();
-    // for (i = 0; i < n; i++) {
-    //     printf("%s: CP[%u] R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f) B(%.2f) C(%.2f) U(%.2f) V(%.2f) W(%.2f)\n",
-    //             __FILE__, i, 
-    //             c[i].R,
-    //             c[i].X,
-    //             c[i].Y,
-    //             c[i].Z,
-    //             c[i].A,
-    //             c[i].B,
-    //             c[i].C,
-    //             c[i].U,
-    //             c[i].V,
-    //             c[i].W
-    //     );
-    // }
-    // 
-    // n = k.size();
-    // printf("%s: KNOT[0:%u]: ", __FILE__, (n-1));
-    // for (i = 0; i < n; i++) {
-    //     printf("%.2f ", k[i]);
-    // }
-    // printf("\n");
-
-
     // INPUT:
     //    d - Degree of the B-Spline.
     //    c - Control Points, matrix of size (dim,nc).
@@ -226,48 +201,59 @@ void NURBS_FEED_3D (
     //    p - Evaluated points, matrix of size (dim,nu)
 
     int d = order-1;
-    int nu = c.size() * 10 + 1; // u.length();
-    int nc = c.size();
+    int nu = c.size() * 10 + 1; // u.length(); //切點數量
+    int nc = c.size(),knot_size;
+    double       *N ,*knot,R, X, Y, Z, A/* , B, C, U, V, W */;
+    CONTROL_POINT *cp ;
 
-    std::vector<double> N(order);
-    double R, X, Y, Z, A/* , B, C, U, V, W */;
+    knot = (double*)malloc(sizeof(double)*k.size());
+    cp = (CONTROL_POINT*)malloc(sizeof(CONTROL_POINT)*c.size());
+    N = (double*)malloc(sizeof(double)*(d+1));
+    memcpy(knot,&k[0],sizeof(double)*k.size());
+    memcpy(cp,&c[0],sizeof(CONTROL_POINT)*c.size());
+    knot_size = k.size();
 
-    if (nc + d == (int)(k.size() - 1)) 
+    if (nc + d == (int)(knot_size - 1))
       {	 
         int s, tmp1;
         
         for (int col(0); col<nu; col++)
           {	
+
+
+
             u = (double) col / (nu - 1.0);
-            s = nurbs_findspan(nc-1, d, u, k);
-            nurbs_basisfun(s, u, d, k, N);    
+                             // control points -1 , spline degree, paramatic point, knots
+            s = nurbs_findspan(nc-1, d, u, knot);  //return span index of u_i
+            nurbs_basisfun(s, u, d, knot, N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
+                                              // output: N:basis functions
             tmp1 = s - d;                
             
             R = 0.0;
             for (i=0; i<=d; i++) {
-                R += N[i]*c[tmp1+i].R;
+                R += N[i]*cp[tmp1+i].R;
             }
 
             X = 0.0;
             for (i=0; i<=d; i++) {
-                X += N[i]*c[tmp1+i].X;
+                X += N[i]*cp[tmp1+i].X;
             }
 
             Y = 0.0;
             for (i=0; i<=d; i++) {
-                Y += N[i]*c[tmp1+i].Y;
+                Y += N[i]*cp[tmp1+i].Y;
             }
 
             Z = 0.0;
             for (i=0; i<=d; i++) {
-                Z += N[i]*c[tmp1+i].Z;
+                Z += N[i]*cp[tmp1+i].Z;
             }
 
             A = 0.0;
             for (i=0; i<=d; i++) {
-                A += N[i]*c[tmp1+i].A;
+                A += N[i]*cp[tmp1+i].A;
             }
-            
+
             X = X/R;
             Y = Y/R;
             Z = Z/R;
@@ -280,11 +266,12 @@ void NURBS_FEED_3D (
       {
         fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k) - 1.\n");
       }
-
+    free(N);
+    free(cp);
+    free(knot);
     printf("%s: (%s:%d): c.size(%d); NURBS_FEED_3D() end\n",
             __FILE__, __FUNCTION__, __LINE__, c.size());
 }
-
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
     unsigned int n = nurbs_control_points.size() - 1;
@@ -798,11 +785,13 @@ void SET_NAIVECAM_TOLERANCE(double tolerance) { }
 
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
 PyObject *parse_file(PyObject *self, PyObject *args) {
+
     char *f;
     char *unitcode=0, *initcode=0;
     int error_line_offset = 0;
     struct timeval t0, t1;
     int wait = 1;
+
     if(!PyArg_ParseTuple(args, "sO|ss", &f, &callback, &unitcode, &initcode))
         return NULL;
 
@@ -810,7 +799,6 @@ PyObject *parse_file(PyObject *self, PyObject *args) {
         USER_DEFINED_FUNCTION[i] = user_defined_function;
 
     gettimeofday(&t0, NULL);
-
     metric=false;
     interp_error = 0;
     last_sequence_number = -1;

@@ -59,7 +59,7 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     double home;
     double maxVelocity;
     double maxAcceleration;
-
+    double maxJerk;
     // compose string to match, axis = 0 -> AXIS_X etc.
     switch (axis) {
 	case 0: sprintf(axisString, "AXIS_X");axisType=EMC_LINEAR;break;
@@ -108,6 +108,13 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
         if (0 != emcAxisSetMaxAcceleration(axis, maxAcceleration)) {
             return -1;
         }
+        maxJerk = DEFAULT_AXIS_MAX_JERK;
+        axisIniFile->Find(&maxJerk, "MAX_JERK", axisString);
+                if (0 != emcAxisSetMaxJerk(axis, maxJerk)) {
+                    return -1;
+                }
+
+
     }
 
     catch(EmcIniFile::Exception &e){

@@ -377,9 +377,9 @@ NML::NML(char *buf, char *proc, char *file, int set_to_server,
 	    cms = (CMS *) NULL;
 	}
 	error_type = NML_INVALID_CONFIGURATION;
+	printf("5\n");
 	return;
     }
-
     if (NULL == cms) {
 	error_type = NML_INVALID_CONFIGURATION;
 	if (!info_printed) {
@@ -411,6 +411,7 @@ NML::NML(char *buf, char *proc, char *file, int set_to_server,
     if (NULL != cms) {
 	char *forced_type_eq = strstr(cms->buflineupper, "FORCE_TYPE=");
 	if (forced_type_eq != NULL) {
+	    printf("13\n");
 	    long temp = 0;
 	    temp = strtol(forced_type_eq + 11, NULL, 0);
 	    if (temp > 0) {

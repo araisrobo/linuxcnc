@@ -382,7 +382,7 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & nurbs_control_points, 
     const std::vector<double> & nurbs_knot_vector, 
-    unsigned int order )
+    unsigned int order,double curve_length )
 {
   fprintf(stderr, "%s: (%s:%d): TODO: implement NURBS_FEED_3D()\n",
                   __FILE__, __FUNCTION__, __LINE__);

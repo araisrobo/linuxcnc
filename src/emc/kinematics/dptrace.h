@@ -7,6 +7,7 @@
 #define TRACE   1      //!< 0:Trace off 1:Trace on
 #endif
 
+
 #if (TRACE)
 #define DP(fmt, args...)                                                \
     do {                                                                \

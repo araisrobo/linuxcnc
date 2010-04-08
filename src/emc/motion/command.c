@@ -69,6 +69,7 @@
 #include "mot_priv.h"
 #include "rtapi_math.h"
 #include "motion_types.h"
+#include "stdio.h"
 
 /* debugging functions */
 extern void print_pose ( EmcPose *pos );
@@ -350,7 +351,11 @@ void emcmotCommandHandler(void *arg, long period)
     double tmp1;
     emcmot_comp_entry_t *comp_entry;
     char issue_atspeed = 0;
-    
+    int msg_level_before = rtapi_get_msg_level();
+    int msg_level_now = msg_level_before ;// | RTAPI_MSG_DBG;
+    static int counter = 0;
+    rtapi_set_msg_level(msg_level_now);
+    counter = counter+1;
 check_stuff ( "before command_handler()" );
 
     /* check for split read */
@@ -400,7 +405,7 @@ check_stuff ( "before command_handler()" );
 	       it calls the traj planner abort function (don't know what that
 	       does yet), and if in free mode, it disables the free mode traj
 	       planners which stops joint motion */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "ABORT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " ABORT ");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    /* check for coord or free space motion active */
 	    if (GET_MOTION_TELEOP_FLAG()) {
@@ -437,7 +442,7 @@ check_stuff ( "before command_handler()" );
 	    /* this command stops a single joint.  It is only usefull
 	       in free mode, so in coord or teleop mode it does
 	       nothing. */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "JOINT_ABORT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " JOINT_ABORT");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if (GET_MOTION_TELEOP_FLAG()) {
 		/* do nothing in teleop mode */
@@ -466,7 +471,7 @@ check_stuff ( "before command_handler()" );
 	       requests the transition by clearing a couple of flags */
 	    /* reset the emcmotDebug->coordinating flag to defer transition
 	       to controller cycle */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "FREE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " FREE");
 	    emcmotDebug->coordinating = 0;
 	    emcmotDebug->teleoperating = 0;
 	    break;
@@ -479,7 +484,7 @@ check_stuff ( "before command_handler()" );
 	       transition */
 	    /* set the emcmotDebug->coordinating flag to defer transition to
 	       controller cycle */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "COORD");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " COORD ");
 	    emcmotDebug->coordinating = 1;
 	    emcmotDebug->teleoperating = 0;
 	    if (kinType != KINEMATICS_IDENTITY) {
@@ -530,12 +535,12 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SET_WORLD_HOME:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_WORLD_HOME");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_WORLD_HOME");
 	    emcmotStatus->world_home = emcmotCommand->pos;
 	    break;
 
 	case EMCMOT_SET_JOINT_HOMING_PARAMS:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_HOMING_PARAMS");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_HOMING_PARAMS");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    if (joint == 0) {
@@ -555,7 +560,7 @@ check_stuff ( "before command_handler()" );
 	    /* this command can be issued with axix < 0 to re-enable
 	       limits, but they are automatically re-enabled at the
 	       end of the next jog */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "OVERRIDE_LIMITS");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " OVERRIDE_LIMITS");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if (joint_num < 0) {
 		/* don't override limits */
@@ -586,7 +591,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SET_JOINT_MOTOR_OFFSET:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_MOTOR_OFFSET");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_MOTOR_OFFSET");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if(joint == 0) {
 		break;
@@ -596,7 +601,7 @@ check_stuff ( "before command_handler()" );
 
 	case EMCMOT_SET_JOINT_POSITION_LIMITS:
 	    /* sets soft limits for a joint */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_POSITION_LIMITS");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_POSITION_LIMITS");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    /* set the position limits for the joint */
@@ -610,7 +615,7 @@ check_stuff ( "before command_handler()" );
 
 	case EMCMOT_SET_JOINT_BACKLASH:
 	    /* sets backlash for a joint */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_BACKLASH");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_BACKLASH");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    /* set the backlash for the joint */
@@ -628,7 +633,7 @@ check_stuff ( "before command_handler()" );
 	       minFerror then OK else if ferror < limiting ferror then OK
 	       else ERROR */
 	case EMCMOT_SET_JOINT_MAX_FERROR:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_MAX_FERROR");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_MAX_FERROR");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    if (joint == 0 || emcmotCommand->maxFerror < 0.0) {
@@ -638,7 +643,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SET_JOINT_MIN_FERROR:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_MIN_FERROR");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_MIN_FERROR");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    if (joint == 0 || emcmotCommand->minFerror < 0.0) {
@@ -651,7 +656,7 @@ check_stuff ( "before command_handler()" );
 	    /* do a continuous jog, implemented as an incremental jog to the
 	       limit.  When the user lets go of the button an abort will
 	       stop the jog. */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "JOG_CONT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " JOG_CONT");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    /* check joint range */
 	    if (joint == 0) {
@@ -715,7 +720,7 @@ check_stuff ( "before command_handler()" );
 	    /* do an incremental jog */
 
 	    /* check joints range */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "JOG_INCR");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " JOG_INCR");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if (joint == 0) {
 		break;
@@ -786,7 +791,7 @@ check_stuff ( "before command_handler()" );
 	    /* do an absolute jog */
 
 	    /* check joint range */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "JOG_ABS");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " JOG_ABS");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if (joint == 0) {
 		break;
@@ -849,18 +854,23 @@ check_stuff ( "before command_handler()" );
 
 	case EMCMOT_SET_TERM_COND:
 	    /* sets termination condition for motion emcmotDebug->queue */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_TERM_COND");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_TERM_COND");
 	    tpSetTermCond(&emcmotDebug->queue, emcmotCommand->termCond, emcmotCommand->tolerance);
 	    break;
 
-        case EMCMOT_SET_SPINDLESYNC:
-            tpSetSpindleSync(&emcmotDebug->queue, emcmotCommand->spindlesync, emcmotCommand->flags);
-            break;
-
+    case EMCMOT_SET_SPINDLESYNC:
+        rtapi_print_msg(RTAPI_MSG_DBG, " SET_SPINDLESYNC");
+        tpSetSpindleSync(&emcmotDebug->queue, emcmotCommand->spindlesync, emcmotCommand->flags);
+        break;
+    case EMCMOT_SET_NURBS:
+    	tpAddNURBS(&emcmotDebug->queue, emcmotCommand->motion_type,emcmotCommand->nurbs_block,
+    	        emcmotCommand->pos, emcmotStatus->enables_new, emcmotCommand->vel, emcmotCommand->ini_maxvel,
+    	        emcmotCommand->ini_maxacc, emcmotCommand->ini_maxjerk);
+    	break;
 	case EMCMOT_SET_LINE:
 	    /* emcmotDebug->queue up a linear move */
 	    /* requires coordinated mode, enable off, not on limits */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_LINE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_LINE");
 	    if (!GET_MOTION_COORD_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
 		reportError
 		    ("need to be enabled, in coord mode for linear move");
@@ -890,7 +900,8 @@ check_stuff ( "before command_handler()" );
 	    tpSetId(&emcmotDebug->queue, emcmotCommand->id);
 	    if (-1 == tpAddLine(&emcmotDebug->queue, emcmotCommand->pos, emcmotCommand->motion_type, 
                                 emcmotCommand->vel, emcmotCommand->ini_maxvel, 
-                                emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed)) {
+                                emcmotCommand->acc, emcmotCommand->ini_maxjerk,
+                                emcmotStatus->enables_new, issue_atspeed)) {
 		reportError("can't add linear move");
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->queue);
@@ -908,7 +919,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_SET_CIRCLE:
 	    /* emcmotDebug->queue up a circular move */
 	    /* requires coordinated mode, enable on, not on limits */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_CIRCLE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_CIRCLE");
 	    if (!GET_MOTION_COORD_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
 		reportError
 		    ("need to be enabled, in coord mode for circular move");
@@ -956,14 +967,14 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_SET_VEL:
 	    /* set the velocity for subsequent moves */
 	    /* can do it at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_VEL");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_VEL");
 	    emcmotStatus->vel = emcmotCommand->vel;
 	    tpSetVmax(&emcmotDebug->queue, emcmotStatus->vel, 
 			    emcmotCommand->ini_maxvel);
 	    break;
 
 	case EMCMOT_SET_VEL_LIMIT:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_VEL_LIMIT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_VEL_LIMIT");
 	    emcmot_config_change();
 	    /* set the absolute max velocity for all subsequent moves */
 	    /* can do it at any time */
@@ -972,7 +983,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SET_JOINT_VEL_LIMIT:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_VEL_LIMIT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_VEL_LIMIT");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    /* check joint range */
@@ -984,7 +995,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SET_JOINT_ACC_LIMIT:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_ACC_LIMIT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_ACC_LIMIT");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    /* check joint range */
@@ -997,7 +1008,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_SET_ACC:
 	    /* set the max acceleration */
 	    /* can do it at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_ACCEL");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_ACC");
 	    emcmotStatus->acc = emcmotCommand->acc;
 	    tpSetAmax(&emcmotDebug->queue, emcmotStatus->acc);
 	    break;
@@ -1005,7 +1016,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_PAUSE:
 	    /* pause the motion */
 	    /* can happen at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "PAUSE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " PAUSE");
 	    tpPause(&emcmotDebug->queue);
 	    emcmotStatus->paused = 1;
 	    break;
@@ -1013,7 +1024,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_RESUME:
 	    /* resume paused motion */
 	    /* can happen at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "RESUME");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " RESUME");
 	    emcmotDebug->stepping = 0;
 	    tpResume(&emcmotDebug->queue);
 	    emcmotStatus->paused = 0;
@@ -1022,7 +1033,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_STEP:
 	    /* resume paused motion until id changes */
 	    /* can happen at any time */
-            rtapi_print_msg(RTAPI_MSG_DBG, "STEP");
+            rtapi_print_msg(RTAPI_MSG_DBG, " STEP");
             if(emcmotStatus->paused) {
                 emcmotDebug->idForStep = emcmotStatus->id;
                 emcmotDebug->stepping = 1;
@@ -1036,7 +1047,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_FEED_SCALE:
 	    /* override speed */
 	    /* can happen at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "FEED SCALE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " FEED_SCALE");
 	    if (emcmotCommand->scale < 0.0) {
 		emcmotCommand->scale = 0.0;	/* clamp it */
 	    }
@@ -1047,10 +1058,10 @@ check_stuff ( "before command_handler()" );
 	    /* enable/disable overriding speed */
 	    /* can happen at any time */
 	    if ( emcmotCommand->mode != 0 ) {
-		rtapi_print_msg(RTAPI_MSG_DBG, "FEED SCALE: ON");
+		rtapi_print_msg(RTAPI_MSG_DBG, " FS_ENABLE: ON");
 		emcmotStatus->enables_new |= FS_ENABLED;
             } else {
-		rtapi_print_msg(RTAPI_MSG_DBG, "FEED SCALE: OFF");
+		rtapi_print_msg(RTAPI_MSG_DBG, " FS_ENABLE: OFF");
 		emcmotStatus->enables_new &= ~FS_ENABLED;
 	    }
 	    break;
@@ -1059,10 +1070,10 @@ check_stuff ( "before command_handler()" );
 	    /* enable/disable feed hold */
 	    /* can happen at any time */
 	    if ( emcmotCommand->mode != 0 ) {
-		rtapi_print_msg(RTAPI_MSG_DBG, "FEED HOLD: ENABLED");
+		rtapi_print_msg(RTAPI_MSG_DBG, " FH_ENABLE: ENABLED");
 		emcmotStatus->enables_new |= FH_ENABLED;
             } else {
-		rtapi_print_msg(RTAPI_MSG_DBG, "FEED HOLD: DISABLED");
+		rtapi_print_msg(RTAPI_MSG_DBG, " FH_ENABLE: DISABLED");
 		emcmotStatus->enables_new &= ~FH_ENABLED;
 	    }
 	    break;
@@ -1070,7 +1081,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_SPINDLE_SCALE:
 	    /* override spindle speed */
 	    /* can happen at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE SCALE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SPINDLE_SCALE");
 	    if (emcmotCommand->scale < 0.0) {
 		emcmotCommand->scale = 0.0;	/* clamp it */
 	    }
@@ -1356,7 +1367,8 @@ check_stuff ( "before command_handler()" );
 
 	    /* append it to the emcmotDebug->queue */
 	    tpSetId(&emcmotDebug->queue, emcmotCommand->id);
-	    if (-1 == tpAddLine(&emcmotDebug->queue, emcmotCommand->pos, emcmotCommand->motion_type, emcmotCommand->vel, emcmotCommand->ini_maxvel, emcmotCommand->acc, emcmotStatus->enables_new, 0)) {
+	    if (-1 == tpAddLine(&emcmotDebug->queue, emcmotCommand->pos, emcmotCommand->motion_type, emcmotCommand->vel,
+	            emcmotCommand->ini_maxvel, emcmotCommand->acc, emcmotCommand->ini_maxjerk, emcmotStatus->enables_new, 0)) {
 		reportError("can't add probe move");
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->queue);
@@ -1557,6 +1569,6 @@ check_stuff ( "before command_handler()" );
     }
     /* end of: if-new-command */
 check_stuff ( "after command_handler()" );
-
+    rtapi_set_msg_level(msg_level_before);
     return;
 }

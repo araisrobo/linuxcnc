@@ -181,13 +181,14 @@ int Interp::convert_nurbs(int mode,
         settings->motion_mode = mode;
     } else if (mode == G_6_2) { 
         // ARTek NURBS Format
-        // G6.2 P_K_X_Y_Z_A_B_C_U_V_W_R_F;
+        // G6.2 P_K_X_Y_Z_A_B_C_U_V_W_R_F_I;
         //      G6.2: NURBS interpolation
         //      P: NURBS curve order
         //      X, Y, Z, A, B, C, U, V, W: Control point
         //      R: Weight
         //      K: Knot
         //      F: Feedrate
+    	//      I: curve Length
         
         if (settings->feed_mode == UNITS_PER_MINUTE) {
             CHKS((settings->feed_rate == 0.0), (
@@ -200,8 +201,25 @@ int Interp::convert_nurbs(int mode,
             CHKS((!nurbs_control_points.empty()), 
                  ("Must specify NURBS curve order at 1st Control Point"));
             nurbs_order = block->p_number;  
+
         }
-        
+        // I: NURBS Curve Length
+
+        if (block->i_flag == ON)
+        {
+            printf("%s: (%s:%d): nurbs curve length %f\n",
+                                        __FILE__, __FUNCTION__, __LINE__, block->i_number);
+            CHKS(block->i_number <= 0.0,
+                ("Must specify NURBS curve length"));
+
+        }else
+        {
+            if(block->p_flag == ON)
+            {
+                    CHKS(1==0,"Must specify NURBS curve length at 1st Control Point");
+            }
+        }
+
         // obtain CONTROL_POINT
         CHP(find_ends(block, settings, &CP.X, &CP.Y, &CP.Z, &CP.A, &CP.B,
                       &CP.C, &CP.U, &CP.V, &CP.W));
@@ -253,7 +271,7 @@ int Interp::convert_nurbs(int mode,
             settings->w_current = nurbs_control_points[nurbs_control_points.size()-1].W;
             printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED_3D()\n",
                     __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
-            NURBS_FEED_3D (block->line_number, nurbs_control_points, nurbs_knot_vector, nurbs_order);
+            NURBS_FEED_3D (block->line_number, nurbs_control_points, nurbs_knot_vector, nurbs_order,block->i_number);
             nurbs_control_points.clear();
             nurbs_knot_vector.clear();
             settings->motion_mode = -1;

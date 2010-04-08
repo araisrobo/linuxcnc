@@ -18,6 +18,7 @@
 #include "posemath.h"
 #include "emcpos.h"
 #include "emcmotcfg.h"
+#include "nurbs.h"
 
 /* values for endFlag */
 #define TC_TERM_COND_STOP 1
@@ -26,6 +27,7 @@
 #define TC_LINEAR 1
 #define TC_CIRCULAR 2
 #define TC_RIGIDTAP 3
+#define TC_NURBS 4
 
 /* structure for individual trajectory elements */
 
@@ -62,7 +64,8 @@ typedef struct {
 } PmRigidTap;
 
 enum state_type {
-  ACCEL_S0=0, ACCEL_S1, ACCEL_S2, ACCEL_S3, ACCEL_S4, ACCEL_S5, ACCEL_S6
+  ACCEL_S0=0, ACCEL_S1, ACCEL_S2, ACCEL_S3, ACCEL_S4, ACCEL_S5,
+  ACCEL_S6, ACCEL_S7
 };
 
 typedef struct {
@@ -70,6 +73,10 @@ typedef struct {
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
     double distance_to_go;  // distance to go for target target..0
+    double motion_progress;
+    double motion_target;
+    double motion_distance_to_go;
+    int    motion_param_set;
     double reqvel;          // vel requested by F word, calc'd by task
     double maxaccel;        // accel calc'd by task
     double jerk;            // the accelrate of accel
@@ -79,6 +86,8 @@ typedef struct {
     double cur_accel;       // keep track of current acceleration
     double accel_dist;      // keep track of acceleration distance
     double accel_time;      // keep track of acceleration time
+    nurbs_block_t nurbs_block; // nurbs command block
+    double *N;                  // nurbs basis function buffer
     enum state_type accel_state;
     
     int id;                 // segment's serial number

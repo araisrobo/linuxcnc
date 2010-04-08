@@ -30,7 +30,7 @@
 
 #include <linux/types.h>	/* u_int16_t */
 #include "rtapi_math.h"
-
+#include <sys/types.h>
 int stderr;
 
 int fputs(const char *str)

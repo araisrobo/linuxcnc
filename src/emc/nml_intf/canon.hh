@@ -14,7 +14,9 @@
 #define CANON_HH
 
 #include <stdio.h>		// FILE
+#include <stdint.h>
 #include <vector>
+#include "nurbs.h"
 
 /*
   This is the header file that all applications that use the
@@ -38,25 +40,6 @@
 
 #define OFF 0
 #define ON 1
-
-typedef struct {          /* type for NURBS control points */
-      double X,                     
-             Y,
-             Z,
-             A,
-             B,
-             C,
-             U,
-             V,
-             W,
-             R;
-      } CONTROL_POINT;
-
-typedef struct {
-      double X,
-	     Y;
-      } PLANE_POINT;		
-
 
 typedef int CANON_PLANE;
 #define CANON_PLANE_XY 1
@@ -498,10 +481,12 @@ extern PLANE_POINT nurbs_point(double u, unsigned int k,
                   std::vector<unsigned int> knot_vector);
 extern double alpha_finder(double dx, double dy);
 
-extern int nurbs_findspan(int n, int p, double u, const std::vector<double> & U);
-extern void nurbs_basisfun(int i, double u, int p, 
-                  const std::vector<double> & U, 
-                  std::vector<double> & N);
+/*extern int nurbs_findspan(int n, int p, double u, const std::vector<double> & U);*/
+/*extern void nurbs_basisfun(int i, double u, int p,
+                  const std::vector<double> & U,
+                  std::vector<double> & N);*/
+/*extern int nurbs_findspan(int n, int p, double u, double *U);
+extern void nurbs_basisfun(int i, double u, int p, double *U, double *N);*/
 
 /* Canon calls */
 
@@ -514,8 +499,8 @@ extern void NURBS_FEED_3D (
         int lineno, 
         const std::vector<CONTROL_POINT>  & nurbs_control_points, 
         const std::vector<double> & nurbs_knot_vector, 
-        unsigned int order
-);
+        unsigned int order,double length);
+//);
 /* Move at the feed rate along an approximation of a NURBS with a variable number
  * of control points
  */

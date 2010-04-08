@@ -432,7 +432,6 @@ int cms_config(CMS ** cms, char *bufname, char *procname, char *filename,
     rcs_print_debug(PRINT_CMS_CONFIG_INFO, "bufname = %s\n", bufname);
     rcs_print_debug(PRINT_CMS_CONFIG_INFO, "procname = %s\n", procname);
     rcs_print_debug(PRINT_CMS_CONFIG_INFO, "filename = %s\n", filename);
-
     search.error_type = CONFIG_SEARCH_ERROR_NOT_SET;
     search.bufline_found = 0;
     search.bufline_number = -1;

@@ -1069,7 +1069,6 @@ static PyObject *program_open(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_OPEN m;
     char *file;
     int len;
-
     if(!PyArg_ParseTuple(o, "s#", &file, &len)) return NULL;
     m.serial_number = next_serial(s);
     strcpy(m.file, file);
@@ -1085,14 +1084,15 @@ static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_PAUSE pause;
     EMC_TASK_PLAN_RESUME resume;
     EMC_TASK_PLAN_STEP step;
-
     if(PyArg_ParseTuple(o, "ii", &fn, &run.line) && fn == LOCAL_AUTO_RUN) {
         run.serial_number = next_serial(s);
         s->c->write(run);
         emcWaitCommandReceived(s->serial, s->s);
+
     } else {
         PyErr_Clear();
         if(!PyArg_ParseTuple(o, "i", &fn)) return NULL;
+        printf("!LOCAL_AUTO_RUN\n");
         switch(fn) {
         case LOCAL_AUTO_PAUSE:
             pause.serial_number = next_serial(s);
@@ -1132,7 +1132,6 @@ static PyObject *debug(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *teleop(pyCommandChannel *s, PyObject *o) {
     EMC_TRAJ_SET_TELEOP_ENABLE en;
-
     if(!PyArg_ParseTuple(o, "i", &en.enable)) return NULL;
 
     en.serial_number = next_serial(s);

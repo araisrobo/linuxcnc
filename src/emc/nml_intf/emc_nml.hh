@@ -21,7 +21,7 @@
 #include "emcpos.h"
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
-
+// #include "nurbs.h"
 // ------------------
 // CLASS DECLARATIONS
 // ------------------
@@ -823,9 +823,28 @@ class EMC_TRAJ_LINEAR_MOVE:public EMC_TRAJ_CMD_MSG {
 
     int type;
     EmcPose end;		// end point
-    double vel, ini_maxvel, acc;
+    double vel, ini_maxvel, acc,ini_maxjerk;
     int feed_mode;
 };
+
+
+class EMC_TRAJ_NURBS_MOVE:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_NURBS_MOVE():EMC_TRAJ_CMD_MSG(EMC_TRAJ_NURBS_MOVE_TYPE,
+                        sizeof(EMC_TRAJ_NURBS_MOVE)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    int type;
+    EmcPose end;        // end point
+    double vel,ini_maxvel,ini_maxacc,ini_maxjerk;
+    nurbs_block_t nurbs_block;
+    int feed_mode;
+};
+
+
 
 class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
   public:
