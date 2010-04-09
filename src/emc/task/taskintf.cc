@@ -1348,7 +1348,8 @@ int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, doub
 }
 
 int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center,
-			PM_CARTESIAN normal, int turn, int type, double vel, double ini_maxvel, double acc)
+			PM_CARTESIAN normal, int turn, int type,
+			double vel, double ini_maxvel, double acc, double ini_maxjerk)
 {
 #ifdef ISNAN_TRAP
     if (isnan(end.tran.x) || isnan(end.tran.y) || isnan(end.tran.z) ||
@@ -1379,6 +1380,7 @@ int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center,
 
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
+    emcmotCommand.ini_maxjerk = ini_maxjerk;
     emcmotCommand.acc = acc;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);

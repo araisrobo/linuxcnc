@@ -38,8 +38,15 @@ typedef struct nurbs_block
     double                      knot;
     double                      weight;
     double                      *N; // basis function buffer
+    int 						axis_mask;
 } nurbs_block_t;
 
 extern int nurbs_findspan(int n, int p, double u, double *U);
 extern void nurbs_basisfun(int i, double u, int p, double *U, double *N);
+
+enum {
+    AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
+    AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
+    AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
+};
 #endif /* NURBS_H_ */

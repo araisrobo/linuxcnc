@@ -185,12 +185,12 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & c, // nurbs_control_points
     const std::vector<double> & k,  // nurbs_knot_vector 
-    unsigned int order,double length )
+    unsigned int order,double length, uint32_t axis_mask )
 {
     double u = 0.0;
     int   i;
-    printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n",
-            __FILE__, __FUNCTION__, __LINE__, c.size());
+   /* printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n", //TODO-eric:GCODE NURBS_FEED_3D Print
+            __FILE__, __FUNCTION__, __LINE__, c.size());*/
     
     // INPUT:
     //    d - Degree of the B-Spline.
@@ -201,9 +201,9 @@ void NURBS_FEED_3D (
     //    p - Evaluated points, matrix of size (dim,nu)
 
     int d = order-1;
-    int nu = c.size() * 10 + 1; // u.length(); //切點數量
+    int nu = c.size() * 10 + 1; // u.length();
     int nc = c.size(),knot_size;
-    double       *N ,*knot,R, X, Y, Z, A/* , B, C, U, V, W */;
+    double       *N ,*knot,R, X, Y, Z, A , B, C, U, V, W;
     CONTROL_POINT *cp ;
 
     knot = (double*)malloc(sizeof(double)*k.size());
@@ -234,32 +234,85 @@ void NURBS_FEED_3D (
                 R += N[i]*cp[tmp1+i].R;
             }
 
-            X = 0.0;
-            for (i=0; i<=d; i++) {
-                X += N[i]*cp[tmp1+i].X;
+            if ( axis_mask &  AXIS_MASK_X ) {
+				X = 0.0;
+				for (i=0; i<=d; i++) {
+					X += N[i]*cp[tmp1+i].X;
+				}
+				X = X/R;
+				_pos_x = X;
             }
 
-            Y = 0.0;
-            for (i=0; i<=d; i++) {
-                Y += N[i]*cp[tmp1+i].Y;
-            }
+            if ( axis_mask & AXIS_MASK_Y) {
+				Y = 0.0;
+				for (i=0; i<=d; i++) {
+					Y += N[i]*cp[tmp1+i].Y;
+				}
+				Y = Y/R;
+				_pos_y = Y;
+			}
 
-            Z = 0.0;
-            for (i=0; i<=d; i++) {
-                Z += N[i]*cp[tmp1+i].Z;
-            }
+            if ( axis_mask & AXIS_MASK_Z) {
+				Z = 0.0;
+				for (i=0; i<=d; i++) {
+					Z += N[i]*cp[tmp1+i].Z;
+				}
+				Z = Z/R;
+				_pos_z = Z;
+			}
 
-            A = 0.0;
-            for (i=0; i<=d; i++) {
-                A += N[i]*cp[tmp1+i].A;
-            }
+            if ( axis_mask & AXIS_MASK_A) {
+				A = 0.0;
+				for (i=0; i<=d; i++) {
+					A += N[i]*cp[tmp1+i].A;
+				}
+				A = A/R;
+				_pos_a = A;
+			}
+            if ( axis_mask & AXIS_MASK_B) {
+				B = 0.0;
+				for (i=0; i<=d; i++) {
+					B += N[i]*cp[tmp1+i].B;
+				}
+				B = B/R;
+				_pos_b = B;
+			}
+            if ( axis_mask & AXIS_MASK_C) {
+				C = 0.0;
+				for (i=0; i<=d; i++) {
+					C += N[i]*cp[tmp1+i].C;
+				}
+				C = C/R;
+				_pos_c = C;
+			}
+            if ( axis_mask & AXIS_MASK_U) {
+				U = 0.0;
+				for (i=0; i<=d; i++) {
+					U += N[i]*cp[tmp1+i].U;
+				}
+				U = U/R;
+				_pos_u = u;
+			}
+            if ( axis_mask & AXIS_MASK_V) {
+				V = 0.0;
+				for (i=0; i<=d; i++) {
+					V += N[i]*cp[tmp1+i].V;
+				}
+				V = V/R;
+				_pos_v = V;
+			}
+            if ( axis_mask & AXIS_MASK_W) {
+				W = 0.0;
+				for (i=0; i<=d; i++) {
+					W += N[i]*cp[tmp1+i].W;
+				}
+				W = W/R;
+				_pos_w = W;
+			}
 
-            X = X/R;
-            Y = Y/R;
-            Z = Z/R;
-            A = A/R;
-            STRAIGHT_FEED(line_number, X, Y, Z, A, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
-            printf("R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n", R, X, Y, Z, A); 
+            STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
+            		_pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+
           }   
       } 
     else 
@@ -269,8 +322,8 @@ void NURBS_FEED_3D (
     free(N);
     free(cp);
     free(knot);
-    printf("%s: (%s:%d): c.size(%d); NURBS_FEED_3D() end\n",
-            __FILE__, __FUNCTION__, __LINE__, c.size());
+   /* printf("%s: (%s:%d): c.size(%d); NURBS_FEED_3D() end\n",
+            __FILE__, __FUNCTION__, __LINE__, c.size());*/
 }
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;

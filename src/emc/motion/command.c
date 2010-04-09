@@ -949,7 +949,8 @@ check_stuff ( "before command_handler()" );
                             emcmotCommand->center, emcmotCommand->normal,
                             emcmotCommand->turn, emcmotCommand->motion_type,
                             emcmotCommand->vel, emcmotCommand->ini_maxvel,
-                            emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed)) {
+                            emcmotCommand->acc, emcmotCommand->ini_maxjerk,
+                            emcmotStatus->enables_new, issue_atspeed)) {
 		reportError("can't add circular move");
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->queue);

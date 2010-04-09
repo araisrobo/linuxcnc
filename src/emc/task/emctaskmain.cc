@@ -1043,7 +1043,6 @@ static int emcTaskPlan(void)
 		}		// switch (type) in ON, AUTO, READING
 
                // handle interp readahead logic
-		        printf("check interpList \n");
                 readahead_reading();
                 
 		break;		// EMC_TASK_INTERP_READING
@@ -1654,7 +1653,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
                 emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->type,
                 emcTrajCircularMoveMsg->vel,
                 emcTrajCircularMoveMsg->ini_maxvel,
-                emcTrajCircularMoveMsg->acc);
+                emcTrajCircularMoveMsg->acc, emcTrajCircularMoveMsg->ini_maxjerk);
 	break;
 
     case EMC_TRAJ_PAUSE_TYPE:

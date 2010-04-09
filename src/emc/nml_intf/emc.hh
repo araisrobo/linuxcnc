@@ -463,7 +463,7 @@ extern int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxve
 extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel,
                             double ini_maxacc,double ini_maxjerk);
 extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
-        normal, int turn, int type, double vel, double ini_maxvel, double acc);
+        normal, int turn, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk);
 extern int emcTrajSetTermCond(int cond, double tolerance);
 extern int emcTrajSetSpindleSync(double feed_per_revolution, bool wait_for_index);
 extern int emcTrajSetOffset(double z, double x, double w);
