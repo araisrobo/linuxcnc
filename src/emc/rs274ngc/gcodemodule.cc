@@ -220,8 +220,6 @@ void NURBS_FEED_3D (
         for (int col(0); col<nu; col++)
           {	
 
-
-
             u = (double) col / (nu - 1.0);
                              // control points -1 , spline degree, paramatic point, knots
             s = nurbs_findspan(nc-1, d, u, knot);  //return span index of u_i

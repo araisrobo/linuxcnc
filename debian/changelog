@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2010.04.08) karmic; urgency=low
+
+  * Added ARTEK_NURBS(G6.2) command
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 08 Apr 2010 12:21:05 +0800
+
 emc2 (1:2.4.0-alpha1) karmic; urgency=low
 
   * fixed NURBS(G5.2/G5.3) command
