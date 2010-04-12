@@ -133,7 +133,7 @@ int Interp::convert_nurbs(int mode,
 {
     double end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end;
     CONTROL_POINT CP;   
-
+    static uint32_t axis_mask = 0;
     if (mode == G_5_2)  {
 	CHKS((((block->x_flag) && !(block->y_flag)) || (!(block->x_flag) && (block->y_flag))), (
              "You must specify both X and Y coordinates for Control Points"));
@@ -163,7 +163,7 @@ int Interp::convert_nurbs(int mode,
         } 
         if ((block->x_flag) && (block->y_flag)) {
             CHP(find_ends(block, settings, &CP.X, &CP.Y, &end_z, &AA_end, &BB_end, &CC_end,
-                          &u_end, &v_end, &w_end));
+                          &u_end, &v_end, &w_end ));
             CP.W = block->p_number;
             nurbs_control_points.push_back(CP);
             }
@@ -195,7 +195,36 @@ int Interp::convert_nurbs(int mode,
                  "Cannot make a NURBS with 0 feedrate"));
         }
 	CHKS((!(block->k_flag)), ("You must specify Knots"));
-
+		// Find NURBS control point dimention mask
+		if ( axis_mask == 0) {
+			if (block->x_flag == ON) {
+				axis_mask |= AXIS_MASK_X;
+			}
+			if (block->y_flag == ON) {
+				axis_mask |= AXIS_MASK_Y;
+			}
+			if (block->z_flag == ON) {
+				axis_mask |= AXIS_MASK_Z;
+			}
+			if (block->a_flag == ON) {
+				axis_mask |= AXIS_MASK_A;
+			}
+			if (block->b_flag == ON) {
+				axis_mask |= AXIS_MASK_B;
+			}
+			if (block->c_flag == ON) {
+				axis_mask |= AXIS_MASK_C;
+			}
+			if (block->u_flag == ON) {
+				axis_mask |= AXIS_MASK_U;
+			}
+			if (block->v_flag == ON) {
+				axis_mask |= AXIS_MASK_V;
+			}
+			if (block->w_flag == ON) {
+				axis_mask |= AXIS_MASK_W;
+			}
+		}
         // P: NURBS curve order
         if (block->p_flag == ON) {
             CHKS((!nurbs_control_points.empty()), 
@@ -207,8 +236,8 @@ int Interp::convert_nurbs(int mode,
 
         if (block->i_flag == ON)
         {
-            printf("%s: (%s:%d): nurbs curve length %f\n",
-                                        __FILE__, __FUNCTION__, __LINE__, block->i_number);
+          /*  printf("%s: (%s:%d): nurbs curve length %f\n",
+                                        __FILE__, __FUNCTION__, __LINE__, block->i_number);*/
             CHKS(block->i_number <= 0.0,
                 ("Must specify NURBS curve length"));
 
@@ -222,7 +251,7 @@ int Interp::convert_nurbs(int mode,
 
         // obtain CONTROL_POINT
         CHP(find_ends(block, settings, &CP.X, &CP.Y, &CP.Z, &CP.A, &CP.B,
-                      &CP.C, &CP.U, &CP.V, &CP.W));
+                      &CP.C, &CP.U, &CP.V, &CP.W ));
         // R: Weight
         if (block->r_flag == ON) {
             CHKS((block->r_number <= 0), 
@@ -233,29 +262,18 @@ int Interp::convert_nurbs(int mode,
 
         // K: Knot
         nurbs_knot_vector.push_back(block->k_number);
-
-//debug:        for (int i=0;i<nurbs_control_points.size();i++){
-//debug:            printf( "X %8.4f, Y %8.4f, W %8.4f\n",
-//debug:            nurbs_control_points[i].X,
-//debug:            nurbs_control_points[i].Y,
-//debug:            nurbs_control_points[i].W);
-//debug:        }
-//debug:        printf("*-----------------------------------------*\n");
-//debug:	printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
-//debug:                __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
-
         settings->motion_mode = mode;
     } else if (mode == G_5_3) { // End of NURBS
         if (settings->motion_mode == G_5_2) {
             CHKS((nurbs_control_points.size()<nurbs_order), _("You must specify a number of control points at least equal to the order L = %d"), nurbs_order);
             settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
             settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
-            printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED()\n",
-                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+          /*  printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED()\n",
+                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());*/
             NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
             nurbs_control_points.clear();
-            printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
-                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+           /* printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
+                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());*/
             settings->motion_mode = -1;
         } else if (settings->motion_mode == G_6_2) {
             // terminate G_6_2
@@ -269,12 +287,15 @@ int Interp::convert_nurbs(int mode,
             settings->u_current = nurbs_control_points[nurbs_control_points.size()-1].U;
             settings->v_current = nurbs_control_points[nurbs_control_points.size()-1].V;
             settings->w_current = nurbs_control_points[nurbs_control_points.size()-1].W;
-            printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED_3D()\n",
-                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
-            NURBS_FEED_3D (block->line_number, nurbs_control_points, nurbs_knot_vector, nurbs_order,block->i_number);
+          /*  printf("%s: (%s:%d): nurbs_control_points.size(%d);  NURBS_FEED_3D()\n",
+                    __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());*///TODO-eric remove
+            NURBS_FEED_3D (block->line_number, nurbs_control_points,
+            		nurbs_knot_vector, nurbs_order, block->i_number, axis_mask);
+            //reset parameters
             nurbs_control_points.clear();
             nurbs_knot_vector.clear();
             settings->motion_mode = -1;
+            axis_mask = 0;
         } else {
             ERS("Cannot use G5.3 without G5.2/G6.2 first\n");
         }
@@ -322,7 +343,7 @@ int Interp::convert_spline(int mode,
       x1 = settings->current_x + block->i_number;
       y1 = settings->current_y + block->j_number;
       CHP(find_ends(block, settings, &x2, &y2, &end_z, &AA_end, &BB_end, &CC_end,
-                    &u_end, &v_end, &w_end));
+                    &u_end, &v_end, &w_end ));
       SPLINE_FEED(x1,y1,x2,y2);
       settings->current_x = x2;
       settings->current_y = y2;
@@ -337,7 +358,7 @@ int Interp::convert_spline(int mode,
           y1 = settings->current_y + block->j_number;
       }
       CHP(find_ends(block, settings, &x3, &y3, &end_z, &AA_end, &BB_end, &CC_end,
-                    &u_end, &v_end, &w_end));
+                    &u_end, &v_end, &w_end ));
 
       x2 = x3 + block->p_number;
       y2 = y3 + block->q_number;
@@ -421,6 +442,7 @@ int Interp::convert_arc(int move,        //!< either G_2 (cw arc) or G_3 (ccw ar
   int status;
   int first;                    /* flag set ON if this is first move after comp ON */
   int ijk_flag;                 /* flag set ON if any of i,j,k present in NC code  */
+
   double end_x;
   double end_y;
   double end_z;
@@ -517,7 +539,7 @@ int Interp::convert_arc(int move,        //!< either G_2 (cw arc) or G_3 (ccw ar
 
   CHP(find_ends(block, settings, &end_x, &end_y, &end_z,
                 &AA_end, &BB_end, &CC_end, 
-                &u_end, &v_end, &w_end));
+                &u_end, &v_end, &w_end ));
 
   settings->motion_mode = move;
 
@@ -2398,7 +2420,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   parameters = settings->parameters;
   CHP(find_ends(block, settings, &end_x, &end_y, &end_z,
                 &AA_end, &BB_end, &CC_end, 
-                &u_end, &v_end, &w_end));
+                &u_end, &v_end, &w_end ));
 
   CHKS((settings->cutter_comp_side != OFF),
       NCE_CANNOT_USE_G28_OR_G30_WITH_CUTTER_RADIUS_COMP);
@@ -3078,7 +3100,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   CHKS((settings->feed_rate == 0.0), NCE_CANNOT_PROBE_WITH_ZERO_FEED_RATE);
   CHP(find_ends(block, settings, &end_x, &end_y, &end_z,
                 &AA_end, &BB_end, &CC_end,
-                &u_end, &v_end, &w_end));
+                &u_end, &v_end, &w_end ));
   CHKS(((!(probe_type & 1)) && 
         settings->current_x == end_x && settings->current_y == end_y &&
         settings->current_z == end_z && settings->AA_current == AA_end &&
@@ -3844,7 +3866,7 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
 
   settings->motion_mode = move;
   CHP(find_ends(block, settings, &end_x, &end_y, &end_z,
-                &AA_end, &BB_end, &CC_end, &u_end, &v_end, &w_end));
+                &AA_end, &BB_end, &CC_end, &u_end, &v_end, &w_end ));
 
   if (move == G_1) {
       inverse_time_rate_straight(end_x, end_y, end_z,

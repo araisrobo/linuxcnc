@@ -1276,15 +1276,15 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & nurbs_control_points ,
     const std::vector<double> & nurbs_knot_vector,
-    unsigned int k, double curve_length)
+    unsigned int k, double curve_length, uint32_t axis_mask)
 {
     EMC_TRAJ_NURBS_MOVE nurbsMoveMsg;
     uint32_t nr_of_ctrl_pt,nr_of_knot,i;
     double x,y,z,a,b,c,u,v,w,vel;
     double dx, dy, dz, da, db, dc, du, dv, dw;
+
     nurbsMoveMsg.feed_mode = canon.feed_mode;
     nurbsMoveMsg.type = EMC_MOTION_TYPE_FEED;
-
     nr_of_ctrl_pt = nurbs_control_points.size();
     nr_of_knot = nurbs_knot_vector.size();
 
@@ -1298,7 +1298,7 @@ void NURBS_FEED_3D (
     b = nurbs_control_points[nr_of_ctrl_pt-1].B;
     c = nurbs_control_points[nr_of_ctrl_pt-1].C;
     // assume NURBS_3D considered only xyz coord.
-//TODO: do simplify numerical compare mechanism ( form ini load)
+//TODO-eric: do simplify numerical compare mechanism ( form ini load)
     // Figure out what kind of move we're making:
 
     dx = fabs(x - canon.endPoint.x);
@@ -1332,7 +1332,9 @@ void NURBS_FEED_3D (
     } else {
         canon.angular_move = 1;
     }
-
+    if ( canon.angular_move == 0 && canon.cartesian_move == 0) {
+    	canon.cartesian_move = 1;
+    }
     if (canon.cartesian_move ) {
         nurbsMoveMsg.ini_maxvel = MAX3(FROM_EXT_LEN(emcAxisGetMaxVelocity(0)),
                                        FROM_EXT_LEN(emcAxisGetMaxVelocity(1)),
@@ -1351,7 +1353,7 @@ void NURBS_FEED_3D (
                                              FROM_EXT_LEN(emcAxisGetMaxAcceleration(6)),
                                              FROM_EXT_LEN(emcAxisGetMaxAcceleration(7)),
                                              FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))));
-        //nurbsMoveMsg.ini_maxjerk = 9*nurbsMoveMsg.ini_maxacc;
+
         nurbsMoveMsg.ini_maxjerk = MAX3(FROM_EXT_LEN(emcAxisGetMaxJerk(0)),
                                         FROM_EXT_LEN(emcAxisGetMaxJerk(1)),
                                         FROM_EXT_LEN(emcAxisGetMaxJerk(2)));
@@ -1376,7 +1378,7 @@ void NURBS_FEED_3D (
                                        FROM_EXT_LEN(emcAxisGetMaxAcceleration(5))));
 
 
-         //nurbsMoveMsg.ini_maxjerk = 9*nurbsMoveMsg.ini_maxacc;
+
          nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxJerk(3)),
                                          FROM_EXT_LEN(emcAxisGetMaxJerk(4)),
                                          FROM_EXT_LEN(emcAxisGetMaxJerk(5))));
@@ -1389,7 +1391,7 @@ void NURBS_FEED_3D (
     nurbsMoveMsg.vel = vel;
 
 
-    for(i=0;i<nr_of_ctrl_pt;i++){
+    for (i=0;i<nr_of_ctrl_pt;i++) {
         x = nurbs_control_points[i].X;
         y = nurbs_control_points[i].Y;
         z = nurbs_control_points[i].Z;
@@ -1417,11 +1419,13 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.end.u =  u;
         nurbsMoveMsg.end.v =  v;
         nurbsMoveMsg.end.w =  w;
+        nurbsMoveMsg.nurbs_block.axis_mask = axis_mask;
         interp_list.set_line_number(line_number);
         interp_list.append(nurbsMoveMsg);
         canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
     }
-    for(;i<nr_of_knot;i++){
+
+    for (;i<nr_of_knot;i++) {
 
         nurbsMoveMsg.vel = canon.linearFeedRate;
         nurbsMoveMsg.nurbs_block.nr_of_ctrl_pts = nr_of_ctrl_pt;
@@ -1430,21 +1434,18 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.nurbs_block.order = k;
         nurbsMoveMsg.nurbs_block.knot = nurbs_knot_vector[i];
         nurbsMoveMsg.nurbs_block.weight = 0;
-        nurbsMoveMsg.end.tran.x = -1;
-        nurbsMoveMsg.end.tran.y = -1;
-        nurbsMoveMsg.end.tran.z = -1;
-        nurbsMoveMsg.end.a =  -1;
-        nurbsMoveMsg.end.b =  -1;
-        nurbsMoveMsg.end.c =  -1;
-        nurbsMoveMsg.end.u =  -1;
-        nurbsMoveMsg.end.v =  -1;
-        nurbsMoveMsg.end.w =  -1;
+        nurbsMoveMsg.end.tran.x = nurbs_control_points[nr_of_ctrl_pt-1].X;;
+        nurbsMoveMsg.end.tran.y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
+        nurbsMoveMsg.end.tran.z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
+        nurbsMoveMsg.end.a =  nurbs_control_points[nr_of_ctrl_pt-1].A;
+        nurbsMoveMsg.end.b =  nurbs_control_points[nr_of_ctrl_pt-1].B;
+        nurbsMoveMsg.end.c =  nurbs_control_points[nr_of_ctrl_pt-1].C;
+        nurbsMoveMsg.end.u =  nurbs_control_points[nr_of_ctrl_pt-1].U;
+        nurbsMoveMsg.end.v =  nurbs_control_points[nr_of_ctrl_pt-1].V;
+        nurbsMoveMsg.end.w =  nurbs_control_points[nr_of_ctrl_pt-1].W;
         interp_list.set_line_number(line_number);
         interp_list.append(nurbsMoveMsg);
     }
-
-    printf("emccanon.cc NURBS_FEED_3D TODO line_number %d\n",line_number);
-
 
 }
 
@@ -1579,12 +1580,13 @@ void ARC_FEED(int line_number,
     PM_CARTESIAN center, normal;
     EMC_TRAJ_CIRCULAR_MOVE circularMoveMsg;
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
-    double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel, axial_maxvel=0.0, circ_acc, axial_acc, acc=0.0;
+    double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel,
+			axial_maxvel=0.0, circ_acc, axial_acc, acc=0.0, ini_maxjerk;
     double radius, angle, theta1, theta2, helical_length, axis_len;
     double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
     double tu, tv, tw, du, dv, dw;
     double mx, my;
-    double axis_max_acc[EMCMOT_MAX_AXIS], axis_max_vel[EMCMOT_MAX_AXIS];
+    double axis_max_acc[EMCMOT_MAX_AXIS], axis_max_vel[EMCMOT_MAX_AXIS], axis_max_jerk[EMCMOT_MAX_AXIS];
     double lx, ly, lz;
     double unused=0;
     int i;
@@ -1593,14 +1595,17 @@ void ARC_FEED(int line_number,
     for (i = 0; i < 3; i++) {
         axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
+        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
     }
     for (i = 3; i < 6; i++) {
         axis_max_acc[i] = FROM_EXT_ANG(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_ANG(emcAxisGetMaxVelocity(i));
+        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
     }
     for (i = 6; i < 9; i++) {
         axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
+        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
     }
 
     get_last_pos(lx, ly, lz);
@@ -1851,6 +1856,27 @@ void ARC_FEED(int line_number,
               2 1 
              -1 -1 
              -2 -2 */
+// COMPUTE JERKS //TODO-eric do we consider motion type for jerk?.
+    if ( canon.cartesian_move == 1) {
+        for (i = 0; i < 3; i++ ) {
+            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+        }
+        for (i = 6; i < 9; i++) {
+            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+        }
+    } else if ( canon.angular_move == 1) {
+        for (i = 3; i < 6; i++) {
+                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+                }
+
+    } else if (canon.cartesian_move == 0 && canon.angular_move == 0) {
+        for (i = 0; i < 3; i++ ) {
+                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+                }
+                for (i = 6; i < 9; i++) {
+                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+                }
+    }
 
     if (rotation == 0) {
 	// linear move
@@ -1872,7 +1898,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.vel = toExtVel(vel);
         linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
         linearMoveMsg.acc = toExtAcc(acc);
-
+        linearMoveMsg.ini_maxjerk = TO_EXT_LEN(ini_maxjerk);
         if(vel && acc){
             interp_list.set_line_number(line_number);
             interp_list.append(linearMoveMsg);
@@ -1914,6 +1940,7 @@ void ARC_FEED(int line_number,
         circularMoveMsg.vel = toExtVel(vel);
         circularMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
         circularMoveMsg.acc = toExtAcc(acc);
+        circularMoveMsg.ini_maxjerk = TO_EXT_LEN(ini_maxjerk);
         if(vel && acc) {
             interp_list.set_line_number(line_number);
             interp_list.append(circularMoveMsg);

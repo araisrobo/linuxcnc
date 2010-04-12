@@ -861,7 +861,7 @@ class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
     PM_CARTESIAN normal;
     int turn;
     int type;
-    double vel, ini_maxvel, acc;
+    double vel, ini_maxvel, acc,ini_maxjerk;
     int feed_mode;
 };
 

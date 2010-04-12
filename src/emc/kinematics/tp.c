@@ -278,7 +278,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     PmPose start_xyz, end_xyz;
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -506,7 +505,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
 
 int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 		PmCartesian center, PmCartesian normal, int turn, int type,
-                double vel, double ini_maxvel, double acc, unsigned char enables, char atspeed)
+                double vel, double ini_maxvel, double acc, double jerk, unsigned char enables, char atspeed)
 {
     TC_STRUCT tc;
     PmCircle circle;
@@ -621,15 +620,13 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 // allowed; we are guaranteed to have a move in xyz so target is
 // always the circle/arc/helical length.
 
-
+//TODO-eric : fix nurbs error end position
 int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         unsigned char enables, double vel, double ini_maxvel, double ini_maxacc, double ini_maxjerk)
 {
     static TC_STRUCT tc;
     static uint32_t knots_todo = 0, order = 0 ,nr_of_ctrl_pts = 0 , nr_of_knots = 0;
-
     nurbs_block_t *nurbs_to_tc=&tc.nurbs_block;//EmcPose* control_points;
-
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -648,6 +645,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         nurbs_to_tc->ctrl_pts_ptr = malloc(sizeof(CONTROL_POINT)*nurbs_block.nr_of_ctrl_pts);
         nurbs_to_tc->knots_ptr = malloc(sizeof(double)*nurbs_block.nr_of_knots);
         nurbs_to_tc->N = (double*) malloc(sizeof(double)*(order+1));
+        nurbs_to_tc->axis_mask = nurbs_block.axis_mask;
 
     }
     if(knots_todo> nr_of_knots-nr_of_ctrl_pts){ // this part add ctrl pts and knots
@@ -655,8 +653,12 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].Y = pos.tran.y;
         nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].Z = pos.tran.z;
         nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].A = pos.a;
+        nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].B = pos.b;
+        nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].C = pos.c;
+        nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].U = pos.u;
+        nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].V = pos.v;
+        nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].W = pos.w;
         nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].R = nurbs_block.weight;
-        // TODO: figure out roles (a,b,c , u , v ,w) play in NURBS
         nurbs_to_tc->knots_ptr[nr_of_knots-knots_todo] = nurbs_block.knot;
 
     }else{
@@ -704,7 +706,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         tc.maxvel = ini_maxvel;
         tc.id = tp->nextId;
         tc.active = 0;
-        tc.atspeed = 0;//atspeed;  // FIXME
+        tc.atspeed = 0;//atspeed;  // FIXME-eric(L)
 
         tc.nurbs_block.curve_len = nurbs_block.curve_len;
         tc.nurbs_block.order = nurbs_block.order;
