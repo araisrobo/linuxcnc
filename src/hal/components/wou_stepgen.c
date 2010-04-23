@@ -704,9 +704,9 @@ static void update_freq(void *arg, long period)
   assert(wou_update(&w_param) == 0);
 
   // copy GPIO.IN ports if it differs from previous value
-  if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2)) {
+  if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2)) {
     // update prev_in from WOU_REGISTER
-    memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SIFS_BASE + SIFS_SWITCH_IN), 2);
+    memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2);
     rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
     for (i=0; i < gpio->num_in; i++) {
       *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
@@ -745,8 +745,8 @@ static void update_freq(void *arg, long period)
           
   for (n = 0; n < num_chan; n++) {
     /* update registers from FPGA */
-    memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_PULSE_CMD + n*4), 4);
-    memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SIFS_BASE + SIFS_ENC_POS + n*4), 4);
+    memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_CMD + n*4), 4);
+    memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n*4), 4);
 
     /* test for disabled stepgen */
     if (*stepgen->enable == 0) {
