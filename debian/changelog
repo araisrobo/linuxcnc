@@ -1,3 +1,10 @@
+emc2 (1:2.4.0-nurbs-2010.04.23) lucid; urgency=low
+
+  * Fix wou_stepgen.c for new SSIF MACROS
+  * First build for Ubuntu 10.04 (lucid)
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 23 Apr 2010 18:16:06 +0800
+
 emc2 (1:2.4.0-nurbs-2010.04.12) karmic; urgency=low
 
   * Fix ARTEK_NURBS(G6.2) command: rush to (x(-1), y(-1), z(-1))

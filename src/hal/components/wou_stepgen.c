@@ -745,7 +745,7 @@ static void update_freq(void *arg, long period)
           
   for (n = 0; n < num_chan; n++) {
     /* update registers from FPGA */
-    memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_CMD + n*4), 4);
+    memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 4);
     memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n*4), 4);
 
     /* test for disabled stepgen */
