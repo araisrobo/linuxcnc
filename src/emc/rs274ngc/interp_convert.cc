@@ -4139,7 +4139,6 @@ int Interp::convert_straight(int move,	//!< either G_0 or G_1
     double CC_end;
     double u_end, v_end, w_end;
     int status;
-
     settings->arc_not_allowed = OFF;
 
     if (move == G_1) {

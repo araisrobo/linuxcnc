@@ -813,8 +813,8 @@ static std::vector<struct pt>& chained_points(void)
 
 static void flush_segments(void) 
 {
-    if(chained_points().empty()) return;
 
+    if(chained_points().empty()) return;
     struct pt &pos = chained_points().back();
 
     double x = pos.x, y = pos.y, z = pos.z;
@@ -946,6 +946,7 @@ see_segment(int line_number,
     if(!chained_points().empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
         flush_segments();
     }
+
     pt pos = {x, y, z, a, b, c, u, v, w, line_number};
     chained_points().push_back(pos);
     if(changed_abc || changed_uvw) {
@@ -1284,6 +1285,7 @@ void NURBS_FEED_3D (
     double x,y,z,a,b,c,u,v,w,vel;
     double dx, dy, dz, da, db, dc, du, dv, dw;
 
+    flush_segments(); // NURBS move is not similar to point-to-point move
     nurbsMoveMsg.feed_mode = canon.feed_mode;
     nurbsMoveMsg.type = EMC_MOTION_TYPE_FEED;
 
@@ -1298,7 +1300,6 @@ void NURBS_FEED_3D (
             nr_uofl_cp += 1;
         }
     }
-    fprintf(stderr,"nr_uofl_cp %d \n",nr_uofl_cp);
     x = nurbs_control_points[nr_of_ctrl_pt-1].X;
     y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
     z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
