@@ -414,6 +414,36 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 //FIXME-AJ: investigate removing these tests. it seems odd to test only a few.
 //otoh, they are busted. they check axis limits, but refer joints
 	case EMC_TRAJ_NURBS_MOVE_TYPE:
+	    if (nurbs_move->end.tran.x >
+                stat->motion.joint[0].maxPositionLimit) {
+                emcOperatorError(0, _("%s exceeds +X limit"), stat->task.command);
+                return -1;
+            }
+            if (nurbs_move->end.tran.y >
+                stat->motion.joint[1].maxPositionLimit) {
+                emcOperatorError(0, _("%s exceeds +Y limit"), stat->task.command);
+                return -1;
+            }
+            if (nurbs_move->end.tran.z >
+                stat->motion.joint[2].maxPositionLimit) {
+                emcOperatorError(0, _("%s exceeds +Z limit"), stat->task.command);
+                return -1;
+            }
+            if (nurbs_move->end.tran.x <
+                stat->motion.joint[0].minPositionLimit) {
+                emcOperatorError(0, _("%s exceeds -X limit"), stat->task.command);
+                return -1;
+            }
+            if (nurbs_move->end.tran.y <
+                stat->motion.joint[1].minPositionLimit) {
+                emcOperatorError(0, _("%s exceeds -Y limit"), stat->task.command);
+                return -1;
+            }
+            if (nurbs_move->end.tran.z <
+                stat->motion.joint[2].minPositionLimit) {
+                emcOperatorError(0, _("%s exceeds -Z limit"), stat->task.command);
+                return -1;
+            }
 //TODO-eric: NURBS check
 		break;
 	case EMC_TRAJ_LINEAR_MOVE_TYPE:

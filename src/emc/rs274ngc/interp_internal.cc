@@ -189,7 +189,7 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
          || (settings->motion_mode == G_80)),
         NCE_CANNOT_USE_AXIS_VALUES_WITHOUT_A_G_CODE_THAT_USES_THEM);
     block->motion_to_be = settings->motion_mode;
-  } else if (block->k_flag && (settings->motion_mode == G_6_2)) {
+  } else if ((block->k_flag || block->d_flag)&& (settings->motion_mode == G_6_2)) {
     // for FANUC NURBS Code
     block->motion_to_be = settings->motion_mode;
   } else if (!axis_flag && ijk_flag && (settings->motion_mode == G_2 || settings->motion_mode == G_3)) {
@@ -319,14 +319,15 @@ int Interp::parse_line(char *line,       //!< array holding a line of RS274 code
                       block_pointer block,      //!< pointer to a block to be filled     
                       setup_pointer settings)   //!< pointer to machine settings         
 {
+
   CHP(init_block(block));
   CHP(read_items(block, line, settings->parameters));
-
   if(settings->skipping_o == 0)
   {
     CHP(enhance_block(block, settings));
     CHP(check_items(block, settings));
   }
+
   return INTERP_OK;
 }
 

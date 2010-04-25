@@ -185,6 +185,7 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & c, // nurbs_control_points
     const std::vector<double> & k,  // nurbs_knot_vector 
+    const std::vector<uofl_block_t> &uofl,
     unsigned int order,double length, uint32_t axis_mask )
 {
     double u = 0.0;
@@ -213,18 +214,16 @@ void NURBS_FEED_3D (
     memcpy(cp,&c[0],sizeof(CONTROL_POINT)*c.size());
     knot_size = k.size();
 
-    if (nc + d == (int)(knot_size - 1))
-      {	 
+    if (nc + d == (int)(knot_size - 1)) {
         int s, tmp1;
         
-        for (int col(0); col<nu; col++)
-          {	
+        for (int col(0); col<nu; col++) {
 
             u = (double) col / (nu - 1.0);
-                             // control points -1 , spline degree, paramatic point, knots
+                 // control points -1 , spline degree, paramatic point, knots
             s = nurbs_findspan(nc-1, d, u, knot);  //return span index of u_i
             nurbs_basisfun(s, u, d, knot, N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
-                                              // output: N:basis functions
+                                  // output: N:basis functions
             tmp1 = s - d;                
             
             R = 0.0;
@@ -233,95 +232,92 @@ void NURBS_FEED_3D (
             }
 
             if ( axis_mask &  AXIS_MASK_X ) {
-				X = 0.0;
-				for (i=0; i<=d; i++) {
-					X += N[i]*cp[tmp1+i].X;
-				}
-				X = X/R;
-				_pos_x = X;
+                X = 0.0;
+                for (i=0; i<=d; i++) {
+                    X += N[i]*cp[tmp1+i].X;
+                }
+                X = X/R;
+                _pos_x = X;
             }
 
             if ( axis_mask & AXIS_MASK_Y) {
-				Y = 0.0;
-				for (i=0; i<=d; i++) {
-					Y += N[i]*cp[tmp1+i].Y;
-				}
-				Y = Y/R;
-				_pos_y = Y;
-			}
+                Y = 0.0;
+                for (i=0; i<=d; i++) {
+                    Y += N[i]*cp[tmp1+i].Y;
+                }
+                Y = Y/R;
+                _pos_y = Y;
+            }
 
             if ( axis_mask & AXIS_MASK_Z) {
-				Z = 0.0;
-				for (i=0; i<=d; i++) {
-					Z += N[i]*cp[tmp1+i].Z;
-				}
-				Z = Z/R;
-				_pos_z = Z;
-			}
+                    Z = 0.0;
+                    for (i=0; i<=d; i++) {
+                            Z += N[i]*cp[tmp1+i].Z;
+                    }
+                    Z = Z/R;
+                    _pos_z = Z;
+            }
 
             if ( axis_mask & AXIS_MASK_A) {
-				A = 0.0;
-				for (i=0; i<=d; i++) {
-					A += N[i]*cp[tmp1+i].A;
-				}
-				A = A/R;
-				_pos_a = A;
-			}
+                    A = 0.0;
+                    for (i=0; i<=d; i++) {
+                            A += N[i]*cp[tmp1+i].A;
+                    }
+                    A = A/R;
+                    _pos_a = A;
+            }
             if ( axis_mask & AXIS_MASK_B) {
-				B = 0.0;
-				for (i=0; i<=d; i++) {
-					B += N[i]*cp[tmp1+i].B;
-				}
-				B = B/R;
-				_pos_b = B;
-			}
+                    B = 0.0;
+                    for (i=0; i<=d; i++) {
+                            B += N[i]*cp[tmp1+i].B;
+                    }
+                    B = B/R;
+                    _pos_b = B;
+            }
             if ( axis_mask & AXIS_MASK_C) {
-				C = 0.0;
-				for (i=0; i<=d; i++) {
-					C += N[i]*cp[tmp1+i].C;
-				}
-				C = C/R;
-				_pos_c = C;
-			}
+                    C = 0.0;
+                    for (i=0; i<=d; i++) {
+                            C += N[i]*cp[tmp1+i].C;
+                    }
+                    C = C/R;
+                    _pos_c = C;
+            }
             if ( axis_mask & AXIS_MASK_U) {
-				U = 0.0;
-				for (i=0; i<=d; i++) {
-					U += N[i]*cp[tmp1+i].U;
-				}
-				U = U/R;
-				_pos_u = u;
-			}
+                    U = 0.0;
+                    for (i=0; i<=d; i++) {
+                            U += N[i]*cp[tmp1+i].U;
+                    }
+                    U = U/R;
+                    _pos_u = u;
+            }
             if ( axis_mask & AXIS_MASK_V) {
-				V = 0.0;
-				for (i=0; i<=d; i++) {
-					V += N[i]*cp[tmp1+i].V;
-				}
-				V = V/R;
-				_pos_v = V;
-			}
+                    V = 0.0;
+                    for (i=0; i<=d; i++) {
+                            V += N[i]*cp[tmp1+i].V;
+                    }
+                    V = V/R;
+                    _pos_v = V;
+            }
             if ( axis_mask & AXIS_MASK_W) {
-				W = 0.0;
-				for (i=0; i<=d; i++) {
-					W += N[i]*cp[tmp1+i].W;
-				}
-				W = W/R;
-				_pos_w = W;
-			}
+                    W = 0.0;
+                    for (i=0; i<=d; i++) {
+                            W += N[i]*cp[tmp1+i].W;
+                    }
+                    W = W/R;
+                    _pos_w = W;
+            }
 
             STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
-            		_pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+            _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
 
-          }   
-      } 
-    else 
-      {
+        }
+    } else {
         fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k) - 1.\n");
-      }
+    }
     free(N);
     free(cp);
     free(knot);
-   /* printf("%s: (%s:%d): c.size(%d); NURBS_FEED_3D() end\n",
-            __FILE__, __FUNCTION__, __LINE__, c.size());*/
+
 }
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
