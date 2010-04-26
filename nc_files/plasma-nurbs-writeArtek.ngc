@@ -7,17 +7,17 @@
 #1002 = 150.0000  ( X Start )
 #1003 = 300.0000  ( Y Start )
 #1004 = 50.0      ( Circle Radius )
-#1005 = 0.0000  ( X init )
-#1006 = 300.0000  ( Y init )
+#1005 = 10.0000    ( X init )
+#1006 = 290.0000  ( Y init )
 #1007 = 135       ( Z ready to Engraving )
 (===================================================================)
 (F25000: feed rate: 25000mm/min)
 (P0.003: tolerance for blending: 0.003mm) 
 (G17 G21 G90 G64 P0.003 /* P0:tolerance for blending */ M3 S3000 M7 F60000)
-G17 G21 G90 G64 P0.003 F60000
+G17 G21 G90 G64 P0.003 F1000
 
 G1 Z#1000
-G1 X#1005 Y#1006 A45 (init)
+G1 X#1005 Y#1006 
 
 ;G5.2  X330 Y20 P1 
 ;      X315 Y0 P2

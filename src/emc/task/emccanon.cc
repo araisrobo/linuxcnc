@@ -1443,6 +1443,7 @@ void NURBS_FEED_3D (
             nurbsMoveMsg.nurbs_block.uofl_weight = uofl[i].uofl_weight;
         } else if ( i < nr_uofl_knot) {
             assert(uofl[i].uofl_knot_flag == ON);
+
             nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
         }
         interp_list.set_line_number(line_number);
