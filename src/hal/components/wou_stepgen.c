@@ -524,10 +524,10 @@ int rtapi_app_main(void)
     // data[1] = 126; // JNT_1
     // data[2] = 126; // JNT_2
     // data[3] = 178; // JNT_3
-    data[0] = 139; // JNT_0
-    data[1] = 139; // JNT_1
-    data[2] = 139; // JNT_2
-    data[3] = 139; // JNT_3
+    data[0] = 180; // JNT_0
+    data[1] = 180; // JNT_1
+    data[2] = 180; // JNT_2
+    data[3] = 180; // JNT_3
     // Write 4 bytes to USB with Automatically Address Increment
     // wr_usb (WR_AI, (uint16_t) (SSIF_BASE | SSIF_MAX_PWM), (uint8_t) 4, data);
     ret = wou_cmd(&w_param,
