@@ -278,6 +278,8 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     PmPose start_xyz, end_xyz;
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
+    rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
+    assert(0);
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -390,6 +392,10 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     PmPose start_uvw, end_uvw;
     PmPose start_abc, end_abc;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
+    if(jerk == 0 ) {
+            rtapi_print_msg(RTAPI_MSG_ERR, "TODO:jerk is not provided or jerk = 0\n");
+            assert(jerk > 0);
+    }
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -516,6 +522,10 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     double helix_z_component;   // z of the helix's cylindrical coord system
     double helix_length;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
+    if(jerk == 0 ) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "TODO:jerk is not provided or jerk = 0\n");
+        assert(jerk > 0);
+    }
     if (!tp || tp->aborting) 
 	return -1;
 
@@ -634,6 +644,10 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
                     nr_uofl_knots = 0,
                     nofl_order = 0;
     nurbs_block_t *nurbs_to_tc=&tc.nurbs_block;//EmcPose* control_points;
+    if( ini_maxjerk == 0 ) {
+                rtapi_print_msg(RTAPI_MSG_ERR, "TODO:jerk is not provided or jerk = 0\n");
+                assert(ini_maxjerk > 0);
+    }
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
