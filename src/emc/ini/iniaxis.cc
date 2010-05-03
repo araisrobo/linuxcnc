@@ -93,10 +93,10 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
         // set min position limit
         limit = -1e99;	                // default
         res = axisIniFile->Find(&limit, "MIN_LIMIT", axisString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MIN_LIMIT in ini file"), axisString);
-            assert(0);
-        }
+//        if ( res != 0 ) {
+//            emcOperatorError(0, _("%s need MIN_LIMIT in ini file"), axisString);
+//            assert(0);
+//        }
         if (0 != emcAxisSetMinPositionLimit(axis, limit)) {
             return -1;
         }
@@ -104,10 +104,10 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
         // set max position limit
         limit = 1e99;	                // default
         res = axisIniFile->Find(&limit, "MAX_LIMIT", axisString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MAX_LIMIT in ini file"), axisString);
-            assert(0);
-        }
+//        if ( res != 0 ) {
+//            emcOperatorError(0, _("%s need MAX_LIMIT in ini file"), axisString);
+//            assert(0);
+//        }
         if (0 != emcAxisSetMaxPositionLimit(axis, limit)) {
             return -1;
         }
