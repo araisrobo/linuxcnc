@@ -20,6 +20,8 @@
 #include <ctype.h>		// isdigit()
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <assert.h>
+#include <libintl.h>
 
 #include "emc.hh"
 #include "rcs_print.hh"
@@ -27,7 +29,8 @@
 #include "iniaxis.hh"		// these decls
 #include "emcglb.h"		// EMC_DEBUG
 #include "emccfg.h"		// default values for globals
-
+#include "../../libnml/inifile/inifile.hh"
+#define _(s) gettext(s)
 
 /*
   loadAxis(int axis)
@@ -60,6 +63,7 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     double maxVelocity;
     double maxAcceleration;
     double maxJerk;
+    int res;
     // compose string to match, axis = 0 -> AXIS_X etc.
     switch (axis) {
 	case 0: sprintf(axisString, "AXIS_X");axisType=EMC_LINEAR;break;
@@ -77,42 +81,67 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     
     try {
         home = 0;
-        axisIniFile->Find(&home, "HOME", axisString);
+        res = axisIniFile->Find(&home, "HOME", axisString);
+        if ( res != 0 ) {
+            emcOperatorError(0, _("%s need  HOME in ini file"), axisString);
+            assert(0);
+        }
         if (0 != emcAxisSetHome(axis, home)) {
             return -1;
         };
 
         // set min position limit
         limit = -1e99;	                // default
-        axisIniFile->Find(&limit, "MIN_LIMIT", axisString);
+        res = axisIniFile->Find(&limit, "MIN_LIMIT", axisString);
+        if ( res != 0 ) {
+            emcOperatorError(0, _("%s need MIN_LIMIT in ini file"), axisString);
+            assert(0);
+        }
         if (0 != emcAxisSetMinPositionLimit(axis, limit)) {
             return -1;
         }
 
         // set max position limit
         limit = 1e99;	                // default
-        axisIniFile->Find(&limit, "MAX_LIMIT", axisString);
+        res = axisIniFile->Find(&limit, "MAX_LIMIT", axisString);
+        if ( res != 0 ) {
+            emcOperatorError(0, _("%s need MAX_LIMIT in ini file"), axisString);
+            assert(0);
+        }
         if (0 != emcAxisSetMaxPositionLimit(axis, limit)) {
             return -1;
         }
 
         // set maximum velocity
         maxVelocity = DEFAULT_AXIS_MAX_VELOCITY;
-        axisIniFile->Find(&maxVelocity, "MAX_VELOCITY", axisString);
+        res = axisIniFile->Find(&maxVelocity, "MAX_VELOCITY", axisString);
+        if ( res != 0 ) {
+            emcOperatorError(0, _("%s need MAX_VELOCITY in ini file"), axisString);
+            assert(0);
+        }
         if (0 != emcAxisSetMaxVelocity(axis, maxVelocity)) {
             return -1;
         }
 
         maxAcceleration = DEFAULT_AXIS_MAX_ACCELERATION;
-        axisIniFile->Find(&maxAcceleration, "MAX_ACCELERATION", axisString);
+        res = axisIniFile->Find(&maxAcceleration, "MAX_ACCELERATION", axisString);
+        if ( res != 0 ) {
+            emcOperatorError(0, _("%s need MAX_ACCELERATION in ini file"), axisString);
+            assert(0);
+        }
         if (0 != emcAxisSetMaxAcceleration(axis, maxAcceleration)) {
             return -1;
         }
         maxJerk = DEFAULT_AXIS_MAX_JERK;
-        axisIniFile->Find(&maxJerk, "MAX_JERK", axisString);
-                if (0 != emcAxisSetMaxJerk(axis, maxJerk)) {
-                    return -1;
-                }
+
+        res = axisIniFile->Find(&maxJerk, "MAX_JERK", axisString);
+        if ( res != 0 ) {
+            emcOperatorError(0, _("%s need MAX_JERK in ini file"), axisString);
+            assert(0);
+        }
+        if (0 != emcAxisSetMaxJerk(axis, maxJerk)) {
+            return -1;
+        }
 
 
     }
