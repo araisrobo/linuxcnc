@@ -3,4 +3,5 @@
 */core_*.hal
 */axis_manualtoolchange.hal
 */position.txt
+*/position_mm.txt
 !common/*.hal

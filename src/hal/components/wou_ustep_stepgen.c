@@ -508,6 +508,14 @@ int rtapi_app_main(void)
     //                1,
     //                data);
     // assert (ret==0);
+  
+    // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
+    data[0] = 1;  // invert the direction for Joint_0 
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   (JCMD_BASE | JCMD_DIR_POL),
+                   1,
+                   data);
 
     // set MAX_PWM ratio for each joints
     //  * for 華谷：
@@ -526,7 +534,8 @@ int rtapi_app_main(void)
     // data[3] = 178; // JNT_3
     data[0] = 180; // JNT_0
     data[1] = 180; // JNT_1
-    data[2] = 180; // JNT_2
+    // data[2] = 180; // JNT_2  // Teco, 2.12A
+    data[2] = 102; // JNT_2   // Oriento, 1.2A
     data[3] = 180; // JNT_3
     // Write 4 bytes to USB with Automatically Address Increment
     // wr_usb (WR_AI, (uint16_t) (SSIF_BASE | SSIF_MAX_PWM), (uint8_t) 4, data);
