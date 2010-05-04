@@ -1,4 +1,4 @@
-plot \
+
     "wou_steps.log" using 1:2 title "pos_cmd[0]", \
     "wou_steps.log" using 1:3 title "cur_pos[0]", \
     "wou_steps.log" using 1:6 title "pos_cmd[1]", \
@@ -69,4 +69,12 @@ plot \
     "tp.log" using 1:3 title "newvel", \
     "tp.log" using 1:4 title "cur_vel", \
     "tp.log" using 1:5 title "progress"
-
+plot \
+    "tc_nouofl.log" using 1:2 title "u", \
+    "tc_nouofl.log" using 1:3 title "l", \
+    "tc_nouofl.log" using 1:4 title "delta_dist", \
+    "tc_nouofl.log" using 1:5 title "delta_l"
+plot \
+    "tc.log" using 1:2 title "delta_d", \
+    "tc.log" using 1:3 title "delta_u", \
+    "tc.log" using 1:4 title "delta_l"

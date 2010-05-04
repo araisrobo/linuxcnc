@@ -1,8 +1,9 @@
-#LyX 1.5.3 created this file. For more info see http://www.lyx.org/
-\lyxformat 276
+#LyX 1.6.5 created this file. For more info see http://www.lyx.org/
+\lyxformat 345
 \begin_document
 \begin_header
 \textclass book
+\use_default_options false
 \language english
 \inputencoding default
 \font_roman bookman
@@ -13,10 +14,12 @@
 \font_osf false
 \font_sf_scale 100
 \font_tt_scale 100
+
 \graphics default
 \float_placement !!h
 \paperfontsize 10
 \spacing single
+\use_hyperref false
 \papersize custom
 \use_geometry true
 \use_amsmath 1
@@ -61,7 +64,7 @@ The EMC is configured with human readable text files.
 \begin_inset Foot
 status open
 
-\begin_layout Standard
+\begin_layout Plain Layout
 Don't confuse a text editor with a word processor.
  A text editor like gedit or kwrite produce files that are plain text.
  They also produce lines of text that are separated from each other.
@@ -85,8 +88,12 @@ Configuration files include
 
 \begin_layout Description
 INI
-\begin_inset LatexCommand index
-name "INI"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+INI
+\end_layout
 
 \end_inset
 
@@ -97,8 +104,12 @@ name "INI"
 
 \begin_layout Description
 HAL
-\begin_inset LatexCommand index
-name "HAL"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+HAL
+\end_layout
 
 \end_inset
 
@@ -108,8 +119,12 @@ name "HAL"
 
 \begin_layout Description
 VAR
-\begin_inset LatexCommand index
-name "VAR"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+VAR
+\end_layout
 
 \end_inset
 
@@ -122,8 +137,12 @@ name "VAR"
 
 \begin_layout Description
 TBL
-\begin_inset LatexCommand index
-name "TBL"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+TBL
+\end_layout
 
 \end_inset
 
@@ -133,8 +152,12 @@ name "TBL"
 
 \begin_layout Description
 NML
-\begin_inset LatexCommand index
-name "NML"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+NML
+\end_layout
 
 \end_inset
 
@@ -145,8 +168,12 @@ name "NML"
 
 \begin_layout Description
 .emcrc
-\begin_inset LatexCommand index
-name ".emcrc"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+.emcrc
+\end_layout
 
 \end_inset
 
@@ -155,7 +182,7 @@ name ".emcrc"
 \begin_inset Foot
 status open
 
-\begin_layout Standard
+\begin_layout Plain Layout
 Usually this file is in the users home directory (e.g.
  /home/user/ )
 \end_layout
@@ -209,8 +236,12 @@ Each of these elements is separated on single lines.
 
 \begin_layout Subsection
 Comments
-\begin_inset LatexCommand index
-name "comments"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+comments
+\end_layout
 
 \end_inset
 
@@ -283,7 +314,8 @@ Related parts of an ini file are separated into sections.
 
 \begin_layout Itemize
 [EMC] general information (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[EMC]-section"
 
 \end_inset
@@ -293,7 +325,8 @@ reference "sub:[EMC]-section"
 
 \begin_layout Itemize
 [DISPLAY] settings related to the graphical user interface (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[DISPLAY]-section"
 
 \end_inset
@@ -307,7 +340,8 @@ reference "sub:[DISPLAY]-section"
 
 \begin_layout Itemize
 [RS274NGC] settings used by the g-code interpreter (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[RS274NGC]-section"
 
 \end_inset
@@ -317,7 +351,8 @@ reference "sub:[RS274NGC]-section"
 
 \begin_layout Itemize
 [EMCMOT] settings used by the real time motion controller (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[EMCMOT]-section"
 
 \end_inset
@@ -327,7 +362,8 @@ reference "sub:[EMCMOT]-section"
 
 \begin_layout Itemize
 [HAL] specifies .hal files (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[HAL]-section"
 
 \end_inset
@@ -337,7 +373,8 @@ reference "sub:[HAL]-section"
 
 \begin_layout Itemize
 [TASK] settings used by the task controller (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[TASK]-section"
 
 \end_inset
@@ -347,7 +384,8 @@ reference "sub:[TASK]-section"
 
 \begin_layout Itemize
 [TRAJ] additional settings used by the real time motion controller (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[TRAJ]-section"
 
 \end_inset
@@ -358,7 +396,8 @@ reference "sub:[TRAJ]-section"
 \begin_layout Itemize
 [AXIS_0] ...
  [AXIS_n] individual axis variables (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[AXIS]-section"
 
 \end_inset
@@ -368,7 +407,8 @@ reference "sub:[AXIS]-section"
 
 \begin_layout Itemize
 [EMCIO] settings used by the I/O Controller (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:[EMCIO]-Section"
 
 \end_inset
@@ -379,8 +419,21 @@ reference "sub:[EMCIO]-Section"
 \begin_layout Itemize
 [HALUI] MDI commands used by HALUI.
  See the HALUI chapter for more information (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sub:MDI"
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Itemize
+[JOINT_0] ...
+ [JOINT_n] individual joint variables(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:[JOINT_<num>]-1"
 
 \end_inset
 
@@ -423,13 +476,17 @@ Definitions
 \end_layout
 
 \begin_layout Description
-Machine\InsetSpace ~
-Units The units (of length or angle) specified in the ini file for
- a particular axis
+Machine
+\begin_inset space ~
+\end_inset
+
+Units The units (of length or angle) specified in the ini file for a particular
+ axis
 \end_layout
 
 \begin_layout Section
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:INI-Detail"
 
 \end_inset
@@ -443,14 +500,19 @@ Sections
  
 \color black
 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[EMC]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "EMC (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+EMC (inifile section)
+\end_layout
 
 \end_inset
 
@@ -460,22 +522,34 @@ name "EMC (inifile section)"
 \begin_layout Description
 
 \color black
-VERSION\InsetSpace ~
+VERSION
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 $Revision:
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 1.3
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 $
@@ -495,17 +569,26 @@ The version number for the INI file.
 \begin_layout Description
 
 \color black
-MACHINE\InsetSpace ~
+MACHINE
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 My
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 Controller
@@ -525,14 +608,19 @@ This is the name of the controller, which is printed out at the top of most
  
 \color black
 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[DISPLAY]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "DISPLAY (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+DISPLAY (inifile section)
+\end_layout
 
 \end_inset
 
@@ -553,8 +641,14 @@ Different user interface programs use different options, and not every option
 
 \series bold
 \color black
-DISPLAY\InsetSpace ~
-=\InsetSpace ~
+DISPLAY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 axis
 \series default
 \color none
@@ -566,8 +660,12 @@ The name of the user interface to use.
 
 \begin_layout Itemize
 axis
-\begin_inset LatexCommand index
-name "axis"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+axis
+\end_layout
 
 \end_inset
 
@@ -576,8 +674,12 @@ name "axis"
 
 \begin_layout Itemize
 touchy
-\begin_inset LatexCommand index
-name "touchy"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+touchy
+\end_layout
 
 \end_inset
 
@@ -588,8 +690,12 @@ name "touchy"
 
 \color black
 keystick
-\begin_inset LatexCommand index
-name "keystick"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+keystick
+\end_layout
 
 \end_inset
 
@@ -598,8 +704,12 @@ name "keystick"
 
 \begin_layout Itemize
 mini
-\begin_inset LatexCommand index
-name "mini"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+mini
+\end_layout
 
 \end_inset
 
@@ -610,8 +720,12 @@ name "mini"
 
 \color black
 tkemc
-\begin_inset LatexCommand index
-name "tkemc"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+tkemc
+\end_layout
 
 \end_inset
 
@@ -622,8 +736,12 @@ name "tkemc"
 
 \color black
 xemc
-\begin_inset LatexCommand index
-name "xemc"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+xemc
+\end_layout
 
 \end_inset
 
@@ -631,33 +749,57 @@ name "xemc"
 \end_layout
 
 \begin_layout Description
-POSITION_OFFSET\InsetSpace ~
-=\InsetSpace ~
-RELATIVE The coordinate system (RELATIVE or MACHINE) to
- show when the user interface starts.
+POSITION_OFFSET
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+RELATIVE The coordinate system (RELATIVE or MACHINE) to show when the user
+ interface starts.
  The RELATIVE coordinate system reflects the G92 and G5x coordinate offsets
  currently in effect.
 \end_layout
 
 \begin_layout Description
-POSITION_FEEDBACK\InsetSpace ~
-=\InsetSpace ~
-ACTUAL The coordinate value (COMMANDED or ACTUAL) to show
- when the user interface starts.
+POSITION_FEEDBACK
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+ACTUAL The coordinate value (COMMANDED or ACTUAL) to show when the user
+ interface starts.
  The COMMANDED position is the ideal position requested by EMC.
  The ACTUAL position is the feedback position of the motors.
 \end_layout
 
 \begin_layout Description
-MAX_FEED_OVERRIDE\InsetSpace ~
-=\InsetSpace ~
+MAX_FEED_OVERRIDE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 1.2 The maximum feed override the user may select.
  1.2 means 120% of the programmed feed rate
 \end_layout
 
 \begin_layout Description
-MIN_SPINDLE_OVERRIDE\InsetSpace ~
-=\InsetSpace ~
+MIN_SPINDLE_OVERRIDE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 0.5 The minimum spindle override the user may select.
  0.5 means 50% of the programmed spindle speed.
  (This is useful as it's dangerous to run a program with a too low spindle
@@ -665,28 +807,52 @@ MIN_SPINDLE_OVERRIDE\InsetSpace ~
 \end_layout
 
 \begin_layout Description
-MAX_SPINDLE_OVERRIDE\InsetSpace ~
-=\InsetSpace ~
+MAX_SPINDLE_OVERRIDE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 1.0 The maximum spindle override the user may select.
  1.0 means 100% of the programmed spindle speed
 \end_layout
 
 \begin_layout Description
-PROGRAM_PREFIX\InsetSpace ~
-=\InsetSpace ~
-~/emc2/nc_files The default location for g-code files and
- the location for user-defined M-codes
+PROGRAM_PREFIX
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+~/emc2/nc_files The default location for g-code files and the location for
+ user-defined M-codes
 \end_layout
 
 \begin_layout Description
-INTRO_GRAPHIC\InsetSpace ~
-=\InsetSpace ~
+INTRO_GRAPHIC
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 emc2.gif The image shown on the splash screen
 \end_layout
 
 \begin_layout Description
-INTRO_TIME\InsetSpace ~
-=\InsetSpace ~
+INTRO_TIME
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 5 The maximum time to show the splash screen
 \end_layout
 
@@ -696,63 +862,119 @@ The following [DISPLAY] items are used only if you select AXIS as your user
 \end_layout
 
 \begin_layout Description
-DEFAULT_LINEAR_VELOCITY\InsetSpace ~
-=\InsetSpace ~
-.25 The default velocity for linear jogs, in machine
- units per second.
+DEFAULT_LINEAR_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+.25 The default velocity for linear jogs, in machine units per second.
  
 \end_layout
 
 \begin_layout Description
-MIN_VELOCITY\InsetSpace ~
-=\InsetSpace ~
+MIN_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 .01 The approximate lowest value the jog slider.
  
 \end_layout
 
 \begin_layout Description
-MAX_LINEAR_VELOCITY\InsetSpace ~
-=\InsetSpace ~
-1.0 The maximum velocity for linear jogs, in machine
- units per second.
+MAX_LINEAR_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1.0 The maximum velocity for linear jogs, in machine units per second.
  
 \end_layout
 
 \begin_layout Description
-MIN_LINEAR_VELOCITY\InsetSpace ~
-=\InsetSpace ~
+MIN_LINEAR_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 .01 The approximate lowest value the jog slider.
 \end_layout
 
 \begin_layout Description
-DEFAULT_ANGULAR_VELOCITY\InsetSpace ~
-=\InsetSpace ~
-.25 The default velocity for angular jogs, in machine
- units per second.
+DEFAULT_ANGULAR_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+.25 The default velocity for angular jogs, in machine units per second.
  
 \end_layout
 
 \begin_layout Description
-MIN_ANGULAR_VELOCITY\InsetSpace ~
-=\InsetSpace ~
+MIN_ANGULAR_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 .01 The approximate lowest value the jog slider.
 \end_layout
 
 \begin_layout Description
-MAX_ANGULAR_VELOCITY\InsetSpace ~
-=\InsetSpace ~
-1.0 The maximum velocity for angular jogs, in machine
- units per second.
+MAX_ANGULAR_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1.0 The maximum velocity for angular jogs, in machine units per second.
  
 \end_layout
 
 \begin_layout Description
-INCREMENTS\InsetSpace ~
-=\InsetSpace ~
-1\InsetSpace ~
-mm,\InsetSpace ~
-.5\InsetSpace ~
-in,\InsetSpace ~
+INCREMENTS
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1
+\begin_inset space ~
+\end_inset
+
+mm,
+\begin_inset space ~
+\end_inset
+
+.5
+\begin_inset space ~
+\end_inset
+
+in,
+\begin_inset space ~
+\end_inset
+
 ...
  Defines the increments available for incremental jogs.
  The INCREMENTS can be used to override the default.
@@ -764,39 +986,68 @@ in,\InsetSpace ~
 \end_layout
 
 \begin_layout Description
-OPEN_FILE\InsetSpace ~
-=\InsetSpace ~
-/full/path/to/file.ngc The file to show in the preview plot when
- AXIS starts.
+OPEN_FILE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+/full/path/to/file.ngc The file to show in the preview plot when AXIS starts.
  Use a blank string "" and no file will be loaded at start up.
 \end_layout
 
 \begin_layout Description
-EDITOR\InsetSpace ~
-=\InsetSpace ~
-gedit The editor to use when selecting File > Edit or File Edit Tool
- Table from the AXIS menu.
+EDITOR
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+gedit The editor to use when selecting File > Edit or File Edit Tool Table
+ from the AXIS menu.
  This must be configured for these menu items to work.
  Another valid entry is gnome-terminal -e vim.
 \end_layout
 
 \begin_layout Description
-PYVCP\InsetSpace ~
-=\InsetSpace ~
+PYVCP
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 /filename.xml The pyVCP panel description file.
  See the pyVCP section for more information.
 \end_layout
 
 \begin_layout Description
-LATHE\InsetSpace ~
-=\InsetSpace ~
-1 This displays in lathe mode with a top view and with Radius and
- Diameter on the DRO.
+LATHE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 This displays in lathe mode with a top view and with Radius and Diameter
+ on the DRO.
 \end_layout
 
 \begin_layout Description
-GEOMETRY\InsetSpace ~
-=\InsetSpace ~
+GEOMETRY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 XYZABCUVW Controls the preview and backplot of rotary motion.
  This item consists of a sequence of axis letters, optionally preceded by
  a "-" sign.
@@ -807,10 +1058,11 @@ XYZABCUVW Controls the preview and backplot of rotary motion.
  should be used.
  This sequence specifies the order in which the effect of each axis is applied,
  with a "-" inverting the sense of the rotation.
-\newline
-The proper GEOMETRY string
- depends on the machine configuration and the kinematics used to control
- it.
+\begin_inset Newline newline
+\end_inset
+
+The proper GEOMETRY string depends on the machine configuration and the
+ kinematics used to control it.
  The example string GEOMETRY=XYZBCUVW is for a 5-axis machine where kinematics
  causes UVW to move in the coordinate system of the tool and XYZ to move
  in the coordinate system of the material.
@@ -823,13 +1075,18 @@ The proper GEOMETRY string
 
 \begin_layout Subsection
 [FILTER] Section
-\begin_inset LatexCommand index
-name "ini [FILTER] Section"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+ini [FILTER] Section
+\end_layout
 
 \end_inset
 
 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[FILTER]-Section"
 
 \end_inset
@@ -854,9 +1111,18 @@ AXIS has the ability to send loaded files through a filter program.
 \end_layout
 
 \begin_layout Description
-PROGRAM_EXTENSION\InsetSpace ~
-=\InsetSpace ~
-.extension\InsetSpace ~
+PROGRAM_EXTENSION
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+.extension
+\begin_inset space ~
+\end_inset
+
 Description
 \end_layout
 
@@ -876,11 +1142,14 @@ The following lines add support for the image-to-gcode converter included
 
 \begin_layout LyX-Code
 PROGRAM_EXTENSION = .png,.gif Greyscale Depth Image
-\newline
+\begin_inset Newline newline
+\end_inset
+
 png = image-to-gcode
-\newline
-gif
- = image-to-gcode
+\begin_inset Newline newline
+\end_inset
+
+gif = image-to-gcode
 \end_layout
 
 \begin_layout Standard
@@ -889,7 +1158,9 @@ It is also possible to specify an interpreter:
 
 \begin_layout LyX-Code
 PROGRAM_EXTENSION = .py Python Script
-\newline
+\begin_inset Newline newline
+\end_inset
+
 py = python
 \end_layout
 
@@ -900,8 +1171,13 @@ In this way, any Python script can be opened, and its output is treated
  This script creates g-code for drilling a series of holes along the circumferen
 ce of a circle.
  Many more g-code generators are on the EMC Wiki site 
-\begin_inset LatexCommand url
-target "http://wiki.linuxcnc.org/cgi-bin/emcinfo.pl"
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://wiki.linuxcnc.org/cgi-bin/emcinfo.pl
+\end_layout
 
 \end_inset
 
@@ -924,14 +1200,19 @@ Sets the AXIS progress bar to the given percentage.
 
 \begin_layout Subsection
 [RS274NGC] Section 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[RS274NGC]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "RS274NGC (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+RS274NGC (inifile section)
+\end_layout
 
 \end_inset
 
@@ -940,15 +1221,25 @@ name "RS274NGC (inifile section)"
 
 \begin_layout Description
 PARAMETER_FILE
-\begin_inset LatexCommand index
-name "PARAMETER FILE"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+PARAMETER FILE
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
-file.var The file which contains the parameters used by the interpreter
- (saved between runs).
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+file.var The file which contains the parameters used by the interpreter (saved
+ between runs).
  
 \end_layout
 
@@ -956,14 +1247,27 @@ file.var The file which contains the parameters used by the interpreter
 
 \color black
 RS274NGC_STARTUP_CODE
-\begin_inset LatexCommand index
-name "RS274NGC STARTUP CODE"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+RS274NGC STARTUP CODE
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
-G21\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+G21
+\begin_inset space ~
+\end_inset
+
 G90 A string of NC codes that the interpreter is initialized with.
  This is not a substitute for specifying modal g-codes at the top of each
  ngc file, because the modal codes of machines differ, and may be changed
@@ -976,14 +1280,19 @@ G90 A string of NC codes that the interpreter is initialized with.
  
 \color black
 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[EMCMOT]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "EMCMOT (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+EMCMOT (inifile section)
+\end_layout
 
 \end_inset
 
@@ -996,13 +1305,23 @@ You may find other entries in this section and they should not be changed.
 
 \begin_layout Description
 BASE_PERIOD
-\begin_inset LatexCommand index
-name "BASE PERIOD"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+BASE PERIOD
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 50000 
 \series bold
 \noun on
@@ -1011,7 +1330,9 @@ name "BASE PERIOD"
 \noun default
  "Base" task period, in nanoseconds - this is the fastest thread in the
  machine.
-\newline
+\begin_inset Newline newline
+\end_inset
+
 On servo-based systems, there is generally no reason for 
 \series bold
 BASE_PERIOD
@@ -1022,7 +1343,9 @@ SERVO_PERIOD
 \series default
 .
  
-\newline
+\begin_inset Newline newline
+\end_inset
+
 On machines with software step generation, the 
 \series bold
 BASE_PERIOD
@@ -1042,21 +1365,32 @@ BASE_PERIOD
  50000ns is a fairly conservative value.
  The smallest usable value is related to the Latency Test result, the necessary
  step length, and the processor speed.
-\newline
-Choosing a BASE_PERIOD that is too
- low can lead to the "Unexpected real time delay" message, lockups, or spontaneo
-us reboots.
+\begin_inset Newline newline
+\end_inset
+
+Choosing a BASE_PERIOD that is too low can lead to the "Unexpected real
+ time delay" message, lockups, or spontaneous reboots.
 \end_layout
 
 \begin_layout Description
 SERVO_PERIOD
-\begin_inset LatexCommand index
-name "SERVO PERIOD"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+SERVO PERIOD
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 1000000 
 \series bold
 \noun on
@@ -1070,25 +1404,37 @@ BASE_PERIOD
 \series default
 .
  This value is used even on systems based on stepper motors.
-\newline
-This is the rate
- at which new motor positions are computed, following error is checked,
- PID output values are updated, and so on.
-\newline
-Most systems will not need to change
- this value.
+\begin_inset Newline newline
+\end_inset
+
+This is the rate at which new motor positions are computed, following error
+ is checked, PID output values are updated, and so on.
+\begin_inset Newline newline
+\end_inset
+
+Most systems will not need to change this value.
  It is the update rate of the low level motion planner.
 \end_layout
 
 \begin_layout Description
 TRAJ_PERIOD
-\begin_inset LatexCommand index
-name "TRAJ PERIOD"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+TRAJ PERIOD
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 1000000 
@@ -1102,7 +1448,9 @@ name "TRAJ PERIOD"
 SERVO_PERIOD
 \series default
 .
-\newline
+\begin_inset Newline newline
+\end_inset
+
 Except for machines with unusual kinematics (e.g., hexapods) there is no reason
  to make this value larger than 
 \series bold
@@ -1113,14 +1461,19 @@ SERVO_PERIOD
 
 \begin_layout Subsection
 [TASK] Section 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[TASK]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "TASK (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+TASK (inifile section)
+\end_layout
 
 \end_inset
 
@@ -1128,12 +1481,18 @@ name "TASK (inifile section)"
 \end_layout
 
 \begin_layout Description
-CYCLE_TIME\InsetSpace ~
+CYCLE_TIME
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.0
@@ -1147,14 +1506,19 @@ CYCLE_TIME\InsetSpace ~
 
 \begin_layout Subsection
 [HAL] section 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[HAL]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "HAL (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+HAL (inifile section)
+\end_layout
 
 \end_inset
 
@@ -1162,8 +1526,14 @@ name "HAL (inifile section)"
 \end_layout
 
 \begin_layout Description
-HALFILE\InsetSpace ~
-=\InsetSpace ~
+HALFILE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 example.hal Execute the file 'example.hal' at start up.
  If 
 \series bold
@@ -1188,8 +1558,14 @@ xxx_pinout.hal
 \end_layout
 
 \begin_layout Description
-HALCMD\InsetSpace ~
-=\InsetSpace ~
+HALCMD
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 command Execute 'command' as a single hal command.
  If 
 \series bold
@@ -1209,8 +1585,14 @@ HALFILE
 \end_layout
 
 \begin_layout Description
-SHUTDOWN\InsetSpace ~
-=\InsetSpace ~
+SHUTDOWN
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 shutdown.hal Execute the file 'shutdown.hal' when EMC is exiting.
  Depending on the hardware drivers used, this may make it possible to set
  outputs to defined values when EMC is exited normally.
@@ -1220,15 +1602,22 @@ shutdown.hal Execute the file 'shutdown.hal' when EMC is exiting.
 \end_layout
 
 \begin_layout Description
-POSTGUI_HALFILE\InsetSpace ~
-=\InsetSpace ~
+POSTGUI_HALFILE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 example2.hal 
 \emph on
 (Only with the AXIS GUI)
 \emph default
  Execute 'example2.hal' after the GUI has created its HAL pins.
  See section 
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sec:pyvcp-with-axis"
 
 \end_inset
@@ -1242,14 +1631,19 @@ reference "sec:pyvcp-with-axis"
  
 \color black
 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[TRAJ]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "TRAJ (inifile section)"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+TRAJ (inifile section)
+\end_layout
 
 \end_inset
 
@@ -1266,20 +1660,32 @@ The [TRAJ] section contains general parameters for the trajectory planning
 \begin_layout Description
 
 \color black
-COORDINATES\InsetSpace ~
+COORDINATES
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 X
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 Y
 \series bold
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 Z
 \series default
 \color none
@@ -1309,8 +1715,14 @@ are accepted in g-code.
 
 \noun on
 \color black
-AXES\InsetSpace ~
-=\InsetSpace ~
+AXES
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 3
 \noun default
  One more than the number of the highest joint number in the system.
@@ -1325,22 +1737,34 @@ AXES\InsetSpace ~
 \begin_layout Description
 
 \color black
-HOME\InsetSpace ~
+HOME
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0
@@ -1358,17 +1782,27 @@ Coordinates of the homed position of each axis.
 
 \color black
 LINEAR_UNITS
-\begin_inset LatexCommand index
-name "LINEAR UNITS"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+LINEAR UNITS
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 <units>
 \color none
  
@@ -1376,7 +1810,9 @@ name "LINEAR UNITS"
 Specifies the machine units for linear axes.
  Possible choices are (in, inch, imperial, metric, mm).
  
-\newline
+\begin_inset Newline newline
+\end_inset
+
 This does not affect the linear units in NC code (the G20 and G21 words
  do this).
  
@@ -1386,33 +1822,50 @@ This does not affect the linear units in NC code (the G20 and G21 words
 
 \color black
 ANGULAR_UNITS
-\begin_inset LatexCommand index
-name "ANGULAR UNITS"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+ANGULAR UNITS
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 <units> Specifies the machine units for rotational axes.
  Possible choices are 'deg', 'degree' (360 per circle), 'rad', 'radian'
  (2pi per circle), 'grad', or 'gon' (400 per circle).
-\newline
-This does not affect
- the angular units of NC code.
+\begin_inset Newline newline
+\end_inset
+
+This does not affect the angular units of NC code.
  In RS274NGC, A-, B- and C- words are always expressed in degrees.
 \end_layout
 
 \begin_layout Description
 
 \color black
-DEFAULT_VELOCITY\InsetSpace ~
+DEFAULT_VELOCITY
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0.0167
 \series default
 \color none
@@ -1425,10 +1878,16 @@ The initial rate for jogs of linear axes, in machine units per second.
 \begin_layout Description
 
 \color black
-DEFAULT_ACCELERATION\InsetSpace ~
+DEFAULT_ACCELERATION
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 2.0
 \series default
 \color none
@@ -1443,15 +1902,25 @@ In machines with nontrivial kinematics, the acceleration used for "teleop"
 
 \color black
 MAX_VELOCITY
-\begin_inset LatexCommand index
-name "MAX VELOCITY"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+MAX VELOCITY
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 5.0
 \series default
 \color none
@@ -1466,17 +1935,27 @@ The maximum velocity for any axis or coordinated move, in machine units
 
 \color black
 MAX_ACCELERATION
-\begin_inset LatexCommand index
-name "MAX ACCELERATION"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+MAX ACCELERATION
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 20.0
@@ -1489,10 +1968,16 @@ The maximum acceleration for any axis or coordinated axis move, in machine
 \end_layout
 
 \begin_layout Description
-POSITION_FILE\InsetSpace ~
-=\InsetSpace ~
-position.txt If set to a non-empty value, the joint positions
- are stored between runs in this file.
+POSITION_FILE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+position.txt If set to a non-empty value, the joint positions are stored
+ between runs in this file.
  This allows the machine to start with the same coordinates it had on shutdown.
  This assumes there was no movement of the machine while powered off.
  If unset, joint positions are not stored and will begin at 0 each time
@@ -1501,10 +1986,16 @@ position.txt If set to a non-empty value, the joint positions
 \end_layout
 
 \begin_layout Description
-NO_FORCE_HOMING\InsetSpace ~
-=\InsetSpace ~
-1 The default behavior is for EMC to force the user to home
- the machine before any MDI command or a program is run.
+NO_FORCE_HOMING
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 The default behavior is for EMC to force the user to home the machine
+ before any MDI command or a program is run.
  Normally jogging only is allowed before homing.
  Setting NO_FORCE_HOMING = 1 allows the user to make MDI moves and run programs
  without homing the machine first.
@@ -1513,7 +2004,9 @@ NO_FORCE_HOMING\InsetSpace ~
  
 \series bold
 
-\newline
+\begin_inset Newline newline
+\end_inset
+
 Warning
 \series default
 : Using this will allow the machine to run past soft limits while in operation
@@ -1522,25 +2015,36 @@ Warning
 \end_layout
 
 \begin_layout Description
-TLO_IS_ALONG_W\InsetSpace ~
-=\InsetSpace ~
+TLO_IS_ALONG_W
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 1 Moves the tool length offset from Z to W.
 \end_layout
 
 \begin_layout Subsection
-[AXIS_<num>] Section
+[AXIS_<X,Y.....,W>] Section
 \color none
  
 \color black
 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[AXIS]-section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "AXIS (inifile section)"
+\begin_inset Index
+status open
+
+\begin_layout Plain Layout
+AXIS (inifile section)
+\end_layout
 
 \end_inset
 
@@ -1550,7 +2054,87 @@ name "AXIS (inifile section)"
 \begin_layout Standard
 
 \color black
-The [AXIS_0], [AXIS_1], etc.
+The [AXIS_X], [AXIS_Y],[AXIS_Z] etc.
+ sections contains general parameters for the individual components in the
+ axis control module.
+ The axis section names begin at X, and run through the axes names Y,Z,A,B,C,U,V
+ and W.
+ The number of axes specified in the [TRAJ] AXES entry minus 1.
+\end_layout
+
+\begin_layout Description
+HOME
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+0.000 The home position of this axis.
+\end_layout
+
+\begin_layout Description
+MAX_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+7000.0 Maximum velocity for this axis in machine units per second.
+\end_layout
+
+\begin_layout Description
+MAX_ACCELERATION
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+21000.0 Maximum acceleration for this axis in machine units per second squared.
+\end_layout
+
+\begin_layout Description
+MAX_JERK
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+63000.0 Maximum jerk for this axis in machine units per second squared.
+\end_layout
+
+\begin_layout Subsection
+[JOINT_<num>]
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:[JOINT_<num>]"
+
+\end_inset
+
+
+\begin_inset Index
+status open
+
+\begin_layout Plain Layout
+JOINT (inifile section)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\color black
+The [JOINT_0], [JOINT_1], etc.
  sections contains general parameters for the individual components in the
  axis control module.
  The axis section names begin numbering at 0, and run through the number
@@ -1560,85 +2144,131 @@ The [AXIS_0], [AXIS_1], etc.
 \begin_layout Description
 
 \color black
-TYPE\InsetSpace ~
-=\InsetSpace ~
-LINEAR The type of axes, either LINEAR or ANGULAR.
+TYPE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+LINEAR The type of joints, either LINEAR or ANGULAR.
 \end_layout
 
 \begin_layout Description
 UNITS
-\begin_inset LatexCommand index
-name "UNITS"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+UNITS
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 inch If specified, this setting overrides the related [TRAJ] UNITS setting.
  
-\newline
-(e.g., [TRAJ]LINEAR_UNITS if the TYPE of this axis is LINEAR, [TRAJ]ANGULAR_UNITS
- if the TYPE of this axis is ANGULAR)
+\begin_inset Newline newline
+\end_inset
+
+(e.g., [TRAJ]LINEAR_UNITS if the TYPE of this joint is LINEAR, [TRAJ]ANGULAR_UNITS
+ if the TYPE of this joint is ANGULAR)
 \end_layout
 
 \begin_layout Description
-MAX_VELOCITY\InsetSpace ~
-=\InsetSpace ~
-1.2 Maximum velocity for this axis in machine units per second.
+MAX_VELOCITY
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1.2 Maximum velocity for this joint in machine units per second.
 \end_layout
 
 \begin_layout Description
-MAX_ACCELERATION\InsetSpace ~
+MAX_ACCELERATION
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 20.0
 \series default
- Maximum acceleration for this axis in machine units per second squared.
+ Maximum acceleration for this joint in machine units per second squared.
 \end_layout
 
 \begin_layout Description
-BACKLASH\InsetSpace ~
+BACKLASH
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.000
 \series default
  Backlash in machine units.
  Backlash compensation value can be used to make up for small deficiencies
- in the hardware used to drive an axis.
- If backlash is added to an axis and you are using steppers the STEPGEN_MAXACCEL
- must be increased to 1.5 to 2 times the MAX_ACCELERATION for the axis.
+ in the hardware used to drive an joint.
+ If backlash is added to an joint and you are using steppers the STEPGEN_MAXACCE
+L must be increased to 1.5 to 2 times the MAX_ACCELERATION for the axis.
 \end_layout
 
 \begin_layout Description
-COMP_FILE\InsetSpace ~
-=\InsetSpace ~
-file.extension A file holding a compensation structure for the
- specific axis.
+COMP_FILE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+file.extension A file holding a compensation structure for the specific joint.
  The values inside are triplets of nominal, forward and reverse positions
  which correspond to the nominal position (where it should be), forward
- (where the axis is while traveling forward) and reverse (where the axis
+ (where the joint is while traveling forward) and reverse (where the joint
  is while traveling back).
  One set of triplets per line.
- Currently the limit inside EMC2 is for 256 triplets / axis.
+ Currently the limit inside EMC2 is for 256 triplets / joint.
  If COMP_FILE is specified, BACKLASH is ignored.
  COMP_FILE values are in machine units.
 \end_layout
 
 \begin_layout Description
-COMP_FILE_TYPE\InsetSpace ~
-=\InsetSpace ~
-1 Specifying a non-zero value changes the expected format
- of the COMP_FILE.
+COMP_FILE_TYPE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 Specifying a non-zero value changes the expected format of the COMP_FILE.
  For COMP_FILE_TYPE of zero, the values are triplets for nominal, forward
  & reverse.
  Otherwise, the values in the COMP_FILE are nominal, forward_trim and reverse_tr
@@ -1651,13 +2281,23 @@ im.
 
 \color black
 MIN_LIMIT
-\begin_inset LatexCommand index
-name "MIN LIMIT"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+MIN LIMIT
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 -1000
@@ -1665,8 +2305,8 @@ name "MIN LIMIT"
 \color none
  
 \color black
-The minimum limit (soft limit) for axis motion, in machine units.
- When this limit is exceeded, the controller aborts axis motion.
+The minimum limit (soft limit) for joint motion, in machine units.
+ When this limit is exceeded, the controller aborts joint motion.
  
 \end_layout
 
@@ -1674,43 +2314,63 @@ The minimum limit (soft limit) for axis motion, in machine units.
 
 \color black
 MAX_LIMIT
-\begin_inset LatexCommand index
-name "MAX LIMIT"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+MAX LIMIT
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 1000
 \series default
 \color none
  
 \color black
-The maximum limit (soft limit) for axis motion, in machine units.
- When this limit is exceeded, the controller aborts axis motion.
+The maximum limit (soft limit) for joint motion, in machine units.
+ When this limit is exceeded, the controller aborts joint motion.
  
 \end_layout
 
 \begin_layout Description
 MIN_FERROR
-\begin_inset LatexCommand index
-name "MIN FERROR"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+MIN FERROR
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.010
 \series default
- This is the value in machine units by which the axis is permitted to deviate
+ This is the value in machine units by which the joint is permitted to deviate
  from commanded position at very low speeds.
  If MIN_FERROR is smaller than FERROR, the two produce a ramp of error trip
  points.
@@ -1725,15 +2385,25 @@ name "MIN FERROR"
 
 \color black
 FERROR
-\begin_inset LatexCommand index
-name "FERROR"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+FERROR
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 1.0
 \series default
 \color none
@@ -1766,7 +2436,8 @@ ies.
 
 \begin_layout Subsubsection
 Homing 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:Homing-related-items"
 
 \end_inset
@@ -1777,7 +2448,8 @@ name "sub:Homing-related-items"
 \begin_layout Standard
 These parameters are Homing related, for a better explanation read the Homing
  Section (
-\begin_inset LatexCommand ref
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "sec:Homing"
 
 \end_inset
@@ -1786,35 +2458,57 @@ reference "sec:Homing"
 \end_layout
 
 \begin_layout Description
-HOME\InsetSpace ~
-=\InsetSpace ~
+HOME
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 0.0 The position that the joint will go to upon completion of the homing
  sequence.
 \end_layout
 
 \begin_layout Description
-HOME_OFFSET\InsetSpace ~
+HOME_OFFSET
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0.0
 \series default
- The axis position of the home switch or index pulse, in machine units.
+ The joint position of the home switch or index pulse, in machine units.
 \end_layout
 
 \begin_layout Description
 HOME_SEARCH_VEL
-\begin_inset LatexCommand index
-name "HOME SEARCH VEL"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+HOME SEARCH VEL
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.0
@@ -1828,12 +2522,18 @@ name "HOME SEARCH VEL"
 \end_layout
 
 \begin_layout Description
-HOME_LATCH_VEL\InsetSpace ~
+HOME_LATCH_VEL
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.0
@@ -1843,35 +2543,53 @@ HOME_LATCH_VEL\InsetSpace ~
 \end_layout
 
 \begin_layout Description
-HOME_FINAL_VEL\InsetSpace ~
-=\InsetSpace ~
-0.0 Velocity in machine units per second from home latch position
- to home position.
- If left at 0 or not included in the axis rapid velocity is used.
+HOME_FINAL_VEL
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+0.0 Velocity in machine units per second from home latch position to home
+ position.
+ If left at 0 or not included in the joint rapid velocity is used.
  Must be a positive number.
 \end_layout
 
 \begin_layout Description
-HOME_USE_INDEX\InsetSpace ~
+HOME_USE_INDEX
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 NO
 \series default
- If the encoder used for this axis has an index pulse, and the motion card
+ If the encoder used for this joint has an index pulse, and the motion card
  has provision for this signal you may set it to yes.
  When it is yes, it will affect the kind of home pattern used.
 \end_layout
 
 \begin_layout Description
-HOME_IGNORE_LIMITS\InsetSpace ~
+HOME_IGNORE_LIMITS
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 NO
 \series default
  Some machines use a single switch as a home switch and limit switch.
@@ -1879,36 +2597,54 @@ NO
 \end_layout
 
 \begin_layout Description
-HOME_IS_SHARED\InsetSpace ~
-=\InsetSpace ~
-<n> If the home input is shared by more than one axis set
- <n> to 1 to prevent homing from starting if the one of the shared switches
- is already closed.
+HOME_IS_SHARED
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+<n> If the home input is shared by more than one joint set <n> to 1 to prevent
+ homing from starting if the one of the shared switches is already closed.
  Set <n> to 0 to permit homing if a switch is closed.
 \end_layout
 
 \begin_layout Description
-HOME_SEQUENCE\InsetSpace ~
-=\InsetSpace ~
+HOME_SEQUENCE
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 <n> Used to define the "Home All" sequence.
  <n> starts at 0 and no numbers may be skipped.
  If left out or set to -1 the joint will not be homed by the "Home All"
  function.
- More than one axis can be homed at the same time.
+ More than one  can be homed at the same time.
 \end_layout
 
 \begin_layout Description
-VOLATILE_HOME\InsetSpace ~
-=\InsetSpace ~
-0 When enabled (set to 1) this joint will be unhomed if the
- Machine Power is off or if E-Stop is on.
+VOLATILE_HOME
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+0 When enabled (set to 1) this joint will be unhomed if the Machine Power
+ is off or if E-Stop is on.
  This is useful if your machine has home switches and does not have position
  feedback such as a step and direction driven machine.
 \end_layout
 
 \begin_layout Subsubsection
 Servo
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:Servo-related-items"
 
 \end_inset
@@ -1925,12 +2661,18 @@ The following items are for servo-based systems and servo-like systems.
 \begin_layout Description
 
 \color black
-P\InsetSpace ~
+P
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 50
@@ -1961,10 +2703,16 @@ The proportional gain for the axis servo.
 \begin_layout Description
 
 \color black
-I\InsetSpace ~
+I
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0
 \series default
 \color none
@@ -1992,10 +2740,16 @@ The integral gain for the axis servo.
 \begin_layout Description
 
 \color black
-D\InsetSpace ~
+D
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0
 \series default
 \color none
@@ -2022,10 +2776,16 @@ The derivative gain for the axis servo.
 \begin_layout Description
 
 \color black
-FF0\InsetSpace ~
+FF0
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0
 \series default
 \color none
@@ -2052,10 +2812,16 @@ n to the computed voltage for the motor amplifier.
 \begin_layout Description
 
 \color black
-FF1\InsetSpace ~
+FF1
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0
 \series default
 \color none
@@ -2082,10 +2848,16 @@ The 1st order feed forward gain.
 \begin_layout Description
 
 \color black
-FF2\InsetSpace ~
+FF2
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 0
 \series default
 \color none
@@ -2112,20 +2884,32 @@ The 2nd order feed forward gain.
 \end_layout
 
 \begin_layout Description
-OUTPUT_SCALE\InsetSpace ~
+OUTPUT_SCALE
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 1.000
 \end_layout
 
 \begin_layout Description
-OUTPUT_OFFSET\InsetSpace ~
-=\InsetSpace ~
+OUTPUT_OFFSET
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.000
@@ -2150,10 +2934,11 @@ These two values are the scale and offset factors for the axis output to
  The units on the offset value are in volts.
  These can be used to linearize a DAC.
  
-\newline
-Specifically, when writing outputs, the EMC first converts the desired
- output in quasi-SI units to raw actuator values, e.g., volts for an amplifier
- DAC.
+\begin_inset Newline newline
+\end_inset
+
+Specifically, when writing outputs, the EMC first converts the desired output
+ in quasi-SI units to raw actuator values, e.g., volts for an amplifier DAC.
  This scaling looks like: 
 \begin_inset Formula \[
 raw=\frac{{output-offset}}{scale}\]
@@ -2175,7 +2960,9 @@ amplifier[volts]=(output[\frac{mm}{sec}]-offset[\frac{mm}{sec}])/250\frac{mm}{se
  which yields 0.0 for the actuator output.
  If the DAC is linearized, this offset is normally 0.0.
  
-\newline
+\begin_inset Newline newline
+\end_inset
+
 The scale and offset can be used to linearize the DAC as well, resulting
  in values that reflect the combined effects of amplifier gain, DAC non-linearit
 y, DAC units, etc.
@@ -2188,9 +2975,13 @@ y, DAC units, etc.
 \color black
 Build a calibration table for the output, driving the DAC with a desired
  voltage and measuring the result.
- See table\InsetSpace ~
+ See table
+\begin_inset space ~
+\end_inset
 
-\begin_inset LatexCommand ref
+
+\begin_inset CommandInset ref
+LatexCommand ref
 reference "cap:Output-Voltage-Measurements"
 
 \end_inset
@@ -2250,10 +3041,16 @@ As a result, the a and b coefficients from the linear fit can be used as
 \begin_layout Description
 
 \color black
-MAX_OUTPUT\InsetSpace ~
+MAX_OUTPUT
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 10 
 \noun on
 \color inherit
@@ -2276,8 +3073,9 @@ wide false
 sideways false
 status open
 
-\begin_layout Standard
-\begin_inset LatexCommand label
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
 name "cap:Output-Voltage-Measurements"
 
 \end_inset
@@ -2285,18 +3083,18 @@ name "cap:Output-Voltage-Measurements"
 Output Voltage Measurements
 \end_layout
 
-\begin_layout Standard
+\begin_layout Plain Layout
 \align center
 \begin_inset Tabular
 <lyxtabular version="3" rows="7" columns="2">
 <features>
-<column alignment="center" valignment="top" leftline="true" width="0">
-<column alignment="center" valignment="top" leftline="true" rightline="true" width="0">
-<row topline="true" bottomline="true">
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2311,10 +3109,10 @@ Raw
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2330,11 +3128,11 @@ Measured
 \end_inset
 </cell>
 </row>
-<row topline="true">
+<row>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2352,7 +3150,7 @@ Measured
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2368,11 +3166,11 @@ Measured
 \end_inset
 </cell>
 </row>
-<row topline="true">
+<row>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2390,7 +3188,7 @@ Measured
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2406,11 +3204,11 @@ Measured
 \end_inset
 </cell>
 </row>
-<row topline="true">
+<row>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2428,7 +3226,7 @@ Measured
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2444,11 +3242,11 @@ Measured
 \end_inset
 </cell>
 </row>
-<row topline="true">
+<row>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2466,7 +3264,7 @@ Measured
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2482,11 +3280,11 @@ Measured
 \end_inset
 </cell>
 </row>
-<row topline="true">
+<row>
 <cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2504,7 +3302,7 @@ Measured
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2520,11 +3318,11 @@ Measured
 \end_inset
 </cell>
 </row>
-<row topline="true" bottomline="true">
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2539,10 +3337,10 @@ Measured
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
 \begin_inset Text
 
-\begin_layout Standard
+\begin_layout Plain Layout
 
 \family roman
 \series medium
@@ -2574,13 +3372,23 @@ Measured
 
 \color black
 INPUT_SCALE
-\begin_inset LatexCommand index
-name "INPUT SCALE"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+INPUT SCALE
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 20000
 \color none
  
@@ -2595,10 +3403,16 @@ name "INPUT SCALE"
  A second number, if specified, is ignored.
 \color black
 
-\newline
+\begin_inset Newline newline
+\end_inset
+
 For example, on a 2000 counts per rev encoder
-\begin_inset LatexCommand index
-name "encoder"
+\begin_inset Index
+status open
+
+\begin_layout Plain Layout
+encoder
+\end_layout
 
 \end_inset
 
@@ -2614,7 +3428,8 @@ input\_scale & = & 2000\frac{counts}{rev}*10\frac{rev}{inch}\\
 
 \begin_layout Subsubsection
 Stepper
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:Stepper-related-items"
 
 \end_inset
@@ -2630,13 +3445,23 @@ The following items are Stepper related items.
 
 \color black
 SCALE
-\begin_inset LatexCommand index
-name "INPUT SCALE"
+\begin_inset Index
+status collapsed
+
+\begin_layout Plain Layout
+INPUT SCALE
+\end_layout
 
 \end_inset
 
-\InsetSpace ~
-=\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
 4000
 \color none
  
@@ -2654,7 +3479,9 @@ name "INPUT SCALE"
  A second number, if specified, is ignored.
 \color black
 
-\newline
+\begin_inset Newline newline
+\end_inset
+
 For example, on a 1.8 degree stepper motor with half-stepping, and 10 revs/inch
  gearing, and desired units of inch, we have
 \begin_inset Formula \begin{eqnarray*}
@@ -2667,10 +3494,16 @@ Older stepper configuration .ini and .hal used INPUT_SCALE for this value.
 \end_layout
 
 \begin_layout Description
-STEPGEN_MAXACCEL\InsetSpace ~
+STEPGEN_MAXACCEL
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
 21.0
 \series default
  
@@ -2687,12 +3520,18 @@ STEPGEN_MAXACCEL\InsetSpace ~
 \end_layout
 
 \begin_layout Description
-STEPGEN_MAXVEL\InsetSpace ~
+STEPGEN_MAXVEL
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 1.4
@@ -2713,14 +3552,19 @@ STEPGEN_MAXVEL\InsetSpace ~
 
 \begin_layout Subsection
 [EMCIO] Section 
-\begin_inset LatexCommand label
+\begin_inset CommandInset label
+LatexCommand label
 name "sub:[EMCIO]-Section"
 
 \end_inset
 
 
-\begin_inset LatexCommand index
-name "EMCIO (inifile section)"
+\begin_inset Index
+status open
+
+\begin_layout Plain Layout
+EMCIO (inifile section)
+\end_layout
 
 \end_inset
 
@@ -2728,12 +3572,18 @@ name "EMCIO (inifile section)"
 \end_layout
 
 \begin_layout Description
-CYCLE_TIME\InsetSpace ~
+CYCLE_TIME
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 0.100
@@ -2744,12 +3594,18 @@ CYCLE_TIME\InsetSpace ~
 \end_layout
 
 \begin_layout Description
-TOOL_TABLE\InsetSpace ~
+TOOL_TABLE
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 =
 \series default
-\InsetSpace ~
+
+\begin_inset space ~
+\end_inset
+
 
 \series bold
 tool.tbl
@@ -2758,12 +3614,24 @@ tool.tbl
 \end_layout
 
 \begin_layout Description
-TOOL_CHANGE_POSITION\InsetSpace ~
+TOOL_CHANGE_POSITION
+\begin_inset space ~
+\end_inset
+
 
 \series bold
-=\InsetSpace ~
-0\InsetSpace ~
-0\InsetSpace ~
+=
+\begin_inset space ~
+\end_inset
+
+0
+\begin_inset space ~
+\end_inset
+
+0
+\begin_inset space ~
+\end_inset
+
 2
 \series default
  Specifies the X Y Z location to move to when performing a tool change if
@@ -2776,35 +3644,58 @@ TOOL_CHANGE_POSITION\InsetSpace ~
 \end_layout
 
 \begin_layout Description
-TOOL_CHANGE_WITH_SPINDLE_ON\InsetSpace ~
-=\InsetSpace ~
-1 The spindle will be left on during the tool
- change when the value is 1.
+TOOL_CHANGE_WITH_SPINDLE_ON
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 The spindle will be left on during the tool change when the value is 1.
  Useful for lathes or machines where the material is in the spindle not
  the tool.
 \end_layout
 
 \begin_layout Description
-TOOL_CHANGE_QUILL_UP\InsetSpace ~
-=\InsetSpace ~
-1 The Z axis will be moved to machine zero prior to
- the tool change when the value is 1.
+TOOL_CHANGE_QUILL_UP
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 The Z axis will be moved to machine zero prior to the tool change when
+ the value is 1.
  This is the same as issuing a G0 G53 Z0.
 \end_layout
 
 \begin_layout Description
-TOOL_CHANGE_AT_G30\InsetSpace ~
-=\InsetSpace ~
-1 The machine is moved to reference point defined by
- parameters 5181-5186 for G30 if the value is 1.
+TOOL_CHANGE_AT_G30
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 The machine is moved to reference point defined by parameters 5181-5186
+ for G30 if the value is 1.
  For more information on G30 and Parameters see the G Code Manual.
 \end_layout
 
 \begin_layout Description
-RANDOM_TOOLCHANGER\InsetSpace ~
-=\InsetSpace ~
-1 This is for machines that can not place the tool back
- into the pocket it came from.
+RANDOM_TOOLCHANGER
+\begin_inset space ~
+\end_inset
+
+=
+\begin_inset space ~
+\end_inset
+
+1 This is for machines that can not place the tool back into the pocket
+ it came from.
  Machines that swap the tool in the pocket with the tool in the spindle.
 \end_layout
 
