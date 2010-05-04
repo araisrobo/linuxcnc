@@ -525,26 +525,23 @@ double getStraightJerk(double x, double y, double z,
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-
         jerk = MAX3((dx?emcAxisGetMaxJerk(0): 0.0),
                     (dy?emcAxisGetMaxJerk(1): 0.0),
                     (dz?emcAxisGetMaxJerk(2): 0.0));
         jerk = FROM_EXT_LEN(MAX4((jerk),
-                        (da?emcAxisGetMaxJerk(6): 0.0),
-                        (db?emcAxisGetMaxJerk(7): 0.0),
-                        (dc?emcAxisGetMaxJerk(8): 0.0)));
+                        (du?emcAxisGetMaxJerk(6): 0.0),
+                        (dv?emcAxisGetMaxJerk(7): 0.0),
+                        (dw?emcAxisGetMaxJerk(8): 0.0)));
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-
         jerk = FROM_EXT_LEN(MAX3(
-                    (du?emcAxisGetMaxJerk(3): 0.0),
-                    (dv?emcAxisGetMaxJerk(4): 0.0),
-                    (dw?emcAxisGetMaxJerk(5): 0.0)));
+                    (da?emcAxisGetMaxJerk(3): 0.0),
+                    (db?emcAxisGetMaxJerk(4): 0.0),
+                    (dc?emcAxisGetMaxJerk(5): 0.0)));
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-
         jerk = FROM_EXT_LEN(MAX9(
                 (dx?emcAxisGetMaxJerk(0): 0.0),
                 (dy?emcAxisGetMaxJerk(1): 0.0),
