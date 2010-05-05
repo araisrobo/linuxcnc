@@ -74,7 +74,13 @@ plot \
     "tc_nouofl.log" using 1:3 title "l", \
     "tc_nouofl.log" using 1:4 title "delta_dist", \
     "tc_nouofl.log" using 1:5 title "delta_l"
+
+#tc.c plot delta_l delta_u delta_d 
 plot \
     "tc.log" using 1:2 title "delta_d", \
     "tc.log" using 1:3 title "delta_u", \
     "tc.log" using 1:4 title "delta_l"
+
+#tc.c plot x vs. y
+plot \
+    "tc.log" using 5:6 title "x vs y"

@@ -97,6 +97,9 @@ static const double tiny = 1e-7;
 #define MAX9(a,b,c,d,e,f,g,h,i) (MAX3((MAX3(a,b,c)),(MAX3(d,e,f)),(MAX3(g,h,i))))
 #endif
 
+#ifndef MIN9
+#define MIN9(a,b,c,d,e,f,g,h,i) (MIN3((MIN3(a,b,c)),(MIN3(d,e,f)),(MIN3(g,h,i))))
+#endif
 /* macros for converting internal (mm/deg) units to external units */
 #define TO_EXT_LEN(mm) ((mm) * GET_EXTERNAL_LENGTH_UNITS())
 #define TO_EXT_ANG(deg) ((deg) * GET_EXTERNAL_ANGLE_UNITS())
@@ -506,7 +509,7 @@ double getStraightJerk(double x, double y, double z,
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
     if(debug_velacc)
-        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
+        printf("getStraightJerk dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making.  This is used to determine
@@ -525,33 +528,56 @@ double getStraightJerk(double x, double y, double z,
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-        jerk = MAX3((dx?emcAxisGetMaxJerk(0): 0.0),
-                    (dy?emcAxisGetMaxJerk(1): 0.0),
-                    (dz?emcAxisGetMaxJerk(2): 0.0));
-        jerk = FROM_EXT_LEN(MAX4((jerk),
-                        (du?emcAxisGetMaxJerk(6): 0.0),
-                        (dv?emcAxisGetMaxJerk(7): 0.0),
-                        (dw?emcAxisGetMaxJerk(8): 0.0)));
+
+        jerk = MIN3((dx?emcAxisGetMaxJerk(0): 1e9),
+                    (dy?emcAxisGetMaxJerk(1): 1e9),
+                    (dz?emcAxisGetMaxJerk(2): 1e9));
+        jerk = FROM_EXT_LEN(MIN4((jerk),
+                        (du?emcAxisGetMaxJerk(6): 1e9),
+                        (dv?emcAxisGetMaxJerk(7): 1e9),
+                        (dw?emcAxisGetMaxJerk(8): 1e9)));
+        assert(jerk > 0);
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-        jerk = FROM_EXT_LEN(MAX3(
-                    (da?emcAxisGetMaxJerk(3): 0.0),
-                    (db?emcAxisGetMaxJerk(4): 0.0),
-                    (dc?emcAxisGetMaxJerk(5): 0.0)));
+        jerk = FROM_EXT_ANG(MIN3(
+                    (da?emcAxisGetMaxJerk(3): 1e9),
+                    (db?emcAxisGetMaxJerk(4): 1e9),
+                    (dc?emcAxisGetMaxJerk(5): 1e9)));
+        assert(jerk > 0);
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-        jerk = FROM_EXT_LEN(MAX9(
-                (dx?emcAxisGetMaxJerk(0): 0.0),
-                (dy?emcAxisGetMaxJerk(1): 0.0),
-                (dz?emcAxisGetMaxJerk(2): 0.0),
-                (du?emcAxisGetMaxJerk(3): 0.0),
-                (dv?emcAxisGetMaxJerk(4): 0.0),
-                (dw?emcAxisGetMaxJerk(5): 0.0),
-                (da?emcAxisGetMaxJerk(6): 0.0),
-                (db?emcAxisGetMaxJerk(7): 0.0),
-                (dc?emcAxisGetMaxJerk(8): 0.0)));
+
+        double ang_jerk;
+        jerk = MIN3( (dx?emcAxisGetMaxJerk(0): 1e9),
+                    (dy?emcAxisGetMaxJerk(1): 1e9),
+                    (dz?emcAxisGetMaxJerk(2): 1e9));
+
+        jerk = FROM_EXT_LEN(MIN4( jerk,
+                                (du?emcAxisGetMaxJerk(6): 1e9),
+                                (dv?emcAxisGetMaxJerk(7): 1e9),
+                                (dw?emcAxisGetMaxJerk(8): 1e9)));
+
+        ang_jerk = FROM_EXT_ANG(MIN3(
+                            (da?emcAxisGetMaxJerk(3): 1e9),
+                            (db?emcAxisGetMaxJerk(4): 1e9),
+                            (dc?emcAxisGetMaxJerk(5): 1e9)));
+
+        jerk = MIN(jerk, ang_jerk);
+
+
+//        jerk = FROM_EXT_LEN(MIN9(
+//                (dx?emcAxisGetMaxJerk(0): 1e9),
+//                (dy?emcAxisGetMaxJerk(1): 1e9),
+//                (dz?emcAxisGetMaxJerk(2): 1e9),
+//                (du?emcAxisGetMaxJerk(6): 1e9),
+//                (dv?emcAxisGetMaxJerk(7): 1e9),
+//                (dw?emcAxisGetMaxJerk(8): 1e9),
+//                (da?emcAxisGetMaxJerk(3): 1e9),
+//                (db?emcAxisGetMaxJerk(4): 1e9),
+//                (dc?emcAxisGetMaxJerk(5): 1e9)));
+        assert(jerk > 0);
     }
     return jerk;
 }
@@ -682,7 +708,7 @@ double getStraightVelocity(double x, double y, double z,
 /* If we get a move to nowhere (!canon.cartesian_move && !canon.angular_move)
    we might as well go there at the canon.linearFeedRate...
 */
-    vel = canon.linearFeedRate;
+
 
     // Compute absolute travel distance for each axis:
     dx = fabs(x - canon.endPoint.x);
@@ -726,76 +752,121 @@ double getStraightVelocity(double x, double y, double z,
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-        tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
-	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
-	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
-	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
-	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
-	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
-        tmax = MAX3(tx, ty ,tz);
-        tmax = MAX4(tu, tv, tw, tmax);
 
-        if(dx || dy || dz)
-            dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            dtot = sqrt(du * du + dv * dv + dw * dw);
-
-	if (tmax <= 0.0) {
-	    vel = canon.linearFeedRate;
-	} else {
-	    vel = dtot / tmax;
-	}
+        vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
+                    (dy?emcAxisGetMaxVelocity(1): 1e9),
+                    (dz?emcAxisGetMaxVelocity(2): 1e9));
+        vel = FROM_EXT_LEN(MIN4((vel),
+                        (du?emcAxisGetMaxVelocity(6): 1e9),
+                        (dv?emcAxisGetMaxVelocity(7): 1e9),
+                        (dw?emcAxisGetMaxVelocity(8): 1e9)));
+        assert(vel > 0);
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
-	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
-	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
-        tmax = MAX3(ta, tb, tc);
-
-	dtot = sqrt(da * da + db * db + dc * dc);
-	if (tmax <= 0.0) {
-	    vel = canon.angularFeedRate;
-	} else {
-	    vel = dtot / tmax;
-	}
+        vel = FROM_EXT_ANG(MIN3(
+                    (da?emcAxisGetMaxVelocity(3): 1e9),
+                    (db?emcAxisGetMaxVelocity(4): 1e9),
+                    (dc?emcAxisGetMaxVelocity(5): 1e9)));
+        assert(vel > 0);
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
-	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
-	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
-	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
-	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
-	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
-	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
-	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
-	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
-        tmax = MAX9(tx, ty, tz,
-                    ta, tb, tc,
-                    tu, tv, tw);
+        double ang_vel;
+        vel = MIN3( (dx?emcAxisGetMaxVelocity(0): 1e9),
+                    (dy?emcAxisGetMaxVelocity(1): 1e9),
+                    (dz?emcAxisGetMaxVelocity(2): 1e9));
 
-/*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
-    a combnation move is handled like a linear move, except
-    that the angular axes are allowed sufficient time to
-    complete their motion coordinated with the motion of
-    the linear axes.
-*/
-        if(dx || dy || dz)
-            dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            dtot = sqrt(du * du + dv * dv + dw * dw);
+        vel = FROM_EXT_LEN(MIN4( vel,
+                                (du?emcAxisGetMaxVelocity(6): 1e9),
+                                (dv?emcAxisGetMaxVelocity(7): 1e9),
+                                (dw?emcAxisGetMaxVelocity(8): 1e9)));
 
-	if (tmax <= 0.0) {
-	    vel = canon.linearFeedRate;
-	} else {
-	    vel = dtot / tmax;
-	}
+        ang_vel = FROM_EXT_ANG(MIN3(
+                            (da?emcAxisGetMaxVelocity(3): 1e9),
+                            (db?emcAxisGetMaxVelocity(4): 1e9),
+                            (dc?emcAxisGetMaxVelocity(5): 1e9)));
+
+        vel = MIN(vel, ang_vel);
+
+        assert(vel > 0);
     }
+//    // Pure linear move:
+//    if (canon.cartesian_move && !canon.angular_move) {
+//        tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+//	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
+//	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
+//	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
+//	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
+//	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
+//        tmax = MAX3(tx, ty ,tz);
+//        tmax = MAX4(tu, tv, tw, tmax);
+//
+//        if(dx || dy || dz)
+//            dtot = sqrt(dx * dx + dy * dy + dz * dz);
+//        else
+//            dtot = sqrt(du * du + dv * dv + dw * dw);
+//
+//	if (tmax <= 0.0) {
+//	    vel = canon.linearFeedRate;
+//	} else {
+//	    vel = dtot / tmax;
+//	}
+//    }
+//    // Pure angular move:
+//    else if (!canon.cartesian_move && canon.angular_move) {
+//	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
+//	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
+//	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
+//        tmax = MAX3(ta, tb, tc);
+//
+//	dtot = sqrt(da * da + db * db + dc * dc);
+//	if (tmax <= 0.0) {
+//	    vel = canon.angularFeedRate;
+//	} else {
+//	    vel = dtot / tmax;
+//	}
+//    }
+//    // Combination angular and linear move:
+//    else if (canon.cartesian_move && canon.angular_move) {
+//	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+//	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
+//	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
+//	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
+//	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
+//	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
+//	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
+//	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
+//	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
+//        tmax = MAX9(tx, ty, tz,
+//                    ta, tb, tc,
+//                    tu, tv, tw);
+//
+///*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
+//    a combnation move is handled like a linear move, except
+//    that the angular axes are allowed sufficient time to
+//    complete their motion coordinated with the motion of
+//    the linear axes.
+//*/
+//        if(dx || dy || dz)
+//            dtot = sqrt(dx * dx + dy * dy + dz * dz);
+//        else
+//            dtot = sqrt(du * du + dv * dv + dw * dw);
+//
+//	if (tmax <= 0.0) {
+//	    vel = canon.linearFeedRate;
+//	} else {
+//	    vel = dtot / tmax;
+//	}
+//    }
+//
+
+    vel = MIN(vel, canon.linearFeedRate);
 
     DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
     if(debug_velacc) 
         printf("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
+
     return vel;
 }
 
@@ -1655,7 +1726,9 @@ void ARC_FEED(int line_number,
     EMC_TRAJ_CIRCULAR_MOVE circularMoveMsg;
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel,
-			axial_maxvel=0.0, circ_acc, axial_acc, acc=0.0, ini_maxjerk;
+			/* axial_maxvel=0.0, axial_acc, */ 
+                        circ_acc, acc=0.0;
+    double j1, j2, ini_maxjerk;
     double radius, angle, theta1, theta2, helical_length, axis_len;
     double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
     double tu, tv, tw, du, dv, dw;
@@ -1666,6 +1739,65 @@ void ARC_FEED(int line_number,
     int i;
     DP ("TODO: study this for non-triv-kins\n");
 
+    get_last_pos(lx, ly, lz);
+
+    // XXX rotation?
+    if( (canon.activePlane == CANON_PLANE_XY)
+            && canon.motionMode == CANON_CONTINUOUS
+            && chord_deviation(lx, ly,
+                offset_x(FROM_PROG_LEN(first_end)), offset_y(FROM_PROG_LEN(second_end)),
+                offset_x(FROM_PROG_LEN(first_axis)), offset_y(FROM_PROG_LEN(second_axis)),
+                rotation, mx, my) < canon.naivecamTolerance) {
+        double x=FROM_PROG_LEN(first_end), y=FROM_PROG_LEN(second_end), z=FROM_PROG_LEN(axis_end_point);
+        rotate_and_offset_pos(x, y, z, a, b, c, u, v, w);
+        see_segment(line_number, mx, my,
+                (lz + z)/2,
+                (canon.endPoint.a + a)/2,
+                (canon.endPoint.b + b)/2,
+                (canon.endPoint.c + c)/2,
+                (canon.endPoint.u + u)/2,
+                (canon.endPoint.v + v)/2,
+                (canon.endPoint.w + w)/2);
+        see_segment(line_number, x, y, z, a, b, c, u, v, w);
+        return;
+    }
+
+    // ini_maxvel = max vel defined by various ini constraints
+    // circ_maxvel = max vel defined by ini constraints in the circle plane (XY, YZ or XZ)
+    // axial_maxvel = max vel defined by ini constraints in the axial direction (Z, X or Y)
+
+    linearMoveMsg.feed_mode = canon.feed_mode;
+    circularMoveMsg.feed_mode = canon.feed_mode;
+    flush_segments();
+
+    a = FROM_PROG_ANG(a);
+    b = FROM_PROG_ANG(b);
+    c = FROM_PROG_ANG(c);
+    u = FROM_PROG_LEN(u);
+    v = FROM_PROG_LEN(v);
+    w = FROM_PROG_LEN(w);
+
+    rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
+
+    da = fabs(canon.endPoint.a - a);
+    db = fabs(canon.endPoint.b - b);
+    dc = fabs(canon.endPoint.c - c);
+
+    du = fabs(canon.endPoint.u - u);
+    dv = fabs(canon.endPoint.v - v);
+    dw = fabs(canon.endPoint.w - w);
+
+//     //     Since there's no default case here,
+//     //     we need to initialise vel to something safe!
+//     vel = ini_maxvel = canon.linearFeedRate;
+
+    // convert to absolute mm units
+    first_axis = FROM_PROG_LEN(first_axis);
+    second_axis = FROM_PROG_LEN(second_axis);
+    first_end = FROM_PROG_LEN(first_end);
+    second_end = FROM_PROG_LEN(second_end);
+    axis_end_point = FROM_PROG_LEN(axis_end_point);
+
     for (i = 0; i < 3; i++) {
         axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
@@ -1674,13 +1806,445 @@ void ARC_FEED(int line_number,
     for (i = 3; i < 6; i++) {
         axis_max_acc[i] = FROM_EXT_ANG(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_ANG(emcAxisGetMaxVelocity(i));
-        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
+        axis_max_jerk[i] = FROM_EXT_ANG(emcAxisGetMaxJerk(i));
     }
     for (i = 6; i < 9; i++) {
         axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
         axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
     }
+
+
+    //     associate x with x, etc., offset by program origin, and set normals
+    switch (canon.activePlane) {
+    default: // to eliminate "uninitalized" warnings
+    case CANON_PLANE_XY:
+
+        // offset and align args properly
+        end.tran.x = first_end;
+        end.tran.y = second_end;
+        end.tran.z = axis_end_point;
+        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
+        center.x = first_axis;
+        center.y = second_axis;
+        center.z = end.tran.z;
+        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
+        normal.x = 0.0;
+        normal.y = 0.0;
+        normal.z = 1.0;
+
+        theta1 = atan2(canon.endPoint.y - center.y, canon.endPoint.x - center.x);
+        theta2 = atan2(end.tran.y - center.y, end.tran.x - center.x);
+        radius = hypot(canon.endPoint.x - center.x, canon.endPoint.y - center.y);
+        axis_len = fabs(end.tran.z - canon.endPoint.z);
+
+        v1 = axis_max_vel[0];
+        v2 = axis_max_vel[1];
+        a1 = axis_max_acc[0];
+        a2 = axis_max_acc[1];
+        circ_maxvel = ini_maxvel = MIN(v1, v2);
+        circ_acc = acc = MIN(a1, a2);
+
+        j1 = axis_max_jerk[0];
+        j2 = axis_max_jerk[1];
+        ini_maxjerk = MIN(j1, j2);
+
+        if(axis_valid(2) && axis_len > 0.001) {
+            // axial_maxvel = 
+            // axial_acc = 
+            // axial_jerk = 
+            v1 = axis_max_vel[2];
+            a1 = axis_max_acc[2];
+            j1 = axis_max_jerk[2];
+            ini_maxvel = MIN(ini_maxvel, v1);
+            acc = MIN(acc, a1);
+            ini_maxjerk = MIN(ini_maxjerk, j1);
+        }
+        break;
+
+    case CANON_PLANE_YZ:
+
+        // offset and align args properly
+        end.tran.y = first_end;
+        end.tran.z = second_end;
+        end.tran.x = axis_end_point;
+        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
+
+        center.y = first_axis;
+        center.z = second_axis;
+        center.x = end.tran.x;
+        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
+        normal.y = 0.0;
+        normal.z = 0.0;
+        normal.x = 1.0;
+        rotate(normal.x, normal.y, canon.xy_rotation);
+
+        theta1 = atan2(canon.endPoint.z - center.z, canon.endPoint.y - center.y);
+        theta2 = atan2(end.tran.z - center.z, end.tran.y - center.y);
+        radius = hypot(canon.endPoint.y - center.y, canon.endPoint.z - center.z);
+        axis_len = fabs(end.tran.x - canon.endPoint.x);
+
+        v1 = axis_max_vel[1];
+        v2 = axis_max_vel[2];
+        a1 = axis_max_acc[1];
+        a2 = axis_max_acc[2];
+        circ_maxvel = ini_maxvel = MIN(v1, v2);
+        circ_acc = acc = MIN(a1, a2);
+        
+        j1 = axis_max_jerk[1];
+        j2 = axis_max_jerk[2];
+        ini_maxjerk = MIN(j1, j2);
+
+        
+        if(axis_valid(0) && axis_len > 0.001) {
+            // axial_maxvel = 
+            // axial_acc = 
+            v1 = axis_max_vel[0];
+            a1 = axis_max_acc[0];
+            j1 = axis_max_jerk[0];
+            ini_maxvel = MIN(ini_maxvel, v1);
+            acc = MIN(acc, a1);
+            ini_maxjerk = MIN(ini_maxjerk, j1);
+        }
+
+        break;
+
+    case CANON_PLANE_XZ:
+
+        // offset and align args properly
+        end.tran.z = first_end;
+        end.tran.x = second_end;
+        end.tran.y = axis_end_point;
+        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
+
+        center.z = first_axis;
+        center.x = second_axis;
+        center.y = end.tran.y;
+        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
+        normal.z = 0.0;
+        normal.x = 0.0;
+        normal.y = 1.0;
+        rotate(normal.x, normal.y, canon.xy_rotation);
+
+        theta1 = atan2(canon.endPoint.x - center.x, canon.endPoint.z - center.z);
+        theta2 = atan2(end.tran.x - center.x, end.tran.z - center.z);
+        radius = hypot(canon.endPoint.x - center.x, canon.endPoint.z - center.z);
+        axis_len = fabs(end.tran.y - canon.endPoint.y);
+
+        v1 = axis_max_vel[0];
+        v2 = axis_max_vel[2];
+        a1 = axis_max_acc[0];
+        a2 = axis_max_acc[2];
+        circ_maxvel = ini_maxvel = MIN(v1, v2);
+        circ_acc = acc = MIN(a1, a2);
+        
+        j1 = axis_max_jerk[0];
+        j2 = axis_max_jerk[2];
+        ini_maxjerk = MIN(j1, j2);
+        
+        if(axis_valid(1) && axis_len > 0.001) {
+            // axial_maxvel = 
+            // axial_acc = 
+            v1 = axis_max_vel[1];
+            a1 = axis_max_acc[1];
+            j1 = axis_max_jerk[1];
+            ini_maxvel = MIN(ini_maxvel, v1);
+            acc = MIN(acc, a1);
+            ini_maxjerk = MIN(ini_maxjerk, j1);
+        }
+        break;
+    }
+
+//do not need this calculation:    if(rotation < 0) {
+//do not need this calculation:        if(theta2 >= theta1) theta2 -= M_PI * 2.0;
+//do not need this calculation:    } else {
+//do not need this calculation:        if(theta2 <= theta1) theta2 += M_PI * 2.0;
+//do not need this calculation:    }
+//do not need this calculation:    angle = theta2 - theta1;
+//do not need this calculation:    helical_length = hypot(angle * radius, axis_len);
+//do not need this calculation:
+//do not need this calculation:// COMPUTE VELOCITIES
+//do not need this calculation:    ta = (axis_valid(3) && da)? fabs(da / axis_max_vel[3]):0.0;
+//do not need this calculation:    tb = (axis_valid(4) && db)? fabs(db / axis_max_vel[4]):0.0;
+//do not need this calculation:    tc = (axis_valid(5) && dc)? fabs(dc / axis_max_vel[5]):0.0;
+//do not need this calculation:
+//do not need this calculation:    tu = (axis_valid(6) && du)? (du / axis_max_vel[6]): 0.0;
+//do not need this calculation:    tv = (axis_valid(7) && dv)? (dv / axis_max_vel[7]): 0.0;
+//do not need this calculation:    tw = (axis_valid(8) && dw)? (dw / axis_max_vel[8]): 0.0;
+//do not need this calculation:
+//do not need this calculation:    //we have accel, check what the max_vel is that doesn't violate the centripetal accel=accel
+//do not need this calculation:    v1 = sqrt(circ_acc * radius);
+//do not need this calculation:    circ_maxvel = MIN(v1, circ_maxvel);
+//do not need this calculation:
+//do not need this calculation:    // find out how long the arc takes at ini_maxvel
+//do not need this calculation:    tcircle = fabs(angle * radius / circ_maxvel);
+//do not need this calculation:
+//do not need this calculation:    if(axial_maxvel) {
+//do not need this calculation:        taxial = fabs(axis_len / axial_maxvel);
+//do not need this calculation:        tmax = MAX(taxial, tcircle);
+//do not need this calculation:    } else
+//do not need this calculation:        tmax = tcircle;
+//do not need this calculation:
+//do not need this calculation:    tmax = MAX4(tmax, ta, tb, tc);
+//do not need this calculation:    tmax = MAX4(tmax, tu, tv, tw);
+//do not need this calculation:
+//do not need this calculation:    if (tmax <= 0.0) {
+//do not need this calculation:        vel = canon.linearFeedRate;
+//do not need this calculation:    } else {
+//do not need this calculation:        ini_maxvel = helical_length / tmax; //compute the new maxvel based on all previous constraints
+//do not need this calculation:        vel = MIN(vel, ini_maxvel); //the programmed vel is either feedrate or machine_maxvel if lower
+//do not need this calculation:    }
+//do not need this calculation:
+//do not need this calculation:    // for arcs we always user linear move since there is no
+//do not need this calculation:    // arc possible with only ABC motion
+//do not need this calculation:
+//do not need this calculation:    canon.cartesian_move = 1;
+//do not need this calculation:
+//do not need this calculation:// COMPUTE ACCELS
+//do not need this calculation:
+//do not need this calculation:    // the next calcs are not really times.  the units are time^2, but
+//do not need this calculation:    // the division at the end gives the right units for accel.  if you
+//do not need this calculation:    // try to think of these in terms of any real-world value (time to
+//do not need this calculation:    // do what?), you're probably doomed.  think of them as a parametric
+//do not need this calculation:    // expression of the acceleration in the various directions.
+//do not need this calculation:
+//do not need this calculation:    thelix = (helical_length / acc);
+//do not need this calculation:    ta = (axis_valid(3) && da)? (da / axis_max_acc[3]): 0.0;
+//do not need this calculation:    tb = (axis_valid(4) && db)? (db / axis_max_acc[4]): 0.0;
+//do not need this calculation:    tc = (axis_valid(5) && dc)? (dc / axis_max_acc[5]): 0.0;
+//do not need this calculation:
+//do not need this calculation:    tu = (axis_valid(6) && du)? (du / axis_max_acc[6]): 0.0;
+//do not need this calculation:    tv = (axis_valid(7) && dv)? (dv / axis_max_acc[7]): 0.0;
+//do not need this calculation:    tw = (axis_valid(8) && dw)? (dw / axis_max_acc[8]): 0.0;
+//do not need this calculation:
+//do not need this calculation:    tmax = MAX4(thelix, ta, tb, tc);
+//do not need this calculation:    tmax = MAX4(tmax, tu, tv, tw);
+//do not need this calculation:
+//do not need this calculation:    if (tmax > 0.0) {
+//do not need this calculation:        acc = helical_length / tmax;
+//do not need this calculation:    }
+
+    if(!axis_valid(3) || da < tiny) da = 0.0;
+    if(!axis_valid(4) || db < tiny) db = 0.0;
+    if(!axis_valid(5) || dc < tiny) dc = 0.0;
+    if(!axis_valid(6) || du < tiny) du = 0.0;
+    if(!axis_valid(7) || dv < tiny) dv = 0.0;
+    if(!axis_valid(8) || dw < tiny) dw = 0.0;
+
+    canon.cartesian_move = 1;
+
+    // Combination angular and linear move:
+    j1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxJerk(6): 1e9),
+                           (dv?emcAxisGetMaxJerk(7): 1e9),
+                           (dw?emcAxisGetMaxJerk(8): 1e9)));
+    ini_maxjerk = MIN (ini_maxjerk, j1);
+
+    j1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxJerk(3): 1e9),
+                           (db?emcAxisGetMaxJerk(4): 1e9),
+                           (dc?emcAxisGetMaxJerk(5): 1e9)));
+    ini_maxjerk = MIN (ini_maxjerk, j1);
+
+    a1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxAcceleration(6): 1e9),
+                           (dv?emcAxisGetMaxAcceleration(7): 1e9),
+                           (dw?emcAxisGetMaxAcceleration(8): 1e9)));
+    acc = MIN (acc, a1);
+
+    a1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxAcceleration(3): 1e9),
+                           (db?emcAxisGetMaxAcceleration(4): 1e9),
+                           (dc?emcAxisGetMaxAcceleration(5): 1e9)));
+    acc = MIN(acc, a1);
+
+    v1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxVelocity(6): 1e9),
+                           (dv?emcAxisGetMaxVelocity(7): 1e9),
+                           (dw?emcAxisGetMaxVelocity(8): 1e9)));
+    ini_maxvel = MIN(ini_maxvel, v1);
+
+    v1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxVelocity(3): 1e9),
+                           (db?emcAxisGetMaxVelocity(4): 1e9),
+                           (dc?emcAxisGetMaxVelocity(5): 1e9)));
+    ini_maxvel = MIN(ini_maxvel, v1);
+
+    assert(ini_maxvel > 0);
+    assert(ini_maxjerk > 0);
+    assert(acc > 0);
+    
+    // ini_maxvel = vel;
+    ini_maxvel = MIN(ini_maxvel, canon.linearFeedRate);
+    vel = ini_maxvel;
+
+
+/*
+
+    double dx, dy, dz, du, dv, dw, da, db, dc;
+    double  jerk, vel, ini_maxvel, acc, ang_acc, ang_vel, ang_jerk;
+
+    jerk = 0.0; // if a move to nowhere
+
+    // Compute absolute travel distance for each axis:
+    dx = fabs(x - canon.endPoint.x);
+    dy = fabs(y - canon.endPoint.y);
+    dz = fabs(z - canon.endPoint.z);
+    da = fabs(a - canon.endPoint.a);
+    db = fabs(b - canon.endPoint.b);
+    dc = fabs(c - canon.endPoint.c);
+    du = fabs(u - canon.endPoint.u);
+    dv = fabs(v - canon.endPoint.v);
+    dw = fabs(w - canon.endPoint.w);
+
+    if(!axis_valid(0) || dx < tiny) dx = 0.0;
+    if(!axis_valid(1) || dy < tiny) dy = 0.0;
+    if(!axis_valid(2) || dz < tiny) dz = 0.0;
+    if(!axis_valid(3) || da < tiny) da = 0.0;
+    if(!axis_valid(4) || db < tiny) db = 0.0;
+    if(!axis_valid(5) || dc < tiny) dc = 0.0;
+    if(!axis_valid(6) || du < tiny) du = 0.0;
+    if(!axis_valid(7) || dv < tiny) dv = 0.0;
+    if(!axis_valid(8) || dw < tiny) dw = 0.0;
+
+    if(debug_velacc)
+        printf("ARC_FEED dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
+               dx, dy, dz, da, db, dc, du, dv, dw);
+
+    // Figure out what kind of move we're making.  This is used to determine
+    // the units of vel/acc.
+    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
+        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
+        canon.cartesian_move = 0;
+    } else {
+        canon.cartesian_move = 1;
+    }
+    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
+        canon.angular_move = 0;
+    } else {
+        canon.angular_move = 1;
+    }
+
+    // Pure linear move:
+    if (canon.cartesian_move && !canon.angular_move) {
+
+        jerk = MIN3((dx?emcAxisGetMaxJerk(0): 1e9),
+                    (dy?emcAxisGetMaxJerk(1): 1e9),
+                    (dz?emcAxisGetMaxJerk(2): 1e9));
+        jerk = FROM_EXT_LEN(MIN4((jerk),
+                        (du?emcAxisGetMaxJerk(6): 1e9),
+                        (dv?emcAxisGetMaxJerk(7): 1e9),
+                        (dw?emcAxisGetMaxJerk(8): 1e9)));
+        acc = MIN3((dx?emcAxisGetMaxAcceleration(0): 1e9),
+                            (dy?emcAxisGetMaxAcceleration(1): 1e9),
+                            (dz?emcAxisGetMaxAcceleration(2): 1e9));
+        acc = FROM_EXT_LEN(MIN4((acc),
+                        (du?emcAxisGetMaxAcceleration(6): 1e9),
+                        (dv?emcAxisGetMaxAcceleration(7): 1e9),
+                        (dw?emcAxisGetMaxAcceleration(8): 1e9)));
+
+        vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
+                    (dy?emcAxisGetMaxVelocity(1): 1e9),
+                    (dz?emcAxisGetMaxVelocity(2): 1e9));
+        vel = FROM_EXT_LEN(MIN4((vel),
+                        (du?emcAxisGetMaxVelocity(6): 1e9),
+                        (dv?emcAxisGetMaxVelocity(7): 1e9),
+                        (dw?emcAxisGetMaxVelocity(8): 1e9)));
+
+        assert(jerk > 0);
+        assert(acc > 0);
+        assert(vel > 0);
+    }
+    // Pure angular move:
+    else if (!canon.cartesian_move && canon.angular_move) {
+        jerk = FROM_EXT_ANG(MIN3(
+                    (da?emcAxisGetMaxJerk(3): 1e9),
+                    (db?emcAxisGetMaxJerk(4): 1e9),
+                    (dc?emcAxisGetMaxJerk(5): 1e9)));
+        acc = FROM_EXT_ANG(MIN3(
+                (da?emcAxisGetMaxAcceleration(3): 1e9),
+                (db?emcAxisGetMaxAcceleration(4): 1e9),
+                (dc?emcAxisGetMaxAcceleration(5): 1e9)));
+        vel = FROM_EXT_ANG(MIN3(
+                (da?emcAxisGetMaxVelocity(3): 1e9),
+                (db?emcAxisGetMaxVelocity(4): 1e9),
+                (dc?emcAxisGetMaxVelocity(5): 1e9)));
+        assert(jerk > 0);
+        assert(acc > 0);
+        assert(vel > 0);
+    }
+    // Combination angular and linear move:
+    else if (canon.cartesian_move && canon.angular_move) {
+
+        jerk = MIN3( (dx?emcAxisGetMaxJerk(0): 1e9),
+                    (dy?emcAxisGetMaxJerk(1): 1e9),
+                    (dz?emcAxisGetMaxJerk(2): 1e9));
+
+        jerk = FROM_EXT_LEN(MIN4( jerk,
+                                (du?emcAxisGetMaxJerk(6): 1e9),
+                                (dv?emcAxisGetMaxJerk(7): 1e9),
+                                (dw?emcAxisGetMaxJerk(8): 1e9)));
+
+        ang_jerk = FROM_EXT_ANG(MIN3(
+                                    (da?emcAxisGetMaxJerk(3): 1e9),
+                                    (db?emcAxisGetMaxJerk(4): 1e9),
+                                    (dc?emcAxisGetMaxJerk(5): 1e9)));
+
+        jerk = MIN(jerk, ang_jerk);
+
+        acc = MIN3( (dx?emcAxisGetMaxAcceleration(0): 1e9),
+                    (dy?emcAxisGetMaxAcceleration(1): 1e9),
+                    (dz?emcAxisGetMaxAcceleration(2): 1e9));
+
+        acc = FROM_EXT_LEN(MIN4( acc,
+                                (du?emcAxisGetMaxAcceleration(6): 1e9),
+                                (dv?emcAxisGetMaxAcceleration(7): 1e9),
+                                (dw?emcAxisGetMaxAcceleration(8): 1e9)));
+
+        ang_acc = FROM_EXT_ANG(MIN3(
+                            (da?emcAxisGetMaxAcceleration(3): 1e9),
+                            (db?emcAxisGetMaxAcceleration(4): 1e9),
+                            (dc?emcAxisGetMaxAcceleration(5): 1e9)));
+
+        acc = MIN(acc, ang_acc);
+
+        vel = MIN3( (dx?emcAxisGetMaxVelocity(0): 1e9),
+                    (dy?emcAxisGetMaxVelocity(1): 1e9),
+                    (dz?emcAxisGetMaxVelocity(2): 1e9));
+
+        vel = FROM_EXT_LEN(MIN4( vel,
+                                (du?emcAxisGetMaxVelocity(6): 1e9),
+                                (dv?emcAxisGetMaxVelocity(7): 1e9),
+                                (dw?emcAxisGetMaxVelocity(8): 1e9)));
+
+        ang_vel = FROM_EXT_ANG(MIN3(
+                            (da?emcAxisGetMaxVelocity(3): 1e9),
+                            (db?emcAxisGetMaxVelocity(4): 1e9),
+                            (dc?emcAxisGetMaxVelocity(5): 1e9)));
+
+        vel = MIN(vel, ang_vel);
+
+
+        assert(vel > 0);
+        assert(jerk > 0);
+        assert(acc > 0);
+    }
+    ini_maxvel = vel;
+    vel = MIN(vel, canon.linearFeedRate);
+*/
+
+
+//    for (i = 0; i < 3; i++) {
+//        axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
+//        axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
+//        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
+//    }
+//    for (i = 3; i < 6; i++) {
+//        axis_max_acc[i] = FROM_EXT_ANG(emcAxisGetMaxAcceleration(i));
+//        axis_max_vel[i] = FROM_EXT_ANG(emcAxisGetMaxVelocity(i));
+//        axis_max_jerk[i] = FROM_EXT_ANG(emcAxisGetMaxJerk(i));
+//    }
+//    for (i = 6; i < 9; i++) {
+//        axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
+//        axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
+//        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
+//    }
+
+/*
 
     get_last_pos(lx, ly, lz);
 
@@ -1729,8 +2293,8 @@ void ARC_FEED(int line_number,
     dv = fabs(canon.endPoint.v - v);
     dw = fabs(canon.endPoint.w - w);
 
-    /* Since there's no default case here,
-       we need to initialise vel to something safe! */
+     Since there's no default case here,
+       we need to initialise vel to something safe!
     vel = ini_maxvel = canon.linearFeedRate;
 
     // convert to absolute mm units
@@ -1740,7 +2304,7 @@ void ARC_FEED(int line_number,
     second_end = FROM_PROG_LEN(second_end);
     axis_end_point = FROM_PROG_LEN(axis_end_point);
 
-    /* associate x with x, etc., offset by program origin, and set normals */
+     associate x with x, etc., offset by program origin, and set normals
     switch (canon.activePlane) {
     default: // to eliminate "uninitalized" warnings
     case CANON_PLANE_XY:
@@ -1767,8 +2331,10 @@ void ARC_FEED(int line_number,
 	v2 = axis_max_vel[1];
 	a1 = axis_max_acc[0];
 	a2 = axis_max_acc[1];
+
         circ_maxvel = ini_maxvel = MIN(v1, v2);
         circ_acc = acc = MIN(a1, a2);
+        ini_maxjerk = MIN(j1, j2);
         if(axis_valid(2) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[2];
             axial_acc = a1 = axis_max_acc[2];
@@ -1920,7 +2486,7 @@ void ARC_FEED(int line_number,
         acc = helical_length / tmax;
     }
 
-    /* 
+
        mapping of rotation to turns:
 
        rotation turns 
@@ -1929,28 +2495,29 @@ void ARC_FEED(int line_number,
               1 0 
               2 1 
              -1 -1 
-             -2 -2 */
+             -2 -2
 // COMPUTE JERKS //TODO-eric do we consider motion type for jerk?.
-    if ( canon.cartesian_move == 1) {
-        for (i = 0; i < 3; i++ ) {
-            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-        }
-        for (i = 6; i < 9; i++) {
-            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-        }
-    } else if ( canon.angular_move == 1) {
-        for (i = 3; i < 6; i++) {
-                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-                }
-
-    } else if (canon.cartesian_move == 0 && canon.angular_move == 0) {
-        for (i = 0; i < 3; i++ ) {
-                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-                }
-                for (i = 6; i < 9; i++) {
-                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-                }
-    }
+//    if ( canon.cartesian_move == 1) {
+//        for (i = 0; i < 3; i++ ) {
+//            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+//        }
+//        for (i = 6; i < 9; i++) {
+//            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+//        }
+//    } else if ( canon.angular_move == 1) {
+//        for (i = 3; i < 6; i++) {
+//                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+//                }
+//
+//    } else if (canon.cartesian_move == 0 && canon.angular_move == 0) {
+//        for (i = 0; i < 3; i++ ) {
+//                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+//                }
+//                for (i = 6; i < 9; i++) {
+//                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
+//                }
+//    }
+*/
 
     if (rotation == 0) {
 	// linear move
@@ -1969,10 +2536,10 @@ void ARC_FEED(int line_number,
 	linearMoveMsg.end.w = TO_EXT_LEN(w);
 
         linearMoveMsg.type = EMC_MOTION_TYPE_ARC;
-        linearMoveMsg.vel = toExtVel(vel);
-        linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
-        linearMoveMsg.acc = toExtAcc(acc);
-        linearMoveMsg.ini_maxjerk = TO_EXT_LEN(ini_maxjerk);
+        linearMoveMsg.vel = vel;//toExtVel(vel);
+        linearMoveMsg.ini_maxvel = ini_maxvel;//toExtVel(ini_maxvel);
+        linearMoveMsg.acc = acc;//toExtAcc(acc);
+        linearMoveMsg.ini_maxjerk = ini_maxjerk;//TO_EXT_LEN(ini_maxjerk);
         if(vel && acc){
             interp_list.set_line_number(line_number);
             interp_list.append(linearMoveMsg);
@@ -2011,10 +2578,11 @@ void ARC_FEED(int line_number,
         // 0,0,0 to 1,1,1 on a machine with maxvel=1 and maxaccel=1 on
         // all axes.  The actual maximums will be near sqrt(3) but
         // we'll be using 1 instead.
-        circularMoveMsg.vel = toExtVel(vel);
-        circularMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
-        circularMoveMsg.acc = toExtAcc(acc);
-        circularMoveMsg.ini_maxjerk = TO_EXT_LEN(ini_maxjerk);
+        circularMoveMsg.vel = vel;//toExtVel(vel);
+        circularMoveMsg.ini_maxvel = ini_maxvel;//toExtVel(ini_maxvel);
+        // circularMoveMsg.acc = toExtAcc(acc);
+        circularMoveMsg.acc = acc;
+        circularMoveMsg.ini_maxjerk = ini_maxjerk;//TO_EXT_LEN(ini_maxjerk);
         if(vel && acc) {
             interp_list.set_line_number(line_number);
             interp_list.append(circularMoveMsg);
@@ -3334,3 +3902,4 @@ int WAIT(int index, /* index of the motion exported input */
 }
 
 // vim:sw=4:sts=4:et:
+

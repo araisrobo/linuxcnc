@@ -321,7 +321,9 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.maxaccel = acc;
     // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
     // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
-    tc.jerk = 9.0 * acc;
+    // tc.jerk = 9.0 * acc;
+    DP("TODO: fix tc.jerk\n");
+    assert(0);
     tc.feed_override = 0.0;
     tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
@@ -383,7 +385,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
 // currently-active accel and vel settings from the tp struct.
                                             // EMC_MOTION_TYPE_FEED
 int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
-        double ini_maxvel, double acc, double jerk,
+        double ini_maxvel, double acc, double ini_maxjerk,
         unsigned char enables, char atspeed)
 {
     TC_STRUCT tc;
@@ -392,9 +394,11 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     PmPose start_uvw, end_uvw;
     PmPose start_abc, end_abc;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    if(jerk == 0 ) {
-            rtapi_print_msg(RTAPI_MSG_ERR, "TODO:jerk is not provided or jerk = 0\n");
-            assert(jerk > 0);
+    fprintf(stderr,"tpAddline(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+            ini_maxjerk, vel, acc, ini_maxvel);
+    if(ini_maxjerk == 0 ) {
+            rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
+            assert(ini_maxjerk > 0);
     }
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
@@ -451,7 +455,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.maxaccel = acc;
     // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
     // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
-    tc.jerk = jerk;
+    tc.jerk = ini_maxjerk;
     tc.feed_override = 0.0;
     tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
@@ -511,7 +515,8 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
 
 int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 		PmCartesian center, PmCartesian normal, int turn, int type,
-                double vel, double ini_maxvel, double acc, double jerk, unsigned char enables, char atspeed)
+                double vel, double ini_maxvel, double acc, 
+                double ini_maxjerk, unsigned char enables, char atspeed)
 {
     TC_STRUCT tc;
     PmCircle circle;
@@ -522,9 +527,13 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     double helix_z_component;   // z of the helix's cylindrical coord system
     double helix_length;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    if(jerk == 0 ) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "TODO:jerk is not provided or jerk = 0\n");
-        assert(jerk > 0);
+
+    fprintf(stderr,"tpAddCircle(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+                ini_maxjerk, vel, acc, ini_maxvel);
+
+    if(ini_maxjerk == 0 ) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
+        assert(ini_maxjerk > 0);
     }
     if (!tp || tp->aborting) 
 	return -1;
@@ -571,9 +580,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxaccel = acc;
-    // FIXME: the accel-increase-rate(jerk) is set as tc->maxaccel/sec
-    // TODO: define accel-increase-rate(jerk) at CONFIG-FILE
-    tc.jerk = 9.0 * acc;
+    tc.jerk = ini_maxjerk;
     tc.feed_override = 0.0;
     tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
@@ -632,7 +639,8 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
 
 
 int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
-        unsigned char enables, double vel, double ini_maxvel, double ini_maxacc, double ini_maxjerk)
+        unsigned char enables, double vel, double ini_maxvel, double
+        ini_maxacc, double ini_maxjerk)
 {
     static TC_STRUCT tc;
     static uint32_t knots_todo = 0,
@@ -645,7 +653,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
                     nofl_order = 0;
     nurbs_block_t *nurbs_to_tc=&tc.nurbs_block;//EmcPose* control_points;
     if( ini_maxjerk == 0 ) {
-                rtapi_print_msg(RTAPI_MSG_ERR, "TODO:jerk is not provided or jerk = 0\n");
+                rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
                 assert(ini_maxjerk > 0);
     }
     if (!tp) {
