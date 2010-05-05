@@ -32,6 +32,7 @@
 
 #if (TRACE != 0)
     static FILE *dptrace = NULL;
+    static uint32_t _dt = 0;
 #endif
 int nurbs_findspan (int n, int p, double u, double *U)
 {
@@ -212,13 +213,17 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
     } else {
         int s, tmp1,i;
-        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR ,l ;
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR ,
+                     l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z;
+        static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0;
         N = tc->nurbs_block.N;
         NL = tc->nurbs_block.NL;
         assert(tc->motion_type == TC_NURBS);
 
         // compute U(L)
         l = progress / tc->target;
+        delta_l = l - last_l;
+        last_l = l;
         if (l<1) {
             s = nurbs_findspan(tc->nurbs_block.nr_of_uofl_ctrl_pts-1, tc->nurbs_block.uofl_order - 1,
                                 l, tc->nurbs_block.uofl_knots_ptr);
@@ -236,6 +241,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
             }
             u = u/LR;
+     //       u = l;
+            delta_u = u - last_u;
+            last_u = u;
 //            DP("u(%f) length(%f)\n",u,l*tc->nurbs_block.curve_len);
             if (u<1) {
                 s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
@@ -340,6 +348,22 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 } else {
                     uvw.tran.z = pos.w;
                 }
+                delta_x = xyz.tran.x - last_x;
+                delta_y = xyz.tran.y - last_y;
+                delta_z = xyz.tran.z - last_z;
+                delta_d = pmSqrt(pmSq(delta_x)+pmSq(delta_y)+pmSq(delta_z));
+                last_x = xyz.tran.x;
+                last_y = xyz.tran.y;
+                last_z = xyz.tran.z;
+//                if((TRACE == 1) && (_dt == 0)){  
+//                  /* prepare header for gnuplot */
+//                    DPS ("%11s%15s%15s%15s%15s%15s%15s\n",
+//                       "#dt", "delta_d", "delta_u", "delta_l","x","y","z");
+//                }else if(TRACE ==1 && (delta_d > 0)) {
+//                    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+//                            _dt, delta_d, delta_u, delta_l,last_x, last_y, last_z);
+//                }
+//                _dt+=1;
             }
         }else {
             xyz.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].X;
@@ -356,7 +380,14 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     }
     //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
     // TODO-eric if R going to show ?
-
+#if (TRACE != 0)
+    if(_dt == 0){
+        /* prepare header for gnuplot */
+        DPS ("%11s%15s%15s%15s\n", "#dt", "x", "y", "z");
+    }
+    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
+    _dt+=1;
+#endif // (TRACE != 0)
     pos.tran = xyz.tran;
     pos.a = abc.tran.x;
     pos.b = abc.tran.y;
@@ -364,9 +395,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     pos.u = uvw.tran.x;
     pos.v = uvw.tran.y;
     pos.w = uvw.tran.z;
-    DP ("GetEndPoint?(%d) tc->id %d MotionType %d X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",
-    		of_endpoint,tc->id,tc->motion_type, pos.tran.x,
-    		pos.tran.y, pos.tran.z, pos.a);
+//    DP ("GetEndPoint?(%d) tc->id %d MotionType %d X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",
+//    		of_endpoint,tc->id,tc->motion_type, pos.tran.x,
+//    		pos.tran.y, pos.tran.z, pos.a);
     return pos;
 }
 
@@ -449,12 +480,10 @@ int tcqDelete(TC_QUEUE_STRUCT * tcq)
 int tcqInit(TC_QUEUE_STRUCT * tcq)
 {
 #if (TRACE != 0)
-
     if(!dptrace){
         dptrace = fopen("tc.log","w");
         fprintf(stderr,"tc.c dptrace not NULL \n");
     }
-  //  }
 #endif
 
     if (0 == tcq) {
@@ -540,14 +569,14 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 
         if(tcq->queue[i].motion_type == TC_NURBS) {
             //fprintf(stderr,"Remove TCNURBS PARAM\n");
-            DP("n(%d) ctrl_pts_ptr(%p) knots_ptr(%p) N(%p) uofl_ctrl_pts_ptr(%p)  uofl_knots_ptr(%p) uofl_weights(%p) \n",
-                   n,
-                   tcq->queue[i].nurbs_block.ctrl_pts_ptr,
-                   tcq->queue[i].nurbs_block.knots_ptr,
-                   tcq->queue[i].nurbs_block.N,
-                   tcq->queue[i].nurbs_block.uofl_ctrl_pts_ptr,
-                   tcq->queue[i].nurbs_block.uofl_knots_ptr,
-                   tcq->queue[i].nurbs_block.uofl_weights);
+//            DP("n(%d) ctrl_pts_ptr(%p) knots_ptr(%p) N(%p) uofl_ctrl_pts_ptr(%p)  uofl_knots_ptr(%p) uofl_weights(%p) \n",
+//                   n,
+//                   tcq->queue[i].nurbs_block.ctrl_pts_ptr,
+//                   tcq->queue[i].nurbs_block.knots_ptr,
+//                   tcq->queue[i].nurbs_block.N,
+//                   tcq->queue[i].nurbs_block.uofl_ctrl_pts_ptr,
+//                   tcq->queue[i].nurbs_block.uofl_knots_ptr,
+//                   tcq->queue[i].nurbs_block.uofl_weights);
             free(tcq->queue[i].nurbs_block.knots_ptr);
             free(tcq->queue[i].nurbs_block.ctrl_pts_ptr);
             free(tcq->queue[i].nurbs_block.N);

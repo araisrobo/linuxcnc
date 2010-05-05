@@ -43,7 +43,7 @@ double servo_period;
 double servo_freq;
 
 // to disable DP(): #define TRACE 0
-#define DBGMSG 1
+#define DBGMSG 0
 #define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)

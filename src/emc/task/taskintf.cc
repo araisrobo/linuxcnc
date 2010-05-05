@@ -541,7 +541,6 @@ double emcAxisGetMaxJerk(int axis)
     if (axis < 0 || axis >= EMCMOT_MAX_AXIS) {
         return 0;
     }
-
     return AxisConfig[axis].MaxJerk;
 }
 
