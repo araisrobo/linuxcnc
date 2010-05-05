@@ -351,11 +351,11 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 delta_x = xyz.tran.x - last_x;
                 delta_y = xyz.tran.y - last_y;
                 delta_z = xyz.tran.z - last_z;
-                delta_d = sqrt(pow(delta_x,2)+pow(delta_y,2)+pow(delta_z,2));
+                delta_d = pmSqrt(pmSq(delta_x)+pmSq(delta_y)+pmSq(delta_z));
                 last_x = xyz.tran.x;
                 last_y = xyz.tran.y;
                 last_z = xyz.tran.z;
-//                if((TRACE == 1) && (_dt == 0)){
+//                if((TRACE == 1) && (_dt == 0)){  
 //                  /* prepare header for gnuplot */
 //                    DPS ("%11s%15s%15s%15s%15s%15s%15s\n",
 //                       "#dt", "delta_d", "delta_u", "delta_l","x","y","z");
@@ -380,15 +380,14 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     }
     //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
     // TODO-eric if R going to show ?
-    if((TRACE == 1)){
-      /* prepare header for gnuplot */
-        DPS ("%11s%15s%15s%15s\n",
-           "#dt","x","y","z");
-    }else if(TRACE ==1) {
-        DPS("%11u%15.5f%15.5f%15.5f\n",
-                _dt,xyz.tran.x, xyz.tran.y, xyz.tran.z);
+#if (TRACE != 0)
+    if(_dt == 0){
+        /* prepare header for gnuplot */
+        DPS ("%11s%15s%15s%15s\n", "#dt", "x", "y", "z");
     }
+    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
     _dt+=1;
+#endif // (TRACE != 0)
     pos.tran = xyz.tran;
     pos.a = abc.tran.x;
     pos.b = abc.tran.y;
@@ -481,12 +480,10 @@ int tcqDelete(TC_QUEUE_STRUCT * tcq)
 int tcqInit(TC_QUEUE_STRUCT * tcq)
 {
 #if (TRACE != 0)
-
     if(!dptrace){
         dptrace = fopen("tc.log","w");
         fprintf(stderr,"tc.c dptrace not NULL \n");
     }
-  //  }
 #endif
 
     if (0 == tcq) {
