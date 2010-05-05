@@ -336,8 +336,7 @@ RTAPI_MP_ARRAY_STRING(ctrl_type,MAX_CHAN,"control type (pos or vel) for up to 8 
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
-// static const char *bitfile = "./fpga_top.bit";
-static const char *bitfile = "./stepper_top.bit";
+static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
 
 
@@ -492,58 +491,32 @@ int rtapi_app_main(void)
                    data);
     assert (ret==0);
 
-    // GPIO_LEDS_SEL=1:  forward SERVO pulses to LEDs
-    data[0] = 1;
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   GPIO_LEDS_SEL,
-                   1,
-                   data);
-
-    // // GPIO_LEDS_SEL=2: forward debug_port_0[7:0] to LEDs
-    // data[0] = 2;
+    // // forward SERVO pulses to LEDs
+    // data[0] = 1;
     // ret = wou_cmd (&w_param,
     //                (WB_WR_CMD | WB_AI_MODE),
     //                GPIO_LEDS_SEL,
     //                1,
     //                data);
-    // assert (ret==0);
-  
-    // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
-    data[0] = 1;  // invert the direction for Joint_0 
+    // forward debug_port_0[7:0] to LEDs
+    data[0] = 2;
     ret = wou_cmd (&w_param,
                    (WB_WR_CMD | WB_AI_MODE),
-                   (JCMD_BASE | JCMD_DIR_POL),
+                   GPIO_LEDS_SEL,
                    1,
                    data);
+    assert (ret==0);
 
-    // set MAX_PWM ratio for each joints
-    //  * for 華谷：
-    //  * JNT_0 ~ JNT_2: current limit: 2.12A/phase (DST56EX43A)
-    //  *                SSIF_MAX_PWM = 2.12A/3A * 255 * 70% = 126
-    //  *                comment from 林大哥：步進最大電流最好打七折
-    //  *                未打折：K值可上1000P/0.67ms
-    //  *                打七折：K值可上800P/0.67ms
-    //  * JNT_1:         current limit: 3.0A/phase (DST86EM82A)
-    //  *                Bipolar 串聯後之電流 = 3A * 0.707 = 2.121
-    //  *                SSIF_MAX_PWM = 2.121/3 * 255 = 180.285
-    // data[0] = 102; // JNT_0  // japanServo, 1.2A
-    // data[0] = 126; // JNT_0
-    // data[1] = 126; // JNT_1
-    // data[2] = 126; // JNT_2
-    // data[3] = 178; // JNT_3
-    data[0] = 180; // JNT_0
-    data[1] = 180; // JNT_1
-    // data[2] = 180; // JNT_2  // Teco, 2.12A
-    data[2] = 102; // JNT_2   // Oriento, 1.2A
-    data[3] = 180; // JNT_3
-    // Write 4 bytes to USB with Automatically Address Increment
-    // wr_usb (WR_AI, (uint16_t) (SSIF_BASE | SSIF_MAX_PWM), (uint8_t) 4, data);
-    ret = wou_cmd(&w_param,
-		  (WB_WR_CMD | WB_AI_MODE),
-		  (SSIF_BASE | SSIF_MAX_PWM), 4, data);
-    wou_flush(&w_param);
-
+    //obsolete: // JCMD_TBASE: 0: sif base_period is "32768" ticks
+    //obsolete: // TODO: obtain TBASE value from .ini file
+    //obsolete: data[0] = 0; 
+    //obsolete: ret = wou_cmd (&w_param,
+    //obsolete:                (WB_WR_CMD | WB_AI_MODE),
+    //obsolete:                (JCMD_BASE | JCMD_TBASE),
+    //obsolete:                1,
+    //obsolete:                data);
+    //obsolete: assert (ret==0);
+    
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SIF_EN, servo interface enable
