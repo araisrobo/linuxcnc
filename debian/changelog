@@ -1,3 +1,11 @@
+emc2 (1:2.4.0-nurbs-2010.05.05) lucid; urgency=low
+
+  * Bug Fixed: Jerk calculation for tcAddCircle()
+  * Simplify the VEL/ACC/JERK calculation for ARC_FEED()
+  * Separate the configs/ and nc_files/ for customers
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 05 May 2010 11:43:59 +0800
+
 emc2 (1:2.4.0-nurbs-2010.04.23) lucid; urgency=low
 
   * Fix wou_stepgen.c for new SSIF MACROS
