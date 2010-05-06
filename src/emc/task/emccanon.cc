@@ -586,8 +586,8 @@ double getStraightAcceleration(double x, double y, double z,
                                double u, double v, double w)
 {
     double dx, dy, dz, du, dv, dw, da, db, dc;
-    double tx, ty, tz, tu, tv, tw, ta, tb, tc, tmax;
-    double acc, dtot;
+//    double tx, ty, tz, tu, tv, tw, ta, tb, tc, tmax;
+    double acc;//, dtot;
 
     acc = 0.0; // if a move to nowhere
 
@@ -629,8 +629,48 @@ double getStraightAcceleration(double x, double y, double z,
     } else {
 	canon.angular_move = 1;
     }
-
     // Pure linear move:
+    if (canon.cartesian_move && !canon.angular_move) {
+
+        acc = MIN3((dx?emcAxisGetMaxAcceleration(0): 1e9),
+                    (dy?emcAxisGetMaxAcceleration(1): 1e9),
+                    (dz?emcAxisGetMaxAcceleration(2): 1e9));
+        acc = FROM_EXT_LEN(MIN4((acc),
+                        (du?emcAxisGetMaxAcceleration(6): 1e9),
+                        (dv?emcAxisGetMaxAcceleration(7): 1e9),
+                        (dw?emcAxisGetMaxAcceleration(8): 1e9)));
+        assert(acc > 0);
+    }
+    // Pure angular move:
+    else if (!canon.cartesian_move && canon.angular_move) {
+        acc = FROM_EXT_ANG(MIN3(
+                    (da?emcAxisGetMaxAcceleration(3): 1e9),
+                    (db?emcAxisGetMaxAcceleration(4): 1e9),
+                    (dc?emcAxisGetMaxAcceleration(5): 1e9)));
+        assert(acc > 0);
+    }
+    // Combination angular and linear move:
+    else if (canon.cartesian_move && canon.angular_move) {
+        double ang_acc;
+        acc = MIN3( (dx?emcAxisGetMaxAcceleration(0): 1e9),
+                    (dy?emcAxisGetMaxAcceleration(1): 1e9),
+                    (dz?emcAxisGetMaxAcceleration(2): 1e9));
+
+        acc = FROM_EXT_LEN(MIN4( acc,
+                                (du?emcAxisGetMaxAcceleration(6): 1e9),
+                                (dv?emcAxisGetMaxAcceleration(7): 1e9),
+                                (dw?emcAxisGetMaxAcceleration(8): 1e9)));
+
+        ang_acc = FROM_EXT_ANG(MIN3(
+                            (da?emcAxisGetMaxAcceleration(3): 1e9),
+                            (db?emcAxisGetMaxAcceleration(4): 1e9),
+                            (dc?emcAxisGetMaxAcceleration(5): 1e9)));
+
+        acc = MIN(acc, ang_acc);
+
+        assert(acc > 0);
+    }
+ /*   // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
 	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
 	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
@@ -677,12 +717,12 @@ double getStraightAcceleration(double x, double y, double z,
                     ta, tb, tc,
                     tu, tv, tw);
 
-/*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
+  According to NIST IR6556 Section 2.1.2.5 Paragraph A
     a combnation move is handled like a linear move, except
     that the angular axes are allowed sufficient time to
     complete their motion coordinated with the motion of
     the linear axes.
-*/
+
         if(dx || dy || dz)
             dtot = sqrt(dx * dx + dy * dy + dz * dz);
         else
@@ -691,7 +731,7 @@ double getStraightAcceleration(double x, double y, double z,
 	if (tmax > 0.0) {
 	    acc = dtot / tmax;
 	}
-    }
+    }*/
     if(debug_velacc) 
         printf("cartesian %d ang %d acc %g\n", canon.cartesian_move, canon.angular_move, acc);
     return acc;
@@ -702,8 +742,8 @@ double getStraightVelocity(double x, double y, double z,
                            double u, double v, double w)
 {
     double dx, dy, dz, da, db, dc, du, dv, dw;
-    double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
-    double vel, dtot;
+//    double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
+    double vel;//, dtot;
 
 /* If we get a move to nowhere (!canon.cartesian_move && !canon.angular_move)
    we might as well go there at the canon.linearFeedRate...
@@ -860,7 +900,6 @@ double getStraightVelocity(double x, double y, double z,
 //	}
 //    }
 //
-
     vel = MIN(vel, canon.linearFeedRate);
 
     DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
@@ -1729,9 +1768,9 @@ void ARC_FEED(int line_number,
 			/* axial_maxvel=0.0, axial_acc, */ 
                         circ_acc, acc=0.0;
     double j1, j2, ini_maxjerk;
-    double radius, angle, theta1, theta2, helical_length, axis_len;
-    double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
-    double tu, tv, tw, du, dv, dw;
+    double radius,  theta1, theta2, axis_len;//angle,
+ //   double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
+    double du, dv, dw, da, db, dc;//tu, tv, tw,
     double mx, my;
     double axis_max_acc[EMCMOT_MAX_AXIS], axis_max_vel[EMCMOT_MAX_AXIS], axis_max_jerk[EMCMOT_MAX_AXIS];
     double lx, ly, lz;
