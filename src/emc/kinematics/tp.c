@@ -737,7 +737,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         // knots == 0 means all NURBS collected
 #if 0 //dump control points and knots info
         uint32_t i=0;
-        fprintf(stderr,"tp.c tpAddNURBS() \n");
+        //fprintf(stderr,"tp.c tpAddNURBS() \n");
         for(i=0;i<nr_of_ctrl_pts;i++){
             fprintf(stderr,"index [%d] = knots=%f cp(%f,%f,%f %f) weight = %f \n",i,
                     nurbs_to_tc->knots_ptr[i],
@@ -827,7 +827,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     switch (tc->accel_state) {
         case ACCEL_S0:
             newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
-            fprintf(stderr,"ACCEL_S0\n");
             // hit accel limit
             if (newaccel >= tc->maxaccel) {
                 newaccel = tc->maxaccel;
@@ -842,7 +841,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             if (newvel * 2.0 >= tc->reqvel * tc->feed_override) {
                 tc->accel_state = ACCEL_S2;
                 if( tc->reqvel * tc->feed_override ==0 ) {
-                    //newvel = 0;  //break caused by feed_override hit zero
+                    // break caused by feed_override hit zero
                     tc->accel_time = tc->currentvel;
                 }
             }
@@ -859,16 +858,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(newvel >= 0);
             break;
         case ACCEL_S1:
-            fprintf(stderr,"ACCEL_S1\n");
             newaccel = tc->cur_accel;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
             target_vel = newvel + tc->accel_time;
             // hit velocity limit
-            if (target_vel >= tc->reqvel * tc->feed_override) {
+            if (target_vel >= tc->reqvel * tc->feed_override) {                
                 tc->accel_state = ACCEL_S2;
-//                if( tc->reqvel * tc->feed_override ==0 ) {
-//                    newvel = 0;  //break caused by feed_override hit zero
-//                }
             }
             // hit progress limit
             if ((tc->motion_progress - tc->accel_dist + target_vel * tc->cur_accel / tc->jerk)
@@ -882,7 +877,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(newvel >= 0);
             break;
         case ACCEL_S2:
-            fprintf(stderr,"ACCEL_S2\n");
             newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
             if (newaccel <= 0) {
@@ -895,7 +889,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(newvel >= 0);
             break;
         case ACCEL_S3:
-            fprintf(stderr,"ACCEL_S3\n");
             newaccel = 0;
 
             newvel = tc->currentvel;
@@ -911,7 +904,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             break;
             assert(newvel >= 0);
         case ACCEL_S4:
-            fprintf(stderr,"ACCEL_S4\n");
             newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
             if ((newaccel <= -tc->maxaccel) || (tc->reqvel * tc->feed_override == 0)) {
@@ -928,11 +920,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             if (newvel <= 0.5 * tc->accel_time) {   // accel_time stores the initial-velocity of deceleration
                 tc->accel_state = ACCEL_S6;
             }
-         //   fprintf(stderr,"newvel(%.5f) \n",newvel);
             assert(newvel >= 0); //TODO-eric: Somehow feedoverride 0% cause newvel on S4 below 0.0
             break;
         case ACCEL_S5:
-            fprintf(stderr,"ACCEL_S5\n");
+
             newaccel = tc->cur_accel;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
 
@@ -950,7 +941,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(newvel >= 0);
             break;
         case ACCEL_S6:
-            fprintf(stderr,"ACCEL_S6\n");
             newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
             // handle pausing
@@ -966,7 +956,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(newvel >= 0);
             break;
         case ACCEL_S7:// pause wait resume or initial state
-            fprintf(stderr,"ACCEL_S7\n");
             newvel = 0;
             newaccel = 0;
             if (tp->pausing == 0 && ( tc->reqvel * tc->feed_override > 0)) {

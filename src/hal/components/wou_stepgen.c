@@ -1,16 +1,17 @@
 /********************************************************************
-* Description:  stepgen.c
-*               This file, 'stepgen.c', is a HAL component that 
-*               provides software based step pulse generation.
+* Description:  wou_stepgen.c
+*               This file, 'wou_stepgen.c', is a HAL component that 
+*               provides pulse/dir commands for MESA 7i43U through USB.
+*               It was based on stepgen.c by John Kasunich.
 *
-* Author: John Kasunich
+* Author: Yi-Shin Li
 * License: GPL Version 2
 *    
-* Copyright (c) 2003-2007 All rights reserved.
+* Copyright (c) 2009-2010 All rights reserved.
 *
 * Last change: 
 ********************************************************************/
-/** This file, 'stepgen.c', is a HAL component that provides software
+/** This file, 'wou_stepgen.c', is a HAL component that provides software
     based step pulse generation.  The maximum step rate will depend
     on the speed of the PC, but is expected to exceed 5KHz for even
     the slowest computers, and may reach 25KHz on fast ones.  It is
@@ -80,196 +81,15 @@
 
     Stepping Types:
 
-    This module supports a number of stepping types, as follows:
-
-    Type 0:  Step and Direction
-               _____         _____               _____
-    STEP  ____/     \_______/     \_____________/     \______
-              |     |       |     |             |     |
-    Time      |-(1)-|--(2)--|-(1)-|--(3)--|-(4)-|-(1)-|
-                                          |__________________
-    DIR   ________________________________/
-
-    There are two output pins, STEP and DIR.  Step pulses appear on
-    STEP.  A positive frequency command results in DIR low, negative
-    frequency command means DIR high.  The minimum period of the
-    step pulses is 'steplen' + 'stepspace', and the frequency
-    command is clamped to avoid exceeding these limits.  'steplen'
-    and 'stepspace' must both be non-zero.  'dirsetup' or 'dirhold'
-    may be zero, but their sum must be non-zero, to ensure non-zero
-    low time between the last up step and the first down step.
-
-    Type 1:  Up/Down
-             _____       _____
-    UP    __/     \_____/     \________________________________
-            |     |     |     |         |
-    Time    |-(1)-|-(2)-|-(1)-|---(5)---|-(1)-|-(2)-|-(1)-|
-                                        |_____|     |_____|
-    DOWN  ______________________________/     \_____/     \____
-
-
-    There are two output pins, UP and DOWN.  A positive frequency
-    command results in pulses on UP, negative frequency command
-    results in pulses on DOWN.  The minimum period of the step
-    pulses is 'steplen' + 'stepspace', and the frequency command
-    is clamped to avoid exceeding these limits.  'steplen',
-    'stepspace', and 'dirdelay' must all be non-zero.
-
-    Types 2 and higher:  State Patterns
-
-    STATE   |---1---|---2---|---3---|----4----|---3---|---2---|
-            |       |       |       |         |       |       |
-    Time    |--(1)--|--(1)--|--(1)--|--(1+5)--|--(1)--|--(1)--|
-
-    All the remaining stepping types are simply different repeating
-    patterns on two to five output pins.  When a step occurs, the
-    output pins change to the next (or previous) pattern in the
-    state listings that follow.  The output pins are called 'PhaseA'
-    thru 'PhaseE'.  Timing constraints are obeyed as indicated
-    in the drawing above.  'steplen' must be non-zero.  'dirdelay'
-    may be zero.  Because stepspace is not used, state based
-    stepping types can run faster than types 0 and 1.
+    This module supports Type-2 only.
 
     Type 2:  Quadrature (aka Gray/Grey code)
-
     State   Phase A   Phase B
       0        1        0
       1        1        1
       2        0        1
       3        0        0
       0        1        0
-
-    Type 3:  Three Wire
-
-    State   Phase A   Phase B   Phase C
-      0        1        0         0
-      1        0        1         0
-      2        0        0         1
-      0        1        0         0
-
-    Type 4:  Three Wire HalfStep
-
-    State   Phase A   Phase B   Phase C
-      0        1        0         0
-      1        1        1         0
-      2        0        1         0
-      3        0        1         1
-      4        0        0         1
-      5        1        0         1
-      0        1        0         0
-
-    Type 5:  Unipolar Full Step (one winding on)
-
-    State   Phase A   Phase B   Phase C   Phase D
-      0        1        0         0         0
-      1        0        1         0         0
-      2        0        0         1         0
-      3        0        0         0         1
-      0        1        0         0         0
-
-    Type 6:  Unipolar Full Step (two windings on)
-
-    State   Phase A   Phase B   Phase C   Phase D
-      0        1        1         0         0
-      1        0        1         1         0
-      2        0        0         1         1
-      3        1        0         0         1
-      0        1        1         0         0
-
-    Type 7:  Bipolar Full Step (one winding on)
-
-    State   Phase A   Phase B   Phase C   Phase D
-      0        1        0         0         0
-      1        1        1         1         0
-      2        0        1         1         1
-      3        0        0         0         1
-      0        1        0         0         0
-
-    Type 8:  Bipolar Full Step (two windings on)
-
-    State   Phase A   Phase B   Phase C   Phase D
-      0        1        0         1         0
-      1        0        1         1         0
-      2        0        1         0         1
-      3        1        0         0         1
-      0        1        0         1         0
-
-    Type 9:  Unipolar Half Step
-
-    State   Phase A   Phase B   Phase C   Phase D
-      0        1        0         0         0
-      1        1        1         0         0
-      2        0        1         0         0
-      3        0        1         1         0
-      4        0        0         1         0
-      5        0        0         1         1
-      6        0        0         0         1
-      7        1        0         0         1
-      0        1        0         0         0
-
-    Type 10:  Bipolar Half Step
-
-    State   Phase A   Phase B   Phase C   Phase D
-      0        1        0         0         0
-      1        1        0         1         0
-      2        1        1         1         0
-      3        0        1         1         0
-      4        0        1         1         1
-      5        0        1         0         1
-      6        0        0         0         1
-      7        1        0         0         1
-      0        1        0         0         0
-
-    Type 11:  Five Wire Unipolar
-
-    State   Phase A   Phase B   Phase C   Phase D  Phase E
-      0        1        0         0         0        0
-      1        0        1         0         0        0
-      2        0        0         1         0        0
-      3        0        0         0         1        0
-      4        0        0         0         0        1
-      0        1        0         0         0        0
-
-    Type 12:  Five Wire Wave
-
-    State   Phase A   Phase B   Phase C   Phase D  Phase E
-      0        1        1         0         0        0
-      1        0        1         1         0        0
-      2        0        0         1         1        0
-      3        0        0         0         1        1
-      4        1        0         0         0        1
-      0        1        1         0         0        0
-
-    Type 13:  Five Wire Unipolar HalfStep
-
-    State   Phase A   Phase B   Phase C   Phase D  Phase E
-      0        1        0         0         0        0
-      1        1        1         0         0        0
-      2        0        1         0         0        0
-      3        0        1         1         0        0
-      4        0        0         1         0        0
-      5        0        0         1         1        0
-      6        0        0         0         1        0
-      7        0        0         0         1        1
-      8        0        0         0         0        1
-      9        1        0         0         0        1
-      0        1        0         0         0        0
-
-    Type 14:  Five Wire Wave HalfStep
-
-    State   Phase A   Phase B   Phase C   Phase D  Phase E
-      0        1        1         0         0        0
-      1        1        1         1         0        0
-      2        0        1         1         0        0
-      3        0        1         1         1        0
-      4        0        0         1         1        0
-      5        0        0         1         1        1
-      6        0        0         0         1        1
-      7        1        0         0         1        1
-      8        1        0         0         0        1
-      9        1        1         0         0        1
-      0        1        1         0         0        0
-
 */
 
 /** This program is free software; you can redistribute it and/or
@@ -326,17 +146,24 @@ static FILE *dptrace;
 #endif
 
 /* module information */
-MODULE_AUTHOR("John Kasunich");
-MODULE_DESCRIPTION("Step Pulse Generator for EMC HAL");
+MODULE_AUTHOR("Yi-Shin Li");
+MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
 int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_type,MAX_CHAN,"stepping types for up to 8 channels");
 const char *ctrl_type[MAX_CHAN] = { "p", "p", "p", "p", "p", "p", "p", "p" };
 RTAPI_MP_ARRAY_STRING(ctrl_type,MAX_CHAN,"control type (pos or vel) for up to 8 channels");
+const char *bits = "\0";
+RTAPI_MP_STRING(bits, "FPGA bitfile");
+int gpio_mask_in0 = -1;
+RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
+int gpio_leds_sel = -1;
+RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
+
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
-static const char *bitfile = "./fpga_top.bit";
+// static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
 
 
@@ -474,49 +301,57 @@ int rtapi_app_main(void)
                  "pos_cmd[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]",
                  "pos_cmd[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]",
                  "pos_cmd[3]", "pos_fb[3]", "match_ac[3]", "curr_vel[3]");
-
 #endif
     
-    wou_init(&w_param, board, wou_id, bitfile);
-    if (wou_connect(&w_param) == -1) {  
-	    rtapi_print_msg(RTAPI_MSG_ERR, "ERROR Connection failed\n");
-	    return -1;
+    /* test for bitfile string: bits */
+    if ((bits == 0) || (bits[0] == '\0')) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no fpga bitfile string: bits\n");
+	return -1;
+    } else {
+        // initialize FPGA with bitfile(bits)
+        wou_init(&w_param, board, wou_id, bits);
+        if (wou_connect(&w_param) == -1) {  
+                rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: Connection failed\n");
+                return -1;
+        }
     }
-    // un-mask HOME-SWITCH inputs (bits_i[5:2])
-    data[0] = 0x3C;
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   GPIO_MASK_IN0,
-                   1,
-                   data);
-    assert (ret==0);
 
-    // // forward SERVO pulses to LEDs
-    // data[0] = 1;
-    // ret = wou_cmd (&w_param,
-    //                (WB_WR_CMD | WB_AI_MODE),
-    //                GPIO_LEDS_SEL,
-    //                1,
-    //                data);
-    // forward debug_port_0[7:0] to LEDs
-    data[0] = 2;
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   GPIO_LEDS_SEL,
-                   1,
-                   data);
-    assert (ret==0);
+    /* test for GPIO_MASK_IN0: gpio_mask_in0 */
+    if ((gpio_mask_in0 == -1)) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
+	return -1;
+    } else {
+        // un-mask HOME-SWITCH inputs (bits_i[5:2])
+        data[0] = (uint8_t) gpio_mask_in0;
+        ret = wou_cmd (&w_param,
+                       (WB_WR_CMD | WB_AI_MODE),
+                       GPIO_MASK_IN0,
+                       1,
+                       data);
+        if (ret) {
+	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_LEDS_SEL\n");
+            return -1;
+        }
+    }
 
-    //obsolete: // JCMD_TBASE: 0: sif base_period is "32768" ticks
-    //obsolete: // TODO: obtain TBASE value from .ini file
-    //obsolete: data[0] = 0; 
-    //obsolete: ret = wou_cmd (&w_param,
-    //obsolete:                (WB_WR_CMD | WB_AI_MODE),
-    //obsolete:                (JCMD_BASE | JCMD_TBASE),
-    //obsolete:                1,
-    //obsolete:                data);
-    //obsolete: assert (ret==0);
-    
+    /* test for GPIO_LEDS_SEL: gpio_leds_sel */
+    if ((gpio_leds_sel == -1)) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no value for GPIO_LEDS_SEL: gpio_leds_sel\n");
+	return -1;
+    } else {
+        // select signals for LEDs
+        data[0] = (uint8_t) gpio_leds_sel;
+        ret = wou_cmd (&w_param,
+                       (WB_WR_CMD | WB_AI_MODE),
+                       GPIO_LEDS_SEL,
+                       1,
+                       data);
+        if (ret) {
+	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_LEDS_SEL\n");
+            return -1;
+        }
+    }
+
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SIF_EN, servo interface enable
@@ -527,7 +362,11 @@ int rtapi_app_main(void)
                    (JCMD_BASE | JCMD_CTRL),
                    1,
                    data);
-    assert (ret==0);
+    if (ret) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
+        return -1;
+    }
+
     wou_flush(&w_param);
     
     for (n = 0; n < MAX_CHAN && step_type[n] != -1 ; n++) {
@@ -1281,3 +1120,5 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     rtapi_set_msg_level(msg);
     return 0;
 }
+
+// vim:sw=4:sts=4:et:

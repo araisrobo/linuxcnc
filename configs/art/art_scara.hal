@@ -7,8 +7,13 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[E
 # loadrt ddt count=12
 # stepper module
 # loadrt wou step_type=0,0,0,0  # type(0): step + dir
-# TODO: add fpga-bitfile as a parameter to "loadrt wou"
-loadrt wou step_type=2,2,2,2  # type(2): Quadrature 
+# step_type(2):     Quadrature 
+# bits:             path to FPGA bitfile
+# gpio_mask_in0:    WOU Register value for GPIO_MASK_IN0
+# gpio_leds_sel:    WOU Register value for GPIO_LEDS_SEL: 
+#                   servo_pulses(1)
+#                   debug_port_0[7:0](2)
+loadrt wou step_type=2,2,2,2 bits="fpga_top.bit" gpio_mask_in0=0x3C gpio_leds_sel=2
 loadrt not count=7
 
 # add motion controller functions to servo thread
