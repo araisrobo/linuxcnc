@@ -1,3 +1,10 @@
+emc2 (1:2.4.0-nurbs-2010.05.12) lucid; urgency=low
+
+  * wou_stepgen.c: load FPGA bitfile and WOU_Register settings from 
+                   HAL configuration file. 
+
+ -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  TODO
+
 emc2 (1:2.4.0-nurbs-2010.05.07) lucid; urgency=low
 
   * Fix assertion when pausing and stopping machine
