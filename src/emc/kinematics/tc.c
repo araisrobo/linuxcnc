@@ -157,7 +157,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose uvw;
     
     double progress = of_endpoint? tc->target: tc->progress;
-
+    static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0;
 
     if (tc->motion_type == TC_RIGIDTAP) {
         if(tc->coords.rigidtap.state > REVERSING) {
@@ -215,7 +215,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
         int s, tmp1,i;
         double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR ,
                      l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z;
-        static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0;
+
         N = tc->nurbs_block.N;
         NL = tc->nurbs_block.NL;
         assert(tc->motion_type == TC_NURBS);
@@ -352,6 +352,13 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 }
 
 #if (TRACE != 0)
+                if(l == 0 || _dt == 0) {
+                    last_l = 0;
+                    last_u = 0;
+                    last_x = pos.tran.x;
+                    last_y = pos.tran.y;
+                    last_z = pos.tran.z;
+                }
                 delta_l = l - last_l;
                 last_l = l;
                 delta_u = u - last_u;
@@ -401,6 +408,11 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 //    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
 //    _dt+=1;
 //#endif // (TRACE != 0)
+#if (TRACE != 1)
+    if( of_endpoint != 1) {
+
+    }
+#endif
     pos.tran = xyz.tran;
     pos.a = abc.tran.x;
     pos.b = abc.tran.y;
