@@ -222,28 +222,29 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
         // compute U(L)
         l = progress / tc->target;
-        delta_l = l - last_l;
-        last_l = l;
+
         if (l<1) {
             s = nurbs_findspan(tc->nurbs_block.nr_of_uofl_ctrl_pts-1, tc->nurbs_block.uofl_order - 1,
                                 l, tc->nurbs_block.uofl_knots_ptr);
 
             nurbs_basisfun(s,l,tc->nurbs_block.uofl_order-1,tc->nurbs_block.uofl_knots_ptr,NL);
-
+//            for(i=0 ; i < tc->nurbs_block.nr_of_ctrl_pts ; i ++) {
+//                fprintf(stderr,"%f \n",tc->nurbs_block.uofl_ctrl_pts_ptr[i]);
+//            }
+//            assert(0);
             tmp1 = s - tc->nurbs_block.uofl_order +1;
             LR = 0.0;
             for(i=0;i<=tc->nurbs_block.uofl_order-1;i++){
                 LR += NL[i]*tc->nurbs_block.uofl_weights[tmp1+i];
             }
             u = 0.0;
+//            fprintf(stderr,"tmp1(%d) \n",tmp1);
             for (i=0; i<=tc->nurbs_block.uofl_order -1; i++) {
                     u += NL[i]*tc->nurbs_block.uofl_ctrl_pts_ptr[tmp1+i];
-
+//                    fprintf(stderr,"NL[%d](%f) u(%f) \n",i,NL[i],u);
             }
             u = u/LR;
-     //       u = l;
-            delta_u = u - last_u;
-            last_u = u;
+//            u = l;
 //            DP("u(%f) length(%f)\n",u,l*tc->nurbs_block.curve_len);
             if (u<1) {
                 s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
@@ -251,7 +252,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
                                                   // output: N:basis functions
                 tmp1 = s - tc->nurbs_block.order +1;
-
+//                fprintf(stderr,"tmp1(%d) \n",tmp1);
                 R = 0.0;
                 for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
 
@@ -262,6 +263,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     X = 0.0;
                     for (i=0; i<=tc->nurbs_block.order -1; i++) {
                             X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
+
                     }
                     X = X/R;
                     xyz.tran.x = X;
@@ -348,6 +350,12 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 } else {
                     uvw.tran.z = pos.w;
                 }
+
+#if (TRACE != 0)
+                delta_l = l - last_l;
+                last_l = l;
+                delta_u = u - last_u;
+                last_u = u;
                 delta_x = xyz.tran.x - last_x;
                 delta_y = xyz.tran.y - last_y;
                 delta_z = xyz.tran.z - last_z;
@@ -355,15 +363,20 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 last_x = xyz.tran.x;
                 last_y = xyz.tran.y;
                 last_z = xyz.tran.z;
-//                if((TRACE == 1) && (_dt == 0)){  
-//                  /* prepare header for gnuplot */
-//                    DPS ("%11s%15s%15s%15s%15s%15s%15s\n",
-//                       "#dt", "delta_d", "delta_u", "delta_l","x","y","z");
-//                }else if(TRACE ==1 && (delta_d > 0)) {
-//                    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-//                            _dt, delta_d, delta_u, delta_l,last_x, last_y, last_z);
-//                }
-//                _dt+=1;
+                if( delta_d > 0)
+                {
+                    if(_dt == 0){
+                      /* prepare header for gnuplot */
+                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s\n",
+                           "#dt", "u", "l","x","y","z","delta_d", "delta_l");
+                    }
+
+                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l);
+
+                    _dt+=1;
+                }
+#endif // (TRACE != 0)
             }
         }else {
             xyz.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].X;
@@ -380,14 +393,14 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     }
     //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
     // TODO-eric if R going to show ?
-#if (TRACE != 0)
-    if(_dt == 0){
-        /* prepare header for gnuplot */
-        DPS ("%11s%15s%15s%15s\n", "#dt", "x", "y", "z");
-    }
-    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
-    _dt+=1;
-#endif // (TRACE != 0)
+//#if (TRACE != 0)
+//    if(_dt == 0){
+//        /* prepare header for gnuplot */
+//        DPS ("%11s%15s%15s%15s\n", "#dt", "x", "y", "z");
+//    }
+//    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
+//    _dt+=1;
+//#endif // (TRACE != 0)
     pos.tran = xyz.tran;
     pos.a = abc.tran.x;
     pos.b = abc.tran.y;
