@@ -352,12 +352,13 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 }
 
 #if (TRACE != 0)
-                if(l == 0 || _dt == 0) {
+                if(l == 0 && _dt == 0) {
                     last_l = 0;
                     last_u = 0;
-                    last_x = pos.tran.x;
-                    last_y = pos.tran.y;
-                    last_z = pos.tran.z;
+                    last_x = xyz.tran.x;
+                    last_y = xyz.tran.y;
+                    last_z = xyz.tran.z;
+                    _dt+=1;
                 }
                 delta_l = l - last_l;
                 last_l = l;
@@ -372,7 +373,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 last_z = xyz.tran.z;
                 if( delta_d > 0)
                 {
-                    if(_dt == 0){
+                    if(_dt == 1){
                       /* prepare header for gnuplot */
                         DPS ("%11s%15s%15s%15s%15s%15s%15s%15s\n",
                            "#dt", "u", "l","x","y","z","delta_d", "delta_l");
