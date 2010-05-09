@@ -69,18 +69,18 @@ plot \
     "tp.log" using 1:3 title "newvel", \
     "tp.log" using 1:4 title "cur_vel", \
     "tp.log" using 1:5 title "progress"
-plot \
-    "tc_nouofl.log" using 1:2 title "u", \
-    "tc_nouofl.log" using 1:3 title "l", \
-    "tc_nouofl.log" using 1:4 title "delta_dist", \
-    "tc_nouofl.log" using 1:5 title "delta_l"
 
 #tc.c plot delta_l delta_u delta_d 
 plot \
-    "tc.log" using 1:2 title "delta_d", \
-    "tc.log" using 1:3 title "delta_u", \
-    "tc.log" using 1:4 title "delta_l"
+    "tc.log" using 1:2 title "u", \
+    "tc.log" using 1:3 title "l", \
+    "tc.log" using 1:7 title "delta_d", \
+    "tc.log" using 1:8 title "delta_l", \
+    "tc.log" using 1:4 title "x", \
+    "tc.log" using 1:5 title "y", \
+    "tc.log" using 1:6 title "z"
 
 #tc.c plot x vs. y
 plot \
-    "tc.log" using 5:6 title "x vs y"
+    "tc.log" using 2:3 title "u vs l",\
+    "tc.log" using 4:5 title "x vs y"
