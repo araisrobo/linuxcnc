@@ -362,7 +362,9 @@ int rtapi_app_main(void)
 	return -1;
     } else {
         // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
+        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: DEBUG: JCMD_DIR_POL=%d\n", jcmd_dir_pol);
         data[0] = (uint8_t) jcmd_dir_pol;
+        // data[0] = 0;
         ret = wou_cmd (&w_param,
                        (WB_WR_CMD | WB_AI_MODE),
                        JCMD_DIR_POL,
