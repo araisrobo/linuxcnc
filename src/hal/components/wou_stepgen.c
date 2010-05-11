@@ -329,7 +329,7 @@ int rtapi_app_main(void)
         data[0] = (uint8_t) gpio_mask_in0;
         ret = wou_cmd (&w_param,
                        (WB_WR_CMD | WB_AI_MODE),
-                       GPIO_MASK_IN0,
+                       GPIO_BASE | GPIO_MASK_IN0,
                        1,
                        data);
         if (ret) {
@@ -347,7 +347,7 @@ int rtapi_app_main(void)
         data[0] = (uint8_t) gpio_leds_sel;
         ret = wou_cmd (&w_param,
                        (WB_WR_CMD | WB_AI_MODE),
-                       GPIO_LEDS_SEL,
+                       GPIO_BASE | GPIO_LEDS_SEL,
                        1,
                        data);
         if (ret) {
@@ -362,14 +362,13 @@ int rtapi_app_main(void)
 	return -1;
     } else {
         // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
-        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: DEBUG: JCMD_DIR_POL=%d\n", jcmd_dir_pol);
         data[0] = (uint8_t) jcmd_dir_pol;
-        // data[0] = 0;
         ret = wou_cmd (&w_param,
                        (WB_WR_CMD | WB_AI_MODE),
-                       JCMD_DIR_POL,
+                       JCMD_BASE | JCMD_DIR_POL,
                        1,
                        data);
+        // rtapi_print_msg(RTAPI_MSG_ERR, "WOU: DEBUG: JCMD_DIR_POL=%d\n", jcmd_dir_pol);
         if (ret) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_DIR_POL\n");
             return -1;
