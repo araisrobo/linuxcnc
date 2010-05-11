@@ -5,6 +5,7 @@ loadrt [KINS]KINEMATICS
 loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[EMCMOT]TRAJ_PERIOD num_joints=[KINS]JOINTS
 
 # loadrt ddt count=12
+#
 # stepper module
 # loadrt wou step_type=0,0,0,0  # type(0): step + dir
 # step_type(2):     Quadrature 
@@ -14,6 +15,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[E
 #                   servo_pulses(1)
 #                   debug_port_0[7:0](2)
 loadrt wou step_type=2,2,2,2 bits="fpga_top.bit" gpio_mask_in0=0x3C gpio_leds_sel=2
+
 loadrt not count=7
 
 # add motion controller functions to servo thread

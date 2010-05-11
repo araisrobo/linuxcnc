@@ -136,6 +136,7 @@
 #include <wb_regs.h>
 
 #define MAX_CHAN 8
+#define MAX_STEP_CUR 255
 
 // to disable DP(): #define TRACE 0
 #define TRACE 0
@@ -159,7 +160,10 @@ int gpio_mask_in0 = -1;
 RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
 int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
-
+int jcmd_dir_pol = -1;
+RTAPI_MP_INT(jcmd_dir_pol, "WOU Register Value for JCMD_DIR_POL");
+int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN, "current limit for up to 8 channel of stepping drivers");
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
@@ -325,7 +329,7 @@ int rtapi_app_main(void)
         data[0] = (uint8_t) gpio_mask_in0;
         ret = wou_cmd (&w_param,
                        (WB_WR_CMD | WB_AI_MODE),
-                       GPIO_MASK_IN0,
+                       GPIO_BASE | GPIO_MASK_IN0,
                        1,
                        data);
         if (ret) {
@@ -343,7 +347,7 @@ int rtapi_app_main(void)
         data[0] = (uint8_t) gpio_leds_sel;
         ret = wou_cmd (&w_param,
                        (WB_WR_CMD | WB_AI_MODE),
-                       GPIO_LEDS_SEL,
+                       GPIO_BASE | GPIO_LEDS_SEL,
                        1,
                        data);
         if (ret) {
@@ -351,7 +355,52 @@ int rtapi_app_main(void)
             return -1;
         }
     }
+    
+    /* test for JCMD_DIR_POL: jcmd_dir_pol*/
+    if ((jcmd_dir_pol == -1)) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no value for JCMD_DIR_POL: jcmd_dir_pol\n");
+	return -1;
+    } else {
+        // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
+        data[0] = (uint8_t) jcmd_dir_pol;
+        ret = wou_cmd (&w_param,
+                       (WB_WR_CMD | WB_AI_MODE),
+                       JCMD_BASE | JCMD_DIR_POL,
+                       1,
+                       data);
+        // rtapi_print_msg(RTAPI_MSG_ERR, "WOU: DEBUG: JCMD_DIR_POL=%d\n", jcmd_dir_pol);
+        if (ret) {
+	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_DIR_POL\n");
+            return -1;
+        }
+    }
+    
+    /* test for stepping motor current limit: step_cur*/
+    num_chan = 0;
+    for (n = 0; n < MAX_CHAN && step_cur[n] != -1 ; n++) {
+	if ((step_cur[n] > MAX_STEP_CUR) || (step_cur[n] < 0)) {
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+			    "WOU: ERROR: bad step_cur[%d]: '%i'\n",
+			    n, step_type[n]);
+	    return -1;
+	}
+        data[n] = (uint8_t) step_cur[n];
+	num_chan++;
+    }
+    if (num_chan > 0) {
+        // wirte SSIF_MAX_PWM to USB with Automatically Address Increment
+        ret = wou_cmd(&w_param,
+                      (WB_WR_CMD | WB_AI_MODE),
+                      (SSIF_BASE | SSIF_MAX_PWM), 
+                      num_chan, 
+                      data);
+        if (ret) {
+	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing SSIF_MAX_PWM\n");
+            return -1;
+        }
+    }
 
+    // TODO: add a SON signal for JCMD_CTRL
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SIF_EN, servo interface enable
@@ -369,6 +418,7 @@ int rtapi_app_main(void)
 
     wou_flush(&w_param);
     
+    num_chan = 0;
     for (n = 0; n < MAX_CHAN && step_type[n] != -1 ; n++) {
 	if ((step_type[n] > MAX_STEP_TYPE) || (step_type[n] < 0)) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
