@@ -1396,7 +1396,7 @@ void NURBS_FEED_3D (
     nurbsMoveMsg.feed_mode = canon.feed_mode;
     nurbsMoveMsg.type = EMC_MOTION_TYPE_FEED;
 
-    nurbsMoveMsg.nurbs_block.uofl_order = 3+1;    // TODO-eric:implement uofl order
+    nurbsMoveMsg.nurbs_block.uofl_order = 2+1;    // TODO-eric:implement uofl order
 
     nr_of_ctrl_pt = nurbs_control_points.size();
     nr_of_knot = nurbs_knot_vector.size();
