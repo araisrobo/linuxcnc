@@ -13,7 +13,9 @@ USRMOTSRCS := \
 	emc/usr_intf/usrmot.c \
 	emc/motion/usrmotintf.cc \
 	emc/motion/emcmotglb.c \
-	emc/motion/emcmotutil.c
+	emc/motion/emcmotutil.c \
+	emc/motion/dbuf.c \
+	emc/motion/stashf.c
 
 HALUISRCS := emc/usr_intf/halui.cc
 ifeq "$(HAVE_NCURSES)" "yes"
@@ -41,6 +43,11 @@ $(call TOOBJSDEPS, $(EMCSHSRCS)) : EXTRAFLAGS = $(ULFLAGS) $(TCL_CFLAGS) -fPIC
 	cp $< $@
 	chmod +x $@
 TARGETS += ../bin/tooledit
+
+../bin/toolconvert: emc/usr_intf/toolconvert.tcl
+	cp $< $@
+	chmod +x $@
+TARGETS += ../bin/toolconvert
 
 ../tcl/emc.so: $(call TOOBJS, $(EMCSHSRCS)) ../lib/libemc.a ../lib/libemcini.so.0 ../lib/libnml.so.0
 	$(ECHO) Linking $(notdir $@)

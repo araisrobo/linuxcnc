@@ -125,7 +125,7 @@ NMLmsg *emcTaskCommand = 0;
 // signal handling code to stop main loop
 static int done;
 static int emctask_shutdown(void);
-static int pseudoMdiLineNumber = -1;
+static int pseudoMdiLineNumber = INT_MIN;
 
 static int all_homed(void) {
     for (int i = 0; i < emcStatus->motion.traj.joints; i++) {
@@ -509,17 +509,13 @@ interpret_again:
 		    } else {
 			readRetval = emcTaskPlanRead();
 			/*! \todo MGS FIXME
-			   This next bit of code is goofy for the following reasons:
-			   1. It uses numbers when these values are #defined in interp_return.hh...
-			   2. This if() actually evaluates to if (readRetval != INTERP_OK)...
-			   3. The "end of file" comment is inaccurate...
+			   This if() actually evaluates to if (readRetval != INTERP_OK)...
 			   *** Need to look at all calls to things that return INTERP_xxx values! ***
 			   MGS */
-			if (readRetval > INTERP_MIN_ERROR || readRetval == 3	/* INTERP_ENDFILE 
-										 */  ||
-			    readRetval == 1 /* INTERP_EXIT */  ||
-			    readRetval == 2	/* INTERP_ENDFILE,
-						   INTERP_EXECUTE_FINISH */ ) {
+			if (readRetval > INTERP_MIN_ERROR
+				|| readRetval == INTERP_ENDFILE
+				|| readRetval == INTERP_EXIT
+				|| readRetval == INTERP_EXECUTE_FINISH) {
 			    /* emcTaskPlanRead retval != INTERP_OK
 			       Signal to the rest of the system that that the interp
 			       is now in a paused state. */
@@ -539,14 +535,15 @@ interpret_again:
 					       command);
 			    // and execute it
 			    execRetval = emcTaskPlanExecute(0);
-			    if (execRetval == -1 /* INTERP_ERROR */  ||
-				execRetval > INTERP_MIN_ERROR || execRetval == 1	/* INTERP_EXIT
-											 */ ) {
-				// end of file
+			    if (execRetval > INTERP_MIN_ERROR) {
 				emcStatus->task.interpState =
 				    EMC_TASK_INTERP_WAITING;
-			    } else if (execRetval == 2	/* INTERP_EXECUTE_FINISH
-							 */ ) {
+				interp_list.clear();
+			    } else if (execRetval == -1
+				    || execRetval == INTERP_EXIT ) {
+				emcStatus->task.interpState =
+				    EMC_TASK_INTERP_WAITING;
+			    } else if (execRetval == INTERP_EXECUTE_FINISH) {
 				// INTERP_EXECUTE_FINISH signifies
 				// that no more reading should be done until
 				// everything
@@ -599,6 +596,9 @@ interpret_again:
 						       emcStatus->motion.traj.actualPosition.u,
 						       emcStatus->motion.traj.actualPosition.v,
 						       emcStatus->motion.traj.actualPosition.w);
+				if (emcStatus->task.readLine + 1
+					== programStartLine)
+				    emcTaskPlanSynch();
 			    }
 
                             if (count++ < EMC_TASK_INTERP_MAX_LEN
@@ -1669,10 +1669,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// update tool offset
-	emcStatus->task.toolOffset.tran.z = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset.tran.z;
-	emcStatus->task.toolOffset.tran.x = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset.tran.x;
-        emcStatus->task.toolOffset.w = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset.w;
-        retval = emcTrajSetOffset(emcStatus->task.toolOffset.tran.z, emcStatus->task.toolOffset.tran.x, emcStatus->task.toolOffset.w);
+	emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
+        retval = emcTrajSetOffset(emcStatus->task.toolOffset);
 	break;
 
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -1840,8 +1838,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	emc_tool_set_offset_msg = (EMC_TOOL_SET_OFFSET *) cmd;
 	retval = emcToolSetOffset(emc_tool_set_offset_msg->pocket,
                                   emc_tool_set_offset_msg->toolno,
-                                  emc_tool_set_offset_msg->zoffset,
-                                  emc_tool_set_offset_msg->xoffset,
+                                  emc_tool_set_offset_msg->offset,
                                   emc_tool_set_offset_msg->diameter,
                                   emc_tool_set_offset_msg->frontangle,
                                   emc_tool_set_offset_msg->backangle,
@@ -1954,11 +1951,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         }
 	if (execute_msg->command[0] != 0) {
 	    if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
-		interp_list.set_line_number(--pseudoMdiLineNumber);
+		interp_list.set_line_number(++pseudoMdiLineNumber);
 	    }
 	    execRetval = emcTaskPlanExecute(execute_msg->command, pseudoMdiLineNumber);
-	    if (execRetval == 2 /* INTERP_ENDFILE */ ) {
-		// this is an end-of-file
+	    if (execRetval == INTERP_EXECUTE_FINISH) {
 		// need to flush execution, so signify no more reading
 		// until all is done
 		emcTaskPlanSetWait();

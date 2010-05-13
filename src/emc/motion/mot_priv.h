@@ -7,9 +7,6 @@
 * System: Linux
 *    
 * Copyright (c) 2004 All rights reserved.
-*
-* Last change:
-*
 ********************************************************************/
 #ifndef MOT_PRIV_H
 #define MOT_PRIV_H
@@ -75,6 +72,14 @@ typedef struct {
 
 } joint_hal_t;
 
+typedef struct {
+    hal_float_t *pos_cmd;        /* RPI: commanded position */
+    hal_float_t *vel_cmd;        /* RPI: commanded velocity */
+    hal_float_t *teleop_pos_cmd; /* RPI: teleop traj planner pos cmd */
+    hal_float_t *teleop_vel_lim; /* RPI: teleop traj planner vel limit */
+    hal_bit_t *teleop_tp_enable; /* RPI: teleop traj planner is running */
+} axis_hal_t;
+
 /* machine data */
 
 typedef struct {
@@ -87,7 +92,6 @@ typedef struct {
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
     hal_bit_t *motion_enabled;	/* RPI: motion enable for all joints */
     hal_bit_t *in_position;	/* RPI: all joints are in position */
-//    hal_bit_t *inpos_output;	/* WPI: all joints are in position (used to power down steppers for example) */
     hal_bit_t *coord_mode;	/* RPA: TRUE if coord, FALSE if free */
     hal_bit_t *teleop_mode;	/* RPA: TRUE if teleop mode */
     hal_bit_t *coord_error;	/* RPA: TRUE if coord mode error */
@@ -150,10 +154,17 @@ typedef struct {
     hal_u32_t overruns;		/* param: count of RT overruns */
 
     hal_float_t *tooloffset_x;
+    hal_float_t *tooloffset_y;
     hal_float_t *tooloffset_z;
+    hal_float_t *tooloffset_a;
+    hal_float_t *tooloffset_b;
+    hal_float_t *tooloffset_c;
+    hal_float_t *tooloffset_u;
+    hal_float_t *tooloffset_v;
     hal_float_t *tooloffset_w;
 
     joint_hal_t joint[EMCMOT_MAX_JOINTS];	/* data for each joint */
+    axis_hal_t axis[EMCMOT_MAX_AXIS];	        /* data for each axis */
 
 } emcmot_hal_data_t;
 
@@ -161,47 +172,27 @@ typedef struct {
 *                   GLOBAL VARIABLE DECLARATIONS                       *
 ************************************************************************/
 
-/* HAL component ID for motion module */
-extern int mot_comp_id;
-
-/* userdefined number of joints. default is EMCMOT_MAX_JOINTS(=8), 
-   but can be altered at motmod insmod time */
-extern int num_joints;
-
-/* userdefined number of digital IO. default is 4. (EMCMOT_MAX_DIO=64), 
-   but can be altered at motmod insmod time */
-extern int num_dio;
-
-/* userdefined number of analog IO. default is 4. (EMCMOT_MAX_AIO=16), 
-   but can be altered at motmod insmod time */
-extern int num_aio;
-
 /* pointer to emcmot_hal_data_t struct in HAL shmem, with all HAL data */
 extern emcmot_hal_data_t *emcmot_hal_data;
 
 /* pointer to array of joint structs with all joint data */
 /* the actual array may be in shared memory or in kernel space, as
-   determined by the init code in motion.c
-*/
+   determined by the init code in motion.c */
 extern emcmot_joint_t *joints;
+
+/* pointer to array of axis structs with all axis data */
+extern emcmot_axis_t *axes;
 
 /* flag used to indicate that this is the very first pass thru the
    code.  Various places in the code use this to set initial conditions
-   and avoid startup glitches.
-*/
+   and avoid startup glitches. */
 extern int first_pass;
 
 /* Variable defs */
-extern int kinType;
-extern int rehomeAll;
-extern int DEBUG_MOTION;
-extern int EMCMOT_NO_FORWARD_KINEMATICS;
 extern KINEMATICS_FORWARD_FLAGS fflags;
 extern KINEMATICS_INVERSE_FLAGS iflags;
-/* these variables have the servo cycle time and 1/cycle time */
-extern double servo_period;
+/* these variable have the 1/servo cycle time */
 extern double servo_freq;
-
 
 /* Struct pointers */
 extern struct emcmot_struct_t *emcmotStruct;
@@ -209,7 +200,6 @@ extern struct emcmot_command_t *emcmotCommand;
 extern struct emcmot_status_t *emcmotStatus;
 extern struct emcmot_config_t *emcmotConfig;
 extern struct emcmot_debug_t *emcmotDebug;
-extern struct emcmot_internal_t *emcmotInternal;
 extern struct emcmot_error_t *emcmotError;
 
 /***********************************************************************
@@ -235,6 +225,8 @@ extern int checkAllHomed(void);
 extern void refresh_jog_limits(emcmot_joint_t *joint);
 /* handles 'homed' flags, see command.c for details */
 extern void clearHomes(int joint_num);
+
+extern void check_stuff(const char *msg);
 
 extern void emcmot_config_change(void);
 extern void reportError(const char *fmt, ...);	/* Use the rtapi_print call */
