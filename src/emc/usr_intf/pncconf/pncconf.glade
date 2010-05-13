@@ -2927,10 +2927,10 @@ panel</property>
                               </widget>
                             </child>
                             <child>
-                              <widget class="GtkCheckButton" id="restore_toolnumber">
+                              <widget class="GtkCheckButton" id="random_toolchanger">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="label" translatable="yes">Restore tool number after shutdown</property>
+                                <property name="label" translatable="yes">Random position toolchanger </property>
                                 <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
@@ -32714,6 +32714,7 @@ Warning limits switches
                             <child>
                               <widget class="GtkLabel" id="label486">
                                 <property name="visible">True</property>
+                                <property name="sensitive">False</property>
                                 <property name="label" translatable="yes">Run</property>
                                 <property name="use_underline">True</property>
                               </widget>
@@ -37045,7 +37046,7 @@ Warning limits switches
                 <property name="label" translatable="yes">Total Travel = 3+3 =6
 Home Offset = Origin to Home Switch distance = -1
 Neg Travel Distance = Origin to neg limit distance = -1
-Pos Travel Distance = Total Travel - Home Offset = 5
+Pos Travel Distance = Total Travel - neg travel distance = 5
 Home Position = Origin to Home Position distance = 1</property>
               </widget>
               <packing>
@@ -37142,7 +37143,7 @@ Home Position = Origin to Home Position distance = 1</property>
               <widget class="GtkHBox" id="hbox56">
                 <property name="visible">True</property>
                 <child>
-                  <widget class="GtkSpinButton" id="pulleyden">
+                  <widget class="GtkSpinButton" id="pulleydriver">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">1 1 100 1 10 10</property>
@@ -37161,7 +37162,7 @@ Home Position = Origin to Home Position distance = 1</property>
                   </packing>
                 </child>
                 <child>
-                  <widget class="GtkSpinButton" id="pulleynum">
+                  <widget class="GtkSpinButton" id="pulleydriven">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">1 1 1000 1 10 10</property>
@@ -37264,7 +37265,7 @@ Home Position = Origin to Home Position distance = 1</property>
               <widget class="GtkLabel" id="wormlabel">
                 <property name="visible">True</property>
                 <property name="xalign">0</property>
-                <property name="label" translatable="yes">Worm turn ratio (Worm:Bull)</property>
+                <property name="label" translatable="yes">Worm turn ratio (Input:Outputl)</property>
               </widget>
               <packing>
                 <property name="top_attach">1</property>
@@ -37276,7 +37277,7 @@ Home Position = Origin to Home Position distance = 1</property>
               <widget class="GtkHBox" id="hbox1">
                 <property name="visible">True</property>
                 <child>
-                  <widget class="GtkSpinButton" id="wormnum">
+                  <widget class="GtkSpinButton" id="wormdriver">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">1 1 100 1 10 10</property>
@@ -37294,7 +37295,7 @@ Home Position = Origin to Home Position distance = 1</property>
                   </packing>
                 </child>
                 <child>
-                  <widget class="GtkSpinButton" id="wormden">
+                  <widget class="GtkSpinButton" id="wormdriven">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">1 1 1000 1 10 10</property>

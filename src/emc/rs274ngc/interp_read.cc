@@ -2841,15 +2841,29 @@ int Interp::read_real_value(char *line,  //!< string: line of RS274/NGC code bei
                            double *double_ptr,  //!< pointer to double to be read                  
                            double *parameters)  //!< array of system parameters                    
 {
-  char c;
+  char c, c1;
 
   c = line[*counter];
   CHKS((c == 0), NCE_NO_CHARACTERS_FOUND_IN_READING_REAL_VALUE);
+
+  c1 = line[*counter+1];
+
   if (c == '[')
     CHP(read_real_expression(line, counter, double_ptr, parameters));
   else if (c == '#')
   {
     CHP(read_parameter(line, counter, double_ptr, parameters));
+  }
+  else if (c == '+' && c1 && !isdigit(c1) && c1 != '.')
+  {
+    (*counter)++;
+    CHP(read_real_value(line, counter, double_ptr, parameters));
+  }
+  else if (c == '-' && c1 && !isdigit(c1) && c1 != '.')
+  {
+    (*counter)++;
+    CHP(read_real_value(line, counter, double_ptr, parameters));
+    *double_ptr = -*double_ptr;
   }
   else if ((c >= 'a') && (c <= 'z'))
     CHP(read_unary(line, counter, double_ptr, parameters));
@@ -3367,12 +3381,19 @@ int Interp::read_atsign(char *line, int *counter, block_pointer block,
     CHKS((line[*counter] != '@'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     (*counter)++;
     CHP(read_real_value(line, counter, &block->radius, parameters));
-    CHKS((line[*counter] != '^'), _("Missing ^ in polar coordinate"));
-    (*counter)++;
-    CHP(read_real_value(line, counter, &block->theta, parameters));
-    block->polar_flag = ON;
+    block->radius_flag = ON;
     return INTERP_OK;
 }
+
+int Interp::read_carat(char *line, int *counter, block_pointer block,
+                       double *parameters) {
+    CHKS((line[*counter] != '^'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
+    (*counter)++;
+    CHP(read_real_value(line, counter, &block->theta, parameters));
+    block->theta_flag = ON;
+    return INTERP_OK;
+}
+    
     
 
 /****************************************************************************/

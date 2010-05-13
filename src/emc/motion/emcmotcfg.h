@@ -9,8 +9,6 @@
 * System: Linux
 *    
 * Copyright (c) 2004 All rights reserved.
-*
-* Last change:
 ********************************************************************/
 #ifndef EMCMOTCFG_H
 #define EMCMOTCFG_H
@@ -32,7 +30,7 @@
 #define EMCMOT_MAX_AIO 16
 
 #define EMCMOT_ERROR_NUM 32	/* how many errors we can queue */
-#define EMCMOT_ERROR_LEN 256	/* how long error string can be */
+#define EMCMOT_ERROR_LEN 1024	/* how long error string can be */
 
 /*
   Shared memory keys for simulated motion process. No base address
@@ -52,6 +50,10 @@
 /* maximum and minimum limit defaults for all axes */
 #define DEFAULT_MAX_LIMIT 1000
 #define DEFAULT_MIN_LIMIT -1000
+
+/* default number of motion io pins */
+#define DEFAULT_DIO 4
+#define DEFAULT_AIO 4
 
 /* size of motion queue
  * a TC_STRUCT is about 512 bytes so this queue is

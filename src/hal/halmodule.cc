@@ -21,6 +21,7 @@
 #include <map>
 using namespace std;
 
+#include "config.h"
 #include "rtapi.h"
 #include "hal.h"
 #include "hal_priv.h"
@@ -539,6 +540,18 @@ PyObject *component_exists(PyObject *self, PyObject *args) {
     return PyBool_FromLong(halpr_find_comp_by_name(name) != NULL);
 }
 
+PyObject *component_is_ready(PyObject *self, PyObject *args) {
+    char *name;
+    if(!PyArg_ParseTuple(args, "s", &name)) return NULL;
+    if(!SHMPTR(0)) {
+	PyErr_Format(PyExc_RuntimeError,
+		"Cannot call before creating component");
+	return NULL;
+    }
+
+    return PyBool_FromLong(halpr_find_comp_by_name(name)->ready != NULL);
+}
+
 struct shmobject {
     PyObject_HEAD
     halobject *comp;
@@ -674,6 +687,8 @@ PyMethodDef module_methods[] = {
 	"Return a FALSE value if a pin has no writers and TRUE if it does"},
     {"component_exists", component_exists, METH_VARARGS,
 	"Return a TRUE value if the named component exists"},
+    {"component_is_ready", component_is_ready, METH_VARARGS,
+	"Return a TRUE value if the named component is ready"},
     {NULL},
 };
 
@@ -726,6 +741,18 @@ void inithal(void) {
     PyModule_AddIntConstant(m, "HAL_IN", HAL_IN);
     PyModule_AddIntConstant(m, "HAL_OUT", HAL_OUT);
     PyModule_AddIntConstant(m, "HAL_IO", HAL_IO);
+
+#ifdef RTAPI_SIM
+    PyModule_AddIntConstant(m, "is_sim", 1);
+    PyModule_AddIntConstant(m, "is_rt", 0);
+#else
+    PyModule_AddIntConstant(m, "is_sim", 0);
+    PyModule_AddIntConstant(m, "is_rt", 1);
+#endif
+
+#ifdef RTAPI_KERNEL_VERSION
+    PyModule_AddStringConstant(m, "kernel_version", RTAPI_KERNEL_VERSION);
+#endif
 
     PyRun_SimpleString(
             "(lambda s=__import__('signal'):"

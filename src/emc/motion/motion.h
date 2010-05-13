@@ -7,8 +7,6 @@
 * System: Linux
 *
 * Copyright (c) 2004 All rights reserved
-*
-* Last change:
 ********************************************************************/
 
 /* jmk says: This file is a mess! */
@@ -80,6 +78,7 @@ to another.
 #include "kinematics.h"
 #include "simple_tp.h"
 #include "nurbs.h"
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,8 +97,6 @@ extern "C" {
 	EMCMOT_ABORT = 1,	/* abort all motion */
 	EMCMOT_ENABLE,		/* enable servos for active joints */
 	EMCMOT_DISABLE,		/* disable servos for active joints */
-	EMCMOT_ENABLE_WATCHDOG,	/* enable watchdog sound, parport */
-	EMCMOT_DISABLE_WATCHDOG,	/* enable watchdog sound, parport */
 
 	EMCMOT_PAUSE,		/* pause motion */
 	EMCMOT_RESUME,		/* resume motion */
@@ -166,6 +163,10 @@ extern "C" {
 	EMCMOT_SET_JOINT_HOMING_PARAMS, /* sets joint homing parameters */
 	EMCMOT_SET_JOINT_MOTOR_OFFSET,  /* set the offset between joint and motor */
 	EMCMOT_SET_JOINT_COMP,          /* set a compensation triplet for a joint (nominal, forw., rev.) */
+
+        EMCMOT_SET_AXIS_POSITION_LIMITS, /* set the axis position +/- limits */
+        EMCMOT_SET_AXIS_VEL_LIMIT,      /* set the max axis vel */
+        EMCMOT_SET_AXIS_ACC_LIMIT,      /* set the max axis acc */
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -212,7 +213,8 @@ extern "C" {
 	int id;			/* id for motion */
 	int termCond;		/* termination condition */
 	double tolerance;	/* tolerance for path deviation in CONTINUOUS mode */
-	int joint;		/* which index to use for below */
+	int joint;		/* which joint index to use for below */
+	int axis;		/* which axis index to use for below */
 	double scale;		/* velocity scale or spindle_speed scale arg */
 	double offset;		/* input, output, or home offset arg */
 	double home;		/* joint home position */
@@ -234,7 +236,7 @@ extern "C" {
                                      |1 = suppress error, report in # instead
                                      ~2 = move until probe trips (ngc default)
                                      |2 = move until probe clears */
-        double tooloffset_z, tooloffset_x, tooloffset_w;
+        EmcPose tool_offset;        /* TLO */
         nurbs_block_t nurbs_block;
 	unsigned char tail;	/* flag count for mutex detect */
     } emcmot_command_t;
@@ -504,10 +506,6 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double motor_offset;	/* diff between internal and motor pos, used
 				   to set position to zero during homing */
 	int old_jog_counts;	/* prior value, used for deltas */
-
-	/* stuff moved from the other structs that might be needed (or might
-	   not!) */
-	double big_vel;		/* used for "debouncing" velocity */
     } emcmot_joint_t;
 
 /* This structure contains only the "status" data associated with
@@ -523,7 +521,6 @@ Suggestion: Split this in to an Error and a Status flag register..
 
 */
     typedef struct {
-
 	EMCMOT_JOINT_FLAG flag;	/* see above for bit details */
 	double pos_cmd;		/* commanded joint position */
 	double pos_fb;		/* position feedback, comp removed */
@@ -553,6 +550,15 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int brake;		// 0 released, 1 engaged
     } spindle_status;
     
+    typedef struct {
+	double pos_cmd;		/* commanded axis position */
+	double vel_cmd;		/* comanded axis velocity */
+	double max_pos_limit;	/* upper soft limit on axis pos */
+	double min_pos_limit;	/* lower soft limit on axis pos */
+	double vel_limit;	/* upper limit of axis speed */
+	double acc_limit;	/* upper limit of axis accel */
+	simple_tp_t teleop_tp;	/* planner for teleop mode motion */
+    } emcmot_axis_t;
 
 /*********************************
         STATUS STRUCTURE
@@ -627,7 +633,6 @@ Suggestion: Split this in to an Error and a Status flag register..
 	unsigned int heartbeat;
 	int config_num;		/* incremented whenever configuration
 				   changed. */
-	double computeTime;
 	int id;			/* id for executing motion */
 	int depth;		/* motion queue depth */
 	int activeDepth;	/* depth of active blend elements */
@@ -642,7 +647,6 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double vel;		/* scalar max vel */
 	double acc;		/* scalar max accel */
 
-	int level;
         int motionType;
         double distance_to_go;  /* in this move */
         EmcPose dtg;
@@ -650,9 +654,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         double requested_vel;
 
         unsigned int tcqlen;
-        double tooloffset_x;
-        double tooloffset_z;
-        double tooloffset_w;
+        EmcPose tool_offset;
         int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
         int spindle_is_atspeed; /* hal input */
 	unsigned char tail;	/* flag count for mutex detect */
@@ -685,15 +687,20 @@ Suggestion: Split this in to an Error and a Status flag register..
     typedef struct emcmot_config_t {
 	unsigned char head;	/* flag count for mutex detect */
 
-/*! \todo FIXME - all structure members beyond this point are in limbo */
-
 	int config_num;		/* Incremented everytime configuration
 				   changed, should match status.config_num */
 	int numJoints;		/* The number of joints in the system (which
 				   must be between 1 and EMCMOT_MAX_JOINTS,
-				   inclusive). Allegedly, holds a copy of the
-				   global num_joints - seems daft to maintain
-				   duplicates ! */
+				   inclusive). Can be changed at insmod time */
+	KINEMATICS_TYPE kinType;
+
+        int numDIO;             /* userdefined number of digital IO. default is 4. (EMCMOT_MAX_DIO=64), 
+                                   but can be altered at motmod insmod time */
+
+        int numAIO;             /* userdefined number of analog IO. default is 4. (EMCMOT_MAX_AIO=16), 
+                                   but can be altered at motmod insmod time */
+
+/*! \todo FIXME - all structure members beyond this point are in limbo */
 
 	double trajCycleTime;	/* the rate at which the trajectory loop
 				   runs.... (maybe) */
@@ -704,29 +711,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 				   approx line 50 */
 
 	double limitVel;	/* scalar upper limit on vel */
-	KINEMATICS_TYPE kinematics_type;
 	int debug;		/* copy of DEBUG, from .ini file */
 	unsigned char tail;	/* flag count for mutex detect */
     } emcmot_config_t;
-
-/*********************************
-      INTERNAL STRUCTURE
-*********************************/
-
-/* This is the internal structure.  It contains stuff that is used
-   internally by the motion controller that does not need to be in
-   shared memory.  It will wind up with a lot of the stuff that got
-   tossed into the debug structure.
-
-   FIXME - so far most if the stuff that was tossed in here got
-   moved back out, maybe don't need it after all?
-*/
-
-    typedef struct emcmot_internal_t {
-	unsigned char head;	/* flag count for mutex detect */
-
-	unsigned char tail;	/* flag count for mutex detect */
-    } emcmot_internal_t;
 
 /* error structure - A ring buffer used to pass formatted printf stings to usr space */
     typedef struct emcmot_error_t {
@@ -745,6 +732,8 @@ Suggestion: Split this in to an Error and a Status flag register..
 /* error ring buffer access functions */
     extern int emcmotErrorInit(emcmot_error_t * errlog);
     extern int emcmotErrorPut(emcmot_error_t * errlog, const char *error);
+    extern int emcmotErrorPutfv(emcmot_error_t * errlog, const char *fmt, va_list ap);
+    extern int emcmotErrorPutf(emcmot_error_t * errlog, const char *fmt, ...);
     extern int emcmotErrorGet(emcmot_error_t * errlog, char *error);
 
 #ifdef __cplusplus

@@ -602,6 +602,13 @@ This is the name of the controller, which is printed out at the top of most
  long.
 \end_layout
 
+\begin_layout Description
+DEBUG\InsetSpace ~
+=\InsetSpace ~
+0 Debug level 0 means no messages.
+ See src/emc/nml_int/emcglb.h for others
+\end_layout
+
 \begin_layout Subsection
 [DISPLAY] Section
 \color none
@@ -856,6 +863,12 @@ INTRO_TIME
 5 The maximum time to show the splash screen
 \end_layout
 
+\begin_layout Description
+CYCLE_TIME\InsetSpace ~
+=\InsetSpace ~
+0.0500 Cycle time in seconds that display will sleep between polls.
+\end_layout
+
 \begin_layout Standard
 The following [DISPLAY] items are used only if you select AXIS as your user
  interface program.
@@ -1071,6 +1084,45 @@ The proper GEOMETRY string depends on the machine configuration and the
  For example rotating around C then B is different than rotating around
  B then C.
  Geometry has no effect without a rotary axis.
+\end_layout
+
+\begin_layout Description
+ARCDIVISION\InsetSpace ~
+=\InsetSpace ~
+64 Set the quality of preview of arcs.
+ Arcs are previewed by dividing them into a number of straight lines; a
+ semicircle is divided into 
+\series bold
+ARCDIVISION
+\series default
+ parts.
+ Larger values give a more accurate preview, but take longer to load and
+ result in a more sluggish display.
+ Smaller values give a less accurate preview, but take less time to load
+ and may result in a faster display.
+ The default value of 64 means a circle of up to 3 inches will be displayed
+ to within 1 mil (.03%).
+\begin_inset Foot
+status open
+
+\begin_layout Standard
+In emc2.4 and earlier, the default value was 128.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The following [DISPLAY] items are not used if you select AXIS as your user
+ interface program.
+\end_layout
+
+\begin_layout Description
+HELP_FILE\InsetSpace ~
+=\InsetSpace ~
+tkemc.txt Path to help file (not used in AXIS).
 \end_layout
 
 \begin_layout Subsection
@@ -1781,29 +1833,16 @@ Coordinates of the homed position of each axis.
 \begin_layout Description
 
 \color black
-LINEAR_UNITS
-\begin_inset Index
-status collapsed
-
-\begin_layout Plain Layout
-LINEAR UNITS
-\end_layout
-
-\end_inset
-
+LINEAR_UNITS\InsetSpace ~
+=\InsetSpace ~
+<units> 
+\begin_inset LatexCommand index
+name "LINEAR UNITS"
 
 \begin_inset space ~
 \end_inset
 
 
-\series bold
-=
-\series default
-
-\begin_inset space ~
-\end_inset
-
-<units>
 \color none
  
 \color black
@@ -1821,29 +1860,15 @@ This does not affect the linear units in NC code (the G20 and G21 words
 \begin_layout Description
 
 \color black
-ANGULAR_UNITS
-\begin_inset Index
-status collapsed
-
-\begin_layout Plain Layout
-ANGULAR UNITS
-\end_layout
+ANGULAR_UNITS\InsetSpace ~
+=\InsetSpace ~
+<units> 
+\begin_inset LatexCommand index
+name "ANGULAR UNITS"
 
 \end_inset
 
-
-\begin_inset space ~
-\end_inset
-
-
-\series bold
-=
-\series default
-
-\begin_inset space ~
-\end_inset
-
-<units> Specifies the machine units for rotational axes.
+ Specifies the machine units for rotational axes.
  Possible choices are 'deg', 'degree' (360 per circle), 'rad', 'radian'
  (2pi per circle), 'grad', or 'gon' (400 per circle).
 \begin_inset Newline newline
@@ -1901,28 +1926,15 @@ In machines with nontrivial kinematics, the acceleration used for "teleop"
 \begin_layout Description
 
 \color black
-MAX_VELOCITY
-\begin_inset Index
-status collapsed
-
-\begin_layout Plain Layout
-MAX VELOCITY
-\end_layout
+MAX_VELOCITY\InsetSpace ~
+=\InsetSpace ~
+5.0 
+\begin_inset LatexCommand index
+name "MAX VELOCITY"
 
 \end_inset
 
 
-\begin_inset space ~
-\end_inset
-
-
-\series bold
-=
-\begin_inset space ~
-\end_inset
-
-5.0
-\series default
 \color none
  
 \color black
@@ -1934,32 +1946,16 @@ The maximum velocity for any axis or coordinated move, in machine units
 \begin_layout Description
 
 \color black
-MAX_ACCELERATION
-\begin_inset Index
-status collapsed
-
-\begin_layout Plain Layout
-MAX ACCELERATION
-\end_layout
-
-\end_inset
-
+MAX_ACCELERATION\InsetSpace ~
+=\InsetSpace ~
+20.0 
+\begin_inset LatexCommand index
+name "MAX ACCELERATION"
 
 \begin_inset space ~
 \end_inset
 
 
-\series bold
-=
-\series default
-
-\begin_inset space ~
-\end_inset
-
-
-\series bold
-20.0
-\series default
 \color none
  
 \color black
@@ -2012,18 +2008,6 @@ Warning
 : Using this will allow the machine to run past soft limits while in operation
  and is not generally desirable to allow this.
  
-\end_layout
-
-\begin_layout Description
-TLO_IS_ALONG_W
-\begin_inset space ~
-\end_inset
-
-=
-\begin_inset space ~
-\end_inset
-
-1 Moves the tool length offset from Z to W.
 \end_layout
 
 \begin_layout Subsection
@@ -2153,6 +2137,15 @@ TYPE
 \end_inset
 
 LINEAR The type of joints, either LINEAR or ANGULAR.
+\end_layout
+
+\begin_layout Description
+WRAPPED_ROTARY\InsetSpace ~
+=\InsetSpace ~
+1 When this is set to 1 for an ANGULAR axis the axis will
+ move 0-359.999 degrees.
+ Plus Numbers will move the axis in a positive direction and minus numbers
+ will move the axis in the opposite direction.
 \end_layout
 
 \begin_layout Description
@@ -2659,6 +2652,36 @@ The following items are for servo-based systems and servo-like systems.
 \end_layout
 
 \begin_layout Description
+DEADBAND\InsetSpace ~
+=\InsetSpace ~
+0.000015 
+\series bold
+\size footnotesize
+(HAL)
+\series default
+\size default
+ How close is close enough the consider the motor in position.
+\end_layout
+
+\begin_layout Description
+BIAS\InsetSpace ~
+=\InsetSpace ~
+0.000 
+\series bold
+\size footnotesize
+(HAL)
+\series default
+\size default
+ This is used by hm2-servo and some others.
+ Bias is a constant amount that is added to the output.
+ In most cases it should be left at zero.
+ However, it can sometimes be useful to compensate for offsets in servo
+ amplifiers, or to balance the weight of an object that moves vertically.
+ bias is turned off when the PID loop is disabled, just like all other component
+s of the output.
+\end_layout
+
+\begin_layout Description
 
 \color black
 P
@@ -2975,13 +2998,8 @@ y, DAC units, etc.
 \color black
 Build a calibration table for the output, driving the DAC with a desired
  voltage and measuring the result.
- See table
-\begin_inset space ~
-\end_inset
-
-
-\begin_inset CommandInset ref
-LatexCommand ref
+ See table 
+\begin_inset LatexCommand ref
 reference "cap:Output-Voltage-Measurements"
 
 \end_inset
@@ -3069,6 +3087,7 @@ The maximum value for the output of the PID compensation that is written
 
 \begin_layout Standard
 \begin_inset Float table
+placement H
 wide false
 sideways false
 status open

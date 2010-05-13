@@ -73,22 +73,6 @@ from touchy import listing
 from touchy import preferences
 print emc
 
-# gtk.rc_parse_ing() a string to parse for resource data
-gtk.rc_parse_string('''
-style "touchy-default-style" {
-    bg[PRELIGHT] = "#dcdad5"
-    bg[NORMAL] = "#dcdad5"
-    bg[ACTIVE] = "#dcdad5"
-    bg[INSENSITIVE] = "#dcdad5"
-    fg[PRELIGHT] = "#000"
-    fg[NORMAL] = "#000"
-    fg[ACTIVE] = "#000"
-    fg[INSENSITIVE] = "#9a9895"
-    GtkWidget::focus-line-width = 0
-}
-class "GtkWidget" style "touchy-default-style"
-''')
-
 pix_data = '''/* XPM */
 static char * invisible_xpm[] = {
 "1 1 1 1",
@@ -102,75 +86,69 @@ pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
 invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
-        def __init__(self):
-    #Set the Glade file
-            self.gladefile = os.path.join(datadir, "touchy.glade")#share/emc/touchy.glade
-            self.wTree = gtk.glade.XML(self.gladefile) # loading of user interfaces from XML descriptions.
-                                                           # this return gtk.glade.XML object
-            self.num_mdi_labels = 11
-            self.num_filechooser_labels = 11
-            self.num_listing_labels = 20
-        
-            self.wheelxyz = 0
-            self.wheelinc = 0
-            self.wheel = "fo"
-            self.radiobutton_mask = 0
-            self.resized_wheelbuttons = 0
-            for i in ["wheelinc1", "wheelinc2", "wheelinc3","jogplus","jogminus",
-                      "mvplus","mvminus","foplus","fominus","soplus","sominus"]:
-                        w = self.wTree.get_widget(i)
-                        w.set_sensitive(0)
-            
-        
-            self.tab = 0
-        
-            self.fo_val = 100
-            self.so_val = 100
-            self.mv_val = 100
-            self.sw_wheelcount = 0
-            self.is_on_sw_wheel = False
-            self.sw_wheel_direction = 1
-            
-        
-            self.prefs = preferences.preferences() #touchy.preference.py
-            self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
-            self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
-            self.error_font_name = self.prefs.getpref('error_font', 'Sans Bold 10', str)
-            self.listing_font_name = self.prefs.getpref('listing_font', 'Sans 10', str)
-        
-            # initial screen setup
-            self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
-            if self.invisible_cursor:
-                    self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
-            else:
-                    self.wTree.get_widget("MainWindow").window.set_cursor(None)
-            self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
-            self.control_font = pango.FontDescription(self.control_font_name)
-        
-            self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
-            self.dro_font = pango.FontDescription(self.dro_font_name)
-        
-            self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
-            self.error_font = pango.FontDescription(self.error_font_name)
-        
-            self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
-            self.listing_font = pango.FontDescription(self.listing_font_name)
-        
-            self.setfont()
-        
-            # interactive mdi command builder and issuer
-            print "interactive mdi command builder and issuer"
-            mdi_labels = []
-            mdi_eventboxes = []
-            for i in range(self.num_mdi_labels): #num_mdi_labels = 11 is pre-defined
-                    mdi_labels.append(self.wTree.get_widget("mdi%d" % i))#mdiX = labels belong to eventBox
-                    mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
-                #mdi module come from touchy.mdi=mdi.py
-            self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)#at this moment mdi module run init
-        
-            listing_labels = []
-            listing_eventboxes = []
-            for i in range(self.num_listing_labels):
+	def __init__(self):
+		#Set the Glade file
+		self.gladefile = os.path.join(datadir, "touchy.glade")
+	        self.wTree = gtk.glade.XML(self.gladefile) 
+                
+		for widget in self.wTree.get_widget_prefix(''):
+			widget.unset_flags(gtk.CAN_FOCUS)
+		self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
+		self.wTree.get_widget('MainWindow').grab_focus()
+
+                self.num_mdi_labels = 11
+                self.num_filechooser_labels = 11
+                self.num_listing_labels = 20
+
+                self.wheelxyz = 0
+                self.wheelinc = 0
+                self.wheel = "fo"
+                self.radiobutton_mask = 0
+                self.resized_wheelbuttons = 0
+
+                self.tab = 0
+
+                self.fo_val = 100
+                self.so_val = 100
+                self.mv_val = 100
+
+                self.prefs = preferences.preferences()
+                self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
+                self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
+                self.error_font_name = self.prefs.getpref('error_font', 'Sans Bold 10', str)
+                self.listing_font_name = self.prefs.getpref('listing_font', 'Sans 10', str)
+
+                # initial screen setup
+                self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
+                if self.invisible_cursor:
+                        self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
+                else:
+                        self.wTree.get_widget("MainWindow").window.set_cursor(None)
+                self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
+                self.control_font = pango.FontDescription(self.control_font_name)
+
+                self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
+                self.dro_font = pango.FontDescription(self.dro_font_name)
+
+                self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
+                self.error_font = pango.FontDescription(self.error_font_name)
+
+                self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
+                self.listing_font = pango.FontDescription(self.listing_font_name)
+
+                self.setfont()
+
+                # interactive mdi command builder and issuer
+                mdi_labels = []
+                mdi_eventboxes = []
+                for i in range(self.num_mdi_labels):
+                        mdi_labels.append(self.wTree.get_widget("mdi%d" % i))
+                        mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
+                self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)
+
+                listing_labels = []
+                listing_eventboxes = []
+                for i in range(self.num_listing_labels):
                         listing_labels.append(self.wTree.get_widget("listing%d" % i))
                         listing_eventboxes.append(self.wTree.get_widget("eventbox_listing%d" % i))
             self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
@@ -214,19 +192,16 @@ class touchy:
             print "spindles",spindles
             stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
                          'spindledir', 'spindlespeed', 'loadedtool', 'preppedtool',
-                         'xyrotation', 'tlo', 'activecodes']
-            stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
-            print "stats",stats
-            prefs = ['actual', 'commanded', 'inch', 'mm']
-            prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
-            print "prefs",prefs
-            opstop = ['on', 'off']
-            opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
-            print "opstop",opstop
-            blockdel = ['on', 'off']
-            blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
-            print "blockdel",blockdel
-            self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
+                         'xyrotation', 'tlo', 'activecodes', 'spindlespeed2']
+                stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
+                prefs = ['actual', 'commanded', 'inch', 'mm']
+                prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
+                opstop = ['on', 'off']
+                opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
+                blockdel = ['on', 'off']
+                blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
+
+                self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
                                                        self.wTree.get_widget("dro_table"),
                                                        self.wTree.get_widget("error"),
                                                        estops, machines,
@@ -351,6 +326,10 @@ class touchy:
                         "on_sominus_released" : self.sominus_released,
                         }
             self.wTree.signal_autoconnect(dic)
+
+		for widget in self.wTree.get_widget_prefix(''):
+			if isinstance(widget, gtk.Button):
+				widget.connect_after('released',self.hack_leave)
 
         def quit(self, unused):
                 gtk.main_quit()
@@ -580,7 +559,7 @@ class touchy:
                         w = self.wTree.get_widget("listing%d" % i)
                         w.modify_font(self.listing_font)
                 for i in ["mdi", "startup", "manual", "auto", "preferences", "status",
-                          "relative", "absolute", "dtg"]:
+                          "relative", "absolute", "dtg", "ss2label", "status_spindlespeed2"]:
                         w = self.wTree.get_widget(i)
                         w.modify_font(self.control_font)
 
@@ -752,6 +731,15 @@ class touchy:
 
             return wheel_incr
        
+
+	def hack_leave(self,w):
+		if not self.invisible_cursor: return
+		w = self.wTree.get_widget("MainWindow").window
+		d = w.get_display()
+		s = w.get_screen()
+		x, y = w.get_origin()
+		d.warp_pointer(s, x, y)
+
 
 if __name__ == "__main__":
     print "touchy main +++"
