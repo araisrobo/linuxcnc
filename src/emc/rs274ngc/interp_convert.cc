@@ -3691,123 +3691,12 @@ int Interp::convert_setup(block_pointer block,	//!< pointer to a block of RS274/
     settings->rotation_xy = r;
     SET_XY_ROTATION(settings->rotation_xy);
 
-    if (block->z_flag == ON) {
-	z = block->z_number;
-	if (block->l_number == 20)
-	    z = cz + USER_TO_PROGRAM_LEN(parameters[5203 + (p_int * 20)]) -
-		z;
-	parameters[5203 + (p_int * 20)] = PROGRAM_TO_USER_LEN(z);
-    } else
-	z = USER_TO_PROGRAM_LEN(parameters[5203 + (p_int * 20)]);
-
-    if (block->a_flag == ON) {
-	a = block->a_number;
-	if (block->l_number == 20)
-	    a = ca + USER_TO_PROGRAM_ANG(parameters[5204 + (p_int * 20)]) -
-		a;
-	parameters[5204 + (p_int * 20)] = PROGRAM_TO_USER_ANG(a);
-    } else
-	a = USER_TO_PROGRAM_ANG(parameters[5204 + (p_int * 20)]);
-
-    if (block->b_flag == ON) {
-	b = block->b_number;
-	if (block->l_number == 20)
-	    b = cb + USER_TO_PROGRAM_ANG(parameters[5205 + (p_int * 20)]) -
-		b;
-	parameters[5205 + (p_int * 20)] = PROGRAM_TO_USER_ANG(b);
-    } else
-	b = USER_TO_PROGRAM_ANG(parameters[5205 + (p_int * 20)]);
-
-    if (block->c_flag == ON) {
-	c = block->c_number;
-	if (block->l_number == 20)
-	    c = cc + USER_TO_PROGRAM_ANG(parameters[5206 + (p_int * 20)]) -
-		c;
-	parameters[5206 + (p_int * 20)] = PROGRAM_TO_USER_ANG(c);
-    } else
-	c = USER_TO_PROGRAM_ANG(parameters[5206 + (p_int * 20)]);
-
-    if (block->u_flag == ON) {
-	u = block->u_number;
-	if (block->l_number == 20)
-	    u = cu + USER_TO_PROGRAM_LEN(parameters[5207 + (p_int * 20)]) -
-		u;
-	parameters[5207 + (p_int * 20)] = PROGRAM_TO_USER_LEN(u);
-    } else
-	u = USER_TO_PROGRAM_LEN(parameters[5207 + (p_int * 20)]);
-
-    if (block->v_flag == ON) {
-	v = block->v_number;
-	if (block->l_number == 20)
-	    v = cv + USER_TO_PROGRAM_LEN(parameters[5208 + (p_int * 20)]) -
-		v;
-	parameters[5208 + (p_int * 20)] = PROGRAM_TO_USER_LEN(v);
-    } else
-	v = USER_TO_PROGRAM_LEN(parameters[5208 + (p_int * 20)]);
-
-    if (block->w_flag == ON) {
-	w = block->w_number;
-	if (block->l_number == 20)
-	    w = cw + USER_TO_PROGRAM_LEN(parameters[5209 + (p_int * 20)]) -
-		w;
-	parameters[5209 + (p_int * 20)] = PROGRAM_TO_USER_LEN(w);
-    } else
-	w = USER_TO_PROGRAM_LEN(parameters[5209 + (p_int * 20)]);
-
-    if (p_int == settings->origin_index) {	/* system is currently used */
-
-	settings->current_x += settings->origin_offset_x;
-	settings->current_y += settings->origin_offset_y;
-	settings->current_z += settings->origin_offset_z;
-	settings->AA_current += settings->AA_origin_offset;
-	settings->BB_current += settings->BB_origin_offset;
-	settings->CC_current += settings->CC_origin_offset;
-	settings->u_current += settings->u_origin_offset;
-	settings->v_current += settings->v_origin_offset;
-	settings->w_current += settings->w_origin_offset;
-
-	settings->origin_offset_x = x;
-	settings->origin_offset_y = y;
-	settings->origin_offset_z = z;
-	settings->AA_origin_offset = a;
-	settings->BB_origin_offset = b;
-	settings->CC_origin_offset = c;
-	settings->u_origin_offset = u;
-	settings->v_origin_offset = v;
-	settings->w_origin_offset = w;
-
-	settings->current_x -= x;
-	settings->current_y -= y;
-	settings->current_z -= z;
-	settings->AA_current -= a;
-	settings->BB_current -= b;
-	settings->CC_current -= c;
-	settings->u_current -= u;
-	settings->v_current -= v;
-	settings->w_current -= w;
-
-	SET_ORIGIN_OFFSETS(x + settings->axis_offset_x,
-			   y + settings->axis_offset_y,
-			   z + settings->axis_offset_z,
-			   a + settings->AA_axis_offset,
-			   b + settings->BB_axis_offset,
-			   c + settings->CC_axis_offset,
-			   u + settings->u_axis_offset,
-			   v + settings->v_axis_offset,
-			   w + settings->w_axis_offset);
-
-	// current_xy are relative to this sytem's origin, so we can rotate directly
-	rotate(&settings->current_x, &settings->current_y,
-	       settings->rotation_xy - r);
-	settings->rotation_xy = r;
-	SET_XY_ROTATION(settings->rotation_xy);
-
-    }
+  }
 #ifdef DEBUG_EMC
-    else
-	enqueue_COMMENT("interpreter: setting coordinate system origin");
+  else
+    enqueue_COMMENT("interpreter: setting coordinate system origin");
 #endif
-    return INTERP_OK;
+  return INTERP_OK;
 }
 
 /****************************************************************************/

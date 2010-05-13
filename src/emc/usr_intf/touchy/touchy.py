@@ -8,7 +8,7 @@
 # the Free Software Foundation, either version 2 of the License, or
 # (at your option) any later version.
 #
-# Touchy is diibuted in the hope that it will be useful,
+# Touchy is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -19,9 +19,6 @@ import sys, os
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
 datadir = os.path.join(BASE, "share", "emc")
-#BASE = /home/eric/EMC2/YSL
-#libdir = /home/eric/EMC2/YSL/lib/python
-#datadir = /home/eric/EMC2/YSL/share/emc
 sys.path.insert(0, libdir)
 try:
         import pygtk
@@ -42,36 +39,28 @@ gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
 gtk.glade.bindtextdomain("emc2", LOCALEDIR)
 gtk.glade.textdomain("emc2")
 
-# some fucntion keep calling set_xxxxx functions
 def set_active(w, s):
-    #print "call set_active"
-    if not w: return
-    os = w.get_active()
-    if os != s: 
-        w.set_active(s)
-            
+	if not w: return
+	os = w.get_active()
+	if os != s: w.set_active(s)
 
 def set_label(w, l):
-    #print "call set_label"
-    if not w: return
-    ol = w.get_label()
-    if ol != l: w.set_label(l)
+	if not w: return
+	ol = w.get_label()
+	if ol != l: w.set_label(l)
 
-def set_text(w, t):#set_text(widget,text)
-    #print "call set_label",w,t
-    if not w: return
-    ot = w.get_label()
-    if ot != t: w.set_label(t)
+def set_text(w, t):
+	if not w: return
+	ot = w.get_label()
+	if ot != t: w.set_label(t)
 
 import emc
-print emc
-from touchy import emc_interface  #emc_control
-from touchy import mdi #mdi
-from touchy import hal_interface #hal_interface
+from touchy import emc_interface
+from touchy import mdi
+from touchy import hal_interface
 from touchy import filechooser
 from touchy import listing
 from touchy import preferences
-print emc
 
 pix_data = '''/* XPM */
 static char * invisible_xpm[] = {
@@ -81,7 +70,6 @@ static char * invisible_xpm[] = {
 
 
 color = gtk.gdk.Color()
-print gtk.gdk.Color()
 pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
 invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
@@ -151,46 +139,38 @@ class touchy:
                 for i in range(self.num_listing_labels):
                         listing_labels.append(self.wTree.get_widget("listing%d" % i))
                         listing_eventboxes.append(self.wTree.get_widget("eventbox_listing%d" % i))
-            self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
-        
-            # emc interface
-            print "apply emc_interface.emc_control"
-            self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
-            print "apply hal_interface.hal_interface"
-            self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
-        
-            # silly file chooser
-            filechooser_labels = []
-            filechooser_eventboxes = []
-            for i in range(self.num_filechooser_labels):
-                    filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
-                    filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
-            self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
-        
-            relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
-            absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
-            distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
-            relative = [self.wTree.get_widget(i) for i in relative]
-            absolute = [self.wTree.get_widget(i) for i in absolute]
-            distance = [self.wTree.get_widget(i) for i in distance]
-                 
+                self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
+
+                # emc interface
+                self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
+                self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
+
+                # silly file chooser
+                filechooser_labels = []
+                filechooser_eventboxes = []
+                for i in range(self.num_filechooser_labels):
+                        filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
+                        filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
+                self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
+
+                relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
+                absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
+                distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
+                relative = [self.wTree.get_widget(i) for i in relative]
+                absolute = [self.wTree.get_widget(i) for i in absolute]
+                distance = [self.wTree.get_widget(i) for i in distance]
                 
-            estops = ['estop_reset', 'estop']
-            estops = dict((i, self.wTree.get_widget(i)) for i in estops)
-            print "estops",estops
-            machines = ['on', 'off']
-            machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
-            print "machines",machines
-            floods = ['on', 'off']
-            floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
-            print "floods",floods
-            mists = ['on', 'off']
-            mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
-            print "mists",mists
-            spindles = ['forward', 'off', 'reverse']
-            spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
-            print "spindles",spindles
-            stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
+                estops = ['estop_reset', 'estop']
+                estops = dict((i, self.wTree.get_widget(i)) for i in estops)
+                machines = ['on', 'off']
+                machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
+                floods = ['on', 'off']
+                floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
+                mists = ['on', 'off']
+                mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
+                spindles = ['forward', 'off', 'reverse']
+                spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
+                stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
                          'spindledir', 'spindlespeed', 'loadedtool', 'preppedtool',
                          'xyrotation', 'tlo', 'activecodes', 'spindlespeed2']
                 stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
@@ -209,33 +189,33 @@ class touchy:
                                                        stats,
                                                        floods, mists, spindles, prefs,
                                                        opstop, blockdel)
-            if self.prefs.getpref('dro_mm', 0):
-                    self.status.dro_mm(0)
-            else:
-                    self.status.dro_inch(0)
-        
-            if self.prefs.getpref('dro_actual', 0):
-                    self.status.dro_actual(0)
-            else:
-                    self.status.dro_commanded(0)
-        
-            if self.prefs.getpref('blockdel', 0):
-                    self.emc.blockdel_on(0)
-            else:
-                    self.emc.blockdel_off(0)
-        
-            if self.prefs.getpref('opstop', 1):
-                    self.emc.opstop_on(0)
-            else:
-                    self.emc.opstop_off(0)                        
+                if self.prefs.getpref('dro_mm', 0):
+                        self.status.dro_mm(0)
+                else:
+                        self.status.dro_inch(0)
 
-            self.emc.max_velocity(self.mv_val)
+                if self.prefs.getpref('dro_actual', 0):
+                        self.status.dro_actual(0)
+                else:
+                        self.status.dro_commanded(0)
+
+                if self.prefs.getpref('blockdel', 0):
+                        self.emc.blockdel_on(0)
+                else:
+                        self.emc.blockdel_off(0)
+
+                if self.prefs.getpref('opstop', 1):
+                        self.emc.opstop_on(0)
+                else:
+                        self.emc.opstop_off(0)                        
+
+                self.emc.max_velocity(self.mv_val)
                                 
-            gobject.timeout_add(50, self.periodic_status)
-            gobject.timeout_add(100, self.periodic_radiobuttons)
-        
-            # event bindings
-            dic = {
+                gobject.timeout_add(50, self.periodic_status)
+                gobject.timeout_add(100, self.periodic_radiobuttons)
+
+                # event bindings
+                dic = {
                         "quit" : self.quit,
                         "on_pointer_show_clicked" : self.pointer_show,
                         "on_pointer_hide_clicked" : self.pointer_hide,
@@ -308,24 +288,8 @@ class touchy:
                         "on_spindle_reverse_clicked" : self.emc.spindle_reverse,
                         "on_spindle_slower_clicked" : self.emc.spindle_slower,
                         "on_spindle_faster_clicked" : self.emc.spindle_faster,
-                        "on_jogplus_pressed" : self.jogplus_pressed,
-                        "on_jogplus_released" : self.jogplus_released,
-                        "on_jogminus_pressed" : self.jogminus_pressed,
-                        "on_jogminus_released" : self.jogminus_released,
-                        "on_mvplus_pressed" : self.mvplus_pressed,
-                        "on_mvplus_released" : self.mvplus_released,
-                        "on_mvminus_pressed" : self.mvminus_pressed,
-                        "on_mvminus_released" : self.mvminus_released,
-                        "on_foplus_pressed" : self.foplus_pressed,
-                        "on_foplus_released" : self.foplus_released,
-                        "on_fominus_pressed" : self.fominus_pressed,
-                        "on_fominus_released" : self.fominus_released,
-                        "on_soplus_pressed" : self.soplus_pressed,
-                        "on_soplus_released" : self.soplus_released,
-                        "on_sominus_pressed" : self.sominus_pressed,
-                        "on_sominus_released" : self.sominus_released,
                         }
-            self.wTree.signal_autoconnect(dic)
+                self.wTree.signal_autoconnect(dic)
 
 		for widget in self.wTree.get_widget_prefix(''):
 			if isinstance(widget, gtk.Button):
@@ -388,28 +352,27 @@ class touchy:
                 if self.radiobutton_mask: return
                 self.prefs.putpref('blockdel', 0)
                 self.emc.blockdel_off(b)
-  
+
         def wheelx(self, b):
-                print "click on wheelx"
                 if self.radiobutton_mask: return
                 self.wheelxyz = 0
-          
+
         def wheely(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 1
-            
+
         def wheelz(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 2
-            
+
         def wheela(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 3
-              
+
         def wheelb(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 4
-              
+
         def wheelc(self, b):
                 if self.radiobutton_mask: return
                 self.wheelxyz = 5
@@ -427,7 +390,6 @@ class touchy:
                 self.wheelxyz = 8
 
         def wheelinc1(self, b):
-                print "wheelinc1 clicked"
                 if self.radiobutton_mask: return
                 self.wheelinc = 0
 
@@ -438,12 +400,10 @@ class touchy:
                 self.emc.unhome_selected(self.wheelxyz)
 
         def wheelinc2(self, b):
-                print "wheelinc2 clicked"
                 if self.radiobutton_mask: return
                 self.wheelinc = 1
 
         def wheelinc3(self, b):
-                print "wheelinc3 clicked"
                 if self.radiobutton_mask: return
                 self.wheelinc = 2
 
@@ -451,53 +411,28 @@ class touchy:
                 if self.radiobutton_mask: return
                 self.wheel = "fo"
                 self.jogsettings_activate(0)
-                self.mvsettings_activate(0)
-                self.sosettings_activate(0)
-                self.fosettings_activate(1)
 
         def so(self, b):
                 if self.radiobutton_mask: return
                 self.wheel = "so"
-                self.jogsettings_activate(0) #enable jog incr button set
-                self.mvsettings_activate(0)
-                self.sosettings_activate(1)
-                self.fosettings_activate(0)
+                self.jogsettings_activate(0)
 
         def mv(self, b):
                 if self.radiobutton_mask: return
                 self.wheel = "mv"
                 self.jogsettings_activate(0)
-                self.mvsettings_activate(1)
-                self.sosettings_activate(0)
-                self.fosettings_activate(0)
 
-        def jogging(self, b):# b is gtk widget itself
-                print "click on jogging"  
+        def jogging(self, b):
                 if self.radiobutton_mask: return
                 self.wheel = "jogging"
                 self.emc.jogging(b)
-                self.jogsettings_activate(1) #enable jog incr button set
-                self.mvsettings_activate(0)
-                self.sosettings_activate(0)
-                self.fosettings_activate(0)
+                self.jogsettings_activate(1)
 
         def jogsettings_activate(self, active):
-                for i in ["wheelinc1", "wheelinc2", "wheelinc3","jogplus","jogminus"]:
+                for i in ["wheelinc1", "wheelinc2", "wheelinc3"]:
                         w = self.wTree.get_widget(i)
                         w.set_sensitive(active)
                 self.hal.jogactive(active)
-        def fosettings_activate(self, active):
-                for i in ["foplus","fominus"]:
-                        w = self.wTree.get_widget(i)
-                        w.set_sensitive(active)
-        def sosettings_activate(self, active):
-                for i in ["soplus","sominus"]:
-                        w = self.wTree.get_widget(i)
-                        w.set_sensitive(active)
-        def mvsettings_activate(self, active):
-                for i in ["mvplus","mvminus"]:
-                        w = self.wTree.get_widget(i)
-                        w.set_sensitive(active)
         
         def change_control_font(self, fontbutton):
                 self.control_font_name = fontbutton.get_font_name()
@@ -524,7 +459,7 @@ class touchy:
                 self.setfont()
 
         def setfont(self):
-                # set font of widget on the widge tree by the name listed
+                # buttons
                 for i in ["1", "2", "3", "4", "5", "6", "7",
                           "8", "9", "0", "minus", "decimal",
                           "flood_on", "flood_off", "mist_on", "mist_off",
@@ -540,9 +475,7 @@ class touchy:
                           "spindle_faster", "spindle_slower",
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
-                          "blockdel_on", "blockdel_off", "pointer_hide",
-                           "pointer_show","jogplus","jogminus","foplus","fominus","mvplus",
-                           "mvminus","soplus","sominus"]:
+                          "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
@@ -595,11 +528,10 @@ class touchy:
                 self.status.periodic()
                 self.radiobutton_mask = 0
                 self.emc.unmask()
-                self.hal.periodic(self.tab == 1) # MDI tab? OMG, I have to think about it myself.
+                self.hal.periodic(self.tab == 1) # MDI tab?
                 return True
 
         def periodic_radiobuttons(self):
-                #print "periodic_radiobuttons would called repeatly"
                 self.radiobutton_mask = 1
                 s = emc.stat()
                 s.poll()
@@ -641,16 +573,13 @@ class touchy:
                 self.radiobutton_mask = 0
 
                 if self.wheel == "jogging":
-                        self.hal.jogaxis(self.wheelxyz) # output enable single to hal pin
+                        self.hal.jogaxis(self.wheelxyz)
                 else:
                         # disable all
                         self.hal.jogaxis(-1)
                 self.hal.jogincrement(self.wheelinc)
-                if not self.is_on_sw_wheel:
-                    d = self.hal.wheel() # get wheel count from hal S32 pin
-                else:
-                    print "sw wheel"
-                    d = self.sw_wheel_incr(self.sw_wheel_direction)
+
+                d = self.hal.wheel()
                 if self.wheel == "fo":
                         self.fo_val += d
                         if self.fo_val < 0: self.fo_val = 0
@@ -675,62 +604,6 @@ class touchy:
 
                         
                 return True
-        def jogplus_pressed(self,b):  
-            self.hal.setjogplus(self.wheelxyz)
-        def jogplus_released(self,b):
-            self.hal.stopjog()
-        def jogminus_pressed(self,b):
-            self.hal.setjogminus(self.wheelxyz)
-        def jogminus_released(self,b):
-            self.hal.stopjog()
-        def foplus_pressed(self,b):
-            self.is_on_sw_wheel = True
-            self.sw_wheel_direction = 1    
-        def foplus_released(self,b):
-            self.is_on_sw_wheel = False
-            self.sw_wheel_reset()
-        def fominus_pressed(self,b):
-            self.is_on_sw_wheel = True
-        def fominus_released(self,b):
-            self.is_on_sw_wheel = False
-            self.sw_wheel_reset()
-        def mvplus_pressed(self,b):
-            self.is_on_sw_wheel = True
-            self.sw_wheel_direction = 1
-        def mvplus_released(self,b):
-            self.is_on_sw_wheel = False
-            self.sw_wheel_reset()
-        def mvminus_pressed(self,b):
-            self.is_on_sw_wheel = True
-            self.sw_wheel_direction = -1
-        def mvminus_released(self,b):
-            self.is_on_sw_wheel = False
-            self.sw_wheel_reset()
-        
-        def soplus_pressed(self,b):
-            self.is_on_sw_wheel = True
-            self.sw_wheel_direction = 1
-        def soplus_released(self,b):
-            self.is_on_sw_wheel = False
-            self.sw_wheel_reset()
-        def sominus_pressed(self,b):
-            self.is_on_sw_wheel = True
-            self.sw_wheel_direction = -1
-        def sominus_released(self,b):
-            self.is_on_sw_wheel = False
-            self.sw_wheel_reset()
-        def sw_wheel_reset(self):
-            self.sw_wheelcount = 0
-            self.sw_wheel_direction = 0
-        def sw_wheel_incr(self,direction):
-            if direction > 0:
-                wheel_incr = 1+self.sw_wheelcount
-            else:
-                wheel_incr = -1*(1+self.sw_wheelcount)
-            self.sw_wheelcount =   wheel_incr*direction
-
-            return wheel_incr
-       
 
 	def hack_leave(self,w):
 		if not self.invisible_cursor: return
@@ -742,10 +615,7 @@ class touchy:
 
 
 if __name__ == "__main__":
-    print "touchy main +++"
-    hwg = touchy()
-    res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-f", "touchy.hal"])
-    if res: raise SystemExit, res
-    print "touchy call gtk.main"
-    gtk.main()
-    print "touchy main ---"
+	hwg = touchy()
+	res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-f", "touchy.hal"])
+	if res: raise SystemExit, res
+	gtk.main()
