@@ -39,7 +39,6 @@ KINEMATICS_INVERSE_FLAGS iflags = 0;
 double servo_freq;
 
 // to disable DP(): #define TRACE 0
-#define DBGMSG 0
 #define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -1097,7 +1096,14 @@ static void get_pos_cmds(long period)
             if ( joint->home_state == HOME_IDLE ) {
                 /* velocity limit = joint limit * global scale factor */
                 /* the global factor is used for feedrate override */
-                vel_lim = joint->vel_limit * emcmotStatus->net_feed_scale;
+                
+                // joints_axes3: vel_lim = joint->vel_limit * emcmotStatus->net_feed_scale;
+                /**
+                 * 2010-05-14 ysli:
+                 * the joint->free_tp.max_vel was set at command.c::EMCMOT_JOG_*,
+                 * which was set by the "Jog Speed" of AXIS_GUI
+                 **/
+                vel_lim = joint->free_tp.max_vel * emcmotStatus->net_feed_scale;
                 /* must not be greater than the joint physical limit */
                 if (vel_lim > joint->vel_limit) {
                     vel_lim = joint->vel_limit;
@@ -1107,6 +1113,11 @@ static void get_pos_cmds(long period)
             } else {
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
+
+            DP("joint[%d]: free_tp.max_vel(%f) vel_limit(%f) net_feed_scale(%f)\n", 
+                joint_num, joint->free_tp.max_vel, joint->vel_limit,
+                emcmotStatus->net_feed_scale);
+
             /* set acc limit in free TP */
             joint->free_tp.max_acc = joint->acc_limit;
             /* execute free TP */

@@ -17,7 +17,6 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-
 # import pdb
 
 import sys, os
@@ -1562,14 +1561,47 @@ def dist((x,y,z),(p,q,r)):
 
 # returns units/sec
 def get_jog_speed(a):
-    if vars.joint_mode.get() or a in (0,1,2,6,7,8):
-        return vars.jog_speed.get()/60.
-    else: return vars.jog_aspeed.get()/60.
-
+    if vars.joint_mode.get():
+        # World Mode
+        if a in (0,1,2,6,7,8): # XYZUVW
+            speed = vars.jog_speed.get()/60. 
+        else: # ABC
+            speed = vars.jog_aspeed.get()/60.  
+    else:
+        # Joint Mode
+        ini_joint = "JOINT_%d" % a
+        jnt_type = inifile.find(ini_joint, "TYPE")
+        # print >>sys.stderr, "DEBUG: %s.TYPE=%s" % (ini_joint, jnt_type)
+        if (jnt_type == "LINEAR"):
+            speed = vars.jog_speed.get()/60.
+        elif (inifile.find(ini_joint, "TYPE") == "ANGULAR"):
+            speed = vars.jog_aspeed.get()/60.  
+        else:
+            print >>sys.stderr, "Unknown %s.TYPE" % ini_joint
+            speed = 0.
+    # print >>sys.stderr, "DEBUG: get_jog_speed(): j[%d] speed(%f), jog_speed(%f) jog_aspeed(%f)" \
+    #                     % (a, speed, vars.jog_speed.get(),  vars.jog_aspeed.get())
+    return speed
+    
 def get_max_jog_speed(a):
-    if vars.joint_mode.get() or a in (0,1,2,6,7,8):
-        return vars.max_speed.get()
-    else: return vars.max_aspeed.get()    
+    if vars.joint_mode.get():
+        # World Mode
+        if a in (0,1,2,6,7,8): # XYZUVW
+            speed = vars.max_speed.get()    # unit/sec
+        else: # ABC
+            speed = vars.max_aspeed.get()   # unit/sec
+    else:
+        # Joint Mode
+        ini_joint = "JOINT_%d" % a
+        jnt_type = inifile.find(ini_joint, "TYPE")
+        if (jnt_type == "LINEAR"):
+            speed = vars.max_speed.get()    # unit/sec
+        elif (inifile.find(ini_joint, "TYPE") == "ANGULAR"):
+            speed = vars.max_aspeed.get()   # unit/sec
+        else:
+            print >>sys.stderr, "Unknown %s.TYPE" % ini_joint
+            speed = 0.
+    return speed
 
 def run_warn():
     warnings = []
@@ -1671,7 +1703,7 @@ class TclCommands(nf.TclCommands):
                 units = _("in")
                 fmt = "%.4f"
 
-            mf = vars.max_speed.get()
+            mf = vars.max_speed.get()/60.
             #print o.canon.traverse[0]
 
             g0 = sum(dist(l[1][:3], l[2][:3]) for l in o.canon.traverse)
@@ -2768,13 +2800,17 @@ jog_speed = (
     or inifile.find("TRAJ", "DEFAULT_LINEAR_VELOCITY")
     or inifile.find("TRAJ", "DEFAULT_VELOCITY")
     or 1.0)
-vars.jog_speed.set(float(jog_speed)*60)
+vars.jog_speed.set(float(jog_speed)*60.)
+# print >>sys.stderr, "DEBUG: jog_speed(%s, %f, %f)" % (jog_speed, float(jog_speed), vars.jog_speed.get())
+
 jog_speed = (
     inifile.find("DISPLAY", "DEFAULT_ANGULAR_VELOCITY")
     or inifile.find("TRAJ", "DEFAULT_ANGULAR_VELOCITY")
     or inifile.find("TRAJ", "DEFAULT_VELOCITY")
     or jog_speed)
-vars.jog_aspeed.set(float(jog_speed)*60)
+vars.jog_aspeed.set(float(jog_speed)*60.)
+# print >>sys.stderr, "DEBUG: jog_aspeed(%s, %f, %f)" % (jog_speed, float(jog_speed), vars.jog_aspeed.get())
+
 mlv = (
     inifile.find("DISPLAY","MAX_LINEAR_VELOCITY")
     or inifile.find("TRAJ","MAX_LINEAR_VELOCITY")
@@ -2788,7 +2824,7 @@ mav = (
     or mlv)
 vars.max_aspeed.set(float(mav))
 mv = inifile.find("TRAJ","MAX_LINEAR_VELOCITY") or inifile.find("AXIS_0","MAX_VELOCITY") or 1.0
-vars.maxvel_speed.set(float(mv)*60)
+vars.maxvel_speed.set(float(mv)*60.)
 vars.max_maxvel.set(float(mv))
 root_window.tk.eval("${pane_top}.jogspeed.s set [setval $jog_speed $max_speed]")
 root_window.tk.eval("${pane_top}.ajogspeed.s set [setval $jog_aspeed $max_aspeed]")
@@ -2874,6 +2910,8 @@ for a in range(9):
             step_size_tmp = min(step_size, 1. / f)
             if a < 3: step_size = astep_size = step_size_tmp
             else: astep_size = step_size_tmp
+
+# print >>sys.stderr, "DEBUG_1: jog_aspeed(%s, %f, %f)" % (jog_speed, float(jog_speed), vars.jog_aspeed.get())
 
 if inifile.find("DISPLAY", "MIN_LINEAR_VELOCITY"):
     root_window.tk.call("set_slider_min", float(inifile.find("DISPLAY", "MIN_LINEAR_VELOCITY"))*60)
@@ -3057,6 +3095,10 @@ live_plotter = LivePlotter(o)
 live_plotter.start()
 o.lp = live_plotter.logger
 hershey = Hershey()
+
+# print >>sys.stderr, "DEBUG_2: jog_speed(%f)" % (vars.jog_speed.get())
+# print >>sys.stderr, "DEBUG_2: jog_aspeed(%f)" % (vars.jog_aspeed.get())
+# TODO: the value for jog_speed/jog_aspeed got changed somewhere (might be in TK.Widget)
 
 def remove_tempdir(t):
     shutil.rmtree(t)
