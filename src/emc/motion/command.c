@@ -906,6 +906,14 @@ check_stuff ( "before command_handler()" );
             tpSetSpindleSync(&emcmotDebug->coord_tp, emcmotCommand->spindlesync, emcmotCommand->flags);
             break;
 
+        case EMCMOT_SET_NURBS:
+            tpAddNURBS(&emcmotDebug->coord_tp, emcmotCommand->motion_type,
+                       emcmotCommand->nurbs_block, emcmotCommand->pos,
+                       emcmotStatus->enables_new, emcmotCommand->vel,
+                       emcmotCommand->ini_maxvel,
+                       emcmotCommand->ini_maxacc,
+                       emcmotCommand->ini_maxjerk);
+            break;
 	case EMCMOT_SET_LINE:
 	    /* emcmotDebug->coord_tp up a linear move */
 	    /* requires motion enabled, coordinated mode, not on limits */

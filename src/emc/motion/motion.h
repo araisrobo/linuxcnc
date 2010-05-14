@@ -115,7 +115,7 @@ extern "C" {
 
 	EMCMOT_SET_LINE,	/* queue up a linear move */
 	EMCMOT_SET_CIRCLE,	/* queue up a circular move */
-	EMCMOT_SET_NURBS,  /* queue up a nurbs move */
+	EMCMOT_SET_NURBS,       /* queue up a nurbs move */
 	EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
 	EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
