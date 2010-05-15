@@ -146,7 +146,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             lo = l
         self.lo = lo
 
-    def straight_feed(self, x,y,z, a,b,c, u, v, w):
+    def straight_feed(self, x,y,z, a,b,c, u,v,w):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
@@ -1211,6 +1211,7 @@ class GlCanonDraw:
     def load_preview(self, f, canon, unitcode, initcode):
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
+        #debug: print "after gcode.parse(), result=", result, ", seq=", seq
 
         if result < gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)

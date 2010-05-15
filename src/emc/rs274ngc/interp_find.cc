@@ -159,6 +159,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
 {
     int middle;
     int comp;
+
     middle = s->cutter_comp_firstmove == OFF;
     comp = (s->cutter_comp_side != OFF);
 
@@ -200,7 +201,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             } else {
                 *AA_p = block->a_number - s->AA_origin_offset - s->AA_axis_offset;
             }
-
         } else {
             *AA_p = s->AA_current;
         }
@@ -213,7 +213,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             } else {
                 *BB_p = block->b_number - s->BB_origin_offset - s->BB_axis_offset;
             }
-
         } else {
             *BB_p = s->BB_current;
         }
@@ -226,7 +225,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             } else {
                 *CC_p = block->c_number - s->CC_origin_offset - s->CC_axis_offset;
             }
-
         } else {
             *CC_p = s->CC_current;
         }
@@ -252,7 +250,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
 
         if(block->x_flag == ON) {
             *px = block->x_number;
-
         } else {
             // both cutter comp planes affect X ...
             *px = (comp && middle) ? s->program_x : s->current_x;
@@ -260,7 +257,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
 
         if(block->y_flag == ON) {
             *py = block->y_number;
-
         } else {
             // but only XY affects Y ...
             *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current_y;
@@ -287,14 +283,12 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
 
         if(block->z_flag == ON) {
             *pz = block->z_number;
-
         } else {
             // and only XZ affects Z.
             *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current_z;
         }
 
         if(block->a_flag == ON) {
-
             if(s->a_axis_wrapped) {
                 CHP(unwrap_rotary(AA_p, block->a_number, block->a_number, s->AA_current, 'A'));
             } else {
@@ -305,7 +299,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         }
 
         if(block->b_flag == ON) {
-
             if(s->b_axis_wrapped) {
                 CHP(unwrap_rotary(BB_p, block->b_number, block->b_number, s->BB_current, 'B'));
             } else {
@@ -316,7 +309,6 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         }
 
         if(block->c_flag == ON) {
-
             if(s->c_axis_wrapped) {
                 CHP(unwrap_rotary(CC_p, block->c_number, block->c_number, s->CC_current, 'C'));
             } else {
@@ -326,26 +318,9 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             *CC_p = s->CC_current;
         }
 
-        if (block->u_flag == ON) {
-
-        	*u_p = block->u_number ;
-        } else {
-        	*u_p = s->u_current;
-        }
-
-        if (block->v_flag == ON) {
-
-			*v_p = block->v_number ;
-		} else {
-			*v_p = s->v_current;
-		}
-
-        if (block->w_flag == ON) {
-
-			*w_p = block->w_number ;
-		} else {
-			*w_p = s->w_current;
-		}
+        *u_p = (block->u_flag == ON) ? block->u_number : s->u_current;
+        *v_p = (block->v_flag == ON) ? block->v_number : s->v_current;
+        *w_p = (block->w_flag == ON) ? block->w_number : s->w_current;
 
     } else {                      /* mode is MODE_INCREMENTAL */
 

@@ -1092,6 +1092,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
     	    initcode = inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
         unitcode = "G%d" % (20 + (s.linear_units == 1))
         try:
+            # print >>sys.stderr, "DEBUG: failed inside load_preview(): open_file_guts f(%s) %d %d" % (f, filtered, addrecent)
             result, seq = o.load_preview(f, canon, unitcode, initcode)
         except KeyboardInterrupt:
             result, seq = 0, 0
@@ -1571,7 +1572,6 @@ def get_jog_speed(a):
         # Joint Mode
         ini_joint = "JOINT_%d" % a
         jnt_type = inifile.find(ini_joint, "TYPE")
-        # print >>sys.stderr, "DEBUG: %s.TYPE=%s" % (ini_joint, jnt_type)
         if (jnt_type == "LINEAR"):
             speed = vars.jog_speed.get()/60.
         elif (inifile.find(ini_joint, "TYPE") == "ANGULAR"):
@@ -1703,7 +1703,7 @@ class TclCommands(nf.TclCommands):
                 units = _("in")
                 fmt = "%.4f"
 
-            mf = vars.max_speed.get()/60.
+            mf = vars.max_speed.get()
             #print o.canon.traverse[0]
 
             g0 = sum(dist(l[1][:3], l[2][:3]) for l in o.canon.traverse)
@@ -2801,7 +2801,6 @@ jog_speed = (
     or inifile.find("TRAJ", "DEFAULT_VELOCITY")
     or 1.0)
 vars.jog_speed.set(float(jog_speed)*60.)
-# print >>sys.stderr, "DEBUG: jog_speed(%s, %f, %f)" % (jog_speed, float(jog_speed), vars.jog_speed.get())
 
 jog_speed = (
     inifile.find("DISPLAY", "DEFAULT_ANGULAR_VELOCITY")
@@ -2809,7 +2808,6 @@ jog_speed = (
     or inifile.find("TRAJ", "DEFAULT_VELOCITY")
     or jog_speed)
 vars.jog_aspeed.set(float(jog_speed)*60.)
-# print >>sys.stderr, "DEBUG: jog_aspeed(%s, %f, %f)" % (jog_speed, float(jog_speed), vars.jog_aspeed.get())
 
 mlv = (
     inifile.find("DISPLAY","MAX_LINEAR_VELOCITY")

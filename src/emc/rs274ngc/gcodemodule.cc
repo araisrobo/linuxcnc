@@ -18,6 +18,7 @@
 
 #include <Python.h>
 #include <structmember.h>
+#include <assert.h>
 
 #include "rs274ngc.hh"
 #include "rs274ngc_interp.hh"
@@ -168,8 +169,9 @@ void NURBS_FEED_3D (
 {
     double u = 0.0;
     int   i;
-   /* printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n", //TODO-eric:GCODE NURBS_FEED_3D Print
-            __FILE__, __FUNCTION__, __LINE__, c.size());*/
+    
+    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n", //TODO-eric:GCODE NURBS_FEED_3D Print
+    //         __FILE__, __FUNCTION__, __LINE__, c.size());
     
     // INPUT:
     //    d - Degree of the B-Spline.
@@ -286,16 +288,25 @@ void NURBS_FEED_3D (
             }
 
             STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
-            _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+                          _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+            // printf("%s: (%s:%d): x(%f) y(%f) z(%f)\n", 
+            //         __FILE__, __FUNCTION__, __LINE__, _pos_x, _pos_y, _pos_z);
+            // printf("%s: (%s:%d): a(%f) b(%f) c(%f)\n", 
+            //         __FILE__, __FUNCTION__, __LINE__, _pos_a, _pos_b, _pos_c);
+            // printf("%s: (%s:%d): u(%f) v(%f) w(%f)\n",
+            //         __FILE__, __FUNCTION__, __LINE__, _pos_u, _pos_v, _pos_w);
 
         }
     } else {
         fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k) - 1.\n");
     }
+
     free(N);
     free(cp);
     free(knot);
-
+    
+    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() end\n", //TODO-eric:GCODE NURBS_FEED_3D Print
+    //         __FILE__, __FUNCTION__, __LINE__, c.size());
 }
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
@@ -822,7 +833,6 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     int error_line_offset = 0;
     struct timeval t0, t1;
     int wait = 1;
-
     if(!PyArg_ParseTuple(args, "sO|ss", &f, &callback, &unitcode, &initcode))
         return NULL;
 
@@ -830,6 +840,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
         USER_DEFINED_FUNCTION[i] = user_defined_function;
 
     gettimeofday(&t0, NULL);
+
     metric=false;
     interp_error = 0;
     last_sequence_number = -1;
@@ -914,7 +925,7 @@ static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
                     &unused,
                     &xs, &ys, &zs, &unused, &unused, &unused, &unused, &unused, &unused,
                     &xe, &ye, &ze, &unused, &unused, &unused, &unused, &unused, &unused,
-                    &unused, &xt, &yt, &zt);
+                    &xt, &yt, &zt);
             else
                 r = PyArg_ParseTuple(sj,
                     "O(dddOOOOOO)(dddOOOOOO)O(ddd):calc_extents item",
@@ -952,6 +963,7 @@ static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
             min_zt = std::min(min_zt, ze+zt);
         }
     }
+    
     return Py_BuildValue("[ddd][ddd][ddd][ddd]",
         min_x, min_y, min_z,  max_x, max_y, max_z,
         min_xt, min_yt, min_zt,  max_xt, max_yt, max_zt);
