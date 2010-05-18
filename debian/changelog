@@ -1,3 +1,10 @@
+emc2 (1:2.4.0-nurbs-2010.05.17) lucid; urgency=low
+
+  * Synchronized with joints_axes3
+  * Fixed the Jogging Speed Limitation Error
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 17 May 2010 12:04:27 +0800
+
 emc2 (1:2.4.0-nurbs-2010.05.12) lucid; urgency=low
 
   * wou_stepgen.c: load FPGA bitfile and WOU_Register settings from 
