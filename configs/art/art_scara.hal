@@ -14,7 +14,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[E
 # gpio_leds_sel:    WOU Register value for GPIO_LEDS_SEL: 
 #                   servo_pulses(1)
 #                   debug_port_0[7:0](2)
-loadrt wou step_type=2,2,2,2 bits="fpga_top.bit" gpio_mask_in0=0x3C gpio_leds_sel=2
+loadrt wou step_type=2,2,2,2 bits="fpga_top.bit" gpio_mask_in0=0x3C gpio_leds_sel=2 jcmd_dir_pol=0
 
 loadrt not count=7
 
@@ -59,14 +59,14 @@ linksp J2pos => wou.stepgen.2.position-cmd
 linksp J3pos => wou.stepgen.3.position-cmd
 
 # loop position commands back to motion module feedback
-#TODO: net J0pos-fb wou.stepgen.0.position-fb => joint.0.motor-pos-fb
-#TODO: net J1pos-fb wou.stepgen.1.position-fb => joint.1.motor-pos-fb
-#TODO: net J2pos-fb wou.stepgen.2.position-fb => joint.2.motor-pos-fb
-#TODO: net J3pos-fb wou.stepgen.3.position-fb => joint.3.motor-pos-fb
-linksp J0pos => joint.0.motor-pos-fb
-linksp J1pos => joint.1.motor-pos-fb
-linksp J2pos => joint.2.motor-pos-fb
-linksp J3pos => joint.3.motor-pos-fb
+net J0pos-fb wou.stepgen.0.position-fb => joint.0.motor-pos-fb
+net J1pos-fb wou.stepgen.1.position-fb => joint.1.motor-pos-fb
+net J2pos-fb wou.stepgen.2.position-fb => joint.2.motor-pos-fb
+net J3pos-fb wou.stepgen.3.position-fb => joint.3.motor-pos-fb
+# linksp J0pos => joint.0.motor-pos-fb
+# linksp J1pos => joint.1.motor-pos-fb
+# linksp J2pos => joint.2.motor-pos-fb
+# linksp J3pos => joint.3.motor-pos-fb
 
 # # send the position commands thru differentiators to
 # # generate velocity and accel signals

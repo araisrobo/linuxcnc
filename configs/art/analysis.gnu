@@ -1,12 +1,16 @@
-
+plot \
     "wou_steps.log" using 1:2 title "pos_cmd[0]", \
     "wou_steps.log" using 1:3 title "cur_pos[0]", \
-    "wou_steps.log" using 1:6 title "pos_cmd[1]", \
-    "wou_steps.log" using 1:7 title "cur_pos[1]", \
-    "wou_steps.log" using 1:10 title "pos_cmd[2]", \
-    "wou_steps.log" using 1:11 title "cur_pos[2]", \
-    "wou_steps.log" using 1:14 title "pos_cmd[3]", \
-    "wou_steps.log" using 1:15 title "cur_pos[3]"
+    "wou_steps.log" using 1:4 title "pos_fb[0]", \
+    "wou_steps.log" using 1:7 title "pos_cmd[1]", \
+    "wou_steps.log" using 1:8 title "cur_pos[1]", \
+    "wou_steps.log" using 1:9 title "pos_fb[1]", \
+    "wou_steps.log" using 1:12 title "pos_cmd[2]", \
+    "wou_steps.log" using 1:13 title "cur_pos[2]", \
+    "wou_steps.log" using 1:14 title "pos_fb[2]", \
+    "wou_steps.log" using 1:17 title "pos_cmd[3]", \
+    "wou_steps.log" using 1:18 title "cur_pos[3]" \
+    "wou_steps.log" using 1:19 title "pos_fb[3]", 
 
 plot \
     "wou_steps.log" using 1:2 title "pos_cmd[0]", \

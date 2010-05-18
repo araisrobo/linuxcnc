@@ -183,7 +183,7 @@ void NURBS_FEED_3D (
 
     int d = order-1;
     int nu = c.size() * 10 + 1; // u.length();
-    int nc = c.size(),knot_size;
+    int nc = c.size(), knot_size;
     double       *N ,*knot,R, X, Y, Z, A , B, C, U, V, W;
     CONTROL_POINT *cp ;
 

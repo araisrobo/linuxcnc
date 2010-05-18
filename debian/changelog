@@ -1,8 +1,9 @@
 emc2 (1:2.4.0-nurbs-2010.05.17) lucid; urgency=low
 
-  * fix joint jogging speed control
+  * Synchronized with joints_axes3
+  * Fixed the Jogging Speed Limitation Error
 
- -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Mon, 17 May 2010 09:41:02 +0800
+ -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 17 May 2010 12:04:27 +0800
 
 emc2 (1:2.4.0-nurbs-2010.05.12) lucid; urgency=low
 

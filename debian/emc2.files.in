@@ -16,8 +16,7 @@ usr/lib/python@PYTHON_VERSION@/site-packages/*/*.so
 usr/lib/python@PYTHON_VERSION@/site-packages/*.so
 usr/share/axis/images/*
 usr/share/axis/tcl/*
-usr/share/doc/emc2/gcode.html
-usr/share/doc/emc2/gcode_fr.html
+usr/share/doc/emc2/gcode*.html
 usr/share/doc/emc2/UPDATING
 usr/share/doc/emc2/NEWS
 usr/share/doc/emc2/AUTHORS
