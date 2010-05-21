@@ -2,20 +2,20 @@
 (User specific parameters)
 #1000 = 245 (X shift)
 #1001 = -56 (Y shift)
-#1002 = 128 (Z shift)
+#1002 = 105 (Z shift)
 #1003 = 0 (A shift)
 #2000 = 330 (X INIT)
 #2001 = 0 (Y INIT)
-#2002 = 191 (INIT/SAFE Z )
+#2002 = 192 (INIT/SAFE Z )
 #3000 = 9000 ( Engraving Feedrate )
 #3001 = 1000  ( Pre-Engraving Feedrate)
 #3002 = 1000 ( Pathing Feedrate)
-#3003 = 20000 ( A Homing Feedrate )
+#3003 = 25000 ( A Homing Feedrate )
 F#3002
 G0Z#2002
 G0Y#2001X#2000
 F#3003
-G0 A[0.0000000000+#1003] (Pre-Engraving A)
+G0 A[0.0000000000+#1003] 
 
 F#3002
 G0 X[81.0000000000+#1000] Y[#1001] (Pre_Engraving XY Point)
@@ -138,4 +138,9 @@ G6.2 P4 K0.0000000000 X[81.0000000000+#1000] Y[0.0000000000+#1001] Z[0.000000000
         K1.0000000000
         K1.0000000000
 G5.3 (close G6.2)
+F#3002
+G0Z#2002
+G0Y#2001X#2000
+F#3003
+G0 A[0.0000000000+#1003] (Pre-Engraving A)
 M2
