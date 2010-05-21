@@ -89,7 +89,8 @@ plot \
 plot \
     "tc.log" using 1:4 title "x", \
     "tc.log" using 1:5 title "y", \
-    "tc.log" using 1:6 title "z"
+    "tc.log" using 1:6 title "z", \
+    "tc.log" using 1:9 title "a"
 
 plot  "tc.log" using 2:3 title "u vs l"
 
