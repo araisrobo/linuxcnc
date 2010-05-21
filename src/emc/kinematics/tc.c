@@ -155,7 +155,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose uvw;
     
     double progress = of_endpoint? tc->target: tc->progress;
-    static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0;
+    static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
 
     if (tc->motion_type == TC_RIGIDTAP) {
         if(tc->coords.rigidtap.state > REVERSING) {
@@ -212,7 +212,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     } else {
         int s, tmp1,i;
         double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR ,
-                     l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z;
+                     l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
 
         N = tc->nurbs_block.N;
         NL = tc->nurbs_block.NL;
@@ -356,6 +356,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     last_x = xyz.tran.x;
                     last_y = xyz.tran.y;
                     last_z = xyz.tran.z;
+                    last_a = 0;
                     _dt+=1;
                 }
                 delta_l = l - last_l;
@@ -365,20 +366,22 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 delta_x = xyz.tran.x - last_x;
                 delta_y = xyz.tran.y - last_y;
                 delta_z = xyz.tran.z - last_z;
+                delta_a = abc.tran.x - last_a;
                 delta_d = pmSqrt(pmSq(delta_x)+pmSq(delta_y)+pmSq(delta_z));
                 last_x = xyz.tran.x;
                 last_y = xyz.tran.y;
                 last_z = xyz.tran.z;
+                last_a = abc.tran.x;
                 if( delta_d > 0)
                 {
                     if(_dt == 1){
                       /* prepare header for gnuplot */
-                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s\n",
-                           "#dt", "u", "l","x","y","z","delta_d", "delta_l");
+                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s%15s\n",
+                           "#dt", "u", "l","x","y","z","delta_d", "delta_l","a");
                     }
 
-                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l);
+                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l, last_a);
 
                     _dt+=1;
                 }
