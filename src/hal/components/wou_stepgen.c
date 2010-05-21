@@ -130,6 +130,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "rtapi_math.h"
+#include "motion.h"
 
 #include <stdint.h>
 #include <wou.h>
@@ -139,7 +140,7 @@
 #define MAX_STEP_CUR 255
 
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -181,6 +182,9 @@ static wou_param_t w_param;
    which runs in the fastest thread */
 
 typedef struct {
+    // hal_pin_*_newf: variable has to be pointer
+    // hal_param_*_newf: varaiable not necessary to be pointer
+
     /* stuff that is both read and written by makepulses */
     volatile long long accum;	/* frequency generator accumulator */
     /* stuff that is read but not written by makepulses */
@@ -194,8 +198,6 @@ typedef struct {
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position mode, 0 = velocity mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
-    // double old_pos_cmd;		/* previous position command (counts) */
-    // hal_s32_t rawcount;		/* param: position feedback in counts */
     hal_s32_t *pulse_cmd;	/* pin: pulse_cmd to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;	        /* pin: encoder position from servo drive, captured from FPGA */
     hal_float_t pos_scale;	/* param: steps per position unit */
@@ -208,6 +210,8 @@ typedef struct {
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
     int printed_error;		/* flag to avoid repeated printing */
+
+    hal_s32_t *home_state;      /* pin: home_state from homing.c */
     
     double vel_fb;
     double prev_pos_cmd;        /* prev pos_cmd in counts */
@@ -300,11 +304,11 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_steps.log", "w");
     /* prepare header for gnuplot */
-    DPS ("#%10s  %17s%15s%15s%15s%15s  %17s%15s%15s%15s%15s  %17s%15s%15s%15s%15s  %17s%15s%15s%15s%15s\n", 
-          "dt",  "pos_cmd[0]", "cur_pos[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", 
-                 "pos_cmd[1]", "cur_pos[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]",
-                 "pos_cmd[2]", "cur_pos[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]",
-                 "pos_cmd[3]", "cur_pos[3]", "pos_fb[3]", "match_ac[3]", "curr_vel[3]");
+    DPS ("#%10s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s\n", 
+          "dt",  "pos_cmd[0]", "cur_pos[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", "home[0]",
+                 "pos_cmd[1]", "cur_pos[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]", "home[1]",
+                 "pos_cmd[2]", "cur_pos[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]", "home[2]",
+                 "pos_cmd[3]", "cur_pos[3]", "pos_fb[3]", "match_ac[3]", "curr_vel[3]", "home[3]");
 #endif
     
     /* test for bitfile string: bits */
@@ -558,6 +562,8 @@ static void update_freq(void *arg, long period)
   int wou_pos_cmd;
   // ret, data[]: for wou_cmd()
   uint8_t data[MAX_DSIZE];
+  static uint8_t prev_r_wait_hs_tog = 0;
+  uint8_t r_wait_hs_tog;
   int     ret;
   // static  int   reg_update = 0;
 #if (TRACE!=0)
@@ -629,7 +635,8 @@ static void update_freq(void *arg, long period)
 
   // num_chan: 4, calculated from step_type;
   /* loop thru generators */
-          
+  
+  r_wait_hs_tog = 0;
   for (n = 0; n < num_chan; n++) {
     /* update registers from FPGA */
     memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 4);
@@ -827,10 +834,37 @@ static void update_freq(void *arg, long period)
     // *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
     // DPS ("%15.7f%15.7f%15.7f", *stepgen->pos_fb, match_accel, new_vel);
     stepgen->cur_pos = stepgen->accum * stepgen->scale_recip;
-    DPS ("%15.7f%15.7f%15.7f%15.7f", stepgen->cur_pos, *stepgen->pos_fb, match_accel, new_vel);
-
+    DPS ("%15.7f%15.7f%15.7f%15.7f%7d", 
+          stepgen->cur_pos, 
+          *stepgen->pos_fb, 
+          match_accel,
+          new_vel, 
+          *stepgen->home_state);
+  
+    /* check if we should wait for HOME Switch Toggle */
+    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
+        (*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
+        (*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
+        (*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
+        (*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) 
+    {
+        r_wait_hs_tog |= (1<<n);
+    }
     /* move on to next channel */
     stepgen++;
+  }
+  
+  /* check if we should wait for HOME Switch Toggle */
+  if (r_wait_hs_tog != prev_r_wait_hs_tog) {
+    // issue a WOU_WRITE 
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   SSIF_BASE | SSIF_WAIT_HS_TOG,
+                   1,
+                   &r_wait_hs_tog);
+    assert (ret==0);
+    wou_flush(&w_param);
+    prev_r_wait_hs_tog = r_wait_hs_tog;
   }
 
 #if (TRACE!=0)
@@ -927,6 +961,12 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
 	    "wou.stepgen.%d.velocity-cmd", num);
     }
     if (retval != 0) { return retval; }
+    
+    /* export parameter to obtain homing state */
+    retval = hal_pin_s32_newf(HAL_IN, &(addr->home_state), comp_id,
+        "wou.stepgen.%d.home-state", num);
+    if (retval != 0) { return retval; }
+
     /* export pin for enable command */
     retval = hal_pin_bit_newf(HAL_IN, &(addr->enable), comp_id,
 	"wou.stepgen.%d.enable", num);
@@ -1034,8 +1074,6 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     addr->sum_err_0 = 0;
     addr->sum_err_1 = 0;
 
-
-    // addr->rawcount = 0;
     *(addr->enable) = 0;
     /* other init */
     addr->printed_error = 0;
@@ -1049,6 +1087,8 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     } else {
 	*(addr->vel_cmd) = 0.0;
     }
+    *(addr->home_state) = HOME_IDLE;
+
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
