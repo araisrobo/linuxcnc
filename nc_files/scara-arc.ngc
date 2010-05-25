@@ -20,11 +20,11 @@
 (F25000: feed rate: 25000mm/min)
 (P0.003: tolerance for blending: 0.003mm) 
 (G17 G21 G90 G64 P0.003 /* P0:tolerance for blending */ M3 S3000 M7 F60000)
-G17 G21 G90 G64 P0.003 M3 S3000 M7 F6000
+G17 G21 G90 G64 P0.003 M3 S3000 M7 F3000
 
 G1 Z#1000
 #1 = 0
-O101 while [#1 lt 90]
+O101 while [#1 lt 1]
 G1 X#1005 Y#1006 A45 (init)
 G1 X#1002 Y#1003
 G1 Z#1001
@@ -43,6 +43,6 @@ G1 Z#1001
 G1 Z#1000
 #1 = [#1+1]
 O101 endwhile
-G1 X#1005 Y#1006 A45 (init)
+G1 X#1005 Y#1006 A205 (init)
 M5 M9 M2
 

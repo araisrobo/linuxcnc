@@ -338,7 +338,7 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
             double weight = nurbs_control_points[nurbs_control_points.size() - 1].R;
 	    CHKS((weight <= 0),
 		 ("weight of the last Control Point could not be 0"));
-            // convert from 4D to 3D(W=1)
+            // convert from 4D to 3D(W=1), to provide the next G code a proper last position
 	    settings->current_x =
 		nurbs_control_points[nurbs_control_points.size() - 1].X / weight;
 	    settings->current_y =

@@ -25,7 +25,7 @@
 #include "tc.h"
 #include "nurbs.h"
 
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 
 #if (TRACE != 0)
@@ -155,7 +155,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose uvw;
     
     double progress = of_endpoint? tc->target: tc->progress;
-    static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0;
+    static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
 
     if (tc->motion_type == TC_RIGIDTAP) {
         if(tc->coords.rigidtap.state > REVERSING) {
@@ -212,7 +212,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     } else {
         int s, tmp1,i;
         double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR ,
-                     l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z;
+                     l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
 
         N = tc->nurbs_block.N;
         NL = tc->nurbs_block.NL;
@@ -242,7 +242,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 //                    fprintf(stderr,"NL[%d](%f) u(%f) \n",i,NL[i],u);
             }
             u = u/LR;
-//            u = l;
+            //u = l;
 //            DP("u(%f) length(%f)\n",u,l*tc->nurbs_block.curve_len);
             if (u<1) {
                 s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
@@ -266,7 +266,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     X = X/R;
                     xyz.tran.x = X;
                 } else {
-                    xyz.tran.x = pos.tran.x;
+                //    xyz.tran.x = pos.tran.x;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_Y) {
                     Y = 0.0;
@@ -276,7 +276,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     Y = Y/R;
                     xyz.tran.y = Y;
                 } else {
-                    xyz.tran.y = pos.tran.y;
+                 //   xyz.tran.y = pos.tran.y;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_Z) {
                     Z = 0.0;
@@ -286,7 +286,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     Z = Z/R;
                     xyz.tran.z = Z;
                 } else {
-                    xyz.tran.z = pos.tran.z;
+                 //   xyz.tran.z = pos.tran.z;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_A) {
                     A = 0.0;
@@ -296,7 +296,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     A = A/R;
                     abc.tran.x = A;
                 } else {
-                    abc.tran.x = pos.a;
+                //    abc.tran.x = pos.a;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_B) {
                     B = 0.0;
@@ -306,7 +306,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     B = B/R;
                     abc.tran.y = B;
                 } else {
-                    abc.tran.y = pos.b;
+                 //   abc.tran.y = pos.b;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_C) {
                     C = 0.0;
@@ -316,7 +316,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     C = C/R;
                     abc.tran.z = C;
                 } else {
-                    abc.tran.z = pos.c;
+                 //   abc.tran.z = pos.c;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_U) {
                     U = 0.0;
@@ -326,7 +326,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     U = U/R;
                     uvw.tran.x = U;
                 } else {
-                    uvw.tran.x = pos.u;
+                 //   uvw.tran.x = pos.u;
                 }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_V) {
                     V = 0.0;
@@ -335,9 +335,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     }
                     V = V/R;
                     uvw.tran.y = V;
-                            } else {
-                                    uvw.tran.y = pos.v;
-                            }
+                } else {
+                //    uvw.tran.y = pos.v;
+                }
                 if (tc->nurbs_block.axis_mask & AXIS_MASK_W) {
                     W = 0.0;
                     for (i=0; i<=tc->nurbs_block.order -1; i++) {
@@ -346,7 +346,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     W = W/R;
                     uvw.tran.z = W;
                 } else {
-                    uvw.tran.z = pos.w;
+                //    uvw.tran.z = pos.w;
                 }
 
 #if (TRACE != 0)
@@ -356,6 +356,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     last_x = xyz.tran.x;
                     last_y = xyz.tran.y;
                     last_z = xyz.tran.z;
+                    last_a = 0;
                     _dt+=1;
                 }
                 delta_l = l - last_l;
@@ -365,20 +366,22 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 delta_x = xyz.tran.x - last_x;
                 delta_y = xyz.tran.y - last_y;
                 delta_z = xyz.tran.z - last_z;
+                delta_a = abc.tran.x - last_a;
                 delta_d = pmSqrt(pmSq(delta_x)+pmSq(delta_y)+pmSq(delta_z));
                 last_x = xyz.tran.x;
                 last_y = xyz.tran.y;
                 last_z = xyz.tran.z;
+                last_a = abc.tran.x;
                 if( delta_d > 0)
                 {
                     if(_dt == 1){
                       /* prepare header for gnuplot */
-                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s\n",
-                           "#dt", "u", "l","x","y","z","delta_d", "delta_l");
+                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s%15s\n",
+                           "#dt", "u", "l","x","y","z","delta_d", "delta_l","a");
                     }
 
-                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l);
+                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l, last_a);
 
                     _dt+=1;
                 }
