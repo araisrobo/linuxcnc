@@ -647,13 +647,6 @@ static void update_freq(void *arg, long period)
         //DEBUG: }
     }
 
-    //obsolete: if (memcmp(&prev_r_index_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_EN), 1)) {
-    //obsolete:     memcpy(&r_index_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_EN), 1);
-    //obsolete:     rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_index_en(0x%02X)\n", 
-    //obsolete:                                     r_index_en, prev_r_index_en);
-    //obsolete:     prev_r_index_en = r_index_en;
-    //obsolete: }
-    
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
     if (r_index_lock != prev_r_index_lock) {
