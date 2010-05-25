@@ -63,7 +63,9 @@ typedef struct {
 				         encoder clears: index arrived */
     hal_bit_t *amp_fault;	/* RPI: amp fault input */
     hal_bit_t *amp_enable;	/* WPI: amp enable output */
-    hal_s32_t *home_state_pin;	/* RPA: homing state machine state */
+    hal_s32_t *home_state_pin;	/* WPI: homing state machine state */
+    hal_float_t *switch_pos_pin;/* RPI: home switch position (absolute motor position count) */
+    hal_float_t *index_pos_pin; /* RPI: motor index position (absolute motor position count) */
 
     hal_s32_t *jog_counts;	/* WPI: jogwheel position input */
     hal_bit_t *jog_enable;	/* RPI: enable jogwheel */

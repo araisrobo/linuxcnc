@@ -159,6 +159,8 @@ const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
 int gpio_mask_in0 = -1;
 RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
+int gpio_mask_in1 = -1;
+RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
 int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
 int jcmd_dir_pol = -1;
@@ -198,8 +200,11 @@ typedef struct {
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position mode, 0 = velocity mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
-    hal_s32_t *pulse_cmd;	/* pin: pulse_cmd to servo drive, captured from FPGA */
+    hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;	        /* pin: encoder position from servo drive, captured from FPGA */
+    hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
+    hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
+    hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
@@ -212,6 +217,7 @@ typedef struct {
     int printed_error;		/* flag to avoid repeated printing */
 
     hal_s32_t *home_state;      /* pin: home_state from homing.c */
+    hal_s32_t prev_home_state;  /* param: previous home_state for homing */
     
     double vel_fb;
     double prev_pos_cmd;        /* prev pos_cmd in counts */
@@ -269,8 +275,6 @@ static const unsigned char num_phases_lut[] =
 #define DOWN_PIN	1	/* output phase used for DOWN signal */
 
 #define PICKOFF		28	/* bit location in DDS accum */
-
-
 
 /* other globals */
 static int comp_id;		/* component ID */
@@ -341,6 +345,25 @@ int rtapi_app_main(void)
             return -1;
         }
     }
+    
+    /* test for GPIO_MASK_IN1: gpio_mask_in1 */
+    if ((gpio_mask_in1 == -1)) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no value for GPIO_MASK_IN1: gpio_mask_in1\n");
+	return -1;
+    } else {
+        // un-mask HOME-SWITCH inputs (bits_i[5:2])
+        data[0] = (uint8_t) gpio_mask_in1;
+        ret = wou_cmd (&w_param,
+                       (WB_WR_CMD | WB_AI_MODE),
+                       GPIO_BASE | GPIO_MASK_IN1,
+                       1,
+                       data);
+        if (ret) {
+	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_MASK_IN1\n");
+            return -1;
+        }
+    }
+
 
     /* test for GPIO_LEDS_SEL: gpio_leds_sel */
     if ((gpio_leds_sel == -1)) {
@@ -559,13 +582,20 @@ static void update_freq(void *arg, long period)
   double physical_maxvel;  // max vel supported by current step timings & position-scale
   double maxvel;           // actual max vel to use this time
 
-  int wou_pos_cmd;
-  // ret, data[]: for wou_cmd()
-  uint8_t data[MAX_DSIZE];
-  static uint8_t prev_r_wait_hs_tog = 0;
-  uint8_t r_wait_hs_tog;
-  int     ret;
-  // static  int   reg_update = 0;
+    int wou_pos_cmd;
+    // ret, data[]: for wou_cmd()
+    uint8_t data[MAX_DSIZE];
+    int     ret;
+    
+    // for homing:
+    uint8_t r_rst_pos;
+    uint8_t r_switch_en;
+    uint8_t r_index_en;
+    uint8_t r_index_lock;
+    static uint8_t prev_r_switch_en = 0;
+    static uint8_t prev_r_index_en = 0;
+    static uint8_t prev_r_index_lock = 0;
+
 #if (TRACE!=0)
   static uint32_t _dt = 0;
 #endif
@@ -585,26 +615,52 @@ static void update_freq(void *arg, long period)
      function's actions, change the second line below */
   int msg;
   msg = rtapi_get_msg_level();
-  // rtapi_set_msg_level(RTAPI_MSG_WARN);
   rtapi_set_msg_level(RTAPI_MSG_ALL);
-  // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: enter %s\n", __FUNCTION__);
-  // long long int now;
-  // now = rtapi_get_time();
-  // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: enter %s @(%lld)\n",
-  //                                __FUNCTION__, now);
 
   /* check and update WOU Registers */
   assert(wou_update(&w_param) == 0);
 
-  // copy GPIO.IN ports if it differs from previous value
-  if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2)) {
-    // update prev_in from WOU_REGISTER
-    memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2);
-    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
-    for (i=0; i < gpio->num_in; i++) {
-      *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
+    // copy GPIO.IN ports if it differs from previous value
+    if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2)) {
+        // update prev_in from WOU_REGISTER
+        memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2);
+        rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
+        for (i=0; i < gpio->num_in; i++) {
+          *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
+        }
     }
-  }
+ 
+    // read SSIF_SWITCH_EN
+    if (memcmp(&prev_r_switch_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1)) {
+        memcpy(&r_switch_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1);
+        rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_en(0x%02X) prev_switch_en(0x%02X)\n", 
+                                      r_switch_en, prev_r_switch_en);
+        prev_r_switch_en = r_switch_en;
+        //DEBUG: // DEBUG: observe switch_pos
+        //DEBUG: for (n = 0; n < num_chan; n++) {
+        //DEBUG:     hal_s32_t switch_pos_tmp;
+        //DEBUG:     /* update home switch position while homing */
+        //DEBUG:     memcpy ((void *)&switch_pos_tmp, 
+        //DEBUG:             wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_POS + n*4), 
+        //DEBUG:             4);
+        //DEBUG:     rtapi_print_msg(RTAPI_MSG_DBG, "WOU: j[%d] switch_pos(0x%08X)\n", n, switch_pos_tmp);
+        //DEBUG: }
+    }
+
+    //obsolete: if (memcmp(&prev_r_index_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_EN), 1)) {
+    //obsolete:     memcpy(&r_index_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_EN), 1);
+    //obsolete:     rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_index_en(0x%02X)\n", 
+    //obsolete:                                     r_index_en, prev_r_index_en);
+    //obsolete:     prev_r_index_en = r_index_en;
+    //obsolete: }
+    
+    // read SSIF_INDEX_LOCK
+    memcpy(&r_index_lock, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
+    if (r_index_lock != prev_r_index_lock) {
+        rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n", 
+                                        r_index_lock, prev_r_index_lock);
+        prev_r_index_lock = r_index_lock;
+    }
 
   // process GPIO.OUT
   data[0] = 0;
@@ -636,13 +692,103 @@ static void update_freq(void *arg, long period)
   // num_chan: 4, calculated from step_type;
   /* loop thru generators */
   
-  r_wait_hs_tog = 0;
+    r_rst_pos = 0;
+    r_switch_en = 0;
+    r_index_en = prev_r_index_en;
+    for (n = 0; n < num_chan; n++) {
+      if (*stepgen->home_state != HOME_IDLE)  {
+          hal_s32_t switch_pos_tmp;
+          hal_s32_t index_pos_tmp;
+          /* update home switch and motor index position while homing */
+          memcpy ((void *)&switch_pos_tmp, 
+                  wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_POS + n*4), 
+                  4);
+          memcpy ((void *)&index_pos_tmp, 
+                  wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_POS + n*4), 
+                  4);
+          
+          *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
+          *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
+          
+          //debug: rtapi_print_msg(RTAPI_MSG_DBG, "WOU: j[%d] switch_pos_tmp(0x%08X) switch_pos(%f)\n", 
+          //debug:                                 n, switch_pos_tmp, *(stepgen->switch_pos));
+
+          /* check if we should wait for HOME Switch Toggle */
+          if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
+              (*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
+              (*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
+              (*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
+              (*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) 
+          {
+              if (stepgen->prev_home_state != *stepgen->home_state) {
+                  // set r_switch_en to locate SWITCH_POS
+                  // r_switch_en is reset by HW 
+                  r_switch_en |= (1<<n);
+              }
+          }
+          
+          /* check if we should wait for Motor Index Toggle */
+          if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
+              if (stepgen->prev_home_state != *stepgen->home_state) {
+                  // set r_index_en while getting into HOME_INDEX_SEARCH_WAIT state
+                  r_index_en |= (1<<n);
+              } else if (r_index_lock & (1<<n)) {
+                  // the motor index is locked
+                  // reset r_index_en by SW
+                  r_index_en &= (~(1<<n));    // reset index_en[n]
+                  *(stepgen->index_enable) = 0;
+                  rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
+                                                  r_index_en, prev_r_index_en);
+                  rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f)\n", 
+                                                  *(stepgen->index_pos));
+              }
+          }
+          
+          if (stepgen->prev_home_state == HOME_IDLE) {
+              // reset PULSE_POS, ENC_POS, SWITCH_POS, INDEX_POS at beginning of homing
+              r_rst_pos |= (1<<n);
+          }
+          
+          stepgen->prev_home_state = *stepgen->home_state;
+      }
+      /* move on to next channel */
+      stepgen++;
+    }
+
+  /* check if we should enable HOME Switch Detection */
+  if (r_switch_en != 0) {
+    // issue a WOU_WRITE 
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   SSIF_BASE | SSIF_SWITCH_EN,
+                   1,
+                   &r_switch_en);
+    fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
+    assert (ret==0);
+    wou_flush(&w_param);
+  }
+  
+  /* check if we should enable MOTOR Index Detection */
+  if (r_index_en != prev_r_index_en) {
+    // issue a WOU_WRITE 
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   SSIF_BASE | SSIF_INDEX_EN,
+                   1,
+                   &r_index_en);
+    fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
+    assert (ret==0);
+    wou_flush(&w_param);
+    prev_r_index_en = 0;
+  }
+
+  stepgen = arg;
   for (n = 0; n < num_chan; n++) {
     /* update registers from FPGA */
-    memcpy ((void *)stepgen->pulse_cmd, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 4);
+    memcpy ((void *)stepgen->pulse_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 4);
     memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n*4), 4);
 
-    *(stepgen->pos_fb) = *(stepgen->pulse_cmd) * stepgen->scale_recip;
+    *(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
 
     /* test for disabled stepgen */
     if (*stepgen->enable == 0) {
@@ -657,6 +803,7 @@ static void update_freq(void *arg, long period)
         continue;
     }
 
+    
     //
     // first sanity-check our maxaccel and maxvel params
     //
@@ -834,6 +981,7 @@ static void update_freq(void *arg, long period)
     // *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
     // DPS ("%15.7f%15.7f%15.7f", *stepgen->pos_fb, match_accel, new_vel);
     stepgen->cur_pos = stepgen->accum * stepgen->scale_recip;
+    // *(stepgen->pos_fb) = stepgen->cur_pos;
     DPS ("%15.7f%15.7f%15.7f%15.7f%7d", 
           stepgen->cur_pos, 
           *stepgen->pos_fb, 
@@ -841,32 +989,10 @@ static void update_freq(void *arg, long period)
           new_vel, 
           *stepgen->home_state);
   
-    /* check if we should wait for HOME Switch Toggle */
-    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
-        (*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
-        (*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
-        (*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
-        (*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) 
-    {
-        r_wait_hs_tog |= (1<<n);
-    }
     /* move on to next channel */
     stepgen++;
   }
   
-  /* check if we should wait for HOME Switch Toggle */
-  if (r_wait_hs_tog != prev_r_wait_hs_tog) {
-    // issue a WOU_WRITE 
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   SSIF_BASE | SSIF_WAIT_HS_TOG,
-                   1,
-                   &r_wait_hs_tog);
-    assert (ret==0);
-    wou_flush(&w_param);
-    prev_r_wait_hs_tog = r_wait_hs_tog;
-  }
-
 #if (TRACE!=0)
   if (*(stepgen-1)->enable) {
     DPS("\n");
@@ -941,11 +1067,26 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
 //    if (retval != 0) { return retval; }
     
     /* export pin for counts captured by wou_update() */
-    retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_cmd), comp_id,
-	"wou.stepgen.%d.pulse_cmd", num);
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_pos), comp_id,
+	"wou.stepgen.%d.pulse_pos", num);
     if (retval != 0) { return retval; }
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_pos), comp_id,
 	"wou.stepgen.%d.enc_pos", num);
+    if (retval != 0) { return retval; }
+    
+    /* export pin for scaled switch position (absolute motor position) */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->switch_pos), comp_id,
+	"wou.stepgen.%d.switch-pos", num);
+    if (retval != 0) { return retval; }
+    
+    /* export pin for scaled index position (absolute motor position) */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->index_pos), comp_id,
+	"wou.stepgen.%d.index-pos", num);
+    if (retval != 0) { return retval; }
+    
+    /* export pin for index_enable */
+    retval = hal_pin_bit_newf(HAL_IO, &(addr->index_enable), comp_id,
+	"wou.stepgen.%d.index_enable", num);
     if (retval != 0) { return retval; }
 
     /* export parameter for position scaling */
@@ -1079,15 +1220,18 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     addr->printed_error = 0;
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
-    *(addr->pulse_cmd) = 0;
+    *(addr->pulse_pos) = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
+    *(addr->switch_pos) = 0.0;
+    *(addr->index_pos) = 0.0;
     if ( pos_mode ) {
 	*(addr->pos_cmd) = 0.0;
     } else {
 	*(addr->vel_cmd) = 0.0;
     }
     *(addr->home_state) = HOME_IDLE;
+    addr->prev_home_state = HOME_IDLE;
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);

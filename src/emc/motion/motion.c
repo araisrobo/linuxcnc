@@ -493,6 +493,8 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(addr->homed), mot_comp_id, "joint.%d.homed", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN,  &(addr->homing), mot_comp_id, "joint.%d.homing", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(addr->home_state_pin), mot_comp_id, "joint.%d.home-state", num)) != 0) return retval;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->switch_pos_pin), mot_comp_id, "joint.%d.switch-pos", num)) != 0) return retval;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->index_pos_pin), mot_comp_id, "joint.%d.index-pos", num)) != 0) return retval;
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);

@@ -16,6 +16,7 @@
 #include "motion.h"
 #include "mot_priv.h"
 #include "rtapi_math.h"
+#include <stdio.h>
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -377,7 +378,9 @@ void do_homing(void)
 		   error comp will be appropriate for this portion of the
 		   screw (previously we didn't know where we were at all). */
 		/* set the current position to 'home_offset' */
-		offset = joint->home_offset - joint->pos_fb;
+		//orig: offset = joint->home_offset - joint->pos_fb;
+		offset = joint->home_offset - 
+                         (joint->switch_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
 		   motor position */
 		joint->pos_cmd += offset;
@@ -569,13 +572,28 @@ void do_homing(void)
 		   current joint position to 'home_offset', which is the
 		   location of the home switch in joint coordinates. */
 		/* set the current position to 'home_offset' */
-		offset = joint->home_offset - joint->pos_fb;
+		//orig: offset = joint->home_offset - joint->pos_fb;
+		offset = joint->home_offset - 
+                         (joint->switch_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
 		   motor position */
 		joint->pos_cmd += offset;
 		joint->pos_fb += offset;
 		joint->free_tp.curr_pos += offset;
 		joint->motor_offset -= offset;
+                
+                //DEBUG: // DEBUG ysli: stop here
+		//DEBUG: reportError(
+                //DEBUG:   _("SET_SWITCH_POS: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)"), 
+                //DEBUG:     joint_num,
+                //DEBUG:     offset,
+                //DEBUG:     joint->switch_pos,
+                //DEBUG:     joint->pos_cmd,
+                //DEBUG:     joint->pos_fb,
+                //DEBUG:     joint->free_tp.curr_pos,
+                //DEBUG:     joint->motor_offset);
+                //DEBUG: // DEBUG ysli:
+                
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;
 		immediate_state = 1;
@@ -661,11 +679,19 @@ void do_homing(void)
 		   position to 'home_offset', which is the location of the
 		   index pulse in joint coordinates. */
 		/* set the current position to 'home_offset' */
-		joint->motor_offset = -joint->home_offset;
-		joint->pos_fb = joint->motor_pos_fb -
-		    (joint->backlash_filt + joint->motor_offset);
-		joint->pos_cmd = joint->pos_fb;
-		joint->free_tp.curr_pos = joint->pos_fb;
+		//orig: joint->motor_offset = -joint->home_offset;
+		//orig: joint->pos_fb = joint->motor_pos_fb -
+		//orig:     (joint->backlash_filt + joint->motor_offset);
+		//orig: joint->pos_cmd = joint->pos_fb;
+		//orig: joint->free_tp.curr_pos = joint->pos_fb;
+                offset = joint->home_offset - 
+                         (joint->index_pos - joint->motor_offset);
+		/* this moves the internal position but does not affect the
+		   motor position */
+		joint->pos_cmd += offset;
+		joint->pos_fb += offset;
+		joint->free_tp.curr_pos += offset;
+		joint->motor_offset -= offset;
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;
 		immediate_state = 1;
@@ -700,6 +726,11 @@ void do_homing(void)
 		} else { 
 		    joint->free_tp.max_vel = joint->vel_limit;
 		}
+
+                //DEBUG: // DEBUG ysli: stop here
+                //DEBUG: break;
+                //DEBUG: // DEBUG ysli: stop here (end)
+                
 		/* start the move */
 		joint->free_tp.enable = 1;
 		joint->home_state = HOME_FINAL_MOVE_WAIT;

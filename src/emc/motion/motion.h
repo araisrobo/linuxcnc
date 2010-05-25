@@ -502,7 +502,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int home_pause_timer;	/* used to delay between homing states */
 	int index_enable;	/* current state of index enable pin */
 
-	home_state_t home_state;	/* state machine for homing */
+	home_state_t home_state;/* state machine for homing */
+        double switch_pos;      /* home switch position in absolute motor pulse counts */
+        double index_pos;       /* motor index position in absolute motor pulse counts */
 	double motor_offset;	/* diff between internal and motor pos, used
 				   to set position to zero during homing */
 	int old_jog_counts;	/* prior value, used for deltas */

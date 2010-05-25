@@ -450,21 +450,26 @@ static void process_inputs(void)
 	}
 	/* copy data from HAL to joint structure */
 	joint->index_enable = *(joint_data->index_enable);
-	joint->motor_pos_fb = *(joint_data->motor_pos_fb);
+	joint->motor_pos_fb = *(joint_data->motor_pos_fb);  // absolute motor position
+        joint->switch_pos = *(joint_data->switch_pos_pin);  // absolute switch position
+        joint->index_pos = *(joint_data->index_pos_pin);  // absolute switch position
 	/* calculate pos_fb */
-	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
-	    ( joint->index_enable == 0 )) {
-	    /* special case - we're homing the joint, and it just
-	       hit the index.  The encoder count might have made a
-	       step change.  The homing code will correct for it
-	       later, so we ignore motor_pos_fb and set pos_fb
-	       to match the commanded value instead. */
-	    joint->pos_fb = joint->pos_cmd;
-	} else {
-	    /* normal case: subtract backlash comp and motor offset */
-	    joint->pos_fb = joint->motor_pos_fb -
-		(joint->backlash_filt + joint->motor_offset);
-	}
+     	//orig: if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
+     	//orig:     ( joint->index_enable == 0 )) {
+     	//orig:     /* special case - we're homing the joint, and it just
+     	//orig:        hit the index.  The encoder count might have made a
+     	//orig:        step change.  The homing code will correct for it
+     	//orig:        later, so we ignore motor_pos_fb and set pos_fb
+     	//orig:        to match the commanded value instead. */
+     	//orig:     joint->pos_fb = joint->pos_cmd;
+	//orig: } else {
+	//orig:     /* normal case: subtract backlash comp and motor offset */
+	//orig:     joint->pos_fb = joint->motor_pos_fb -
+	//orig: 	(joint->backlash_filt + joint->motor_offset);
+	//orig: }
+	/* normal case: subtract backlash comp and motor offset */
+	joint->pos_fb = joint->motor_pos_fb -
+	                (joint->backlash_filt + joint->motor_offset);
 	/* calculate following error */
 	joint->ferror = joint->pos_cmd - joint->pos_fb;
 	abs_ferror = fabs(joint->ferror);
