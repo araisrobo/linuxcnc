@@ -717,7 +717,7 @@ void do_homing(void)
 		joint->home_pause_timer = 0;
 		/* plan a move to home position */
 		joint->free_tp.pos_cmd = joint->home;
-		/* if home_vel is set (>0) then we use that, otherwise we rapid there */
+		/* if home_final_vel(HOME_VEL) is set (>0) then we use that, otherwise we rapid there */
 		if (joint->home_final_vel > 0) {
 		    joint->free_tp.max_vel = fabs(joint->home_final_vel);
 		    /* clamp on max vel for this joint */

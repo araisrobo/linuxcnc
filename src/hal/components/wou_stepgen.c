@@ -745,7 +745,9 @@ static void update_freq(void *arg, long period)
           }
           
           if (stepgen->prev_home_state == HOME_IDLE) {
-              // reset PULSE_POS, ENC_POS, SWITCH_POS, INDEX_POS at beginning of homing
+              // * set to clear PULSE_POS, ENC_POS, SWITCH_POS, INDEX_POS at
+              //   beginning of homing
+              // * reset one cycle after setting this register
               r_rst_pos |= (1<<n);
           }
           
@@ -755,6 +757,19 @@ static void update_freq(void *arg, long period)
       stepgen++;
     }
 
+  /* check if we should clear SWITCH/INDEX positions for HOMING */
+  if (r_rst_pos != 0) {
+    // issue a WOU_WRITE 
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   SSIF_BASE | SSIF_RST_POS,
+                   1,
+                   &r_rst_pos);
+    fprintf(stderr, "wou: r_rst_pos(0x%x)\n", r_rst_pos);
+    assert (ret==0);
+    wou_flush(&w_param);
+  }
+  
   /* check if we should enable HOME Switch Detection */
   if (r_switch_en != 0) {
     // issue a WOU_WRITE 
@@ -779,7 +794,7 @@ static void update_freq(void *arg, long period)
     fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
     assert (ret==0);
     wou_flush(&w_param);
-    prev_r_index_en = 0;
+    prev_r_index_en = r_index_en;
   }
 
   stepgen = arg;
