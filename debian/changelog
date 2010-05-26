@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2010.05.25) lucid; urgency=low
+
+  * Update do_homing() with SWITCH_POSITION and INDEX_POSITION
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 25 May 2010 19:37:45 +0800
+
 emc2 (1:2.4.0-nurbs-2010.05.17) lucid; urgency=low
 
   * Synchronized with joints_axes3
