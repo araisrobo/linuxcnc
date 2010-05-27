@@ -2722,6 +2722,7 @@ def jog_on(a, b):
         root_window.after_cancel(jog_after[a])
         jog_after[a] = None
         return
+    b = b*vars.feedrate.get()/100.0
     jogincr = widgets.jogincr.get()
     if jogincr != _("Continuous"):
         s.poll()

@@ -1108,13 +1108,14 @@ static void get_pos_cmds(long period)
                  * the joint->free_tp.max_vel was set at command.c::EMCMOT_JOG_*,
                  * which was set by the "Jog Speed" of AXIS_GUI
                  **/
-                vel_lim = joint->free_tp.max_vel * emcmotStatus->net_feed_scale;
+                //vel_lim = joint->free_tp.max_vel * emcmotStatus->net_feed_scale;
                 /* must not be greater than the joint physical limit */
-                if (vel_lim > joint->vel_limit) {
-                    vel_lim = joint->vel_limit;
+                if (joint->free_tp.max_vel > joint->vel_limit) {
+                    joint->free_tp.max_vel = joint->vel_limit;
                 }
                 /* set vel limit in free TP */
-                joint->free_tp.max_vel = vel_lim;
+              //  joint->free_tp.max_vel = vel_lim;
+
             } else {
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
