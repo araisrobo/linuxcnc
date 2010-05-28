@@ -1,3 +1,11 @@
+emc2 (1:2.4.0-nurbs-2010.05.28) lucid; urgency=low
+
+  * wou_stepgen.c: enalbe JCMD_FIFO inside update_freq() when SVO-ON
+    + for WATCHDOG Timer
+    + for releasing AXIS.Z breaker for stepping motor
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 28 May 2010 15:18:45 +0800
+
 emc2 (1:2.4.0-nurbs-2010.05.25) lucid; urgency=low
 
   * Update do_homing() with SWITCH_POSITION and INDEX_POSITION

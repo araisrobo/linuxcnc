@@ -427,21 +427,21 @@ int rtapi_app_main(void)
         }
     }
 
-    // TODO: add a SON signal for JCMD_CTRL
-    // JCMD_CTRL: 
-    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-    //  [bit-1]: SIF_EN, servo interface enable
-    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
-    data[0] = 3;
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   (JCMD_BASE | JCMD_CTRL),
-                   1,
-                   data);
-    if (ret) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
-        return -1;
-    }
+//move to update_freq():    // TODO: add a SON signal for JCMD_CTRL
+//move to update_freq():    // JCMD_CTRL: 
+//move to update_freq():    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+//move to update_freq():    //  [bit-1]: SIF_EN, servo interface enable
+//move to update_freq():    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+//move to update_freq():    data[0] = 3;
+//move to update_freq():    ret = wou_cmd (&w_param,
+//move to update_freq():                   (WB_WR_CMD | WB_AI_MODE),
+//move to update_freq():                   (JCMD_BASE | JCMD_CTRL),
+//move to update_freq():                   1,
+//move to update_freq():                   data);
+//move to update_freq():    if (ret) {
+//move to update_freq():        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
+//move to update_freq():        return -1;
+//move to update_freq():    }
 
     wou_flush(&w_param);
     
@@ -624,7 +624,7 @@ static void update_freq(void *arg, long period)
     if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2)) {
         // update prev_in from WOU_REGISTER
         memcpy(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2);
-        rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
+        // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
         for (i=0; i < gpio->num_in; i++) {
           *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
         }
@@ -633,8 +633,8 @@ static void update_freq(void *arg, long period)
     // read SSIF_SWITCH_EN
     if (memcmp(&prev_r_switch_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1)) {
         memcpy(&r_switch_en, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1);
-        rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_en(0x%02X) prev_switch_en(0x%02X)\n", 
-                                      r_switch_en, prev_r_switch_en);
+        // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_en(0x%02X) prev_switch_en(0x%02X)\n", 
+        //                               r_switch_en, prev_r_switch_en);
         prev_r_switch_en = r_switch_en;
         //DEBUG: // DEBUG: observe switch_pos
         //DEBUG: for (n = 0; n < num_chan; n++) {
@@ -650,8 +650,8 @@ static void update_freq(void *arg, long period)
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
     if (r_index_lock != prev_r_index_lock) {
-        rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n", 
-                                        r_index_lock, prev_r_index_lock);
+        // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n", 
+        //                                 r_index_lock, prev_r_index_lock);
         prev_r_index_lock = r_index_lock;
     }
 
@@ -669,6 +669,27 @@ static void update_freq(void *arg, long period)
                    1,
                    data);
     assert (ret==0);
+
+    /* wou.gpio.out.00 is mapped to SVO-ON */
+    // JCMD_CTRL: 
+    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+    //  [bit-1]: SIF_EN, servo interface enable
+    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+    if (*(gpio->out[0])) {
+        data[0] = 3;    // SVO-ON
+    } else {
+        data[0] = 4;    // SVO-OFF
+    }
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   (JCMD_BASE | JCMD_CTRL),
+                   1,
+                   data);
+    if (ret) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
+        return;
+    }
+
     wou_flush(&w_param);
   }
 
@@ -730,10 +751,10 @@ static void update_freq(void *arg, long period)
                   // reset r_index_en by SW
                   r_index_en &= (~(1<<n));    // reset index_en[n]
                   *(stepgen->index_enable) = 0;
-                  rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
-                                                  r_index_en, prev_r_index_en);
-                  rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f)\n", 
-                                                  *(stepgen->index_pos));
+                  // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
+                  //                                 r_index_en, prev_r_index_en);
+                  // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f)\n", 
+                  //                                 *(stepgen->index_pos));
               }
           }
           
@@ -758,7 +779,7 @@ static void update_freq(void *arg, long period)
                    SSIF_BASE | SSIF_RST_POS,
                    1,
                    &r_rst_pos);
-    fprintf(stderr, "wou: r_rst_pos(0x%x)\n", r_rst_pos);
+    // fprintf(stderr, "wou: r_rst_pos(0x%x)\n", r_rst_pos);
     assert (ret==0);
     wou_flush(&w_param);
   }
@@ -771,7 +792,7 @@ static void update_freq(void *arg, long period)
                    SSIF_BASE | SSIF_SWITCH_EN,
                    1,
                    &r_switch_en);
-    fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
+    // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
     assert (ret==0);
     wou_flush(&w_param);
   }
@@ -784,7 +805,7 @@ static void update_freq(void *arg, long period)
                    SSIF_BASE | SSIF_INDEX_EN,
                    1,
                    &r_index_en);
-    fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
+    // fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
     assert (ret==0);
     wou_flush(&w_param);
     prev_r_index_en = r_index_en;
