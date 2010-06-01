@@ -816,7 +816,12 @@ static void update_freq(void *arg, long period)
     /* update registers from FPGA */
     memcpy ((void *)stepgen->pulse_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 4);
     memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n*4), 4);
-
+    
+    /**
+     * Use pulse_pos because there's no enc_pos for stepping motor driver.
+     * Also, there's no too much difference between pulse_pos and enc_pos
+     * for servo drivers.
+     **/
     *(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
 
     /* test for disabled stepgen */
