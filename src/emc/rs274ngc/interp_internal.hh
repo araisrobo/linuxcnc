@@ -273,8 +273,9 @@ typedef struct block_struct
   int n_number;
   int motion_to_be;
   int m_count;
-  int m_modes[11];
+  int m_modes[11+1]; // add artek m_modes[11]
   int user_m;
+  int artek_m;
   double p_number;
   ON_OFF p_flag;
   double q_number;

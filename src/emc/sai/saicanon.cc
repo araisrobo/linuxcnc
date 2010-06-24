@@ -1064,7 +1064,9 @@ void SET_AUX_OUTPUT_BIT(int index)
 {
   return;
 }
-
+void SET_MOTION_SYNC_INPUT_BIT(int index) {
+    return;
+}
 void CLEAR_AUX_OUTPUT_BIT(int index)
 {
   return;

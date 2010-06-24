@@ -1125,6 +1125,23 @@ class EMC_MOTION_SET_DOUT:public EMC_MOTION_CMD_MSG {
     unsigned char now;		// wether command is imediate or synched with motion
 };
 
+class EMC_MOTION_SET_SYNC_INPUT:public EMC_MOTION_CMD_MSG {
+  public:
+    EMC_MOTION_SET_SYNC_INPUT():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_SYNC_INPUT_TYPE,
+                                             sizeof(EMC_MOTION_SET_SYNC_INPUT)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    unsigned char index;        // which to set
+    unsigned char start;        // binary value at start
+    unsigned char end;          // binary value at end
+    unsigned char now;          // wether command is imediate or synched with motion
+};
+
+
+
 class EMC_MOTION_ADAPTIVE:public EMC_MOTION_CMD_MSG {
   public:
     EMC_MOTION_ADAPTIVE():EMC_MOTION_CMD_MSG(EMC_MOTION_ADAPTIVE_TYPE,

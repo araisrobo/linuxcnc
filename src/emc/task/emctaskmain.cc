@@ -749,6 +749,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
@@ -865,6 +866,7 @@ static int emcTaskPlan(void)
 	    case EMC_AUX_INPUT_WAIT_TYPE:
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
@@ -1286,6 +1288,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
+	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
@@ -1441,7 +1444,12 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	}
 	return EMC_TASK_EXEC_DONE;
 	break;
-
+    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
+        if (((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now) {
+            return EMC_TASK_EXEC_WAITING_FOR_MOTION;
+        }
+        return EMC_TASK_EXEC_DONE;
+        break;
     case EMC_MOTION_ADAPTIVE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	break;
@@ -1789,6 +1797,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 				  ((EMC_MOTION_SET_DOUT *) cmd)->end,
 				  ((EMC_MOTION_SET_DOUT *) cmd)->now);
 	break;
+    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
+           retval = emcMotionSetSyncInput(((EMC_MOTION_SET_SYNC_INPUT *) cmd)->index,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->start,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->end,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now);
+           break;
 
     case EMC_MOTION_ADAPTIVE_TYPE:
 	retval = emcTrajSetAFEnable(((EMC_MOTION_ADAPTIVE *) cmd)->status);
@@ -2207,6 +2221,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_MOTION_SET_AOUT_TYPE:
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
+    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
 

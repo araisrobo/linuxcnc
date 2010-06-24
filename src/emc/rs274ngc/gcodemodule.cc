@@ -610,6 +610,7 @@ void SET_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_VALUE(int index, double value) {}
 void CLEAR_MOTION_OUTPUT_BIT(int bit) {}
 void SET_MOTION_OUTPUT_BIT(int bit) {}
+void SET_MOTION_SYNC_INPUT_BIT(int bit) {}
 void SET_MOTION_OUTPUT_VALUE(int index, double value) {}
 void TURN_PROBE_ON() {}
 void TURN_PROBE_OFF() {}

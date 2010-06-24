@@ -267,7 +267,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->n_number = -1;
   block->motion_to_be = -1;
   block->m_count = 0;
-  for (n = 0; n < 11; n++) {
+  for (n = 0; n < 11+1; n++) { // add one artek row
     block->m_modes[n] = -1;
   }
   block->user_m = 0;

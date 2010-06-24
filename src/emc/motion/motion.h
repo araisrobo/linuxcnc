@@ -133,6 +133,7 @@ extern "C" {
 	EMCMOT_SET_DOUT,        /* sets or unsets a DIO, this can be imediate or synched with motion */
 	EMCMOT_SET_AOUT,	/* sets or unsets a AIO, this can be imediate or synched with motion */
         EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
+        EMCMOT_SET_SYNC_INPUT,
 
 	EMCMOT_SET_SPINDLE_VEL,	/* set the spindle vel (>0 means forward, <0 means backward) */
 	EMCMOT_SPINDLE_ON,	/* start the spindle */
@@ -701,6 +702,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 
         int numAIO;             /* userdefined number of analog IO. default is 4. (EMCMOT_MAX_AIO=16), 
                                    but can be altered at motmod insmod time */
+        int numSyncIn;
 
 /*! \todo FIXME - all structure members beyond this point are in limbo */
 

@@ -299,6 +299,21 @@ void emcmotDioWrite(int index, char value)
     }
 }
 
+
+void emcmotSyncInputWrite(int index, char value)
+{
+    if ((index >= emcmotConfig->numSyncIn) || (index < 0)) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "ERROR: index out of range, %d not in [0..%d] (increase num_dio/EMCMOT_MAX_DIO=%d)\n", index, emcmotConfig->numDIO, EMCMOT_MAX_DIO);
+    } else {
+        if (value != 0) {
+            *(emcmot_hal_data->sync_in[index])=1;
+        } else {
+            *(emcmot_hal_data->sync_in[index])=0;
+        }
+    }
+}
+
+
 /*! \function emcmotAioWrite()
 
   sets or clears a HAL AIO pin, 
@@ -1479,7 +1494,15 @@ check_stuff ( "before command_handler()" );
 		    emcmotCommand->start, emcmotCommand->end);
 	    }
 	    break;
-
+	case EMCMOT_SET_SYNC_INPUT:
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_DOUT");
+            if (emcmotCommand->now) { //we set it right away
+                emcmotSyncInputWrite(emcmotCommand->out, emcmotCommand->start);
+            } else { // we put it on the TP queue, warning: only room for one in there, any new ones will overwrite
+                tpSetSyncInput(&emcmotDebug->coord_tp, emcmotCommand->out,
+                    emcmotCommand->start, emcmotCommand->end);
+            }
+	    break;
 	case EMCMOT_SET_SPINDLE_VEL:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_SPINDLE_VEL");
 	    emcmotStatus->spindle.speed = emcmotCommand->vel;

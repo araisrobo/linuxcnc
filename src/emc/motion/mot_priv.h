@@ -118,6 +118,7 @@ typedef struct {
     hal_float_t *analog_input[EMCMOT_MAX_AIO]; /* RPI array: input pins for analog Inputs */
     hal_float_t *analog_output[EMCMOT_MAX_AIO]; /* RPI array: output pins for analog Inputs */
 
+    hal_bit_t *sync_in[EMCMOT_MAX_SYNC_INPUT];
 
     // creating a lot of pins for spindle control to be very flexible
     // the user needs only a subset of these

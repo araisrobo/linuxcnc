@@ -1662,6 +1662,19 @@ int emcMotionSetDout(unsigned char index, unsigned char start,
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+int emcMotionSetSyncInput(unsigned char index, unsigned char start,
+                     unsigned char end, unsigned char now)
+{
+    emcmotCommand.command = EMCMOT_SET_SYNC_INPUT;
+    emcmotCommand.now = now;
+    emcmotCommand.out = index;
+    emcmotCommand.start = start;
+    emcmotCommand.end = end;
+
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
+
 int emcSpindleAbort(void)
 {
     return emcSpindleOff();
