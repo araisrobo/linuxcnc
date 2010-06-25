@@ -94,5 +94,5 @@ extern void tpToggleDIOs(TC_STRUCT * tc); //gets called when a new tc is taken f
 
 extern int tpSetAout(TP_STRUCT * tp, unsigned char index, double start, double end);
 extern int tpSetDout(TP_STRUCT * tp, int index, unsigned char start, unsigned char end); //gets called to place DIO toggles on the TC queue
-extern int tpSetSyncInput(TP_STRUCT *tp, int index, unsigned char start, unsigned char end);
+extern int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type);
 #endif				/* TP_H */

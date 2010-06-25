@@ -3957,7 +3957,8 @@ int WAIT(int index, /* index of the motion exported input */
  return 0;
 }
 
-void SET_MOTION_SYNC_INPUT_BIT(int index,unsigned char now)
+void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
+        double timeout, unsigned char now)
 {
     EMC_MOTION_SET_SYNC_INPUT syncin_msg;
     flush_segments();
@@ -3966,7 +3967,8 @@ void SET_MOTION_SYNC_INPUT_BIT(int index,unsigned char now)
     syncin_msg.start = 1;           // startvalue = 1
     syncin_msg.end = 1;             // endvalue = 1, means it doesn't get reset after current motion
     syncin_msg.now = now;             // not immediate, but synched with motion (goes to the TP)
-
+    syncin_msg.timeout = timeout;
+    syncin_msg.wait_type = wait_type;
     interp_list.append(syncin_msg);
 
     return;

@@ -50,6 +50,8 @@ typedef struct {
     signed char dios[EMCMOT_MAX_DIO];
     char sync_input_triggled;
     signed char sync_in[EMCMOT_MAX_SYNC_INPUT];
+    int wait_type;
+    double timeout;
 } syncdio_t;
 
 typedef struct {

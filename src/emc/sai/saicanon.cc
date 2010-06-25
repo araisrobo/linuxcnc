@@ -1064,7 +1064,8 @@ void SET_AUX_OUTPUT_BIT(int index)
 {
   return;
 }
-void SET_MOTION_SYNC_INPUT_BIT(int bit,unsigned char now)
+void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
+        double timeout, unsigned char now)
 {
     return;
 }

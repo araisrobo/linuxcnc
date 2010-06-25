@@ -1662,14 +1662,14 @@ int emcMotionSetDout(unsigned char index, unsigned char start,
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcMotionSetSyncInput(unsigned char index, unsigned char start,
-                     unsigned char end, unsigned char now)
+int emcMotionSetSyncInput(unsigned char index, unsigned char now,
+                            int wait_type, double timeout)
 {
     emcmotCommand.command = EMCMOT_SET_SYNC_INPUT;
     emcmotCommand.now = now;
     emcmotCommand.out = index;
-    emcmotCommand.start = start;
-    emcmotCommand.end = end;
+    emcmotCommand.wait_type = wait_type;
+    emcmotCommand.timeout = timeout;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

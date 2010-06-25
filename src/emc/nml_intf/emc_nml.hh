@@ -1137,6 +1137,8 @@ class EMC_MOTION_SET_SYNC_INPUT:public EMC_MOTION_CMD_MSG {
     unsigned char index;        // which to set
     unsigned char start;        // binary value at start
     unsigned char end;          // binary value at end
+    int  wait_type;
+    double timeout;
     unsigned char now;          // wether command is imediate or synched with motion
 };
 

@@ -3013,14 +3013,61 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         CHKS((settings->cutter_comp_side != OFF),
              (_("Cannot set motion output with cutter radius compensation on")));  // XXX
 */
-       // CHKS((block->p_flag == OFF), _("No valid P word with M200"));
-        SET_MOTION_SYNC_INPUT_BIT((block->p_flag == ON)?round_to_int(block->p_number):0,0);
+      //P-word = digital channel
+      //L-word = wait type (immediate, rise, fall, high, low)
+      //Q-word = timeout
+      // it is an error if:
+      // L-word not 0, and timeout <= 0
+      CHKS(((block->q_number <= 0) && (block->l_flag == ON) && (round_to_int(block->l_number) > 0)),
+          NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE);
+
+      // E-word specified (analog input) and wait type not immediate
+/*  not allow E    CHKS(((block->e_flag == ON) && (block->l_flag == ON) && (round_to_int(block->l_number) != 0)),
+          NCE_ANALOG_INPUT_WITH_WAIT_NOT_IMMEDIATE);*/
+
+      // missing P  (or invalid = negative)
+      CHKS( ((block->p_flag == ON) && (round_to_int(block->p_number) < 0)) ||
+           ((block->p_flag == OFF)) ,
+           _("No valid P word with M200"));
+
+      if (block->p_flag == ON) { // got a digital input
+          if (round_to_int(block->p_number) < 0) // safety check for negative words
+              ERS("invalid P-word with M200");
+
+          if (block->l_flag == ON) {
+              type = round_to_int(block->l_number);
+          } else {
+              type = WAIT_MODE_IMMEDIATE;
+          }
+
+          if (block->q_number > 0) {
+              timeout = block->q_number;
+          } else {
+              timeout = 0;
+          }
+
+          CHKS((settings->cutter_comp_side != OFF),
+               (_("Cannot wait for digital input with cutter radius compensation on")));
+
+          // we don't care the EMC2 , the wait occure on hw board.
+          /* int ret = WAIT(round_to_int(block->p_number), DIGITAL_INPUT, type, timeout);
+          //WAIT returns 0 on success, -1 for out of bounds
+          CHKS((ret == -1), NCE_DIGITAL_INPUT_INVALID_ON_M66);
+          if (ret == 0) {
+              settings->input_flag = ON;
+              settings->input_index = round_to_int(block->p_number);
+              settings->input_digital = ON;
+          }*/
+/*          void SET_MOTION_SYNC_INPUT_BIT(int index, unsigned int wait_type,
+                  double timeout, unsigned char now)*/
+        SET_MOTION_SYNC_INPUT_BIT(round_to_int(block->p_number),block->l_number,
+                block->q_number,0);
     } else if (block->m_modes[11] == 201) {
 
         CHKS((block->q_flag == OFF), _("No valid Q word with M201"));
         SET_MOTION_IMMEDIATE_POS((block->p_flag == ON)?round_to_int(block->p_number):0,block->q_number);
     }
-
+  }
 
   return INTERP_OK;
 }

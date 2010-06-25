@@ -489,8 +489,8 @@ extern int emcMotionSetAout(unsigned char index, double start, double end,
                             unsigned char now);
 extern int emcMotionSetDout(unsigned char index, unsigned char start,
                             unsigned char end, unsigned char now);
-extern int emcMotionSetSyncInput(unsigned char index, unsigned char start,
-        unsigned char end, unsigned char now);
+extern int emcMotionSetSyncInput(unsigned char index, unsigned char now,
+        int wait_type, double timeout);
 extern int emcMotionUpdate(EMC_MOTION_STAT * stat);
 extern int emcMotionSetImmediatePos(int axis, double pos);
 // implementation functions for EMC_TASK types

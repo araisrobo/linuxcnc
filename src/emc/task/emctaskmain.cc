@@ -1803,9 +1803,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:
            retval = emcMotionSetSyncInput(((EMC_MOTION_SET_SYNC_INPUT *) cmd)->index,
-                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->start,
-                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->end,
-                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now);
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->wait_type,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->timeout);
            break;
     case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
         retval = emcMotionSetImmediatePos(((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->axis,

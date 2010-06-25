@@ -300,16 +300,20 @@ void emcmotDioWrite(int index, char value)
 }
 
 
-void emcmotSyncInputWrite(int index, char value)
+void emcmotSyncInputWrite(int index, double timeout, int wait_type)
 {
+    int i;
     if ((index >= emcmotConfig->numSyncIn) || (index < 0)) {
         rtapi_print_msg(RTAPI_MSG_ERR, "ERROR: index out of range, %d not in [0..%d] (increase num_dio/EMCMOT_MAX_DIO=%d)\n", index, emcmotConfig->numDIO, EMCMOT_MAX_DIO);
     } else {
-        if (value != 0) {
-            *(emcmot_hal_data->sync_in[index])=1;
-        } else {
-            *(emcmot_hal_data->sync_in[index])=0;
+        //TODO-eric: be sure done in a servo interval??
+        for (i = 0; i < emcmotConfig->numSyncIn; i++) {
+            if(i != index) *(emcmot_hal_data->sync_in[i])=0;
+            else  *(emcmot_hal_data->sync_in[i])=1;
         }
+        *(emcmot_hal_data->sync_wait_type) = wait_type;
+        *(emcmot_hal_data->timeout) = timeout;
+    //    printf("motmod write hal wait_type(%d) timeout(%f) pin(%d)\n",wait_type,timeout,index);
     }
 }
 
@@ -1505,10 +1509,11 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_SET_SYNC_INPUT:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_DOUT");
             if (emcmotCommand->now) { //we set it right away
-                emcmotSyncInputWrite(emcmotCommand->out, emcmotCommand->start);
+                emcmotSyncInputWrite(emcmotCommand->out,emcmotCommand->timeout,
+                        emcmotCommand->wait_type);
             } else { // we put it on the TP queue, warning: only room for one in there, any new ones will overwrite
                 tpSetSyncInput(&emcmotDebug->coord_tp, emcmotCommand->out,
-                    emcmotCommand->start, emcmotCommand->end);
+                    emcmotCommand->timeout, emcmotCommand->wait_type);
             }
 	    break;
 	case EMCMOT_SET_IMMEDIATE_POS:
