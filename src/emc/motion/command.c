@@ -309,8 +309,10 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
         //TODO-eric: be sure done in a servo interval??
         for (i = 0; i < emcmotConfig->numSyncIn; i++) {
             if(i != index) *(emcmot_hal_data->sync_in[i])=0;
-            else  *(emcmot_hal_data->sync_in[i])=1;
-        }
+            else {
+                *(emcmot_hal_data->sync_in[i])=1;
+            }
+         }
         *(emcmot_hal_data->sync_wait_type) = wait_type;
         *(emcmot_hal_data->timeout) = timeout;
     //    printf("motmod write hal wait_type(%d) timeout(%f) pin(%d)\n",wait_type,timeout,index);
