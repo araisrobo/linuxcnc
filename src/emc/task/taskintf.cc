@@ -1673,6 +1673,14 @@ int emcMotionSetSyncInput(unsigned char index, unsigned char start,
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
+int emcMotionSetImmediatePos(int axis, double pos)
+{
+    emcmotCommand.command = EMCMOT_SET_IMMEDIATE_POS;
+    emcmotCommand.axis = axis;
+    emcmotCommand.offset = pos;
+
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
 
 
 int emcSpindleAbort(void)

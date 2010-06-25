@@ -168,6 +168,7 @@ extern "C" {
         EMCMOT_SET_AXIS_POSITION_LIMITS, /* set the axis position +/- limits */
         EMCMOT_SET_AXIS_VEL_LIMIT,      /* set the max axis vel */
         EMCMOT_SET_AXIS_ACC_LIMIT,      /* set the max axis acc */
+        EMCMOT_SET_IMMEDIATE_POS,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */

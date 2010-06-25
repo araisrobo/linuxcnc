@@ -119,7 +119,7 @@ typedef struct {
     hal_float_t *analog_output[EMCMOT_MAX_AIO]; /* RPI array: output pins for analog Inputs */
 
     hal_bit_t *sync_in[EMCMOT_MAX_SYNC_INPUT];
-
+    hal_float_t *immediate_pos_cmd[EMCMOT_MAX_AXIS];
     // creating a lot of pins for spindle control to be very flexible
     // the user needs only a subset of these
 
@@ -217,7 +217,9 @@ extern void emcmotSetCycleTime(unsigned long nsec);
 /* these are related to synchronized I/O */
 extern void emcmotDioWrite(int index, char value);
 extern void emcmotAioWrite(int index, double value);
-
+extern void emcmotSyncInputWrite(int index, char value);
+/* relate to immediate position command */
+extern void emcmotImmediatePosWrite(int axis, float pos);
 /* homing is no longer in control.c, make functions public */
 extern void do_homing_sequence(void);
 extern void do_homing(void);

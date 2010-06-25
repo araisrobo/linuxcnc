@@ -3013,14 +3013,12 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         CHKS((settings->cutter_comp_side != OFF),
              (_("Cannot set motion output with cutter radius compensation on")));  // XXX
 */
-        CHKS((block->p_flag == OFF), _("No valid P word with M200"));
-        SET_MOTION_SYNC_INPUT_BIT(round_to_int(block->p_number));
+       // CHKS((block->p_flag == OFF), _("No valid P word with M200"));
+        SET_MOTION_SYNC_INPUT_BIT((block->p_flag == ON)?round_to_int(block->p_number):0,0);
     } else if (block->m_modes[11] == 201) {
-        //TODO-eric: implement M201 code
-/*        CHKS((settings->cutter_comp_side != OFF),
-             (_("Cannot set motion digital output with cutter radius compensation on")));  // XXX
-        CHKS((block->p_flag == OFF), _("No valid P word with M63"));
-        CLEAR_MOTION_OUTPUT_BIT(round_to_int(block->p_number));*/
+
+        CHKS((block->q_flag == OFF), _("No valid Q word with M201"));
+        SET_MOTION_IMMEDIATE_POS((block->p_flag == ON)?round_to_int(block->p_number):0,block->q_number);
     }
 
 

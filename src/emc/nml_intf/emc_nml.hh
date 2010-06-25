@@ -1141,6 +1141,20 @@ class EMC_MOTION_SET_SYNC_INPUT:public EMC_MOTION_CMD_MSG {
 };
 
 
+class EMC_MOTION_SET_IMMEDIATE_POS:public EMC_MOTION_CMD_MSG {
+  public:
+    EMC_MOTION_SET_IMMEDIATE_POS():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_IMMEDIATE_POS_TYPE,
+                                             sizeof(EMC_MOTION_SET_IMMEDIATE_POS)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    int axis;
+    double pos;
+};
+
+
 
 class EMC_MOTION_ADAPTIVE:public EMC_MOTION_CMD_MSG {
   public:

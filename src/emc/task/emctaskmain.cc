@@ -753,6 +753,7 @@ static int emcTaskPlan(void)
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -871,6 +872,7 @@ static int emcTaskPlan(void)
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1291,6 +1293,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1453,8 +1456,9 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_MOTION_ADAPTIVE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	break;
-
-
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+        return EMC_TASK_EXEC_DONE;
+        break;
     default:
 	// unrecognized command
 	if (EMC_DEBUG & EMC_DEBUG_TASK_ISSUE) {
@@ -1803,7 +1807,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
                                      ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->end,
                                      ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now);
            break;
-
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+        retval = emcMotionSetImmediatePos(((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->axis,
+                                             ((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->pos);
+        break;
     case EMC_MOTION_ADAPTIVE_TYPE:
 	retval = emcTrajSetAFEnable(((EMC_MOTION_ADAPTIVE *) cmd)->status);
 	break;
@@ -2222,6 +2229,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
 

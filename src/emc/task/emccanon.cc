@@ -3957,7 +3957,7 @@ int WAIT(int index, /* index of the motion exported input */
  return 0;
 }
 
-void SET_MOTION_SYNC_INPUT_BIT(int index)
+void SET_MOTION_SYNC_INPUT_BIT(int index,unsigned char now)
 {
     EMC_MOTION_SET_SYNC_INPUT syncin_msg;
     flush_segments();
@@ -3965,13 +3965,21 @@ void SET_MOTION_SYNC_INPUT_BIT(int index)
     syncin_msg.index = index;
     syncin_msg.start = 1;           // startvalue = 1
     syncin_msg.end = 1;             // endvalue = 1, means it doesn't get reset after current motion
-    syncin_msg.now = 0;             // not immediate, but synched with motion (goes to the TP)
+    syncin_msg.now = now;             // not immediate, but synched with motion (goes to the TP)
 
     interp_list.append(syncin_msg);
 
     return;
 }
-
+void SET_MOTION_IMMEDIATE_POS(int axis,double value)
+{
+    EMC_MOTION_SET_IMMEDIATE_POS immpos_msg;
+    flush_segments();
+    immpos_msg.axis = axis;
+    immpos_msg.pos = value;
+    interp_list.append(immpos_msg);
+    return;
+}
 
 // vim:sw=4:sts=4:et:
 

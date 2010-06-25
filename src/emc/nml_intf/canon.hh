@@ -740,8 +740,10 @@ extern void CLEAR_AUX_OUTPUT_BIT(int index);
 extern void SET_MOTION_OUTPUT_VALUE(int index, double value);
 extern void SET_AUX_OUTPUT_VALUE(int index, double value);
 
-extern void SET_MOTION_SYNC_INPUT_BIT(int index);
+extern void SET_MOTION_SYNC_INPUT_BIT(int index, unsigned char now);
 
+/* Commands to set immediate position command */
+extern void SET_MOTION_IMMEDIATE_POS(int axis,double value);
 
 /* Commands to wait for, query input bits and analog values */
 
