@@ -19,7 +19,8 @@ typedef struct {          /* type for NURBS control points */
              U,
              V,
              W,
-             R;
+             R,
+             F;         // add for dynamic feed rate
       } CONTROL_POINT;
 
 typedef struct {

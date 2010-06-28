@@ -1671,6 +1671,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
     case EMC_TRAJ_NURBS_MOVE_TYPE:
         emcTrajNurbsMoveMsg = (EMC_TRAJ_NURBS_MOVE *) cmd;
+   //     printf("emcTrajNurbsMoveMsg->vel(%f)\n",emcTrajNurbsMoveMsg->vel);
         retval = emcTrajNurbsMove(emcTrajNurbsMoveMsg->end,
                                 emcTrajNurbsMoveMsg->type,
                                 emcTrajNurbsMoveMsg->nurbs_block,

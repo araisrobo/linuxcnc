@@ -720,6 +720,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].V = pos.v;
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].W = pos.w;
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].R = nurbs_block.weight;
+            nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].F = vel; // requested feedrate for this cp
             nurbs_to_tc->knots_ptr[nr_of_knots-knots_todo] = nurbs_block.knot;
 
         }else{
@@ -774,7 +775,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         tc.accel_state = ACCEL_S7;
         tc.distance_to_go = tc.target;
         tc.accel_time = 0.0;
-        tc.reqvel = vel;
+        tc.reqvel = nurbs_to_tc->ctrl_pts_ptr[0].F;// the first feedrate for first cp for reqvel//vel;
         tc.maxaccel = ini_maxacc;
 
         tc.jerk = ini_maxjerk;
@@ -832,7 +833,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
 
 
 //FIXME: eric affection of feed override for velocity is disabled
-//       dynamin adjust of feed override affect S-curve speed decrease
+//       dynamic adjust of feed override affect S-curve speed decrease
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     double newvel, newaccel, target_vel;
     switch (tc->accel_state) {

@@ -211,7 +211,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
     } else {
         int s, tmp1,i;
-        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR ,
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR, F,
                      l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
 
         N = tc->nurbs_block.N;
@@ -349,6 +349,12 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 //    uvw.tran.z = pos.w;
                 }
 
+                F = 0.0;
+                for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                       F += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F;
+               }
+               F = F/R;
+               tc->reqvel = F;
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {
                     last_l = 0;
