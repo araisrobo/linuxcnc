@@ -244,11 +244,13 @@ typedef struct {
 
 typedef struct {
     /* sync input pins (input to motmod)*/
-    hal_bit_t   *sync_in[64];
+//    hal_bit_t   *sync_in[64]; //replace with pin index
+    hal_bit_t   *sync_in_trigger;
+    hal_u32_t   *sync_in; //
     hal_u32_t   *wait_type;
     hal_float_t *timeout;
     int         num_sync_in;
-    uint64_t    prev_in;
+//    uint64_t    prev_in;
     /* sync output pins (output from motmod) */
     hal_bit_t   *sync_out[64];
     int         num_sync_out;
@@ -739,21 +741,31 @@ static void update_freq(void *arg, long period)
   }
 
   /* process motion synchronized input ++++*/
-  sync_io_data = 0;
+/* handle with pin index
+ * sync_io_data = 0;
   for (i=0; i < m_control->num_sync_in; i++) {
       sync_io_data |= ((*(m_control->sync_in[i]) & 1) << i);
+        if (sync_io_data != m_control->prev_in) {
+      m_control->prev_in = sync_io_data
+  }*/
+  if(*(m_control->sync_in_trigger) != 0) {
+      printf("sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",*(m_control->sync_in),
+              *(m_control->wait_type),*(m_control->timeout));
+      // write a wou frame for sync output into command FIFO
+     /*
+         ret = wou_cmd (&w_param,
+                        (WB_WR_CMD | WB_AI_MODE),
+                        GPIO_BASE | GPIO_OUT,
+                        1,
+                        data);
+         assert (ret==0);
+     */
+      *(m_control->sync_in_trigger) = 0;
+      wou_flush(&w_param);
+
   }
-  if (sync_io_data != m_control->prev_in) {
-      m_control->prev_in = sync_io_data;
-    // write a wou frame for sync output into command FIFO
-/*
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   GPIO_BASE | GPIO_OUT,
-                   1,
-                   data);
-    assert (ret==0);
-*/
+
+
 
 /*  // shoule motion synchronized command have to do following check??
      wou.gpio.out.00 is mapped to SVO-ON
@@ -776,8 +788,7 @@ static void update_freq(void *arg, long period)
         return;
     }
 */
-    wou_flush(&w_param);
-  }
+
 
   /* process motion synchronized input ----*/
 
@@ -1418,13 +1429,19 @@ static int export_m_control (m_control_t *m_control)
   rtapi_set_msg_level(RTAPI_MSG_ALL);
 
 /*   export pin for counts captured by wou_update()*/
+/* replace with pin index
   for (i = 0; i < num_sync_in; i++) {
     retval = hal_pin_bit_newf(HAL_IN, &(m_control->sync_in[i]), comp_id,
                               "wou.sync.in.%02d", i);
     if (retval != 0) { return retval; }
     *(m_control->sync_in[i]) = 0;
   }
+*/
+  retval = hal_pin_bit_newf(HAL_IO,&(m_control->sync_in_trigger), comp_id, "wou.sync.in.trigger");
+  *(m_control->sync_in_trigger) = 0;  // pin index must not beyond index
 
+  retval = hal_pin_u32_newf(HAL_IN,&(m_control->sync_in), comp_id, "wou.sync.in.index");
+  *(m_control->sync_in) = 0;  // pin index must not beyond index
 
   retval = hal_pin_u32_newf(HAL_IN,&(m_control->wait_type), comp_id,
                                   "wou.sync.in.wait_type");
@@ -1444,7 +1461,7 @@ static int export_m_control (m_control_t *m_control)
   m_control->num_sync_in = num_sync_in;
   m_control->num_sync_out = num_sync_out;
   m_control->prev_out = 0;
-  m_control->prev_in = 0;
+//  m_control->prev_in = 0;
 
 /*
   *(m_control->)

@@ -118,7 +118,9 @@ typedef struct {
     hal_float_t *analog_input[EMCMOT_MAX_AIO]; /* RPI array: input pins for analog Inputs */
     hal_float_t *analog_output[EMCMOT_MAX_AIO]; /* RPI array: output pins for analog Inputs */
 
-    hal_bit_t *sync_in[EMCMOT_MAX_SYNC_INPUT];
+    //hal_bit_t *sync_in[EMCMOT_MAX_SYNC_INPUT];
+    hal_bit_t *sync_in_trigger;
+    hal_u32_t *sync_in;
     hal_u32_t *sync_wait_type;
     hal_float_t *timeout;
     hal_float_t *immediate_pos_cmd[EMCMOT_MAX_AXIS];

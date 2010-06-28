@@ -82,9 +82,11 @@ int tpClearDIOs() {
     for (i = 0; i < emcmotConfig->numDIO; i++)
 	syncdio.dios[i] = 0;
     // also clean sync_input status
-    for (i = 0; i < emcmotConfig->numSyncIn; i++)
-            syncdio.sync_in[i] = 0;
+   /* for (i = 0; i < emcmotConfig->numSyncIn; i++)
+            syncdio.sync_in[i] = 0;*/
+    syncdio.sync_in = 255;
     syncdio.wait_type = 0;
+    syncdio.timeout = 0.0;
     return 0;
 }
 
@@ -1012,9 +1014,11 @@ void tpToggleDIOs(TC_STRUCT * tc) {
 	tc->syncdio.anychanged = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }
     if(tc->syncdio.sync_input_triggled != 0) {
-        for (i=0; i < emcmotConfig->numSyncIn; i++) {
+        /* replace with pin index for sync in
+         * for (i=0; i < emcmotConfig->numSyncIn; i++) {
             if (tc->syncdio.sync_in[i] > 0) emcmotSyncInputWrite(i, tc->syncdio.timeout, tc->syncdio.wait_type); //
-        }
+        }*/
+        emcmotSyncInputWrite(tc->syncdio.sync_in , tc->syncdio.timeout, tc->syncdio.wait_type);
         tc->syncdio.sync_input_triggled = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }
 }
@@ -1565,15 +1569,17 @@ int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type)
     if (0 == tp) {
         return -1;
     }
-    if ( index < 0 || index >EMCMOT_MAX_SYNC_INPUT) {
+    if ( index < 0 || index > EMCMOT_MAX_SYNC_INPUT) {
         return -1;
     }
     syncdio.sync_input_triggled = 1; //something has changed
+/*  replace with index
     for (i=0; i<EMCMOT_MAX_SYNC_INPUT; i++) {
         syncdio.sync_in[i] = -1;
     }
+*/
 
-    syncdio.sync_in[index] = 1; // the end value can't be set from canon currently, and has the same value as start
+    syncdio.sync_in = index; // the end value can't be set from canon currently, and has the same value as start
     syncdio.wait_type = wait_type;
     syncdio.timeout = timeout;
     return 0;

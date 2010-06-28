@@ -326,11 +326,15 @@ static int init_hal_io(void)
 
     /* export motion-synched input for 7i43 pins */
 
-    for (n = 0; n < num_aio; n++) {
+/*  replaced with pin index  for (n = 0; n < num_aio; n++) {
         if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->sync_in[n]), mot_comp_id, "motion.sync-in-%02d", n)) != 0) goto error;
-    }
-    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->sync_wait_type ), mot_comp_id, "motion.sync-wait-type")) != 0) goto error;
-    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->timeout ), mot_comp_id, "motion.sync-wait-timeout")) != 0) goto error;
+    }*/
+
+    if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->sync_in_trigger), mot_comp_id, "motion.sync-in-trigger")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->sync_in), mot_comp_id, "motion.sync-in-index")) != 0) goto error;
+
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->sync_wait_type ), mot_comp_id, "motion.sync-in-wait-type")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->timeout ), mot_comp_id, "motion.sync-in-timeout")) != 0) goto error;
     /* export machine wide hal pins */
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->motion_enabled), mot_comp_id, "motion.motion-enabled")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->in_position), mot_comp_id, "motion.in-position")) != 0) goto error;
@@ -407,11 +411,13 @@ static int init_hal_io(void)
 	 *(emcmot_hal_data->analog_input[n]) = 0.0;
     }
     
-    for (n = 0; n < num_sync_in; n++) {
+/*    for (n = 0; n < num_sync_in; n++) {
          *(emcmot_hal_data->sync_in[n]) = 0;
-    }
+    }*/
+    *(emcmot_hal_data->sync_in) = 0;  // default value below max limit value of index
     *(emcmot_hal_data->timeout) =0.0;
     *(emcmot_hal_data->sync_wait_type) = 0;
+    *(emcmot_hal_data->sync_in_trigger) = 0;
 
     /*! \todo FIXME - these don't really need initialized, since they are written
        with data from the emcmotStatus struct */
