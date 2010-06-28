@@ -274,8 +274,11 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
             CP.U *= CP.R;
             CP.V *= CP.R;
             CP.W *= CP.R;
+            CP.F = block->f_number;
+            CP.F *= CP.R;
 	    nurbs_control_points.push_back(CP);
 	}
+
 	// K: Knot
 	if (block->k_flag == ON) {
 	    CHKS((block->k_number >1 || block->k_number < 0),
@@ -288,19 +291,16 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 	                        ("U(L) knot value in knot vector must between 0 and 1"));
 	    uofl_param.uofl_knot_flag = ON;
 	    uofl_param.uofl_knot = block->d_number_float;
-//	    fprintf(stderr,"uolf knot\t %f\n",uofl_param.uofl_knot);
 	}
         //      J: Control point of U(L)
 	if (block->j_flag == ON) {
 	    uofl_param.uofl_ctrl_pt = block->j_number;
 	    uofl_param.uofl_ctrl_pt_flag = ON;
-//	    fprintf(stderr,"uofl ctrlpt\t %f\n",uofl_param.uofl_ctrl_pt);
 	}
         //      E: Weight of U(L)
 	if (block->e_flag == ON) {
 	    uofl_param.uofl_weight_flag = ON;
 	    uofl_param.uofl_weight = block->e_number;
-//	    fprintf(stderr,"uofl_weight\t %f\n",uofl_param.uofl_weight);
 	}
 	if( block->e_flag == ON || block->j_flag == ON || block->d_flag == ON) {
 	    uofl_vector.push_back(uofl_param);
