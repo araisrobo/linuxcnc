@@ -461,7 +461,7 @@ extern int emcTrajResume();
 extern int emcTrajDelay(double delay);
 extern int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel,
         double acc, double jerk);
-extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel,
+extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block, double vel, double ini_maxvel,
                             double ini_maxacc,double ini_maxjerk);
 extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
         normal, int turn, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk);

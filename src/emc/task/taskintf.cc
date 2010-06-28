@@ -1245,7 +1245,7 @@ int emcTrajSetTermCond(int cond, double tolerance)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel, double ini_maxacc, double ini_maxjerk)
+int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double vel, double ini_maxvel, double ini_maxacc, double ini_maxjerk)
 {
 #ifdef ISNAN_TRAP
     if (isnan(end.tran.x) || isnan(end.tran.y) || isnan(end.tran.z) ||
@@ -1262,6 +1262,7 @@ int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_
 
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.motion_type = type;
+    emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.ini_maxacc = ini_maxacc;
     emcmotCommand.ini_maxjerk = ini_maxjerk;

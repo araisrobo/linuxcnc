@@ -1674,6 +1674,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         retval = emcTrajNurbsMove(emcTrajNurbsMoveMsg->end,
                                 emcTrajNurbsMoveMsg->type,
                                 emcTrajNurbsMoveMsg->nurbs_block,
+                                emcTrajNurbsMoveMsg->vel,
                                 emcTrajNurbsMoveMsg->ini_maxvel,
                                 emcTrajNurbsMoveMsg->ini_maxacc,
                                 emcTrajNurbsMoveMsg->ini_maxjerk); // TO NML channel

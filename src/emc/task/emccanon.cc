@@ -470,6 +470,7 @@ void SET_FEED_RATE(double rate)
 
 	canon.linearFeedRate = newLinearFeedRate;
 	canon.angularFeedRate = newAngularFeedRate;
+//	printf("new linearFeedRate(%f) newAngularFeedRate(%f)\n",newLinearFeedRate,newAngularFeedRate);
     }
 }
 
@@ -1508,6 +1509,8 @@ void NURBS_FEED_3D (
      }
     nurbsMoveMsg.vel = vel;
 
+/*    printf("FEEDRATE for NURBS linear(%f) angular(%f)  nurbsMoveMsg.vel(%f) \n",canon.linearFeedRate,
+            canon.angularFeedRate,nurbsMoveMsg.vel);*/
 
     for (i=0;i<nr_of_ctrl_pt;i++) {
         x = nurbs_control_points[i].X;
