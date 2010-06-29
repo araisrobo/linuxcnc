@@ -11,10 +11,11 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[E
 # step_type(2):     Quadrature 
 # bits:             path to FPGA bitfile
 # gpio_mask_in0:    WOU Register value for GPIO_MASK_IN0
+# gpio_mask_in1:    WOU Register value for GPIO_MASK_IN1
 # gpio_leds_sel:    WOU Register value for GPIO_LEDS_SEL: 
 #                   servo_pulses(1)
 #                   debug_port_0[7:0](2)
-loadrt wou step_type=2,2,2,2 bits="fpga_top.bit" gpio_mask_in0=0x3C gpio_leds_sel=2 jcmd_dir_pol=0
+loadrt wou step_type=2,2,2,2 bits="servo_top.bit" gpio_mask_in1=0x03 gpio_mask_in0=0xFC gpio_leds_sel=2 jcmd_dir_pol=0
 
 loadrt not count=7
 
@@ -63,10 +64,24 @@ net J0pos-fb wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net J1pos-fb wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net J2pos-fb wou.stepgen.2.position-fb => joint.2.motor-pos-fb
 net J3pos-fb wou.stepgen.3.position-fb => joint.3.motor-pos-fb
-# linksp J0pos => joint.0.motor-pos-fb
-# linksp J1pos => joint.1.motor-pos-fb
-# linksp J2pos => joint.2.motor-pos-fb
-# linksp J3pos => joint.3.motor-pos-fb
+
+# home_switch positions
+net J0_switch-pos wou.stepgen.0.switch-pos => joint.0.switch-pos
+net J1_switch-pos wou.stepgen.1.switch-pos => joint.1.switch-pos
+net J2_switch-pos wou.stepgen.2.switch-pos => joint.2.switch-pos
+net J3_switch-pos wou.stepgen.3.switch-pos => joint.3.switch-pos
+
+# motor_index positions
+net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
+net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
+net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
+net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
+
+# home-state
+net J0home-state joint.0.home-state => wou.stepgen.0.home-state
+net J1home-state joint.1.home-state => wou.stepgen.1.home-state
+net J2home-state joint.2.home-state => wou.stepgen.2.home-state
+net J3home-state joint.3.home-state => wou.stepgen.3.home-state
 
 # # send the position commands thru differentiators to
 # # generate velocity and accel signals
@@ -131,10 +146,10 @@ setp wou.stepgen.3.dirdelay [JOINT_3]DIRDELAY
 
 # connect signals from FPGA.
 # pulse_cmd: the actual pulse_cmd sent to servo drive.
-net pulse_cmd_j0  <= wou.stepgen.0.pulse_cmd
-net pulse_cmd_j1  <= wou.stepgen.1.pulse_cmd
-net pulse_cmd_j2  <= wou.stepgen.2.pulse_cmd
-net pulse_cmd_j3  <= wou.stepgen.3.pulse_cmd
+net pulse_cmd_j0  <= wou.stepgen.0.pulse_pos
+net pulse_cmd_j1  <= wou.stepgen.1.pulse_pos
+net pulse_cmd_j2  <= wou.stepgen.2.pulse_pos
+net pulse_cmd_j3  <= wou.stepgen.3.pulse_pos
 # enc_pos: the encoder position read from FPGA.
 net enc_pos_j0    <= wou.stepgen.0.enc_pos  
 net enc_pos_j1    <= wou.stepgen.1.enc_pos  

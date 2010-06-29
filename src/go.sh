@@ -7,7 +7,8 @@
 #             # --enable-build-documentation=pdf
 
 # Debug Version:
-./configure --enable-run-in-place --enable-simulator \
+# ./configure --enable-run-in-place --enable-simulator
+./configure --enable-simulator \
             --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh \
             --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh \
             --enable-build-documentation=pdf
