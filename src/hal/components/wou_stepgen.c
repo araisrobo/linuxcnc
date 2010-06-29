@@ -332,7 +332,7 @@ int rtapi_app_main(void)
     int n, retval;
 
     uint8_t data[MAX_DSIZE];
-    int ret;
+//    int ret;
 
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
@@ -365,15 +365,15 @@ int rtapi_app_main(void)
     } else {
         // un-mask HOME-SWITCH inputs (bits_i[5:2])
         data[0] = (uint8_t) gpio_mask_in0;
-        ret = wou_cmd (&w_param,
-                       (WB_WR_CMD | WB_AI_MODE),
-                       GPIO_BASE | GPIO_MASK_IN0,
-                       1,
-                       data);
-        if (ret) {
+        wou_cmd (&w_param,
+                WB_WR_CMD,
+                GPIO_BASE | GPIO_MASK_IN0,
+                1,
+                data);
+       /* if (ret) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_LEDS_SEL\n");
             return -1;
-        }
+        }*/
     }
     
     /* test for GPIO_MASK_IN1: gpio_mask_in1 */
@@ -383,15 +383,15 @@ int rtapi_app_main(void)
     } else {
         // un-mask HOME-SWITCH inputs (bits_i[5:2])
         data[0] = (uint8_t) gpio_mask_in1;
-        ret = wou_cmd (&w_param,
-                       (WB_WR_CMD | WB_AI_MODE),
+        wou_cmd (&w_param,
+                       WB_WR_CMD,
                        GPIO_BASE | GPIO_MASK_IN1,
                        1,
                        data);
-        if (ret) {
+/*        if (ret) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_MASK_IN1\n");
             return -1;
-        }
+        }*/
     }
 
 
@@ -402,18 +402,18 @@ int rtapi_app_main(void)
     } else {
         // select signals for LEDs
         data[0] = (uint8_t) gpio_leds_sel;
-        ret = wou_cmd (&w_param,
-                       (WB_WR_CMD | WB_AI_MODE),
+        wou_cmd (&w_param,
+                       WB_WR_CMD,
                        GPIO_BASE | GPIO_LEDS_SEL,
                        1,
                        data);
-        if (ret) {
+       /* if (ret) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_LEDS_SEL\n");
             return -1;
-        }
+        }*/
     }
     
-    /* test for JCMD_DIR_POL: jcmd_dir_pol*/
+ /*   // test for JCMD_DIR_POL: jcmd_dir_pol
     if ((jcmd_dir_pol == -1)) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no value for JCMD_DIR_POL: jcmd_dir_pol\n");
 	return -1;
@@ -421,7 +421,7 @@ int rtapi_app_main(void)
         // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
         data[0] = (uint8_t) jcmd_dir_pol;
         ret = wou_cmd (&w_param,
-                       (WB_WR_CMD | WB_AI_MODE),
+                       WB_WR_CMD,
                        JCMD_BASE | JCMD_DIR_POL,
                        1,
                        data);
@@ -431,7 +431,7 @@ int rtapi_app_main(void)
             return -1;
         }
     }
-    
+*/
     /* test for stepping motor current limit: step_cur*/
     num_chan = 0;
     for (n = 0; n < MAX_CHAN && step_cur[n] != -1 ; n++) {
@@ -446,15 +446,15 @@ int rtapi_app_main(void)
     }
     if (num_chan > 0) {
         // wirte SSIF_MAX_PWM to USB with Automatically Address Increment
-        ret = wou_cmd(&w_param,
-                      (WB_WR_CMD | WB_AI_MODE),
+        wou_cmd(&w_param,
+                      WB_WR_CMD,
                       (SSIF_BASE | SSIF_MAX_PWM), 
                       num_chan, 
                       data);
-        if (ret) {
+    /*    if (ret) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing SSIF_MAX_PWM\n");
             return -1;
-        }
+        }*/
     }
 
 //move to update_freq():    // TODO: add a SON signal for JCMD_CTRL
@@ -665,7 +665,7 @@ static void update_freq(void *arg, long period)
   rtapi_set_msg_level(RTAPI_MSG_ALL);
 
   /* check and update WOU Registers */
-  assert(wou_update(&w_param) == 0);
+  wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
     if (memcmp(&(gpio->prev_in), wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2)) {
@@ -710,12 +710,12 @@ static void update_freq(void *arg, long period)
   if (data[0] != gpio->prev_out) {
     gpio->prev_out = data[0];
     // issue a WOU_WRITE while got new GPIO.OUT value
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
+    wou_cmd (&w_param,
+                   WB_WR_CMD,
                    GPIO_BASE | GPIO_OUT,
                    1,
                    data);
-    assert (ret==0);
+//    assert (ret==0);
 
     /* wou.gpio.out.00 is mapped to SVO-ON */
     // JCMD_CTRL: 
@@ -727,15 +727,15 @@ static void update_freq(void *arg, long period)
     } else {
         data[0] = 4;    // SVO-OFF
     }
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
+    wou_cmd (&w_param,
+                   WB_WR_CMD,
                    (JCMD_BASE | JCMD_CTRL),
                    1,
                    data);
-    if (ret) {
+    /*if (ret) {
         rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
         return;
-    }
+    }*/
 
     wou_flush(&w_param);
   }
@@ -751,6 +751,8 @@ static void update_freq(void *arg, long period)
   if(*(m_control->sync_in_trigger) != 0) {
       printf("sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",*(m_control->sync_in),
               *(m_control->wait_type),*(m_control->timeout));
+
+
       // write a wou frame for sync output into command FIFO
      /*
          ret = wou_cmd (&w_param,
@@ -793,6 +795,7 @@ static void update_freq(void *arg, long period)
   /* process motion synchronized input ----*/
 
   /* process motion synchronized output ++++*/
+  TODO..
   sync_io_data = 0;
   for (i=0; i < m_control->num_sync_out; i++) {
       sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
@@ -917,39 +920,39 @@ static void update_freq(void *arg, long period)
   /* check if we should clear SWITCH/INDEX positions for HOMING */
   if (r_rst_pos != 0) {
     // issue a WOU_WRITE 
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
+    wou_cmd (&w_param,
+                   WB_WR_CMD,
                    SSIF_BASE | SSIF_RST_POS,
                    1,
                    &r_rst_pos);
     // fprintf(stderr, "wou: r_rst_pos(0x%x)\n", r_rst_pos);
-    assert (ret==0);
+//    assert (ret==0);
     wou_flush(&w_param);
   }
   
   /* check if we should enable HOME Switch Detection */
   if (r_switch_en != 0) {
     // issue a WOU_WRITE 
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
+    wou_cmd (&w_param,
+                   WB_WR_CMD,
                    SSIF_BASE | SSIF_SWITCH_EN,
                    1,
                    &r_switch_en);
     // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-    assert (ret==0);
+//    assert (ret==0);
     wou_flush(&w_param);
   }
   
   /* check if we should enable MOTOR Index Detection */
   if (r_index_en != prev_r_index_en) {
     // issue a WOU_WRITE 
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
+    wou_cmd (&w_param,
+                   WB_WR_CMD,
                    SSIF_BASE | SSIF_INDEX_EN,
                    1,
                    &r_index_en);
     // fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
-    assert (ret==0);
+//    assert (ret==0);
     wou_flush(&w_param);
     prev_r_index_en = r_index_en;
   }
@@ -1133,25 +1136,36 @@ static void update_freq(void *arg, long period)
     assert (wou_pos_cmd > -8192);
     
     {
+        uint16_t sync_cmd;
+
+        // SYNC_JNT: opcode for SYNC_JNT command
+        // DIR_P: Direction, (positive(1), negative(0))
+        // POS_MASK: relative position mask
+
       if (wou_pos_cmd >= 0) {
         // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
-        data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20); 
-        data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+          sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
+          // data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20);
+          // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
       } else {
-        // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
-        wou_pos_cmd *= -1;
-        data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F); 
-        data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+          // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
+          wou_pos_cmd *= -1;
+          sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
+          // data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F);
+          // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
       }
+          memcpy (data+n*sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
+
+
       // fprintf (wou_fh, "\tJ%d: data[]: <0x%02x><0x%02x>\n", n, data[0], data[1]);
       if (n == (num_chan - 1)) {
         // send to WOU when all axes commands are generated
-        ret = wou_cmd (&w_param,
-               (WB_WR_CMD | WB_FIFO_MODE),
-               (JCMD_BASE | JCMD_POS_W),
-               2*num_chan,
-               data);
-        assert (ret==0);
+        wou_cmd (&w_param,
+                       WB_WR_CMD,
+                       (JCMD_BASE | JCMD_SYNC_CMD),
+                       2*num_chan,
+                       data);
+//        assert (ret==0);
       }
     }
 
