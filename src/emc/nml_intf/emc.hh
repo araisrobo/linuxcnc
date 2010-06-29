@@ -154,7 +154,8 @@ class PM_CARTESIAN;
 #define EMC_MOTION_SET_AOUT_TYPE                     ((NMLTYPE) 304)
 #define EMC_MOTION_SET_DOUT_TYPE                     ((NMLTYPE) 305)
 #define EMC_MOTION_ADAPTIVE_TYPE                     ((NMLTYPE) 306)
-
+#define EMC_MOTION_SET_SYNC_INPUT_TYPE               ((NMLTYPE) 307)
+#define EMC_MOTION_SET_IMMEDIATE_POS_TYPE            ((NMLTYPE) 308)
 #define EMC_MOTION_STAT_TYPE                         ((NMLTYPE) 399)
 
 // NML for EMC_TASK
@@ -460,7 +461,7 @@ extern int emcTrajResume();
 extern int emcTrajDelay(double delay);
 extern int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel,
         double acc, double jerk);
-extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel,
+extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block, double vel, double ini_maxvel,
                             double ini_maxacc,double ini_maxjerk);
 extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
         normal, int turn, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk);
@@ -488,9 +489,10 @@ extern int emcMotionSetAout(unsigned char index, double start, double end,
                             unsigned char now);
 extern int emcMotionSetDout(unsigned char index, unsigned char start,
                             unsigned char end, unsigned char now);
-
+extern int emcMotionSetSyncInput(unsigned char index, unsigned char now,
+        int wait_type, double timeout);
 extern int emcMotionUpdate(EMC_MOTION_STAT * stat);
-
+extern int emcMotionSetImmediatePos(int axis, double pos);
 // implementation functions for EMC_TASK types
 
 extern int emcTaskInit();

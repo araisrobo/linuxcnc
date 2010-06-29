@@ -28,6 +28,7 @@
    suit your needs), make sure to increase EMC_MAX_DIO aswell (emcglb.h) */
 #define EMCMOT_MAX_DIO 64
 #define EMCMOT_MAX_AIO 16
+#define EMCMOT_MAX_SYNC_INPUT 64
 
 #define EMCMOT_ERROR_NUM 32	/* how many errors we can queue */
 #define EMCMOT_ERROR_LEN 1024	/* how long error string can be */

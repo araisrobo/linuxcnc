@@ -470,6 +470,7 @@ void SET_FEED_RATE(double rate)
 
 	canon.linearFeedRate = newLinearFeedRate;
 	canon.angularFeedRate = newAngularFeedRate;
+//	printf("new linearFeedRate(%f) newAngularFeedRate(%f)\n",newLinearFeedRate,newAngularFeedRate);
     }
 }
 
@@ -1506,8 +1507,12 @@ void NURBS_FEED_3D (
              vel = canon.angularFeedRate;
          }
      }
-    nurbsMoveMsg.vel = vel;
-
+   /* nurbsMoveMsg.vel = vel; //move to control points feed cycle */
+/*
+    double newLinearFeedRate = FROM_PROG_LEN(rate),
+           newAngularFeedRate = FROM_PROG_ANG(rate);*/
+/*    printf("FEEDRATE for NURBS linear(%f) angular(%f)  nurbsMoveMsg.vel(%f) \n",canon.linearFeedRate,
+            canon.angularFeedRate,nurbsMoveMsg.vel);*/
 
     for (i=0;i<nr_of_ctrl_pt;i++) {
         x = nurbs_control_points[i].X;
@@ -1538,6 +1543,23 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.end.v =  v;
         nurbsMoveMsg.end.w =  w;
         nurbsMoveMsg.nurbs_block.axis_mask = axis_mask;
+        // feed rate
+        if(nurbs_control_points[i].F != -1 ) {
+
+            nurbsMoveMsg.vel = FROM_PROG_LEN(nurbs_control_points[i].F)/60;
+            vel = nurbsMoveMsg.vel;
+            printf("Feedrate in control point(%f) 1\n", nurbsMoveMsg.vel);
+        } else {
+            if(i != 0) {
+                nurbsMoveMsg.vel = vel;//FROM_PROG_LEN(nurbs_control_points[i-1].F);
+//                printf("Feedrate in control point(%f) 2\n",nurbs_control_points[i].F);
+                printf("Feedrate in control point(%f) 2\n", nurbsMoveMsg.vel);
+            } else {
+//                printf("Feedrate in control point(%f)3 \n",nurbs_control_points[i].F);
+                nurbsMoveMsg.vel = vel;
+                printf("Feedrate in control point(%f) 3\n", nurbsMoveMsg.vel);
+            }
+        }
         // for U(L)
         nurbsMoveMsg.nurbs_block.nr_of_uofl_ctrl_pts = nr_uofl_cp;
         nurbsMoveMsg.nurbs_block.nr_of_uofl_knots = nr_uofl_knot;
@@ -3955,6 +3977,32 @@ int WAIT(int index, /* index of the motion exported input */
  
  interp_list.append(wait_msg);
  return 0;
+}
+
+void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
+        double timeout, unsigned char now)
+{
+    EMC_MOTION_SET_SYNC_INPUT syncin_msg;
+    flush_segments();
+
+    syncin_msg.index = index;
+    syncin_msg.start = 1;           // startvalue = 1
+    syncin_msg.end = 1;             // endvalue = 1, means it doesn't get reset after current motion
+    syncin_msg.now = now;             // not immediate, but synched with motion (goes to the TP)
+    syncin_msg.timeout = timeout;
+    syncin_msg.wait_type = wait_type;
+    interp_list.append(syncin_msg);
+
+    return;
+}
+void SET_MOTION_IMMEDIATE_POS(int axis,double value)
+{
+    EMC_MOTION_SET_IMMEDIATE_POS immpos_msg;
+    flush_segments();
+    immpos_msg.axis = axis;
+    immpos_msg.pos = value;
+    interp_list.append(immpos_msg);
+    return;
 }
 
 // vim:sw=4:sts=4:et:

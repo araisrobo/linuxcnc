@@ -78,9 +78,15 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
 int tpClearDIOs() {
     int i;
     syncdio.anychanged = 0;
+    syncdio.sync_input_triggled = 0;
     for (i = 0; i < emcmotConfig->numDIO; i++)
 	syncdio.dios[i] = 0;
-
+    // also clean sync_input status
+   /* for (i = 0; i < emcmotConfig->numSyncIn; i++)
+            syncdio.sync_in[i] = 0;*/
+    syncdio.sync_in = 255;
+    syncdio.wait_type = 0;
+    syncdio.timeout = 0.0;
     return 0;
 }
 
@@ -356,11 +362,12 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.velocity_mode = tp->velocity_mode;
     tc.enables = enables;
 
-    if (syncdio.anychanged != 0) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
 	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
 	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
 	tc.syncdio.anychanged = 0;
+	tc.syncdio.sync_input_triggled = 0;
     }
 
     if (tcqPut(&tp->queue, tc) == -1) {
@@ -482,12 +489,14 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.uu_per_rev = tp->uu_per_rev;
     tc.enables = enables;
 
-    if (syncdio.anychanged != 0) {
-	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
+        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-	tc.syncdio.anychanged = 0;
+        tc.syncdio.anychanged = 0;
+        tc.syncdio.sync_input_triggled = 0;
     }
+
 
 
     if (tcqPut(&tp->queue, tc) == -1) {
@@ -607,11 +616,12 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end,
     tc.uu_per_rev = tp->uu_per_rev;
     tc.enables = enables;
     
-    if (syncdio.anychanged != 0) {
-	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
+        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-	tc.syncdio.anychanged = 0;
+        tc.syncdio.anychanged = 0;
+        tc.syncdio.sync_input_triggled = 0;
     }
 
 
@@ -710,6 +720,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].V = pos.v;
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].W = pos.w;
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].R = nurbs_block.weight;
+            nurbs_to_tc->ctrl_pts_ptr[nr_of_knots-knots_todo].F = vel; // requested feedrate for this cp
             nurbs_to_tc->knots_ptr[nr_of_knots-knots_todo] = nurbs_block.knot;
 
         }else{
@@ -764,7 +775,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         tc.accel_state = ACCEL_S7;
         tc.distance_to_go = tc.target;
         tc.accel_time = 0.0;
-        tc.reqvel = vel;
+        tc.reqvel = nurbs_to_tc->ctrl_pts_ptr[0].F;// the first feedrate for first cp for reqvel//vel;
         tc.maxaccel = ini_maxacc;
 
         tc.jerk = ini_maxjerk;
@@ -796,11 +807,12 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
         tc.uu_per_rev = tp->uu_per_rev;
         tc.enables = enables;
 
-        if (syncdio.anychanged != 0) {
+        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
             tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
             tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
         } else {
             tc.syncdio.anychanged = 0;
+            tc.syncdio.sync_input_triggled = 0;
         }
 
 
@@ -821,7 +833,7 @@ int tpAddNURBS(TP_STRUCT *tp ,int type,nurbs_block_t nurbs_block,EmcPose pos,
 
 
 //FIXME: eric affection of feed override for velocity is disabled
-//       dynamin adjust of feed override affect S-curve speed decrease
+//       dynamic adjust of feed override affect S-curve speed decrease
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     double newvel, newaccel, target_vel;
     switch (tc->accel_state) {
@@ -1002,7 +1014,18 @@ void tpToggleDIOs(TC_STRUCT * tc) {
 	}
 	tc->syncdio.anychanged = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }
+    if(tc->syncdio.sync_input_triggled != 0) {
+        /* replace with pin index for sync in
+         * for (i=0; i < emcmotConfig->numSyncIn; i++) {
+            if (tc->syncdio.sync_in[i] > 0) emcmotSyncInputWrite(i, tc->syncdio.timeout, tc->syncdio.wait_type); //
+        }*/
+        emcmotSyncInputWrite(tc->syncdio.sync_in , tc->syncdio.timeout, tc->syncdio.wait_type);
+        tc->syncdio.sync_input_triggled = 0; //we have turned them all on/off, nothing else to do for this TC the next time
+    }
 }
+
+
+
 
 // This is the brains of the operation.  It's called every TRAJ period
 // and is expected to set tp->currentPos to the new machine position.
@@ -1540,5 +1563,28 @@ int tpSetDout(TP_STRUCT *tp, int index, unsigned char start, unsigned char end) 
 	syncdio.dios[index] = -1;
     return 0;    
 }
+
+int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type)
+{
+    int i;
+    if (0 == tp) {
+        return -1;
+    }
+    if ( index < 0 || index > EMCMOT_MAX_SYNC_INPUT) {
+        return -1;
+    }
+    syncdio.sync_input_triggled = 1; //something has changed
+/*  replace with index
+    for (i=0; i<EMCMOT_MAX_SYNC_INPUT; i++) {
+        syncdio.sync_in[i] = -1;
+    }
+*/
+
+    syncdio.sync_in = index; // the end value can't be set from canon currently, and has the same value as start
+    syncdio.wait_type = wait_type;
+    syncdio.timeout = timeout;
+    return 0;
+}
+
 
 // vim:sw=4:sts=4:et:

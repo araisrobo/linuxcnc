@@ -1245,7 +1245,7 @@ int emcTrajSetTermCond(int cond, double tolerance)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_maxvel, double ini_maxacc, double ini_maxjerk)
+int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double vel, double ini_maxvel, double ini_maxacc, double ini_maxjerk)
 {
 #ifdef ISNAN_TRAP
     if (isnan(end.tran.x) || isnan(end.tran.y) || isnan(end.tran.z) ||
@@ -1262,6 +1262,7 @@ int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block,double ini_
 
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.motion_type = type;
+    emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.ini_maxacc = ini_maxacc;
     emcmotCommand.ini_maxjerk = ini_maxjerk;
@@ -1661,6 +1662,27 @@ int emcMotionSetDout(unsigned char index, unsigned char start,
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
+
+int emcMotionSetSyncInput(unsigned char index, unsigned char now,
+                            int wait_type, double timeout)
+{
+    emcmotCommand.command = EMCMOT_SET_SYNC_INPUT;
+    emcmotCommand.now = now;
+    emcmotCommand.out = index;
+    emcmotCommand.wait_type = wait_type;
+    emcmotCommand.timeout = timeout;
+
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+int emcMotionSetImmediatePos(int axis, double pos)
+{
+    emcmotCommand.command = EMCMOT_SET_IMMEDIATE_POS;
+    emcmotCommand.axis = axis;
+    emcmotCommand.offset = pos;
+
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 
 int emcSpindleAbort(void)
 {

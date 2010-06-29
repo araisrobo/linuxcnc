@@ -167,6 +167,12 @@ int jcmd_dir_pol = -1;
 RTAPI_MP_INT(jcmd_dir_pol, "WOU Register Value for JCMD_DIR_POL");
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN, "current limit for up to 8 channel of stepping drivers");
+int num_sync_in = 16;
+RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
+int num_sync_out = 8;
+RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
+
+
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
@@ -218,7 +224,7 @@ typedef struct {
 
     hal_s32_t *home_state;      /* pin: home_state from homing.c */
     hal_s32_t prev_home_state;  /* param: previous home_state for homing */
-    
+
     double vel_fb;
     double prev_pos_cmd;        /* prev pos_cmd in counts */
     double prev_pos;            /* prev position in counts */
@@ -236,10 +242,33 @@ typedef struct {
   uint16_t  prev_in;
 } gpio_t;
 
+typedef struct {
+    /* sync input pins (input to motmod)*/
+//    hal_bit_t   *sync_in[64]; //replace with pin index
+    hal_bit_t   *sync_in_trigger;
+    hal_u32_t   *sync_in; //
+    hal_u32_t   *wait_type;
+    hal_float_t *timeout;
+    int         num_sync_in;
+//    uint64_t    prev_in;
+    /* sync output pins (output from motmod) */
+    hal_bit_t   *sync_out[64];
+    int         num_sync_out;
+    uint64_t    prev_out;       //ON or OFF
+    /* immeidate_pos pins*/
+/*    hal_float_t *immeidate_pos[9];
+    hal_u32_t   *
+    int         num_immediate_pos;*/
+
+} m_control_t;
+
+
+
+
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t  *stepgen_array;
 static gpio_t     *gpio;
-
+static m_control_t *m_control;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -291,6 +320,7 @@ static double recip_dt;		/* recprocal of period, avoids divides */
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode);
 static int export_gpio(gpio_t *addr);
+static int export_m_control(m_control_t *m_control);
 static void update_freq(void *arg, long period);
 
 /***********************************************************************
@@ -503,6 +533,13 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
+    m_control = hal_malloc(sizeof(m_control_t));
+        if (m_control == 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                            "M_CONTROL: ERROR: hal_malloc() failed\n");
+            hal_exit(comp_id);
+            return -1;
+        }
 
     /* export all the variables for each pulse generator */
     for (n = 0; n < num_chan; n++) {
@@ -523,7 +560,16 @@ int rtapi_app_main(void)
         hal_exit(comp_id);
         return -1;
     }
-
+/* put export m_control below */
+   // static int export_m_control (m_control_t *m_control)
+    retval = export_m_control(m_control);
+    if (retval != 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+            "GPIO: ERROR:  m_control var export failed\n");
+        hal_exit(comp_id);
+        return -1;
+    }
+/* put export m_control above */
     retval = hal_export_funct("wou.stepgen.update-freq", update_freq,
 	stepgen_array, 1, 0, comp_id);
     if (retval != 0) {
@@ -585,6 +631,7 @@ static void update_freq(void *arg, long period)
     int wou_pos_cmd;
     // ret, data[]: for wou_cmd()
     uint8_t data[MAX_DSIZE];
+    uint64_t sync_io_data;
     int     ret;
     
     // for homing:
@@ -693,6 +740,102 @@ static void update_freq(void *arg, long period)
     wou_flush(&w_param);
   }
 
+  /* process motion synchronized input ++++*/
+/* handle with pin index
+ * sync_io_data = 0;
+  for (i=0; i < m_control->num_sync_in; i++) {
+      sync_io_data |= ((*(m_control->sync_in[i]) & 1) << i);
+        if (sync_io_data != m_control->prev_in) {
+      m_control->prev_in = sync_io_data
+  }*/
+  if(*(m_control->sync_in_trigger) != 0) {
+      printf("sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",*(m_control->sync_in),
+              *(m_control->wait_type),*(m_control->timeout));
+      // write a wou frame for sync output into command FIFO
+     /*
+         ret = wou_cmd (&w_param,
+                        (WB_WR_CMD | WB_AI_MODE),
+                        GPIO_BASE | GPIO_OUT,
+                        1,
+                        data);
+         assert (ret==0);
+     */
+      *(m_control->sync_in_trigger) = 0;
+      wou_flush(&w_param);
+
+  }
+
+
+
+/*  // shoule motion synchronized command have to do following check??
+     wou.gpio.out.00 is mapped to SVO-ON
+    // JCMD_CTRL:
+    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+    //  [bit-1]: SIF_EN, servo interface enable
+    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+    if (*(gpio->out[0])) {
+        data[0] = 3;    // SVO-ON
+    } else {
+        data[0] = 4;    // SVO-OFF
+    }
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   (JCMD_BASE | JCMD_CTRL),
+                   1,
+                   data);
+    if (ret) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
+        return;
+    }
+*/
+
+
+  /* process motion synchronized input ----*/
+
+  /* process motion synchronized output ++++*/
+  sync_io_data = 0;
+  for (i=0; i < m_control->num_sync_out; i++) {
+      sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
+  }
+
+  if (sync_io_data != m_control->prev_out) {
+      m_control->prev_out = sync_io_data;
+
+    // write a wou frame for sync input into command FIFO
+/*
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   GPIO_BASE | GPIO_OUT,
+                   1,
+                   data);
+    assert (ret==0);
+*/
+
+/*  // shoule motion synchronized command have to do following check??
+     wou.gpio.out.00 is mapped to SVO-ON
+    // JCMD_CTRL:
+    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+    //  [bit-1]: SIF_EN, servo interface enable
+    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+    if (*(gpio->out[0])) {
+        data[0] = 3;    // SVO-ON
+    } else {
+        data[0] = 4;    // SVO-OFF
+    }
+    ret = wou_cmd (&w_param,
+                   (WB_WR_CMD | WB_AI_MODE),
+                   (JCMD_BASE | JCMD_CTRL),
+                   1,
+                   data);
+    if (ret) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
+        return;
+    }
+*/
+    wou_flush(&w_param);
+  }
+
+  /* process motion synchronized output ----*/
   /* point at stepgen data */
   stepgen = arg;
  
@@ -1271,5 +1414,69 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type, int pos_mode
     rtapi_set_msg_level(msg);
     return 0;
 }
+
+
+static int export_m_control (m_control_t *m_control)
+{
+  int i, retval, msg;
+  /* This function exports a lot of stuff, which results in a lot of
+     logging if msg_level is at INFO or ALL. So we save the current value
+     of msg_level and restore it later.  If you actually need to log this
+     function's actions, change the second line below
+*/
+  msg = rtapi_get_msg_level();
+  // rtapi_set_msg_level(RTAPI_MSG_WARN);
+  rtapi_set_msg_level(RTAPI_MSG_ALL);
+
+/*   export pin for counts captured by wou_update()*/
+/* replace with pin index
+  for (i = 0; i < num_sync_in; i++) {
+    retval = hal_pin_bit_newf(HAL_IN, &(m_control->sync_in[i]), comp_id,
+                              "wou.sync.in.%02d", i);
+    if (retval != 0) { return retval; }
+    *(m_control->sync_in[i]) = 0;
+  }
+*/
+  retval = hal_pin_bit_newf(HAL_IO,&(m_control->sync_in_trigger), comp_id, "wou.sync.in.trigger");
+  *(m_control->sync_in_trigger) = 0;  // pin index must not beyond index
+
+  retval = hal_pin_u32_newf(HAL_IN,&(m_control->sync_in), comp_id, "wou.sync.in.index");
+  *(m_control->sync_in) = 0;  // pin index must not beyond index
+
+  retval = hal_pin_u32_newf(HAL_IN,&(m_control->wait_type), comp_id,
+                                  "wou.sync.in.wait_type");
+  if (retval != 0) { return retval;}
+  *(m_control->wait_type) = 0;
+  retval = hal_pin_float_newf(HAL_IN,&(m_control->timeout), comp_id,
+                                    "wou.sync.in.timeout");
+  if (retval != 0) { return retval;}
+  *(m_control->timeout) = 0.0;
+
+  for (i = 0; i < num_sync_out; i++) {
+    retval = hal_pin_bit_newf(HAL_IN, &(m_control->sync_out[i]), comp_id,
+                              "wou.sync.out.%02d", i);
+    if (retval != 0) { return retval; }
+    *(m_control->sync_out[i]) = 0;
+  }
+  m_control->num_sync_in = num_sync_in;
+  m_control->num_sync_out = num_sync_out;
+  m_control->prev_out = 0;
+//  m_control->prev_in = 0;
+
+/*
+  *(m_control->)
+  for (i = 0; i < 9; i++) {
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id,
+                              "wou.gpio.out.%02d", i);
+    if (retval != 0) {return retval;}
+    *(addr->out[i]) = 0;
+  }
+*/
+
+/*   restore saved message level*/
+  rtapi_set_msg_level(msg);
+  return 0;
+} // export_gpio ()
+
 
 // vim:sw=4:sts=4:et:

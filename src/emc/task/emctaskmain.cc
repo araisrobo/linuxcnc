@@ -749,9 +749,11 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -865,10 +867,12 @@ static int emcTaskPlan(void)
 	    case EMC_AUX_INPUT_WAIT_TYPE:
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1286,8 +1290,10 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
+	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1441,12 +1447,18 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	}
 	return EMC_TASK_EXEC_DONE;
 	break;
-
+    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
+        if (((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now) {
+            return EMC_TASK_EXEC_WAITING_FOR_MOTION;
+        }
+        return EMC_TASK_EXEC_DONE;
+        break;
     case EMC_MOTION_ADAPTIVE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	break;
-
-
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+        return EMC_TASK_EXEC_DONE;
+        break;
     default:
 	// unrecognized command
 	if (EMC_DEBUG & EMC_DEBUG_TASK_ISSUE) {
@@ -1659,9 +1671,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
     case EMC_TRAJ_NURBS_MOVE_TYPE:
         emcTrajNurbsMoveMsg = (EMC_TRAJ_NURBS_MOVE *) cmd;
+   //     printf("emcTrajNurbsMoveMsg->vel(%f)\n",emcTrajNurbsMoveMsg->vel);
         retval = emcTrajNurbsMove(emcTrajNurbsMoveMsg->end,
                                 emcTrajNurbsMoveMsg->type,
                                 emcTrajNurbsMoveMsg->nurbs_block,
+                                emcTrajNurbsMoveMsg->vel,
                                 emcTrajNurbsMoveMsg->ini_maxvel,
                                 emcTrajNurbsMoveMsg->ini_maxacc,
                                 emcTrajNurbsMoveMsg->ini_maxjerk); // TO NML channel
@@ -1789,7 +1803,16 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 				  ((EMC_MOTION_SET_DOUT *) cmd)->end,
 				  ((EMC_MOTION_SET_DOUT *) cmd)->now);
 	break;
-
+    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
+           retval = emcMotionSetSyncInput(((EMC_MOTION_SET_SYNC_INPUT *) cmd)->index,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->wait_type,
+                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->timeout);
+           break;
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+        retval = emcMotionSetImmediatePos(((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->axis,
+                                             ((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->pos);
+        break;
     case EMC_MOTION_ADAPTIVE_TYPE:
 	retval = emcTrajSetAFEnable(((EMC_MOTION_ADAPTIVE *) cmd)->status);
 	break;
@@ -2207,6 +2230,8 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_MOTION_SET_AOUT_TYPE:
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
+    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
 

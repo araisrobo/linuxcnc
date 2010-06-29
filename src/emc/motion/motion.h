@@ -133,6 +133,7 @@ extern "C" {
 	EMCMOT_SET_DOUT,        /* sets or unsets a DIO, this can be imediate or synched with motion */
 	EMCMOT_SET_AOUT,	/* sets or unsets a AIO, this can be imediate or synched with motion */
         EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
+        EMCMOT_SET_SYNC_INPUT,
 
 	EMCMOT_SET_SPINDLE_VEL,	/* set the spindle vel (>0 means forward, <0 means backward) */
 	EMCMOT_SPINDLE_ON,	/* start the spindle */
@@ -167,6 +168,7 @@ extern "C" {
         EMCMOT_SET_AXIS_POSITION_LIMITS, /* set the axis position +/- limits */
         EMCMOT_SET_AXIS_VEL_LIMIT,      /* set the max axis vel */
         EMCMOT_SET_AXIS_ACC_LIMIT,      /* set the max axis acc */
+        EMCMOT_SET_IMMEDIATE_POS,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -230,6 +232,8 @@ extern "C" {
 	int wdWait;		/* cycle to wait before toggling wd */
 	int debug;		/* debug level, from DEBUG in .ini file */
 	unsigned char now, out, start, end;	/* these are related to synched AOUT/DOUT. now=wether now or synched, out = which gets set, start=start value, end=end value */
+	int wait_type;
+	double timeout;
 	unsigned char mode;	/* used for turning overrides etc. on/off */
 	double comp_nominal, comp_forward, comp_reverse; /* compensation triplet, nominal, forward, reverse */
         unsigned char probe_type; /* ~1 = error if probe operation is unsuccessful (ngc default)
@@ -701,6 +705,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 
         int numAIO;             /* userdefined number of analog IO. default is 4. (EMCMOT_MAX_AIO=16), 
                                    but can be altered at motmod insmod time */
+        int numSyncIn;
 
 /*! \todo FIXME - all structure members beyond this point are in limbo */
 
