@@ -65,9 +65,17 @@ typedef struct {
     RIGIDTAP_STATE state;
 } PmRigidTap;
 
+// S_10 for Pausing
+// S_9 for speed up
+// S_8 for speed down
+// S_X_1
 enum state_type {
-  ACCEL_S0=0, ACCEL_S1, ACCEL_S2, ACCEL_S3, ACCEL_S4, ACCEL_S5,
-  ACCEL_S6, ACCEL_S7
+  ACCEL_S0=0, ACCEL_S1, ACCEL_S2, ACCEL_S2_8, ACCEL_S2_10, ACCEL_S3, ACCEL_S4, ACCEL_S4_8,
+  ACCEL_S4_10, ACCEL_S5,
+  ACCEL_S6, ACCEL_S6_8, ACCEL_S6_10, ACCEL_S7, ACCEL_S8_0, ACCEL_S8_1, ACCEL_S8_2,
+  ACCEL_S8_3, ACCEL_S8_4, ACCEL_S8_5, ACCEL_S8_6, ACCEL_S9_0, ACCEL_S9_1, ACCEL_S9_2,
+  ACCEL_S9_3, ACCEL_S9_4, ACCEL_S9_5, ACCEL_S9_6, ACCEL_S10_0, ACCEL_S10_2,
+  ACCEL_S10_3, ACCEL_S10_4, ACCEL_S10_5, ACCEL_S10_6,
 };
 
 typedef struct {
@@ -79,6 +87,8 @@ typedef struct {
     double motion_target;
     double motion_distance_to_go;
     int    motion_param_set;
+    double ori_reqvel;      // track of original reqvel in this tc
+    double ori_feed_override; // track of original feed override
     double reqvel;          // vel requested by F word, calc'd by task
     double maxaccel;        // accel calc'd by task
     double jerk;            // the accelrate of accel
@@ -88,6 +98,8 @@ typedef struct {
     double cur_accel;       // keep track of current acceleration
     double accel_dist;      // keep track of acceleration distance
     double accel_time;      // keep track of acceleration time
+    double vel_from;        // track velocity before speed change
+    int    pausing;
     nurbs_block_t nurbs_block; // nurbs command block
     double *N;                  // nurbs basis function buffer
     enum state_type accel_state;
