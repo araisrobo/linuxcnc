@@ -140,7 +140,7 @@
 #define MAX_STEP_CUR 255
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -336,7 +336,7 @@ int rtapi_app_main(void)
 
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
-    dptrace = fopen("wou_steps.log", "w");
+    dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
     DPS ("#%10s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s\n", 
           "dt",  "pos_cmd[0]", "cur_pos[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", "home[0]",
@@ -456,22 +456,6 @@ int rtapi_app_main(void)
             return -1;
         }*/
     }
-
-//move to update_freq():    // TODO: add a SON signal for JCMD_CTRL
-//move to update_freq():    // JCMD_CTRL: 
-//move to update_freq():    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-//move to update_freq():    //  [bit-1]: SIF_EN, servo interface enable
-//move to update_freq():    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
-//move to update_freq():    data[0] = 3;
-//move to update_freq():    ret = wou_cmd (&w_param,
-//move to update_freq():                   (WB_WR_CMD | WB_AI_MODE),
-//move to update_freq():                   (JCMD_BASE | JCMD_CTRL),
-//move to update_freq():                   1,
-//move to update_freq():                   data);
-//move to update_freq():    if (ret) {
-//move to update_freq():        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
-//move to update_freq():        return -1;
-//move to update_freq():    }
 
     wou_flush(&w_param);
     
@@ -632,7 +616,7 @@ static void update_freq(void *arg, long period)
     // ret, data[]: for wou_cmd()
     uint8_t data[MAX_DSIZE];
     uint64_t sync_io_data;
-    int     ret;
+    // int     ret;
     
     // for homing:
     uint8_t r_rst_pos;
@@ -683,15 +667,6 @@ static void update_freq(void *arg, long period)
         // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_en(0x%02X) prev_switch_en(0x%02X)\n", 
         //                               r_switch_en, prev_r_switch_en);
         prev_r_switch_en = r_switch_en;
-        //DEBUG: // DEBUG: observe switch_pos
-        //DEBUG: for (n = 0; n < num_chan; n++) {
-        //DEBUG:     hal_s32_t switch_pos_tmp;
-        //DEBUG:     /* update home switch position while homing */
-        //DEBUG:     memcpy ((void *)&switch_pos_tmp, 
-        //DEBUG:             wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_POS + n*4), 
-        //DEBUG:             4);
-        //DEBUG:     rtapi_print_msg(RTAPI_MSG_DBG, "WOU: j[%d] switch_pos(0x%08X)\n", n, switch_pos_tmp);
-        //DEBUG: }
     }
 
     // read SSIF_INDEX_LOCK
@@ -740,7 +715,7 @@ static void update_freq(void *arg, long period)
     wou_flush(&w_param);
   }
 
-  /* process motion synchronized input ++++*/
+  /* begin: process motion synchronized input */
 /* handle with pin index
  * sync_io_data = 0;
   for (i=0; i < m_control->num_sync_in; i++) {
@@ -754,48 +729,21 @@ static void update_freq(void *arg, long period)
 
 
       // write a wou frame for sync output into command FIFO
-     /*
+    /*
          ret = wou_cmd (&w_param,
                         (WB_WR_CMD | WB_AI_MODE),
                         GPIO_BASE | GPIO_OUT,
                         1,
                         data);
-         assert (ret==0);
-     */
+      assert (ret==0);
+      wou_flush(&w_param);*/
       *(m_control->sync_in_trigger) = 0;
-      wou_flush(&w_param);
 
   }
 
+  /* end: process motion synchronized input */
 
-
-/*  // shoule motion synchronized command have to do following check??
-     wou.gpio.out.00 is mapped to SVO-ON
-    // JCMD_CTRL:
-    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-    //  [bit-1]: SIF_EN, servo interface enable
-    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
-    if (*(gpio->out[0])) {
-        data[0] = 3;    // SVO-ON
-    } else {
-        data[0] = 4;    // SVO-OFF
-    }
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   (JCMD_BASE | JCMD_CTRL),
-                   1,
-                   data);
-    if (ret) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
-        return;
-    }
-*/
-
-
-  /* process motion synchronized input ----*/
-
-  /* process motion synchronized output ++++*/
-  TODO..
+  /* begin: process motion synchronized output */
   sync_io_data = 0;
   for (i=0; i < m_control->num_sync_out; i++) {
       sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
@@ -812,33 +760,12 @@ static void update_freq(void *arg, long period)
                    1,
                    data);
     assert (ret==0);
-*/
 
-/*  // shoule motion synchronized command have to do following check??
-     wou.gpio.out.00 is mapped to SVO-ON
-    // JCMD_CTRL:
-    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-    //  [bit-1]: SIF_EN, servo interface enable
-    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
-    if (*(gpio->out[0])) {
-        data[0] = 3;    // SVO-ON
-    } else {
-        data[0] = 4;    // SVO-OFF
-    }
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   (JCMD_BASE | JCMD_CTRL),
-                   1,
-                   data);
-    if (ret) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
-        return;
-    }
-*/
     wou_flush(&w_param);
+*/
   }
 
-  /* process motion synchronized output ----*/
+  /* end: process motion synchronized output */
   /* point at stepgen data */
   stepgen = arg;
  
@@ -867,6 +794,19 @@ static void update_freq(void *arg, long period)
                   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_POS + n*4), 
                   4);
           
+          wou_cmd (&w_param,
+                   WB_RD_CMD,
+                   (SSIF_BASE + SSIF_SWITCH_POS + n*4),
+                   4,
+                   data);
+
+          wou_cmd (&w_param,
+                   WB_RD_CMD,
+                   (SSIF_BASE + SSIF_INDEX_POS + n*4),
+                   4,
+                   data);
+
+
           *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
           *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
           
@@ -916,7 +856,7 @@ static void update_freq(void *arg, long period)
       /* move on to next channel */
       stepgen++;
     }
-
+    
   /* check if we should clear SWITCH/INDEX positions for HOMING */
   if (r_rst_pos != 0) {
     // issue a WOU_WRITE 
@@ -957,12 +897,26 @@ static void update_freq(void *arg, long period)
     prev_r_index_en = r_index_en;
   }
 
-  stepgen = arg;
-  for (n = 0; n < num_chan; n++) {
-    /* update registers from FPGA */
-    memcpy ((void *)stepgen->pulse_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 4);
-    memcpy ((void *)stepgen->enc_pos, wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n*4), 4);
+    //bug: // replace "bp_reg_update"
+    //bug: // send WB_RD_CMD to read registers back
+    //bug: wou_cmd (&w_param,
+    //bug:        WB_RD_CMD,
+    //bug:        (SSIF_BASE + SSIF_PULSE_POS),
+    //bug:        34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
+    //bug:        data);
+    //bug: wou_flush(&w_param);
     
+
+    stepgen = arg;
+    for (n = 0; n < num_chan; n++) {
+        /* update registers from FPGA */
+        memcpy ((void *)stepgen->pulse_pos, 
+                wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n*4), 
+                4);
+        memcpy ((void *)stepgen->enc_pos, 
+                wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n*4),
+                4);
+
     /**
      * Use pulse_pos because there's no enc_pos for stepping motor driver.
      * Also, there's no too much difference between pulse_pos and enc_pos
@@ -1183,7 +1137,6 @@ static void update_freq(void *arg, long period)
     /* move on to next channel */
     stepgen++;
   }
-  
 #if (TRACE!=0)
   if (*(stepgen-1)->enable) {
     DPS("\n");
