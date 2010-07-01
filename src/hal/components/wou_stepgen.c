@@ -749,15 +749,6 @@ static void update_freq(void *arg, long period)
 		   wou_reg_ptr(&w_param,
 			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
 
-	    wou_cmd(&w_param,
-		    WB_RD_CMD,
-		    (SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4, data);
-
-	    wou_cmd(&w_param,
-		    WB_RD_CMD,
-		    (SSIF_BASE + SSIF_INDEX_POS + n * 4), 4, data);
-
-
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
 
@@ -837,11 +828,15 @@ static void update_freq(void *arg, long period)
     
     // replace "bp_reg_update"
     // send WB_RD_CMD to read registers back
-    wou_cmd (&w_param,
-           WB_RD_CMD,
+    wou_cmd (&w_param, WB_RD_CMD,
            (SSIF_BASE + SSIF_PULSE_POS),
            34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
            data);
+
+    wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS, 
+            32, // SSIF_SWITCH_POS, SSIF_INDEX_POS
+            data);
+
     wou_flush(&w_param);
     
     stepgen = arg;
