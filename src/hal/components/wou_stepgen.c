@@ -184,6 +184,7 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 // static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
+static int pending_cnt = 0;
 
 
 /***********************************************************************
@@ -347,6 +348,7 @@ int rtapi_app_main(void)
     /* prepare header for gnuplot */
     DPS("#%10s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s\n", "dt", "pos_cmd[0]", "cur_pos[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", "home[0]", "pos_cmd[1]", "cur_pos[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]", "home[1]", "pos_cmd[2]", "cur_pos[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]", "home[2]", "pos_cmd[3]", "cur_pos[3]", "pos_fb[3]", "match_ac[3]", "curr_vel[3]", "home[3]");
 #endif
+
 
     /* test for bitfile string: bits */
     if ((bits == 0) || (bits[0] == '\0')) {
@@ -610,8 +612,8 @@ static void update_freq(void *arg, long period)
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     // /* check and update WOU Registers */
-    DP("before wou_update()\n");
-    wou_update(&w_param);
+//    DP("before wou_update()\n");
+//    wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
     if (memcmp
@@ -828,18 +830,35 @@ static void update_freq(void *arg, long period)
     
     // replace "bp_reg_update"
     // send WB_RD_CMD to read registers back
-    wou_cmd (&w_param, WB_RD_CMD,
-           (SSIF_BASE + SSIF_PULSE_POS),
-           34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
-           data);
+//    wou_cmd (&w_param, WB_RD_CMD,
+//           (SSIF_BASE + SSIF_PULSE_POS),
+//           34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
+//           data);
 
-    wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS, 
-            32, // SSIF_SWITCH_POS, SSIF_INDEX_POS
-            data);
+    // responsible for motion sluggish?ss
 
-    wou_flush(&w_param);
+    if (pending_cnt == 0) {
+        wou_cmd (&w_param, WB_RD_CMD,
+               (SSIF_BASE + SSIF_PULSE_POS),
+               16,  // SSIF_PULSE_POS, SSIF_SWITCH_IN
+               data);
+        wou_cmd (&w_param, WB_RD_CMD,
+               (SSIF_BASE + SSIF_SWITCH_IN),
+               2,  // SSIF_SWITCH_IN
+               data);
+        // for homing
+        wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
+                16, // SSIF_SWITCH_POS
+                data);
+        wou_flush(&w_param);
+        pending_cnt = 2;
+    }
+    pending_cnt --;
     
     stepgen = arg;
+    // if (*stepgen->enable == 0) {
+
+    // }
     for (n = 0; n < num_chan; n++) {
 	/* update registers from FPGA */
 	memcpy((void *) stepgen->pulse_pos,
