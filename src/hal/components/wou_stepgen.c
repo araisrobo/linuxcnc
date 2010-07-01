@@ -850,7 +850,7 @@ static void update_freq(void *arg, long period)
         wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
                 16, // SSIF_SWITCH_POS
                 data);
-        wou_flush(&w_param);
+        // wou_flush(&w_param);
         pending_cnt = 2;
     }
     pending_cnt --;
