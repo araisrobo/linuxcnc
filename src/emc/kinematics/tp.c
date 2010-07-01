@@ -824,8 +824,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             fprintf(stderr,"at S0\n");
             // handle speed up / down / pause
             if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
-                tc->accel_state = ACCEL_S10_0;
+                fprintf(stderr,"S0 pause detected 1\n");
+                tc->accel_state = ACCEL_S10_0; // into pausing
                 immediate_state = 1;
+                break;
             } else if ((tc->reqvel * tc->feed_override) > (tc->ori_reqvel
                     * tc->ori_feed_override)) {
                 // speed up
@@ -856,6 +858,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             // hit velocity limit
 
             if (newvel * 2.0 >= tc->reqvel * tc->feed_override) {
+/*                if(tc->reqvel * tc->feed_override == 0) {
+                    fprintf(stderr,"S0 pause detected 2\n");
+                    tc->accel_state = ACCEL_S10_0; // into pausing
+                    immediate_state = 1;
+                    newvel = tc->currentvel;
+                    newaccel = tc->cur_accel;
+                    break;
+                }*/
                 fprintf(stderr,"S0 hit velocity limit\n");
                 tc->accel_state = ACCEL_S2;
                 if (tc->reqvel * tc->feed_override == 0) {
@@ -1157,13 +1167,17 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             break;
         case ACCEL_S9_6:
             break;
-        case ACCEL_S10_0:
+        case ACCEL_S10_0: // pausing from S0
+            fprintf(stderr,"at S10_0\n");
             tc->pausing = 1;
-            tc->accel_state = ACCEL_S2_10;
+            tc->accel_state = ACCEL_S2_10; // into S2 for S10
             tc->vel_from = tc->currentvel;
+            tc->motion_target = tc->accel_time*2*2*tc->currentvel;
+            tc->motion_progress = 0;
             immediate_state = 1;
             break;
         case ACCEL_S2_10:
+            fprintf(stderr,"at S2_10\n");
             newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
             if (newaccel <= 0) {
@@ -1199,7 +1213,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
              tc->accel_state = ACCEL_S7;
              //   tc->accel_time = tc->currentvel;
              }*/
-            if (newvel <= 0) {
+            if (tc->motion_progress > tc->motion_target) {
                 newvel = 0;
                 newaccel = 0;
                 tc->accel_state = ACCEL_S7;
