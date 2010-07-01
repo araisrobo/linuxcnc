@@ -1008,9 +1008,16 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
 void tpToggleDIOs(TC_STRUCT * tc) {
     int i=0;
     if (tc->syncdio.anychanged != 0) { // we have DIO's to turn on or off
+        fprintf(stderr,"tpToggleDIOs syncdio changed\n");
 	for (i=0; i < emcmotConfig->numDIO; i++) {
-	    if (tc->syncdio.dios[i] > 0) emcmotDioWrite(i, 1); // turn DIO[i] on
-	    if (tc->syncdio.dios[i] < 0) emcmotDioWrite(i, 0); // turn DIO[i] off
+	    if (tc->syncdio.dios[i] > 0) {
+	        fprintf(stderr,"set DOUT(%d) %d\n", i, tc->syncdio.dios[i]);
+	        emcmotDioWrite(i, 1); // turn DIO[i] on
+	    }
+	    if (tc->syncdio.dios[i] < 0) {
+	        fprintf(stderr,"set DOUT(%d) %d\n", i, tc->syncdio.dios[i]);
+	        emcmotDioWrite(i, 0); // turn DIO[i] off
+	    }
 	}
 	tc->syncdio.anychanged = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }

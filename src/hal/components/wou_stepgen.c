@@ -575,7 +575,9 @@ static void update_freq(void *arg, long period)
     double physical_maxvel;	// max vel supported by current step timings & position-scale
     double maxvel;		// actual max vel to use this time
 
+    uint16_t sync_cmd;
     int wou_pos_cmd;
+    int j;
     // ret, data[]: for wou_cmd()
     uint8_t data[MAX_DSIZE];
     uint64_t sync_io_data;
@@ -678,48 +680,37 @@ static void update_freq(void *arg, long period)
       m_control->prev_in = sync_io_data
   }*/
     if (*(m_control->sync_in_trigger) != 0) {
-	printf("sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
+	fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
 	       *(m_control->sync_in), *(m_control->wait_type),
 	       *(m_control->timeout));
+        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
 
-
-	// write a wou frame for sync output into command FIFO
-	/*
-	   ret = wou_cmd (&w_param,
-	   (WB_WR_CMD | WB_AI_MODE),
-	   GPIO_BASE | GPIO_OUT,
-	   1,
-	   data);
-	   assert (ret==0);
-	   wou_flush(&w_param); */
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
+                        sizeof(uint16_t), &sync_cmd);
 	*(m_control->sync_in_trigger) = 0;
-
     }
 
     /* end: process motion synchronized input */
 
     /* begin: process motion synchronized output */
     sync_io_data = 0;
+    j = 0;
     for (i = 0; i < m_control->num_sync_out; i++) {
+        if(((m_control->prev_out >> i) & 0x01) !=
+                ((*(m_control->sync_out[i]) & 1))) {
+            sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(m_control->sync_out[i]));
+            memcpy (data + j*sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
+            j ++;
+            fprintf(stderr,"SYNC OUT detected pin(%d) \n",i);
+        }
 	sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
+       // write a wou frame for sync input into command FIFO
     }
-
-    if (sync_io_data != m_control->prev_out) {
-	m_control->prev_out = sync_io_data;
-
-	// write a wou frame for sync input into command FIFO
-/*
-    ret = wou_cmd (&w_param,
-                   (WB_WR_CMD | WB_AI_MODE),
-                   GPIO_BASE | GPIO_OUT,
-                   1,
-                   data);
-    assert (ret==0);
-
-    wou_flush(&w_param);
-*/
+    if (j > 0) {
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
+                        j*sizeof(uint16_t), data);
+        m_control->prev_out = sync_io_data;
     }
-   
     /* end: process motion synchronized output */
     /* point at stepgen data */
     stepgen = arg;
@@ -840,18 +831,18 @@ static void update_freq(void *arg, long period)
     if (pending_cnt == 0) {
         wou_cmd (&w_param, WB_RD_CMD,
                (SSIF_BASE + SSIF_PULSE_POS),
-               16,  // SSIF_PULSE_POS, SSIF_SWITCH_IN
+               64,  // SSIF_PULSE_POS, SSIF_SWITCH_IN
                data);
-        wou_cmd (&w_param, WB_RD_CMD,
-               (SSIF_BASE + SSIF_SWITCH_IN),
-               2,  // SSIF_SWITCH_IN
-               data);
-        // for homing
-        wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
-                16, // SSIF_SWITCH_POS
-                data);
+//        wou_cmd (&w_param, WB_RD_CMD,
+//               (SSIF_BASE + SSIF_SWITCH_IN),
+//               2,  // SSIF_SWITCH_IN
+//               data);
+//        // for homing
+//        wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
+//                16, // SSIF_SWITCH_POS
+//                data);
         // wou_flush(&w_param);
-        pending_cnt = 2;
+        pending_cnt = 3;
     }
     pending_cnt --;
     
@@ -1052,7 +1043,7 @@ static void update_freq(void *arg, long period)
 	assert(wou_pos_cmd > -8192);
 
 	{
-	    uint16_t sync_cmd;
+
 
 	    // SYNC_JNT: opcode for SYNC_JNT command
 	    // DIR_P: Direction, (positive(1), negative(0))
