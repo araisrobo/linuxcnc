@@ -140,7 +140,7 @@
 #define MAX_STEP_CUR 255
 
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -167,8 +167,8 @@ int gpio_mask_in1 = -1;
 RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
 int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
-int jcmd_dir_pol = -1;
-RTAPI_MP_INT(jcmd_dir_pol, "WOU Register Value for JCMD_DIR_POL");
+// int jcmd_dir_pol = -1;
+// RTAPI_MP_INT(jcmd_dir_pol, "WOU Register Value for JCMD_DIR_POL");
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
@@ -372,10 +372,6 @@ int rtapi_app_main(void)
 	// un-mask HOME-SWITCH inputs (bits_i[5:2])
 	data[0] = (uint8_t) gpio_mask_in0;
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN0, 1, data);
-	/* if (ret) {
-	   rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_LEDS_SEL\n");
-	   return -1;
-	   } */
     }
 
     /* test for GPIO_MASK_IN1: gpio_mask_in1 */
@@ -387,10 +383,6 @@ int rtapi_app_main(void)
 	// un-mask HOME-SWITCH inputs (bits_i[5:2])
 	data[0] = (uint8_t) gpio_mask_in1;
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN1, 1, data);
-/*        if (ret) {
-	    rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_MASK_IN1\n");
-            return -1;
-        }*/
     }
 
 
@@ -403,31 +395,8 @@ int rtapi_app_main(void)
 	// select signals for LEDs
 	data[0] = (uint8_t) gpio_leds_sel;
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
-	/* if (ret) {
-	   rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing GPIO_LEDS_SEL\n");
-	   return -1;
-	   } */
     }
 
-    /*   // test for JCMD_DIR_POL: jcmd_dir_pol
-       if ((jcmd_dir_pol == -1)) {
-       rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: no value for JCMD_DIR_POL: jcmd_dir_pol\n");
-       return -1;
-       } else {
-       // JCMD_DIR_POL: Direction Polarity to compensate mechanical direction
-       data[0] = (uint8_t) jcmd_dir_pol;
-       ret = wou_cmd (&w_param,
-       WB_WR_CMD,
-       JCMD_BASE | JCMD_DIR_POL,
-       1,
-       data);
-       // rtapi_print_msg(RTAPI_MSG_ERR, "WOU: DEBUG: JCMD_DIR_POL=%d\n", jcmd_dir_pol);
-       if (ret) {
-       rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_DIR_POL\n");
-       return -1;
-       }
-       }
-     */
     /* test for stepping motor current limit: step_cur */
     num_chan = 0;
     for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
@@ -444,12 +413,8 @@ int rtapi_app_main(void)
 	// wirte SSIF_MAX_PWM to USB with Automatically Address Increment
 	wou_cmd(&w_param,
 		WB_WR_CMD, (SSIF_BASE | SSIF_MAX_PWM), num_chan, data);
-	/*    if (ret) {
-	   rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing SSIF_MAX_PWM\n");
-	   return -1;
-	   } */
     }
-
+    
     wou_flush(&w_param);
 
     num_chan = 0;
@@ -645,8 +610,8 @@ static void update_freq(void *arg, long period)
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     // /* check and update WOU Registers */
-    // DP("before wou_update()\n");
-    // wou_update(&w_param);
+    DP("before wou_update()\n");
+    wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
     if (memcmp
@@ -687,7 +652,6 @@ static void update_freq(void *arg, long period)
 	gpio->prev_out = data[0];
 	// issue a WOU_WRITE while got new GPIO.OUT value
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
-//    assert (ret==0);
 
 	/* wou.gpio.out.00 is mapped to SVO-ON */
 	// JCMD_CTRL: 
@@ -700,11 +664,6 @@ static void update_freq(void *arg, long period)
 	    data[0] = 4;	// SVO-OFF
 	}
 	wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-	/*if (ret) {
-	   rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: writing JCMD_CTRL\n");
-	   return;
-	   } */
-
 	wou_flush(&w_param);
     }
 
@@ -758,7 +717,7 @@ static void update_freq(void *arg, long period)
     wou_flush(&w_param);
 */
     }
-
+   
     /* end: process motion synchronized output */
     /* point at stepgen data */
     stepgen = arg;
@@ -772,6 +731,8 @@ static void update_freq(void *arg, long period)
 
     // num_chan: 4, calculated from step_type;
     /* loop thru generators */
+    
+    DP("before checking home_state...\n");
 
     r_rst_pos = 0;
     r_switch_en = 0;
@@ -787,15 +748,6 @@ static void update_freq(void *arg, long period)
 	    memcpy((void *) &index_pos_tmp,
 		   wou_reg_ptr(&w_param,
 			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-
-	    wou_cmd(&w_param,
-		    WB_RD_CMD,
-		    (SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4, data);
-
-	    wou_cmd(&w_param,
-		    WB_RD_CMD,
-		    (SSIF_BASE + SSIF_INDEX_POS + n * 4), 4, data);
-
 
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
@@ -852,7 +804,6 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, &r_rst_pos);
 	// fprintf(stderr, "wou: r_rst_pos(0x%x)\n", r_rst_pos);
-//    assert (ret==0);
 	wou_flush(&w_param);
     }
 
@@ -862,7 +813,6 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_SWITCH_EN, 1, &r_switch_en);
 	// fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-//    assert (ret==0);
 	wou_flush(&w_param);
     }
 
@@ -872,22 +822,23 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_INDEX_EN, 1, &r_index_en);
 	// fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
-//    assert (ret==0);
 	wou_flush(&w_param);
 	prev_r_index_en = r_index_en;
     }
     
     // replace "bp_reg_update"
     // send WB_RD_CMD to read registers back
-    wou_cmd (&w_param,
-           WB_RD_CMD,
+    wou_cmd (&w_param, WB_RD_CMD,
            (SSIF_BASE + SSIF_PULSE_POS),
            34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
            data);
+
+    wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS, 
+            32, // SSIF_SWITCH_POS, SSIF_INDEX_POS
+            data);
+
     wou_flush(&w_param);
-
-    DP("jcmd-loop\n");
-
+    
     stepgen = arg;
     for (n = 0; n < num_chan; n++) {
 	/* update registers from FPGA */
@@ -1110,7 +1061,6 @@ static void update_freq(void *arg, long period)
 		wou_cmd(&w_param,
 			WB_WR_CMD,
 			(JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
-//        assert (ret==0);
 	    }
 	}
 
