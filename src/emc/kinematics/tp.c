@@ -955,8 +955,22 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(newvel >= 0);
             break;
         case ACCEL_S3:
-            newaccel = 0;
             fprintf(stderr,"at S3\n");
+            // handle speed up / down
+            if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
+                fprintf(stderr,"S3 pause detected 1\n");
+                tc->accel_state = ACCEL_S10_3; // into pausing
+                immediate_state = 1;
+                break;
+            } /* else if((tc->reqvel > tc->ori_reqvel) || (tc->ori_feed_override > tc->ori_feed_override)) {
+             // speed up
+             tc->accel_state = ACCEL_S8_3;
+             } else if((tc->reqvel < tc->ori_reqvel) || (tc->ori_feed_override < tc->ori_feed_override)) {
+             // speed down
+             tc->accel_state = ACCEL_S9_3;
+             }
+             */
+            newaccel = 0;
             newvel = tc->currentvel;
             if (tc->motion_distance_to_go <= tc->accel_dist) {
                 tc->accel_state = ACCEL_S4;
@@ -967,21 +981,23 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->accel_state = ACCEL_S4;
                 tc->accel_time = tc->currentvel;
             }
-            // handle speed up / down
-            /*
-             if((tc->reqvel > tc->ori_reqvel) || (tc->ori_feed_override > tc->ori_feed_override)) {
-             // speed up
-             tc->accel_state = ACCEL_S8_3;
-             } else if((tc->reqvel < tc->ori_reqvel) || (tc->ori_feed_override < tc->ori_feed_override)) {
-             // speed down
-             tc->accel_state = ACCEL_S9_3;
-             }
-             */
+
 
             break;
             assert(newvel >= 0);
         case ACCEL_S4:
             fprintf(stderr,"at S4\n");
+
+            // handle speed up / down
+            /*
+             if((tc->reqvel > tc->ori_reqvel) || (tc->ori_feed_override > tc->ori_feed_override)) {
+             // speed up
+             tc->accel_state = ACCEL_S8_4;
+             } else if((tc->reqvel < tc->ori_reqvel) || (tc->ori_feed_override < tc->ori_feed_override)) {
+             // speed down
+             tc->accel_state = ACCEL_S9_4;
+             }
+             */
             newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
             if ((newaccel <= -tc->maxaccel )
@@ -1000,17 +1016,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 fprintf(stderr,"S4 to S6 , newvel(%f) <= 0.5 * tc->accel_time(%f)\n",newvel, tc->accel_time);
                 tc->accel_state = ACCEL_S6;
             }
-            // handle speed up / down
-            /*
-             if((tc->reqvel > tc->ori_reqvel) || (tc->ori_feed_override > tc->ori_feed_override)) {
-             // speed up
-             tc->accel_state = ACCEL_S8_4;
-             } else if((tc->reqvel < tc->ori_reqvel) || (tc->ori_feed_override < tc->ori_feed_override)) {
-             // speed down
-             tc->accel_state = ACCEL_S9_4;
-             }
-             */
-
             assert(newvel >= 0); //TODO-eric: Somehow feedoverride 0% cause newvel on S4 below 0.0
             break;
         case ACCEL_S5:
@@ -1178,6 +1183,50 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         case ACCEL_S9_5:
             break;
         case ACCEL_S9_6:
+            break;
+        case ACCEL_S10_3:  // pausing from S3
+            fprintf(stderr,"ACCEL_S10_3\n");
+            immediate_state = 1;
+            tc->pausing = 1;
+            tc->accel_state = ACCEL_S4_10_3;
+            tc->vel_from = tc->currentvel;
+            break;
+        case ACCEL_S4_10_3:
+            fprintf(stderr,"S4_10_3\n ");
+            newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
+            newvel = tc->currentvel + newaccel * tc->cycle_time;
+            if ((newaccel <= -tc->maxaccel)) {
+               tc->accel_state = ACCEL_S5_10_3;
+               newaccel = -tc->maxaccel;
+               break;
+            }
+            // hit velocity limit
+            if (newvel <= 0.5 * (tc->vel_from )) { // velocity transaction point
+                tc->accel_state = ACCEL_S6_10_3;
+            }
+            assert(newaccel <= 0);
+
+            break;
+        case ACCEL_S5_10_3:
+            fprintf(stderr,"S5_10_3\n");
+            newaccel = tc->cur_accel;
+            newvel = tc->currentvel + newaccel * tc->cycle_time;
+
+            if (newvel <= tc->accel_time) { // accel_time stores the delta-V for ACCEL_S4
+                newvel = tc->accel_time;
+                tc->accel_state = ACCEL_S6_10_3;
+                tc->accel_time = tc->currentvel;
+            }
+            break;
+        case ACCEL_S6_10_3:
+            fprintf(stderr,"S6_10_3\n");
+            newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
+            newvel = tc->currentvel + newaccel * tc->cycle_time;
+            if (newvel > tc->currentvel) {
+                newvel = 0;
+                newaccel = 0;
+                tc->accel_state = ACCEL_S7;
+            }
             break;
         case ACCEL_S10_2: // pausing from S2
             fprintf(stderr,"ACCEL_S10_2\n");
