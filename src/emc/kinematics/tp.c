@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STATE_DEBUG 1  // for state machine debug
+#define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include <stdint.h>
