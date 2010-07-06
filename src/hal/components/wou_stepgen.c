@@ -161,10 +161,16 @@ RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 		      "control type (pos or vel) for up to 8 channels");
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
+
+int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
+RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
+
 int gpio_mask_in0 = -1;
 RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
+
 int gpio_mask_in1 = -1;
 RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
+
 int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
 // int jcmd_dir_pol = -1;
@@ -179,12 +185,11 @@ int num_sync_out = 8;
 RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 
 
-
 static const char *board = "7i43u";
 static const char wou_id = 0;
 // static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
-static int pending_cnt = 0;
+// static int pending_cnt = 0;
 
 
 /***********************************************************************
@@ -203,6 +208,7 @@ typedef struct {
     /* stuff that is both read and written by makepulses */
     volatile long long accum;	/* frequency generator accumulator */
     /* stuff that is read but not written by makepulses */
+    hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
     hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
@@ -269,9 +275,6 @@ typedef struct {
 
 } m_control_t;
 
-
-
-
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
 static gpio_t *gpio;
@@ -315,9 +318,6 @@ static const unsigned char num_phases_lut[] =
 /* other globals */
 static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
-static long periodns;		/* makepulses function period in nanosec */
-static long old_periodns;	/* used to detect changes in periodns */
-static long old_dtns;		/* update_freq funct period in nsec */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
 
@@ -445,15 +445,17 @@ int rtapi_app_main(void)
 	return -1;
     }
 
-    /* periodns will be set to the proper value when 'make_pulses()' runs for 
-       the first time.  We load a default value here to avoid glitches at
-       startup, but all these 'constants' are recomputed inside
-       'update_freq()' using the real period. */
-    old_periodns = periodns = 50000;
-    old_dtns = 1310720;
-    /* precompute some constants */
-    dt = old_dtns * 0.000000001;
-    recip_dt = 1.0 / dt;
+    /* test for dt: servo_period_ns */
+    if ((servo_period_ns == -1)) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"WOU: ERROR: no value for servo_period_ns\n");
+	return -1;
+    } else {
+        /* precompute some constants */
+        dt = (double) servo_period_ns * 0.000000001;
+        recip_dt = 1.0 / dt;
+    }
+
     /* have good config info, connect to the HAL */
     comp_id = hal_init("wou");
     if (comp_id < 0) {
@@ -598,11 +600,6 @@ static void update_freq(void *arg, long period)
        don't really need their own variables.  They are used either for
        clarity, or because that's how the code evolved.  This algorithm
        could use some cleanup and optimization. */
-    /* this periodns stuff is a little convoluted because we need to
-       calculate some constants here in this relatively slow thread but the
-       constants are based on the period of the much faster 'make_pulses()'
-       thread. */
-
     /* This function exports a lot of stuff, which results in a lot of
        logging if msg_level is at INFO or ALL. So we save the current value
        of msg_level and restore it later.  If you actually need to log this
@@ -610,6 +607,9 @@ static void update_freq(void *arg, long period)
     int msg;
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
+
+    // print out tx/rx data rate
+    wou_status(&w_param);
 
     // /* check and update WOU Registers */
 //    DP("before wou_update()\n");
@@ -654,18 +654,6 @@ static void update_freq(void *arg, long period)
 	gpio->prev_out = data[0];
 	// issue a WOU_WRITE while got new GPIO.OUT value
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
-
-	/* wou.gpio.out.00 is mapped to SVO-ON */
-	// JCMD_CTRL: 
-	//  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-	//  [bit-1]: SIF_EN, servo interface enable
-	//  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
-	if (*(gpio->out[0])) {
-	    data[0] = 3;	// SVO-ON
-	} else {
-	    data[0] = 4;	// SVO-OFF
-	}
-	wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
 	wou_flush(&w_param);
     }
 
@@ -734,7 +722,7 @@ static void update_freq(void *arg, long period)
     // num_chan: 4, calculated from step_type;
     /* loop thru generators */
     
-    DP("before checking home_state...\n");
+    // DP("before checking home_state...\n");
 
     r_rst_pos = 0;
     r_switch_en = 0;
@@ -753,9 +741,6 @@ static void update_freq(void *arg, long period)
 
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
-
-	    //debug: rtapi_print_msg(RTAPI_MSG_DBG, "WOU: j[%d] switch_pos_tmp(0x%08X) switch_pos(%f)\n", 
-	    //debug:                                 n, switch_pos_tmp, *(stepgen->switch_pos));
 
 	    /* check if we should wait for HOME Switch Toggle */
 	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
@@ -830,35 +815,55 @@ static void update_freq(void *arg, long period)
     
     // replace "bp_reg_update"
     // send WB_RD_CMD to read registers back
-//    wou_cmd (&w_param, WB_RD_CMD,
-//           (SSIF_BASE + SSIF_PULSE_POS),
-//           34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
-//           data);
+    wou_cmd (&w_param, WB_RD_CMD,
+             (SSIF_BASE + SSIF_PULSE_POS),
+             34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
+             data);
+    wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
+             32, // SSIF_SWITCH_POS, SSIF_INDEX_POS
+             data);
+    wou_flush(&w_param);
 
     // responsible for motion sluggish?ss
 
-    if (pending_cnt == 0) {
-        wou_cmd (&w_param, WB_RD_CMD,
-               (SSIF_BASE + SSIF_PULSE_POS),
-               16,  // SSIF_PULSE_POS, SSIF_SWITCH_IN
-               data);
-        wou_cmd (&w_param, WB_RD_CMD,
-               (SSIF_BASE + SSIF_SWITCH_IN),
-               2,  // SSIF_SWITCH_IN
-               data);
-        // for homing
-        wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
-                16, // SSIF_SWITCH_POS
-                data);
-        // wou_flush(&w_param);
-        pending_cnt = 2;
-    }
-    pending_cnt --;
-    
-    stepgen = arg;
-    // if (*stepgen->enable == 0) {
-
+    // if (pending_cnt == 0) {
+    //    wou_cmd (&w_param, WB_RD_CMD,
+    //           (SSIF_BASE + SSIF_PULSE_POS),
+    //           16,  // SSIF_PULSE_POS, SSIF_SWITCH_IN
+    //           data);
+    //    wou_cmd (&w_param, WB_RD_CMD,
+    //           (SSIF_BASE + SSIF_SWITCH_IN),
+    //           2,  // SSIF_SWITCH_IN
+    //           data);
+    //    // for homing
+    //    wou_cmd(&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
+    //            16, // SSIF_SWITCH_POS
+    //            data);
+    //    // wou_flush(&w_param);
+    //     pending_cnt = 1;
     // }
+    // pending_cnt --;
+    
+    // check wou.stepgen.00.enable signal directly
+    stepgen = arg;
+    if (*stepgen->enable != stepgen->prev_enable) {
+        stepgen->prev_enable = *stepgen->enable;
+        // JCMD_CTRL: 
+        //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+        //  [bit-1]: SSIF_EN, servo/stepper interface enable
+        //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+        if (*stepgen->enable) {
+            data[0] = 3;	// SVO-ON, WATCHDOG-ON
+        } else {
+            data[0] = 0;	// SVO-OFF (disable SSIF_EN w/o JCMD_CTRL.RST)
+        }
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
+        wou_flush(&w_param);
+        // DP ("toggle ENABLE(%d)\n", *stepgen->enable);
+    }
+    
+    i = 0;
+    stepgen = arg;
     for (n = 0; n < num_chan; n++) {
 	/* update registers from FPGA */
 	memcpy((void *) stepgen->pulse_pos,
@@ -882,11 +887,19 @@ static void update_freq(void *arg, long period)
 
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
+            
+            /* to prevent position drift while toggeling "PWR-ON" switch */
+            stepgen->cur_pos = *stepgen->pos_fb;
+	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
+	    stepgen->vel_fb = 0;
+	    
 	    /* and skip to next one */
 	    stepgen++;
+
+            assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
+            i += 1;
 	    continue;
 	}
-        DP("joint(%d) enabled\n", n);
 
 	//
 	// first sanity-check our maxaccel and maxvel params
@@ -939,6 +952,8 @@ static void update_freq(void *arg, long period)
 	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
 
 	    velocity_error = (stepgen->vel_fb) - ff_vel;
+
+            // DP("\nDEBUG: ff_vel(%15.7f) velocity_error(%15.7f)\n", ff_vel, velocity_error);
 
 	    // Do we need to change speed to match the speed of position-cmd?
 	    // If maxaccel is 0, there's no accel limit: fix this velocity error
@@ -1046,7 +1061,8 @@ static void update_freq(void *arg, long period)
 	// calculate WOU commands
 	// each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
 	wou_pos_cmd = (int) (new_vel * stepgen->pos_scale * dt);
-	stepgen->accum += wou_pos_cmd;
+	// stepgen->accum += wou_pos_cmd;
+	stepgen->cur_pos += (double) (new_vel * dt);
 
 	assert(wou_pos_cmd < 8192);
 	assert(wou_pos_cmd > -8192);
@@ -1080,12 +1096,20 @@ static void update_freq(void *arg, long period)
 		wou_cmd(&w_param,
 			WB_WR_CMD,
 			(JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
+// #if(TRACE)
+//                 DP ("JCMD_SYNC_CMD: joints(%d), ", num_chan);
+//                 for (i=0; (i<2*num_chan); i++) {
+//                   DPS ("<%.2X>", data[i]);
+//                 }
+//                 DPS ("\n");
+// #endif
+
 	    }
 	}
 
 	// *(stepgen->pos_fb) = stepgen->accum * stepgen->scale_recip;
 	// DPS ("%15.7f%15.7f%15.7f", *stepgen->pos_fb, match_accel, new_vel);
-	stepgen->cur_pos = stepgen->accum * stepgen->scale_recip;
+	// stepgen->cur_pos = stepgen->accum * stepgen->scale_recip;
 	// *(stepgen->pos_fb) = stepgen->cur_pos;
 	DPS("%15.7f%15.7f%15.7f%15.7f%7d",
 	    stepgen->cur_pos,
@@ -1094,6 +1118,8 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
+        
+
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
 	DPS("\n");
@@ -1231,6 +1257,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     }
 
     /* export pin for enable command */
+    addr->prev_enable = 0;
     retval = hal_pin_bit_newf(HAL_IN, &(addr->enable), comp_id,
 			      "wou.stepgen.%d.enable", num);
     if (retval != 0) {
