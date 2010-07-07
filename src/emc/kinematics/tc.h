@@ -78,9 +78,8 @@ enum state_type {
   ACCEL_S5,
   ACCEL_S6, ACCEL_S6_8,
   ACCEL_S7,
-  ACCEL_S8_0, ACCEL_S8_1, ACCEL_S8_2,
-  ACCEL_S8_3, ACCEL_S8_4, ACCEL_S8_5, ACCEL_S8_6, ACCEL_S9_0, ACCEL_S9_1, ACCEL_S9_2,
-  ACCEL_S9_3, ACCEL_S9_4, ACCEL_S9_5, ACCEL_S9_6,
+  ACCEL_S8, ACCEL_S0_8_3, ACCEL_S1_8_3,
+  ACCEL_S9, ACCEL_S4_9_3, ACCEL_S5_9_3, ACCEL_S6_9_3,
   ACCEL_S10,  ACCEL_S2_10, ACCEL_S4_10, ACCEL_S5_10, ACCEL_S6_10/*_0, ACCEL_S2_10_0, ACCEL_S4_10_0, ACCEL_S6_10_0, //pausing from S0 and profile state
   ACCEL_S10_1, ACCEL_S2_10_1, ACCEL_S4_10_1, ACCEL_S5_10_1, ACCEL_S6_10_1,
   ACCEL_S10_2, ACCEL_S2_10_2, ACCEL_S4_10_2, ACCEL_S5_10_2, ACCEL_S6_10_2,
@@ -109,8 +108,12 @@ typedef struct {
     double currentvel;      // keep track of current step (vel * cycle_time)
     double cur_accel;       // keep track of current acceleration
     double accel_dist;      // keep track of acceleration distance
+    double decel_dist;      // distance to start deceleration
     double accel_time;      // keep track of acceleration time
     double vel_from;        // track velocity before speed change
+    double rt_jerk;
+    double rt_accel;
+    double rt_vel;
     int    prev_state;
     nurbs_block_t nurbs_block; // nurbs command block
     double *N;                  // nurbs basis function buffer
