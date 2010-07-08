@@ -112,8 +112,9 @@ typedef struct {
     double accel_time;      // keep track of acceleration time
     double vel_from;        // track velocity before speed change
     double rt_jerk;
-    double rt_accel;
-    double rt_vel;
+    double rt_maxaccel;
+    double rt_maxvel;
+    double time_leave_s4;
     int    prev_state;
     nurbs_block_t nurbs_block; // nurbs command block
     double *N;                  // nurbs basis function buffer
