@@ -1075,8 +1075,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                   // consider deceleration progress exclude S5
                   //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
                   decel_dist = target_vel*t - 1.0/6.0*tc->jerk*pow(t,3);
-                  decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) - 1.0/6.0*tc->jerk*pow(t,3);
-
+                  decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) + 1.0/6.0*tc->jerk*pow(t,3);
+                  fprintf(stderr,"decel_dist(%f)\n", decel_dist);
                 }
                 tc->decel_dist = decel_dist;
 //                fprintf(stderr,"decel_dist(%f) \n",tc->decel_dist);
@@ -1156,13 +1156,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
 
             if ((newaccel  <= -tc->maxaccel )) {
                 tc->accel_state = ACCEL_S5;
-//                fprintf(stderr,"tc->currentve(%f) tc->accel_time(%f)\n",tc->currentvel, tc->accel_time);
                 tc->time_leave_s4 = sqrt(2*(tc->accel_time - tc->currentvel)/tc->jerk);
                 tc->accel_time = tc->accel_time - tc->currentvel/*newvel*/; // record the delta-V
-                // VT = V0 + A0T + 1/2 JT2
 
-//                tc->currentvel = tc->accel_time + 0.5*tc->jerk*pow(t,2);
-               /* fprintf(stderr,"time_leave_s4(%f)\n",tc->time_leave_s4);*/
                 immediate_state = 1;
                 EXIT_STATE(s4);
                 break;
@@ -1172,13 +1168,11 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->accel_state = ACCEL_S6;
                 immediate_state  = 1;
                 tc->time_leave_s4 = sqrt(2*(tc->accel_time - tc->currentvel)/tc->jerk);
-                fprintf(stderr,"tc->currentve(%f) tc->accel_time(%f)\n",tc->currentvel, tc->accel_time);
+//                fprintf(stderr,"tc->currentve(%f) tc->accel_time(%f)\n",tc->currentvel, tc->accel_time);
                 tc->rt_jerk = tc->jerk;
-
-    //            tc->target - tc->progress = tc->currentvel*t+0.5*tc->cur_accel+1/6.0*X*pow(t,3);
                 tc->rt_jerk = 6*((tc->target-tc->progress)-(tc->currentvel*tc->time_leave_s4
                              +0.5*tc->cur_accel*pow(tc->time_leave_s4,2)))/pow(tc->time_leave_s4 ,3);
-                fprintf(stderr,"rt_jerk(%f)\n",tc->rt_jerk);
+//                fprintf(stderr,"rt_jerk(%f)\n",tc->rt_jerk);
                 EXIT_STATE(s4);
                 break;
             }
@@ -1212,8 +1206,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             newaccel = tc->cur_accel;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
 
-            if (newvel  <= tc->accel_time /*from S4*/&&
-                    ((tc->accel_time - newvel) > 2*newaccel * tc->cycle_time )) { // accel_time stores the delta-V for ACCEL_S4
+            if (newvel  <= tc->accel_time /*from S4*//*&&
+                    ((tc->accel_time - newvel) > 2*newaccel * tc->cycle_time) */) { // accel_time stores the delta-V for ACCEL_S4
                 tc->accel_state = ACCEL_S6;
                 tc->accel_time = tc->currentvel;
                 if( newvel - tc->currentvel <  EPSTHON) {
@@ -1227,50 +1221,27 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s5);
                 break;
             }
-            // // hit progress limit
-            // T = -newaccel / tc->jerk;
-            // PT = newvel * T + 0.5 * newaccel * pmSq(T) + 0.16667 * tc->jerk * pmSq(T) * T;
-            // if (PT >= tc->distance_to_go) {
-            //     tc->accel_state = ACCEL_S6;
-            // }
-
 
             assert(newvel >= 0);
             break;
         case ACCEL_S6:
             ENTER_STATE(s6);
-
-            /*decel_dist = tc->currentvel * t + 0.5*tc->cur_accel*pow(t,2)+1.0/6.0*tc->rt_jerk*pow(t,3);
-            if ( decel_dist < tc->target -tc->progress ) {
-                newaccel = tc->cur_accel;
-                newvel = tc->currentvel;
-
-            } else {
-
-            }
- */
             // AT = A0 + JT
             newaccel = tc->cur_accel + tc->rt_jerk * tc->cycle_time;
             // VT = V0 + A0T + 1/2 JT2
             newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
 
-            fprintf(stderr,"t(%f) newvel(%f) newaccel(%f) cur_vel(%f) cur_accel(%f) decel_dist(%f) jerk(%f) dist_to_go(%f) \n",
-                    t,newvel,newaccel,  tc->currentvel,tc->cur_accel,decel_dist,tc->rt_jerk,tc->target-tc->progress);
- /*           if (newvel <= 0) {
-                newvel = tc->currentvel;
-                newaccel = 0;//tc->cur_accel;
-                EXIT_STATE(s6);
-                break;
-            }
-            if(newvel > tc->currentvel || newvel < 0 || newaccel > 0) {
-                newvel = tc->currentvel;
-                newaccel = tc->cur_accel;
-            }*/
+            // dynamic modify jerk to meet requirement
+            tc->time_leave_s4 -= tc->cycle_time;
+            tc->rt_jerk = 6*((tc->target-tc->progress)-(tc->currentvel*tc->time_leave_s4
+                          +0.5*tc->cur_accel*pow(tc->time_leave_s4,2)))/pow(tc->time_leave_s4 ,3);
+
             if(newaccel > 0) {
-//                newvel = tc->currentvel;
                 newaccel = tc->cur_accel;
             }
-//            if(newaccel >)
+            if(newvel <0) {
+                newvel = tc->currentvel;
+            }
             assert(newvel >= 0);
             assert(newaccel <= 0);
             break;
@@ -1470,7 +1441,19 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         newvel = 0;
         newaccel = 0;
         tc->progress = tc->target;
-
+#if STATE_DEBUG
+        s0 = 0;
+        s1 = 0;
+        s2 = 0;
+        s3 = 0;
+        s4 = 0;
+        s5 = 0;
+        s6 = 0;
+        s7 = 0;
+        s8 = 0; s0_8_3 = 0; s1_8_3 = 0;
+        s9 = 0; s4_9_3 = 0; s5_9_3 = 0; s6_9_3 = 0;
+        s10 = 0; s2_10 = 0; s4_10 = 0; s5_10 = 0; s6_10 = 0; reach_target = 0;
+#endif
     }
     DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
             _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->target, tc->distance_to_go, tc->tolerance);
