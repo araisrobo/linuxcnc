@@ -353,8 +353,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 for (i=0; i<=tc->nurbs_block.order -1; i++) {
                        F += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F;
                }
-               F = F/R;
-               tc->reqvel = F;
+//               F = F/R; //TODO-eric: to confirm if weight number affect reqvel
+//                F = tc->nurbs_block.ctrl_pts_ptr[s].F;
+                tc->reqvel = F;
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {
                     last_l = 0;

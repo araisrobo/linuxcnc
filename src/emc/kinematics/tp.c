@@ -35,6 +35,7 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 #define VELOCITY_EPSTHON 1e-5
+#define EPSTHON 0.1
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 static int immediate_state ;
@@ -821,28 +822,27 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 /* state flag for debug */
 static int  s0 = 0,
             s1 = 0,
-            s2 = 0,  s2_8= 0,
+            s2 = 0,
             s3 = 0,
-            s4 = 0,  s4_8= 0,
+            s4 = 0,
             s5 = 0,
-            s6 = 0,  s6_8= 0,
+            s6 = 0,
             s7 = 0,
-            s8_0 = 0,  s8_1 = 0,  s8_2 = 0,
-            s8_3 = 0,  s8_4 = 0,  s8_5 = 0,  s8_6 = 0,  s9_0 = 0,  s9_1 = 0,  s9_2 = 0,
-            s9_3 = 0,  s9_4 = 0,  s9_5 = 0,  s9_6 = 0,
-            s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0;
+            s8 = 0, /*s0_8_3 = 0, s1_8_3 = 0,*/
+            s9 = 0, /*s4_9_3 = 0, s5_9_3 = 0, s6_9_3 = 0,*/
+            s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
 
 #define ENTER_STATE(s) {\
                          if(s == 0) { \
-                            fprintf(stderr,"enter: %s current_vel(%f) \tcur_accel(%f)\n",#s,\
-                                    tc->currentvel,tc->cur_accel);\
+                            fprintf(stderr,"enter: %s vel(%.5f)accel(%.5f)jerk(%.5f)prog(%.5f)reqvel(%.10f)\n",#s,\
+                                    tc->currentvel,tc->cur_accel,tc->rt_jerk,tc->motion_progress, tc->reqvel);\
                             s = 1;\
                          }\
                      }
 #define EXIT_STATE(s) {\
                          if(s == 1) { \
-                            fprintf(stderr,"exit:  %s current_vel(%f) \tcur_accel(%f)\n",#s,\
-                                    tc->currentvel,tc->cur_accel);\
+                            fprintf(stderr,"exit:  %s vel(%.5f)accel(%.5f)jerk(%.5f)prog(%.5f)\n",#s,\
+                                    tc->currentvel,tc->cur_accel,tc->rt_jerk,tc->motion_progress);\
                             s = 0;\
                          }\
                      }
@@ -850,13 +850,82 @@ static int  s0 = 0,
 #define ENTER_STATE(s) do{}while(0)
 #define EXIT_STATE(s) do{}while(0)
 #endif
+
+/*
+  Continuous form
+PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+VT = V0 + A0T + 1/2 JT2
+AT = A0 + JT
+*/
+//TODO-eric: confirm if S8 and S9 interrupt by continue speed up and down
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
-    double newvel, newaccel, target_vel;
+    double newvel, newaccel, target_vel, accel_vel, t, decel_dist, a, prog, accel;
     do {
         immediate_state = 0;
         switch (tc->accel_state) {
         case ACCEL_S0:
             ENTER_STATE(s0);
+            tc->rt_jerk = tc->jerk;
+            // AT = A0 + JT
+            newaccel = tc->cur_accel + tc->rt_jerk * tc->cycle_time;
+            // VT = V0 + A0T + 1/2 JT2
+            newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+            // add cycle_time here due to decision later
+            tc->accel_time += tc->cycle_time; // accel_time acts as time here only. it acts as accel_vel other state
+            // hit acceleration limit -> S1_8_3
+            if (newaccel >= tc->maxaccel) {
+                tc->rt_maxaccel = tc->cur_accel;
+                tc->accel_state = ACCEL_S1;
+                tc->accel_time = tc->currentvel - tc->vel_from;
+                immediate_state = 1;
+                EXIT_STATE(s0);
+                break;
+            }
+            // hit vel limitation -> S2
+            if ((newvel - tc->vel_from + newvel) >= (tc->reqvel * tc->feed_override)) {
+                tc->rt_maxaccel = tc->cur_accel;
+                tc->accel_state = ACCEL_S2;
+                immediate_state = 1;
+                EXIT_STATE(s0);
+                break;
+            }
+            // hit progress limitation
+            // 0) determine which kind of deceleration will occur
+            //    S4->S6 or S4->S5->S6
+            // 1) determine if deceleration progress exceed target
+            accel_vel = newvel - tc->vel_from;
+            target_vel = newvel + accel_vel; // possible S3 vel
+            t = sqrt(accel_vel/tc->jerk);
+
+            if (tc->jerk * t > tc->maxaccel ) {
+                // consider deceleration progress include S5
+                t = sqrt(2*accel_vel/tc->jerk);
+                decel_dist = tc->currentvel*t+0.5*tc->cur_accel*pow(t,2)-1.0/6.0*tc->jerk*pow(t,3);// S2
+                t = tc->maxaccel/tc->jerk;
+                decel_dist += target_vel*t  -1.0/6.0*tc->jerk*pow(t,3); //S4
+                decel_dist += accel_vel*t - 0.5*tc->maxaccel*pow(t,2) + 1.0/6.0*tc->jerk*pow(t,3); //S6
+                // VT = V0 + A0T + 1/2 JT2
+                t = (target_vel - 2*accel_vel)/tc->maxaccel;
+                 //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+                decel_dist += (target_vel - accel_vel)*t -0.5*tc->maxaccel*pow(t,2);// accel_vel)*t*0.5; //S5
+
+
+            } else {
+                // consider deceleration progress exclude S5
+                //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+                accel = tc->jerk*t;
+                decel_dist = target_vel*t +0.5*accel*pow(t,2)- 1.0/6.0*tc->jerk*pow(t,3); // S2
+                decel_dist += decel_dist;       // S4
+                decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) - 1.0/6.0*tc->jerk*pow(t,3); //S6
+
+            }
+            if (decel_dist >= tc->target - tc->progress) {
+                tc->accel_state = ACCEL_S2;
+                tc->decel_dist = decel_dist;
+                immediate_state = 1;
+                EXIT_STATE(s0);
+            }
+            tc->decel_dist = decel_dist;
             // handle speed up / down / pause
             if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
                 tc->accel_state = ACCEL_S10; // into pausing
@@ -866,55 +935,54 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
                 // speed up
-                tc->accel_state = ACCEL_S8_0;
+                tc->accel_state = ACCEL_S8;
+                tc->prev_state = ACCEL_S0;
                 immediate_state = 1;
                 EXIT_STATE(s0);
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
                 // speed down
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
-                immediate_state = 1;
-                EXIT_STATE(s0);
-                break;
-            }
-            newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-
-
-            // hit accel limit
-            if (newaccel >= tc->maxaccel) {
-
-                tc->accel_time = tc->currentvel;
-                tc->accel_dist = tc->motion_progress;//tc->progress;
-                tc->accel_state = ACCEL_S1;
-                immediate_state = 1;
-                EXIT_STATE(s0);
-                break;
-            }
-            // hit velocity limit
-
-            if (newvel * 2.0 >= tc->reqvel * tc->feed_override) {
-                tc->accel_state = ACCEL_S2;
+                tc->accel_state = ACCEL_S9;
+                tc->prev_state = ACCEL_S0;
                 immediate_state = 1;
                 EXIT_STATE(s0);
                 break;
             }
 
-            // hit progress limit
-            if (newvel * 4.0 * tc->accel_time > tc->motion_target) {//tc->target) {
-                tc->accel_state = ACCEL_S2;
-                immediate_state = 1;
-                EXIT_STATE(s0);
-                break;
-            }
-
-            tc->accel_time += tc->cycle_time; // accel_time acts as time here only. it acts as accel_vel other state
             assert(newvel >= 0);
             break;
         case ACCEL_S1:
-            //fprintf(stderr,"at S1\n");
             ENTER_STATE(s1);
+
+            tc->rt_jerk = 0;
+            // AT = A0 + JT
+            newaccel = tc->cur_accel + tc->rt_jerk * tc->cycle_time;
+            // VT = V0 + A0T + 1/2 JT2
+            newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+            // hit velocity limitation
+            if ((newvel + tc->accel_time) >= (tc->reqvel * tc->feed_override )) {
+                tc->accel_state = ACCEL_S2;
+                immediate_state = 1;
+                EXIT_STATE(s1);
+                break;
+            }
+            // hit progress limitation
+            // determine if deceleration progress S4->S5->S6 exceed target
+            t = tc->rt_maxaccel/tc->jerk;
+            accel_vel = 0.5*tc->jerk*pow(t,2);
+            target_vel = newvel + tc->rt_maxaccel*t - 0.5*tc->jerk*pow(t,2);  // possible S3 vel
+            //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+            decel_dist = newvel*t + 0.5*tc->rt_maxaccel*pow(t,2) - 1.0/6.0*tc->jerk*pow(t,3); // S2
+            decel_dist += decel_dist; //S4
+            decel_dist += accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3); // S6
+            t = (target_vel - 2*accel_vel)/tc->rt_maxaccel;
+            decel_dist += (target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2);
+            if (decel_dist >= tc->target - tc->progress) {
+                tc->accel_state = ACCEL_S2;
+                immediate_state = 1;
+                EXIT_STATE(s1);
+            }
+            tc->decel_dist = decel_dist;
             // handle speed up / down
 
             if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
@@ -925,42 +993,57 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
                 // speed up
-                tc->accel_state = ACCEL_S8_0;
+                tc->accel_state = ACCEL_S8;
+                tc->prev_state = ACCEL_S1;
                 immediate_state = 1;
                 EXIT_STATE(s1);
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
                 // speed down
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
+                tc->accel_state = ACCEL_S9;
+                tc->prev_state = ACCEL_S1;
                 immediate_state = 1;
                 EXIT_STATE(s1);
                 break;
             }
-            newaccel = tc->cur_accel;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            target_vel = newvel + tc->accel_time;
-            // hit velocity limit
-            if (target_vel >= tc->reqvel * tc->feed_override) {
-                tc->accel_state = ACCEL_S2;
-                immediate_state = 1;
-                EXIT_STATE(s1);
-                break;
-            }
-            // hit progress limit
-            if ((tc->motion_progress - tc->accel_dist + target_vel * tc->cur_accel
-                    / tc->jerk) >= 0.5 * tc->motion_target) {//tc->target) {
-                tc->accel_state = ACCEL_S2;
-                immediate_state = 1;
-                EXIT_STATE(s1);
-                break;
-            }
-
             assert(newvel >= 0);
             break;
         case ACCEL_S2:
-            //fprintf(stderr,"at S2\n");
             ENTER_STATE(s2);
+
+            tc->rt_jerk = -tc->jerk;
+            // AT = A0 + JT
+            newaccel = tc->cur_accel + tc->rt_jerk * tc->cycle_time;
+            // VT = V0 + A0T + 1/2 JT2
+            newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+
+            if (newaccel <= 0) {
+                t = sqrt(tc->currentvel/tc->jerk); // time for deceleration to 0.5 currentvel
+                target_vel = tc->currentvel;//tc->reqvel*tc->feed_override;;
+                if (tc->jerk * t > tc->maxaccel ) {
+                  // S4+S5+S6
+                    t = tc->maxaccel/tc->jerk;
+                    accel_vel = 0.5*tc->jerk*pow(t,2);
+                    target_vel = tc->currentvel;  // possible S3 vel
+
+                    //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+                    decel_dist = target_vel*t - 1.0/6.0*tc->jerk*pow(t,3); // S4
+                    decel_dist += accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3); // S6
+                    t = (target_vel - 2*accel_vel)/tc->rt_maxaccel;
+                    decel_dist += (target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2);
+                } else {
+                  // consider deceleration progress exclude S5
+                  //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+                  decel_dist = target_vel*t - 1.0/6.0*tc->jerk*pow(t,3);
+                  decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) + 1.0/6.0*tc->jerk*pow(t,3);
+                }
+                tc->decel_dist = decel_dist;
+                tc->accel_state = ACCEL_S3;
+                tc->cur_accel = 0;
+                immediate_state = 1;
+                EXIT_STATE(s2);
+                break;
+            }
             // handle speed up / down
             if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
                 tc->accel_state = ACCEL_S10; // into pausing
@@ -970,36 +1053,38 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
                 // speed up
-                tc->accel_state = ACCEL_S8_0;
+                tc->accel_state = ACCEL_S8;
+                tc->prev_state = ACCEL_S2;
                 immediate_state = 1;
                 EXIT_STATE(s2);
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
                 // speed down
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
+                tc->accel_state = ACCEL_S9;
+                tc->prev_state = ACCEL_S2;
                 immediate_state = 1;
                 EXIT_STATE(s2);
                 break;
             }
-            newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            if (newaccel <= 0) {
-              /*  newaccel = 0;
-                newvel = tc->currentvel + tc->cur_accel * tc->cycle_time;*/
-                tc->accel_dist = tc->motion_progress;
-                tc->accel_state = ACCEL_S3;
-                immediate_state = 1;
-                EXIT_STATE(s2);
-                break;
-            }
-
-
             assert(newvel >= 0);
             break;
         case ACCEL_S3:
-            //fprintf(stderr,"at S3\n");
             ENTER_STATE(s3);
+
+            tc->rt_jerk = 0;
+            // AT = A0 + JT
+            newaccel = 0;//tc->cur_accel + tc->rt_jerk * tc->cycle_time;
+            // VT = V0 + A0T + 1/2 JT2
+            newvel = tc->currentvel ;//+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+            if (tc->decel_dist + (tc->currentvel )* tc->cycle_time > tc->target - tc->progress) {
+                tc->accel_state = ACCEL_S4;
+                tc->accel_time = tc->currentvel; // save currentvel to accel_time
+                tc->target_vel = 0;
+                tc->rt_jerk = -tc->jerk;
+                immediate_state = 1;
+                EXIT_STATE(s3);
+                break;
+            }
             // handle speed up / down
             if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
                 tc->accel_state = ACCEL_S10; // into pausing
@@ -1009,165 +1094,124 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
                 // speed up
-                tc->accel_state = ACCEL_S8_0;
+                tc->accel_state = ACCEL_S8;
+                tc->prev_state = ACCEL_S3;
                 immediate_state = 1;
                 EXIT_STATE(s3);
                 break;
             } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
                 // speed down
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
+                tc->accel_state = ACCEL_S9;
+                tc->prev_state = ACCEL_S3;
                 immediate_state = 1;
                 EXIT_STATE(s3);
                 break;
             }
-            newaccel = 0;
-            newvel = tc->reqvel * tc->feed_override;//tc->currentvel;
-            if ((tc->target -tc->progress - (tc->currentvel + newvel) * 0.5 * tc->cycle_time
-                    <= tc->accel_dist)) {
-                tc->accel_state = ACCEL_S4;
-                tc->accel_time = tc->currentvel; // save currentvel to accel_time
-                immediate_state = 1;
-                EXIT_STATE(s3);
-                break;
-            }
-
-
             break;
             assert(newvel >= 0);
         case ACCEL_S4:
-            //fprintf(stderr,"at S4\n");
             ENTER_STATE(s4);
-            // handle speed up / down
-            if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
-                // on stopping , ignore pause
-                /*tc->accel_state = ACCEL_S10_4; // into pausing
-                immediate_state = 1;
-                EXIT_STATE(s4);
-                break;*/
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
-                // speed up
-                tc->accel_state = ACCEL_S8_0;
-                immediate_state = 1;
-                EXIT_STATE(s4);
-                break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
-                // speed down
-              /*  fprintf(stderr, "S0 goto S9_0 tp->pausing(%d) tc->reqvel(%f) tc->feed_override(%f)\n",
-                        tp->pausing, tc->reqvel, tc->feed_override);*/
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
-                immediate_state = 1;
-                EXIT_STATE(s4);
-                break;
-            }
-            newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            if ((newaccel <= -tc->maxaccel )) {
+            /* not necessary to process speed modification */
+            // AT = A0 + JT
+            newaccel = tc->cur_accel + tc->rt_jerk * tc->cycle_time;
+            // VT = V0 + A0T + 1/2 JT2
+            newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+
+            if ((newaccel  <= -tc->maxaccel )) {
                 tc->accel_state = ACCEL_S5;
+                tc->time_leave_s4 = sqrt(2*(tc->accel_time - tc->currentvel)/tc->jerk);
                 tc->accel_time = tc->accel_time - tc->currentvel/*newvel*/; // record the delta-V
+
                 immediate_state = 1;
                 EXIT_STATE(s4);
                 break;
             }
 
-            if (newvel <= 0.5 * tc->accel_time) { // accel_time stores the initial-velocity of deceleration
+            if (newvel <= 0.5 * (tc->accel_time + tc->target_vel) /*from S3*/) { // accel_time stores the initial-velocity of deceleration
                 tc->accel_state = ACCEL_S6;
                 immediate_state  = 1;
+                tc->time_leave_s4 = sqrt(2*(tc->accel_time - tc->currentvel)/tc->jerk);
+                tc->rt_jerk = tc->jerk;
                 EXIT_STATE(s4);
                 break;
             }
-            assert(newvel >= 0); //TODO-eric: Somehow feedoverride 0% cause newvel on S4 below 0.0
+            assert(newvel >= 0);
             break;
         case ACCEL_S5:
             ENTER_STATE(s5);
-            // handle speed up / down
-            if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override ==0) ) {
-                // on stopping , ignore pause
-                /*tc->accel_state = ACCEL_S10_5; // into pausing
-                immediate_state = 1;
-                EXIT_STATE(s5);
-                break;*/
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
-                // speed up
-                tc->accel_state = ACCEL_S8_0;
-                immediate_state = 1;
-                EXIT_STATE(s5);
-                break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
-                // speed down
-              /*  fprintf(stderr, "S0 goto S9_0 tp->pausing(%d) tc->reqvel(%f) tc->feed_override(%f)\n",
-                        tp->pausing, tc->reqvel, tc->feed_override);*/
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
-                immediate_state = 1;
-                EXIT_STATE(s5);
-                break;
-            }
-
+            /*  not necessary process speed modification */
+            tc->rt_jerk = 0;
             newaccel = tc->cur_accel;
             newvel = tc->currentvel + newaccel * tc->cycle_time;
 
-            if (newvel <= tc->accel_time) { // accel_time stores the delta-V for ACCEL_S4
+            if (newvel  <= tc->accel_time + tc->target_vel) { // accel_time stores the delta-V for ACCEL_S4
                 tc->accel_state = ACCEL_S6;
                 tc->accel_time = tc->currentvel;
+                tc->rt_jerk = tc->jerk;
                 immediate_state = 1;
                 EXIT_STATE(s5);
                 break;
             }
-            // // hit progress limit
-            // T = -newaccel / tc->jerk;
-            // PT = newvel * T + 0.5 * newaccel * pmSq(T) + 0.16667 * tc->jerk * pmSq(T) * T;
-            // if (PT >= tc->distance_to_go) {
-            //     tc->accel_state = ACCEL_S6;
-            // }
-
 
             assert(newvel >= 0);
             break;
         case ACCEL_S6:
             ENTER_STATE(s6);
-            newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            // handle pausing
-            if ((tp->pausing == 1) || (tc->reqvel * tc->feed_override == 0)) {
-                // on stopping , ignore pause
-                /*tc->accel_state = ACCEL_S10_6; // into pausing
-                immediate_state = 1;
-                EXIT_STATE(s6);
-                break;*/
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
-                // speed up
-                tc->accel_state = ACCEL_S8_0;
-                immediate_state = 1;
-                EXIT_STATE(s6);
-                break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
-                // speed down
-              /*  fprintf(stderr, "S0 goto S9_0 tp->pausing(%d) tc->reqvel(%f) tc->feed_override(%f)\n",
-                        tp->pausing, tc->reqvel, tc->feed_override);*/
-                tc->accel_state = ACCEL_S9_0;
-                tc->vel_from = newvel;
-                immediate_state = 1;
-                EXIT_STATE(s6);
-                break;
-            }
+            // AT = A0 + JT
+            newaccel = tc->cur_accel + tc->rt_jerk * tc->cycle_time;
+            // VT = V0 + A0T + 1/2 JT2
+            newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
 
-            if (newvel <= 0) {
-                newvel = tc->currentvel;
-                newaccel = 0;
-                EXIT_STATE(s6);
+            // dynamic modify jerk to meet requirement
+            if(tc->target_vel == 0) {
+                tc->time_leave_s4 -= tc->cycle_time;
+                tc->rt_jerk = 6*((tc->target-tc->progress)-(tc->currentvel*tc->time_leave_s4
+                              +0.5*tc->cur_accel*pow(tc->time_leave_s4,2)))/pow(tc->time_leave_s4 ,3);
+            }
+            if(newaccel > 0) {
+                newaccel = tc->cur_accel;
             }
             if(newvel > tc->currentvel) {
                 newvel = tc->currentvel;
-                newaccel = 0;
+            }
+            if(newvel -EPSTHON < tc->target_vel ) { //raise torrence for velocity check
+                if (tc->target_vel == 0)
+                    newvel = tc->currentvel;
+                else {
+                    t = sqrt(tc->currentvel/tc->jerk); // time for deceleration to 0.5 currentvel
+                    target_vel = tc->currentvel;//tc->reqvel*tc->feed_override;;
+
+                    if (tc->jerk * t > tc->maxaccel ) {
+                      // consider deceleration progress include S5
+                        t = tc->rt_maxaccel/tc->jerk;
+                        accel_vel = 0.5*tc->jerk*pow(t,2);
+                        target_vel = tc->currentvel;  // possible S3 vel
+
+                        //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+                        decel_dist = target_vel*t - 1.0/6.0*tc->jerk*pow(t,3); // S4
+                        decel_dist += accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3); // S6
+                        t = (target_vel - 2*accel_vel)/tc->rt_maxaccel;
+                        decel_dist += (target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2);
+
+                    } else {
+                      // consider deceleration progress exclude S5
+                      //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+                      decel_dist = target_vel*t - 1.0/6.0*tc->jerk*pow(t,3);
+                      decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) + 1.0/6.0*tc->jerk*pow(t,3);
+                    }
+                    tc->decel_dist = decel_dist;
+                    immediate_state = 1;
+                    tc->accel_state = ACCEL_S3;
+                    EXIT_STATE(s6);
+                    break;
+                }
             }
             assert(newvel >= 0);
+            assert(newaccel <= 0);
             break;
         case ACCEL_S7:// pause wait resume or initial state
             newvel = 0;
             newaccel = 0;
-            //fprintf(stderr,"at S7\n");
             ENTER_STATE(s7);
             if (tp->pausing == 0 && (tc->reqvel * tc->feed_override > 0)) {
                 tc->accel_state = ACCEL_S0;
@@ -1179,112 +1223,60 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->cur_accel = 0;
                 tc->ori_feed_override = tc->feed_override;
                 tc->ori_reqvel = tc->reqvel;
-//                tc->pausing = 0;
+                tc->vel_from = 0;
+                tc->rt_jerk = tc->jerk;
                 immediate_state = 0;
                 EXIT_STATE(s7);
             }
             assert(newvel >= 0);
             break;
-/*        case ACCEL_S8_0:
-            // speed up from S0
-            ENTER_STATE(s8_0);
+        case ACCEL_S8:
+            ENTER_STATE(s8);
             tc->ori_feed_override = tc->feed_override;
             tc->ori_reqvel = tc->reqvel;
-            // return to S0
-            tc->accel_state = ACCEL_S0;
-            immediate_state = 1;
-            EXIT_STATE(s8_0);
-            break;
-        case ACCEL_S9_0:
-            // speed down from S0
-            ENTER_STATE(s9_0);
-            tc->ori_feed_override = tc->feed_override;
-            tc->ori_reqvel = tc->reqvel;
-            if (tc->currentvel < (tc->reqvel * tc->feed_override)) {
+            tc->vel_from = tc->currentvel;
+            if(ACCEL_S3 != tc->prev_state) {
+                tc->accel_state = tc->prev_state;
+                immediate_state = 1;
+                EXIT_STATE(s8);
+                break;
+            } else if( tc->decel_dist*3 < tc->target - tc->progress) { // to prevent not enough dist to decel
                 tc->accel_state = ACCEL_S0;
+                tc->accel_time = 0;
+                tc->accel_dist = 0;
                 immediate_state = 1;
-                EXIT_STATE(s9_0);
+                EXIT_STATE(s8);
+                break;
             } else {
-                tc->accel_state = ACCEL_S2_8;
-                tc->accel_dist = tc->motion_progress;
+                tc->accel_state = tc->prev_state;
                 immediate_state = 1;
-                EXIT_STATE(s9_0);
-                break; // not update ori_feed_override, ori_reqvel for check in S2
+                EXIT_STATE(s8);
             }
             break;
-        case ACCEL_S2_8:
-            ENTER_STATE(s2_8);
-            newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            if (newaccel <= 0) {
-                newaccel = 0;
-                newvel = tc->currentvel + tc->cur_accel * tc->cycle_time;
-                tc->accel_dist = tc->motion_progress;
-                tc->accel_state = ACCEL_S4_8;
-                tc->vel_from = newvel;
-            }
-
-            assert(newvel >= 0);
-            break;
-        case ACCEL_S4_8:
-            fprintf(stderr,"at S4_8\n ");
-            newaccel = tc->cur_accel - tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            if ((newaccel <= -tc->maxaccel)) {
-                assert(0);
-            }
-            // hit progress limit
-            if (newvel <= 0.5 * (tc->vel_from + (tc->reqvel * tc->feed_override))) { // velocity transaction point
-                tc->accel_state = ACCEL_S6_8;
-            }
-            assert(newvel >= 0);
-            break;
-        case ACCEL_S6_8:
-            fprintf(stderr,"at S6_8\n");
-            newaccel = tc->cur_accel + tc->jerk * tc->cycle_time;
-            newvel = tc->currentvel + newaccel * tc->cycle_time;
-            // handle pausing
-                         if (((tp->pausing == 1) || ( tc->reqvel * tc->feed_override == 0)) && (newaccel >= 0)) {
-
-             tc->accel_state = ACCEL_S7;
-             //   tc->accel_time = tc->currentvel;
-             }
-            if (newvel <= (tc->reqvel * tc->feed_override)) {
-                newvel = tc->reqvel * tc->feed_override;
-                newaccel = 0;
-                tc->accel_state = ACCEL_S3;
+        case ACCEL_S9:
+            ENTER_STATE(s9);
+            tc->ori_feed_override = tc->feed_override;
+            tc->ori_reqvel = tc->reqvel;
+            tc->vel_from = tc->currentvel;
+            if(ACCEL_S3 != tc->prev_state) {
+                tc->accel_state = tc->prev_state;
+                immediate_state = 1;
+                EXIT_STATE(s8);
+                break;
+            } else {
+                tc->accel_state = ACCEL_S4;
+                tc->accel_time = tc->currentvel;
+                tc->accel_dist = 0;
+                tc->target_vel = tc->reqvel * tc->feed_override;
+                tc->rt_jerk = -tc->jerk;
+                immediate_state = 1;
+                EXIT_STATE(s8);
+                break;
             }
             break;
-        case ACCEL_S8_1:
-            break;
-        case ACCEL_S8_2:
-            break;
-        case ACCEL_S8_3:
-            break;
-        case ACCEL_S8_4:
-            break;
-        case ACCEL_S8_5:
-            break;
-        case ACCEL_S8_6:
-            break;
-        case ACCEL_S9_1:
-            break;
-        case ACCEL_S9_2:
-            break;
-        case ACCEL_S9_3:
-            break;
-        case ACCEL_S9_4:
-            break;
-        case ACCEL_S9_5:
-            break;
-        case ACCEL_S9_6:
-            break;*/
 
         case ACCEL_S10: // pausing from S2
             ENTER_STATE(s10);
-
-           // tc->pausing = 1;
-
             tc->vel_from = tc->currentvel;
             if ( tc->prev_state != ACCEL_S3) {
                 tc->accel_state = ACCEL_S2_10;
@@ -1347,6 +1339,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 newvel = 0;
                 newaccel = 0;
                 tc->accel_state = ACCEL_S7;
+                tc->rt_jerk = 0 ;
+                tc->cur_accel = 0;
+                tc->currentvel = 0;
                 immediate_state = 1;
                 EXIT_STATE(s6_10);
             }
@@ -1355,12 +1350,30 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             assert(0);
         } // switch (tc->accel_state)
     } while (immediate_state);
-    tc->motion_progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
-    tc->progress += (tc->currentvel + newvel) * 0.5 * tc->cycle_time;
+//    PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+    prog = tc->currentvel * tc->cycle_time + 0.5 * tc->cur_accel * pow(tc->cycle_time,2) +
+            1.0/6.0 * tc->rt_jerk * pow(tc->cycle_time,3);
+    tc->motion_progress += prog;//(tc->currentvel + newvel) * 0.5 * tc->cycle_time;
+    tc->progress += prog;//(tc->currentvel + newvel) * 0.5 * tc->cycle_time;
     if (tc->progress >= tc->target) {
+//        ENTER_STATE(reach_target);
+        EXIT_STATE(s6);
         newvel = 0;
         newaccel = 0;
         tc->progress = tc->target;
+#if STATE_DEBUG
+        s0 = 0;
+        s1 = 0;
+        s2 = 0;
+        s3 = 0;
+        s4 = 0;
+        s5 = 0;
+        s6 = 0;
+        s7 = 0;
+        s8 = 0; /*s0_8_3 = 0; s1_8_3 = 0;*/
+        s9 = 0;/* s4_9_3 = 0; s5_9_3 = 0; s6_9_3 = 0;*/
+        s10 = 0; s2_10 = 0; s4_10 = 0; s5_10 = 0; s6_10 = 0; reach_target = 0;
+#endif
     }
     DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
             _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->target, tc->distance_to_go, tc->tolerance);
