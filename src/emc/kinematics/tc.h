@@ -113,7 +113,7 @@ typedef struct {
     double vel_from;        // track velocity before speed change
     double rt_jerk;
     double rt_maxaccel;
-    double rt_maxvel;
+    double target_vel;
     double time_leave_s4;
     int    prev_state;
     nurbs_block_t nurbs_block; // nurbs command block

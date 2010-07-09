@@ -25,7 +25,7 @@
 #include "tc.h"
 #include "nurbs.h"
 
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 
 #if (TRACE != 0)
