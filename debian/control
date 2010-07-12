@@ -3,8 +3,8 @@ Section: misc
 Priority: extra
 Maintainer: Yi-Shin Li <ysli@araisrobo.com>
 Build-Depends: debhelper (>> 4.0.0),
-    @KERNEL_DEPENDS@, @KERNEL_HEADERS@, @EXTRA_BUILD@, g++, make, libc6-dev,
-    tcl@TCLTK_VERSION@-dev, tk@TCLTK_VERSION@-dev, bwidget, cpio,
+    , libpth-dev, lyx,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french, g++, make, libc6-dev,
+    tcl8.5-dev, tk8.5-dev, bwidget, cpio,
     libxaw7-dev, libncurses-dev, libreadline5-dev,
     xsltproc, groff, dvipng, 
     lyx, ghostscript, imagemagick, texlive-latex-base, texlive-extra-utils,
@@ -14,13 +14,13 @@ Build-Depends: debhelper (>> 4.0.0),
     gettext, autoconf
 Standards-Version: 2.4.0-alpha0
 
-Package: @EMC2_PACKAGE_NAME@-dev
+Package: emc2-sim-dev
 Architecture: any
 Provides: emc2-dev
-Depends: g++, @KERNEL_HEADERS@,
-    python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
+Depends: g++, libpth-dev,
+    python (>= 2.6), python (<< 2.7),
     ${python:Depends},
-    @EMC2_PACKAGE_NAME@ (= ${Source-Version}), libwou-dev (>> 0.1-9),
+    emc2-sim (= ${Source-Version}), libwou-dev (>> 0.1-9),
     yapps2-runtime
 Section: libs
 Description: PC based motion controller for real-time Linux
@@ -31,22 +31,22 @@ Description: PC based motion controller for real-time Linux
  This package includes files needed to build new realtime components and
  alternate front-ends for emc2
 
-Package: @EMC2_PACKAGE_NAME@
+Package: emc2-sim
 Replaces: emc2, emc2-axis
 Conflicts: emc2, emc2-axis
 Provides: emc2, emc2-axis
 Architecture: any
 Recommends: hostmot2-firmware, emc2-doc-en | emc2-doc-fr
-Depends: ${shlibs:Depends}, @KERNEL_DEPENDS@,
-    tcl@TCLTK_VERSION@, tk@TCLTK_VERSION@, bwidget (>= 1.7),
+Depends: ${shlibs:Depends}, ,
+    tcl8.5, tk8.5, bwidget (>= 1.7),
     libreadline5, libwou (>> 0.1-9),
-    python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
+    python (>= 2.6), python (<< 2.7),
     ${python:Depends},
-    python@PYTHON_VERSION@-tk,
-    python@PYTHON_VERSION@-gnome2, python@PYTHON_VERSION@-glade2,
-    python@PYTHON_VERSION@-numpy | python-numpy,
-    python@PYTHON_VERSION@-imaging,
-    python@PYTHON_VERSION@-imaging-tk | python-imaging-tk,
+    python2.6-tk,
+    python2.6-gnome2, python2.6-glade2,
+    python2.6-numpy | python-numpy,
+    python2.6-imaging,
+    python2.6-imaging-tk | python-imaging-tk,
 Description: PC based motion controller for real-time Linux
  EMC2 is the next-generation Enhanced Machine Controller which
  provides motion control for CNC machine tools and robotic

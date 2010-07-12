@@ -4,7 +4,6 @@ emc2-firmware-*
 emc2-sim
 files
 rules
-control
 tmp
 emc2
 emc2-dev
