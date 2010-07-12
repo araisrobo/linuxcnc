@@ -147,6 +147,8 @@ EmcPose tcGetEndpoint(TC_STRUCT * tc) {
     return tcGetPosReal(tc, 1);
 }
 
+static double tmpF = 0;
+static int count = 0;
 EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 {
     EmcPose pos;
@@ -210,7 +212,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     &uvw);
 
     } else {
-        int s, tmp1,i;
+        int s, tmp1,i,count;
         double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR, F,
                      l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
 
@@ -352,10 +354,38 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 F = 0.0;
                 for (i=0; i<=tc->nurbs_block.order -1; i++) {
                        F += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F;
-               }
+               /*        if(F == tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F) {
+                           count ++;
+                       } else {
+                           F = tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F;
+                           count = 0;
+                       }*/
+                }
+                /*if(count > tc->nurbs_block.order/2) {
+                   F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
+                } else {
+                   F = tc->nurbs_block.ctrl_pts_ptr[tmp1+tc->nurbs_block.order -1].F;;
+                }*/
 //               F = F/R; //TODO-eric: to confirm if weight number affect reqvel
-//                F = tc->nurbs_block.ctrl_pts_ptr[s].F;
-                tc->reqvel = F;
+               /* if (tmpF == F && (abs(tc->reqvel - F) > 1)) {
+                    count ++;
+                    if(count > 1) {
+                        fprintf(stderr,"equalvalue(%f)\n",F);
+                        tc->reqvel = F;
+                        count = 0;
+                    }
+
+                }
+                tmpF = F;*/
+                if(abs(F-tc->nurbs_block.ctrl_pts_ptr[tmp1].F) >
+                    abs(F-tc->nurbs_block.ctrl_pts_ptr[tmp1 + tc->nurbs_block.order -1].F)) {
+                    F = tc->nurbs_block.ctrl_pts_ptr[tmp1 + tc->nurbs_block.order -1].F;
+                } else {
+                    F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
+                }
+                if((abs(tc->reqvel - F/R) > 1e-1) && (F/R != 0)) {
+                    tc->reqvel = F/R;
+                }
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {
                     last_l = 0;

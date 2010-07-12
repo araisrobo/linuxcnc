@@ -34,8 +34,8 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
-#define VELOCITY_EPSTHON 1e-5
-#define EPSTHON 0.1
+#define VELOCITY_EPSTHON 1e-1
+#define EPSTHON 0.5
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 static int immediate_state ;
@@ -933,14 +933,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 immediate_state = 1;
                 EXIT_STATE(s0);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel  > VELOCITY_EPSTHON)) {
                 // speed up
                 tc->accel_state = ACCEL_S8;
                 tc->prev_state = ACCEL_S0;
                 immediate_state = 1;
                 EXIT_STATE(s0);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override < tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)) {
                 // speed down
                 tc->accel_state = ACCEL_S9;
                 tc->prev_state = ACCEL_S0;
@@ -991,14 +991,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 immediate_state = 1;
                 EXIT_STATE(s1);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel  > VELOCITY_EPSTHON)) {
                 // speed up
                 tc->accel_state = ACCEL_S8;
                 tc->prev_state = ACCEL_S1;
                 immediate_state = 1;
                 EXIT_STATE(s1);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override < tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)) {
                 // speed down
                 tc->accel_state = ACCEL_S9;
                 tc->prev_state = ACCEL_S1;
@@ -1051,14 +1051,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 immediate_state = 1;
                 EXIT_STATE(s2);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel  > VELOCITY_EPSTHON)) {
                 // speed up
                 tc->accel_state = ACCEL_S8;
                 tc->prev_state = ACCEL_S2;
                 immediate_state = 1;
                 EXIT_STATE(s2);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override < tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)) {
                 // speed down
                 tc->accel_state = ACCEL_S9;
                 tc->prev_state = ACCEL_S2;
@@ -1092,14 +1092,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 immediate_state = 1;
                 EXIT_STATE(s3);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) > VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel  > VELOCITY_EPSTHON)) {
                 // speed up
                 tc->accel_state = ACCEL_S8;
                 tc->prev_state = ACCEL_S3;
                 immediate_state = 1;
                 EXIT_STATE(s3);
                 break;
-            } else if ((tc->reqvel * tc->feed_override) - ( tc->ori_reqvel * tc->ori_feed_override) < -VELOCITY_EPSTHON) {
+            } else if ((tc->feed_override < tc->ori_feed_override) || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)) {
                 // speed down
                 tc->accel_state = ACCEL_S9;
                 tc->prev_state = ACCEL_S3;
@@ -1178,6 +1178,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 if (tc->target_vel == 0)
                     newvel = tc->currentvel;
                 else {
+                    tc->currentvel = tc->target_vel;
                     t = sqrt(tc->currentvel/tc->jerk); // time for deceleration to 0.5 currentvel
                     target_vel = tc->currentvel;//tc->reqvel*tc->feed_override;;
 
