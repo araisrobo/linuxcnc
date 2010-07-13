@@ -614,8 +614,8 @@ static void update_freq(void *arg, long period)
     wou_status(&w_param);
 
     // /* check and update WOU Registers */
-//    DP("before wou_update()\n");
-//    wou_update(&w_param);
+    DP("before wou_update()\n");
+    wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
     if (memcmp
@@ -732,6 +732,8 @@ static void update_freq(void *arg, long period)
 
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
+	    
+            // fprintf(stderr, "wou: switch_pos(%f)\n", *(stepgen->switch_pos));
 
 	    /* check if we should wait for HOME Switch Toggle */
 	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
@@ -851,6 +853,13 @@ static void update_freq(void *arg, long period)
      * for servo drivers.
      **/
 	*(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
+        
+        //important: // DEBUG: to guarantee that the pulse_pos command issued by FPGA equals the one sent into it
+        //important: if (n == 0) {
+        //important:     if (stepgen->accum != *(stepgen->pulse_pos)) {
+        //important:         rtapi_print("j0: accum(%lld) pulse_pos(%d)\n", stepgen->accum, *(stepgen->pulse_pos));
+        //important:     }
+        //important: }
 
 	/* test for disabled stepgen */
 	if (*stepgen->enable == 0) {
@@ -1034,8 +1043,12 @@ static void update_freq(void *arg, long period)
 	// calculate WOU commands
 	// each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
 	wou_pos_cmd = (int) (new_vel * stepgen->pos_scale * dt);
-	// stepgen->accum += wou_pos_cmd;
-	stepgen->cur_pos += (double) (new_vel * dt);
+	stepgen->accum += wou_pos_cmd;  // calculate the pulse ticks sent to FPGA
+        
+        // *crucial important*
+        // the cur_pos has to be calculated based on the integer pulse
+        // ticks sent to FPGA, otherwise the position loop would be wrong
+	stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip;  
 
 	assert(wou_pos_cmd < 8192);
 	assert(wou_pos_cmd > -8192);
