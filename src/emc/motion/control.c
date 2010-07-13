@@ -1119,10 +1119,14 @@ static void get_pos_cmds(long period)
             } else {
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
-
-            DP("joint[%d]: free_tp.max_vel(%f) vel_limit(%f) net_feed_scale(%f)\n", 
-                joint_num, joint->free_tp.max_vel, joint->vel_limit,
-                emcmotStatus->net_feed_scale);
+            
+            if (joint_num == 0) {
+              DPS("st[%d]: pos_cmd(%f) f.pos_cmd(%f) f.curr_pos(%f)", 
+                  joint->home_state, joint->pos_cmd, joint->free_tp.pos_cmd, 
+                  joint->free_tp.curr_pos);
+	      DPS(" pos_fb(%f)  m_pos_fb(%f) s_pos(%f) m_ofst(%f)\n", 
+                  joint->pos_fb, joint->motor_pos_fb, joint->switch_pos, joint->motor_offset);
+            }
 
             /* set acc limit in free TP */
             joint->free_tp.max_acc = joint->acc_limit;
