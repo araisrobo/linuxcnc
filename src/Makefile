@@ -584,7 +584,6 @@ endif
 ifneq ($(WOU_VERSION),)
 EXTRA_CFLAGS += $(WOU_CFLAGS)
 EXTRALINK += $(WOU_LIBS)
-# LDFLAGS += $(WOU_LIBS)
 endif
 
 
@@ -785,7 +784,7 @@ motmod-objs += emc/kinematics/tp.o
 motmod-objs += emc/motion/motion.o 
 motmod-objs += emc/motion/command.o 
 motmod-objs += emc/motion/control.o 
-motmod-objs += emc/motion/homing.o 
+# motmod-objs += emc/motion/homing.o 
 motmod-objs += emc/motion/simple_tp.o 
 motmod-objs += emc/motion/emcmotglb.o 
 motmod-objs += emc/motion/emcmotutil.o 
@@ -793,6 +792,14 @@ motmod-objs += emc/motion/stashf.o
 motmod-objs += emc/motion/dbuf.o
 motmod-objs += libnml/posemath/_posemath.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
+# for libwou
+ifneq ($(WOU_VERSION),)
+# homing procedure that compensats the properties of USB device
+motmod-objs += emc/motion/usb_homing.o 
+else
+motmod-objs += emc/motion/homing.o 
+endif
+
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
 ifeq ($(BUILD_SYS),sim)

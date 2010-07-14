@@ -16,6 +16,7 @@
 #include "motion.h"
 #include "mot_priv.h"
 #include "rtapi_math.h"
+#include <stdio.h>
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -29,6 +30,7 @@
    ended.  We might want to make this user adjustable, but for
    now it's a constant.  It is in seconds */
 #define HOME_DELAY 0.100
+// for debug purpose: #define HOME_DELAY 5.000
 
 /***********************************************************************
 *                  LOCAL VARIABLE DECLARATIONS                         *
@@ -376,13 +378,23 @@ void do_homing(void)
 		   location, we reset the joint coordinates now so that screw
 		   error comp will be appropriate for this portion of the
 		   screw (previously we didn't know where we were at all). */
+		/* is the joint still moving? */
+		if (joint->free_tp.active) {
+                    /* prevent updating free_tp.curr_pos while previous
+                     * motion is not finished yet */
+		    /* yes, reset delay, wait until joint stops */
+		    joint->home_pause_timer = 0;
+		    break;
+		}
 		/* set the current position to 'home_offset' */
-		offset = joint->home_offset - joint->pos_fb;
+		//orig: offset = joint->home_offset - joint->pos_fb;
+		offset = joint->home_offset - 
+                         (joint->switch_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
 		   motor position */
 		joint->pos_cmd += offset;
 		joint->pos_fb += offset;
-		joint->free_tp.curr_pos += offset;
+		joint->free_tp.curr_pos += offset;  /* *important*, for simple_tp_update() */
 		joint->motor_offset -= offset;
 		/* The next state depends on the signs of 'search_vel' and
 		   'latch_vel'.  If they are the same, that means we must
@@ -400,6 +412,19 @@ void do_homing(void)
 		    joint->home_state = HOME_FALL_SEARCH_START;
 		}
 		immediate_state = 1;
+                
+                // // DEBUG ysli:
+		// rtapi_print (
+                //   _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)"), 
+                //     joint_num,
+                //     offset,
+                //     joint->switch_pos,
+                //     joint->pos_cmd,
+                //     joint->pos_fb,
+                //     joint->free_tp.curr_pos,
+                //     joint->motor_offset);
+                // // DEBUG ysli:
+                
 		break;
 
 	    case HOME_FINAL_BACKOFF_START:
@@ -568,14 +593,37 @@ void do_homing(void)
 		   switch position as accurately as possible.  It sets the
 		   current joint position to 'home_offset', which is the
 		   location of the home switch in joint coordinates. */
+		/* is the joint still moving? */
+		if (joint->free_tp.active) {
+                    /* prevent updating free_tp.curr_pos while previous
+                     * motion is not finished yet */
+		    /* yes, reset delay, wait until joint stops */
+		    joint->home_pause_timer = 0;
+		    break;
+		}
 		/* set the current position to 'home_offset' */
-		offset = joint->home_offset - joint->pos_fb;
+		//orig: offset = joint->home_offset - joint->pos_fb;
+		offset = joint->home_offset - 
+                         (joint->switch_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
 		   motor position */
 		joint->pos_cmd += offset;
 		joint->pos_fb += offset;
 		joint->free_tp.curr_pos += offset;
 		joint->motor_offset -= offset;
+                
+                // // DEBUG ysli:
+		// rtapi_print (
+                //   _("HOME_SET_SWITCH_POS: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                //     joint_num,
+                //     offset,
+                //     joint->switch_pos,
+                //     joint->pos_cmd,
+                //     joint->pos_fb,
+                //     joint->free_tp.curr_pos,
+                //     joint->motor_offset);
+                // // DEBUG ysli:
+                
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;
 		immediate_state = 1;
@@ -660,12 +708,28 @@ void do_homing(void)
 		   the index pulse position.  It sets the current joint 
 		   position to 'home_offset', which is the location of the
 		   index pulse in joint coordinates. */
+		/* is the joint still moving? */
+		if (joint->free_tp.active) {
+                    /* prevent updating free_tp.curr_pos while previous
+                     * motion is not finished yet */
+		    /* yes, reset delay, wait until joint stops */
+		    joint->home_pause_timer = 0;
+		    break;
+		}
 		/* set the current position to 'home_offset' */
-		joint->motor_offset = -joint->home_offset;
-		joint->pos_fb = joint->motor_pos_fb -
-		    (joint->backlash_filt + joint->motor_offset);
-		joint->pos_cmd = joint->pos_fb;
-		joint->free_tp.curr_pos = joint->pos_fb;
+		//orig: joint->motor_offset = -joint->home_offset;
+		//orig: joint->pos_fb = joint->motor_pos_fb -
+		//orig:     (joint->backlash_filt + joint->motor_offset);
+		//orig: joint->pos_cmd = joint->pos_fb;
+		//orig: joint->free_tp.curr_pos = joint->pos_fb;
+                offset = joint->home_offset - 
+                         (joint->index_pos - joint->motor_offset);
+		/* this moves the internal position but does not affect the
+		   motor position */
+		joint->pos_cmd += offset;
+		joint->pos_fb += offset;
+		joint->free_tp.curr_pos += offset;
+		joint->motor_offset -= offset;
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;
 		immediate_state = 1;
@@ -691,7 +755,7 @@ void do_homing(void)
 		joint->home_pause_timer = 0;
 		/* plan a move to home position */
 		joint->free_tp.pos_cmd = joint->home;
-		/* if home_vel is set (>0) then we use that, otherwise we rapid there */
+		/* if home_final_vel(HOME_VEL) is set (>0) then we use that, otherwise we rapid there */
 		if (joint->home_final_vel > 0) {
 		    joint->free_tp.max_vel = fabs(joint->home_final_vel);
 		    /* clamp on max vel for this joint */
@@ -700,6 +764,7 @@ void do_homing(void)
 		} else { 
 		    joint->free_tp.max_vel = joint->vel_limit;
 		}
+
 		/* start the move */
 		joint->free_tp.enable = 1;
 		joint->home_state = HOME_FINAL_MOVE_WAIT;
