@@ -10,7 +10,7 @@ Build-Depends: debhelper (>> 4.0.0),
     lyx, ghostscript, imagemagick, texlive-latex-base, texlive-extra-utils,
     texlive-font-utils, python, python-dev, python-tk,
     libglu1-mesa-dev, libgl1-mesa-dev | libgl1-mesa-swx11-dev,
-    libgtk2.0-dev, libgnomeprintui2.2-dev, libwou-dev (>> 0.1-9),
+    libgtk2.0-dev, libgnomeprintui2.2-dev, libwou-dev (>= 0.1-9),
     gettext, autoconf
 Standards-Version: 2.4.0-alpha0
 
@@ -20,7 +20,7 @@ Provides: emc2-dev
 Depends: g++, @KERNEL_HEADERS@,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends},
-    @EMC2_PACKAGE_NAME@ (= ${Source-Version}), libwou-dev (>> 0.1-9),
+    @EMC2_PACKAGE_NAME@ (= ${Source-Version}), libwou-dev (>= 0.1-9),
     yapps2-runtime
 Section: libs
 Description: PC based motion controller for real-time Linux
@@ -39,7 +39,7 @@ Architecture: any
 Recommends: hostmot2-firmware, emc2-doc-en | emc2-doc-fr
 Depends: ${shlibs:Depends}, @KERNEL_DEPENDS@,
     tcl@TCLTK_VERSION@, tk@TCLTK_VERSION@, bwidget (>= 1.7),
-    libreadline5, libwou (>> 0.1-9),
+    libreadline5, libwou (>= 0.1-9),
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends},
     python@PYTHON_VERSION@-tk,

@@ -1,3 +1,12 @@
+emc2 (1:2.4.0-nurbs-2010.07.14) lucid; urgency=low
+
+  * Makefile for upstream homing.c and usb_homing.c
+  * Fixed the INACCURATE bug for position control loop
+  * To smooth the motion for USB_HOMING
+  * Add logging messages for HOMING
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 14 Jul 2010 12:58:13 +0800
+
 emc2 (1:2.4.0-nurbs-2010.07.12) lucid; urgency=low
 
   * pulled from master for S-curve acceleration
