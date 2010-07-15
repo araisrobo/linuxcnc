@@ -454,22 +454,26 @@ static void process_inputs(void)
         joint->switch_pos = *(joint_data->switch_pos_pin);  // absolute switch position
         joint->index_pos = *(joint_data->index_pos_pin);  // absolute switch position
 	/* calculate pos_fb */
-     	//orig: if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
-     	//orig:     ( joint->index_enable == 0 )) {
-     	//orig:     /* special case - we're homing the joint, and it just
-     	//orig:        hit the index.  The encoder count might have made a
-     	//orig:        step change.  The homing code will correct for it
-     	//orig:        later, so we ignore motor_pos_fb and set pos_fb
-     	//orig:        to match the commanded value instead. */
-     	//orig:     joint->pos_fb = joint->pos_cmd;
-	//orig: } else {
-	//orig:     /* normal case: subtract backlash comp and motor offset */
-	//orig:     joint->pos_fb = joint->motor_pos_fb -
-	//orig: 	(joint->backlash_filt + joint->motor_offset);
-	//orig: }
+#ifndef MOTION_OVER_USB
+     	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
+     	    ( joint->index_enable == 0 )) {
+     	    /* special case - we're homing the joint, and it just
+     	       hit the index.  The encoder count might have made a
+     	       step change.  The homing code will correct for it
+     	       later, so we ignore motor_pos_fb and set pos_fb
+     	       to match the commanded value instead. */
+     	    joint->pos_fb = joint->pos_cmd;
+	} else {
+	    /* normal case: subtract backlash comp and motor offset */
+	    joint->pos_fb = joint->motor_pos_fb -
+		(joint->backlash_filt + joint->motor_offset);
+	}
+#else
+        // MOTION_OVER_USB
 	/* normal case: subtract backlash comp and motor offset */
 	joint->pos_fb = joint->motor_pos_fb -
 	                (joint->backlash_filt + joint->motor_offset);
+#endif
 	/* calculate following error */
 	joint->ferror = joint->pos_cmd - joint->pos_fb;
 	abs_ferror = fabs(joint->ferror);
@@ -1120,12 +1124,14 @@ static void get_pos_cmds(long period)
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
             
-            if (joint_num == 0) {
-              DPS("st[%d]: pos_cmd(%f) f.pos_cmd(%f) f.curr_pos(%f)", 
-                  joint->home_state, joint->pos_cmd, joint->free_tp.pos_cmd, 
-                  joint->free_tp.curr_pos);
-	      DPS(" pos_fb(%f)  m_pos_fb(%f) s_pos(%f) m_ofst(%f)\n", 
-                  joint->pos_fb, joint->motor_pos_fb, joint->switch_pos, joint->motor_offset);
+            if (joint_num == 3) {
+              if (joint->home_state != HOME_IDLE) {
+                DPS("j[3] st[%d]: pos_cmd(%f) f.pos_cmd(%f) f.curr_pos(%f)", 
+                    joint->home_state, joint->pos_cmd, joint->free_tp.pos_cmd, 
+                    joint->free_tp.curr_pos);
+                DPS(" pos_fb(%f)  m_pos_fb(%f) s_pos(%f) m_ofst(%f)\n", 
+                    joint->pos_fb, joint->motor_pos_fb, joint->switch_pos, joint->motor_offset);
+              }
             }
 
             /* set acc limit in free TP */
@@ -1342,10 +1348,14 @@ static void get_pos_cmds(long period)
 	if (joint->pos_cmd > joint->max_pos_limit) {
 	    joint_limit[joint_num][1] = 1;
             onlimit = 1;
+            reportError(_("joint[%d]: pos_cmd(%f) max_pos_limit(%f)\n"), 
+                          joint_num, joint->pos_cmd, joint->max_pos_limit);
         }
         else if (joint->pos_cmd < joint->min_pos_limit) {
 	    joint_limit[joint_num][0] = 1;
             onlimit = 1;
+            reportError(_("joint[%d]: pos_cmd(%f) min_pos_limit(%f)\n"), 
+                          joint_num, joint->pos_cmd, joint->min_pos_limit);
         }
     }
     if ( onlimit ) {
@@ -1353,9 +1363,9 @@ static void get_pos_cmds(long period)
 	    /* just hit the limit */
 	    for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
 	        if (joint_limit[joint_num][0]) {
-                    reportError(_("joint %d exceed min soft limit"), joint_num);
+                    reportError(_("joint %d exceed min soft limit\n"), joint_num);
                 } else if (joint_limit[joint_num][1]) {
-                    reportError(_("joint %d exceed max soft limit"), joint_num);
+                    reportError(_("joint %d exceed max soft limit\n"), joint_num);
                 }
 	    }
 	    SET_MOTION_ERROR_FLAG(1);

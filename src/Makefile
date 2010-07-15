@@ -582,7 +582,7 @@ endif
 
 # for libwou
 ifneq ($(WOU_VERSION),)
-EXTRA_CFLAGS += $(WOU_CFLAGS)
+EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB
 EXTRALINK += $(WOU_LIBS)
 endif
 

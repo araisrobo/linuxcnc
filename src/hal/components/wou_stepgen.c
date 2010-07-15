@@ -364,6 +364,11 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
+    
+    /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
+    // issue a WOU_WRITE 
+    data[0] = 0x0F;
+    wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
 
     /* test for GPIO_MASK_IN0: gpio_mask_in0 */
     if ((gpio_mask_in0 == -1)) {
@@ -398,7 +403,7 @@ int rtapi_app_main(void)
 	data[0] = (uint8_t) gpio_leds_sel;
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
     }
-
+    
     /* test for stepping motor current limit: step_cur */
     num_chan = 0;
     for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
@@ -586,7 +591,7 @@ static void update_freq(void *arg, long period)
     // int     ret;
 
     // for homing:
-    uint8_t r_rst_pos;
+    uint8_t r_load_pos;
     uint8_t r_switch_en;
     uint8_t r_index_en;
     uint8_t r_index_lock;
@@ -715,7 +720,7 @@ static void update_freq(void *arg, long period)
     
     // DP("before checking home_state...\n");
 
-    r_rst_pos = 0;
+    r_load_pos = 0;
     r_switch_en = 0;
     r_index_en = prev_r_index_en;
     for (n = 0; n < num_chan; n++) {
@@ -766,10 +771,13 @@ static void update_freq(void *arg, long period)
 	    }
 
 	    if (stepgen->prev_home_state == HOME_IDLE) {
-		// * set to clear PULSE_POS, ENC_POS, SWITCH_POS, INDEX_POS at
-		//   beginning of homing
-		// * reset one cycle after setting this register
-		r_rst_pos |= (1 << n);
+                /**
+                 * set to ONE to load SWITCH_POS and INDEX_POS with
+                 * PULSE_POS(stepper) or ENC_POS(servo) at beginning of
+                 * homing (HOME_START state)
+		 * reset to ZERO one cycle after setting this register
+                 **/
+		r_load_pos |= (1 << n);
 	    }
 
 	    stepgen->prev_home_state = *stepgen->home_state;
@@ -778,12 +786,12 @@ static void update_freq(void *arg, long period)
 	stepgen++;
     }
 
-    /* check if we should clear SWITCH/INDEX positions for HOMING */
-    if (r_rst_pos != 0) {
+    /* check if we should update SWITCH/INDEX positions for HOMING */
+    if (r_load_pos != 0) {
 	// issue a WOU_WRITE 
 	wou_cmd(&w_param,
-		WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, &r_rst_pos);
-	// fprintf(stderr, "wou: r_rst_pos(0x%x)\n", r_rst_pos);
+		WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
+	// fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
 	wou_flush(&w_param);
     }
 

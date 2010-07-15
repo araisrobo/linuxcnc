@@ -141,6 +141,7 @@ void do_homing_sequence(void)
 	    if(joint->home_sequence == home_sequence) {
 		/* start this joint */
 	        joint->free_tp.enable = 0;
+		joint->home_pause_timer = 0;  // for wating USB at HOME_START
 		joint->home_state = HOME_START;
 		seen++;
 	    }
@@ -253,6 +254,21 @@ void do_homing(void)
 		SET_JOINT_HOMING_FLAG(joint, 1);
 		SET_JOINT_HOMED_FLAG(joint, 0);
 		SET_JOINT_AT_HOME_FLAG(joint, 0);
+                /* is the joint already moving? */
+		if (joint->free_tp.active) {
+		    /* yes, reset delay, wait until joint stops */
+		    joint->home_pause_timer = 0;
+		    break;
+		}
+                /* wou_stepgen should have given a SSIF_LOAD_POS command */
+		/* add this to wait USB to update its registers */
+                /* has delay timed out? */
+		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
+		    /* no, update timer and wait some more */
+		    joint->home_pause_timer++;
+		    break;
+		}
+
 		/* stop any existing motion */
 		joint->free_tp.enable = 0;
 		/* reset delay counter */
@@ -384,6 +400,13 @@ void do_homing(void)
                      * motion is not finished yet */
 		    /* yes, reset delay, wait until joint stops */
 		    joint->home_pause_timer = 0;
+		    break;
+		}
+		/* add this to wait USB to update its registers */
+                /* has delay timed out? */
+		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
+		    /* no, update timer and wait some more */
+		    joint->home_pause_timer++;
 		    break;
 		}
 		/* set the current position to 'home_offset' */
@@ -601,6 +624,13 @@ void do_homing(void)
 		    joint->home_pause_timer = 0;
 		    break;
 		}
+		/* add this to wait USB to update its registers */
+                /* has delay timed out? */
+		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
+		    /* no, update timer and wait some more */
+		    joint->home_pause_timer++;
+		    break;
+		}
 		/* set the current position to 'home_offset' */
 		//orig: offset = joint->home_offset - joint->pos_fb;
 		offset = joint->home_offset - 
@@ -714,6 +744,13 @@ void do_homing(void)
                      * motion is not finished yet */
 		    /* yes, reset delay, wait until joint stops */
 		    joint->home_pause_timer = 0;
+		    break;
+		}
+		/* add this to wait USB to update its registers */
+                /* has delay timed out? */
+		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
+		    /* no, update timer and wait some more */
+		    joint->home_pause_timer++;
 		    break;
 		}
 		/* set the current position to 'home_offset' */
