@@ -779,9 +779,8 @@ static void update_freq(void *arg, long period)
                  **/
 		r_load_pos |= (1 << n);
 	    }
-
-	    stepgen->prev_home_state = *stepgen->home_state;
 	}
+        stepgen->prev_home_state = *stepgen->home_state;
 	/* move on to next channel */
 	stepgen++;
     }
@@ -791,7 +790,7 @@ static void update_freq(void *arg, long period)
 	// issue a WOU_WRITE 
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-	// fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
+	fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
 	wou_flush(&w_param);
     }
 
