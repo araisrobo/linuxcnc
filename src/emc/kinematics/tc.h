@@ -115,6 +115,7 @@ typedef struct {
     double rt_maxaccel;
     double target_vel;
     double time_leave_s4;
+    double dist_comp;
     int    prev_state;
     nurbs_block_t nurbs_block; // nurbs command block
     double *N;                  // nurbs basis function buffer
