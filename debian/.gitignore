@@ -19,3 +19,4 @@ emc2-doc-fr
 /emc2-doc-fr.files
 *.debhelper
 shlibs.local
+control
