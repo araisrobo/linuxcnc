@@ -35,7 +35,8 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 #define VELOCITY_EPSTHON 1e-1
-#define EPSTHON 0.3
+#define EPSTHON 1e-5
+
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 static int immediate_state ;
@@ -1185,7 +1186,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         a = 0.5*tc->jerk;
                         b = tc->cur_accel;
                         c =   b*b/(4*a);
-                        d = b*b - 4*a*c;
+                        d = b*b - 4*a*c + EPSTHON;
                         assert(d>=0);
                         t1 = (-b+sqrt(d))/(2*a);
                         t2 = (-b-sqrt(d))/(2*a);
@@ -1239,8 +1240,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         a = 0.5*tc->jerk;
                         b = tc->cur_accel;
                         c =   b*b/(4*a);
-                        d = b*b - 4*a*c;
-                        assert(d>=0);
+                        d = b*b - 4*a*c + EPSTHON;
+                        assert(d >=0);
                         t1 = (-b+sqrt(d))/(2*a);
                         t2 = (-b-sqrt(d))/(2*a);
                         t = t1>t2?t1:t2;
