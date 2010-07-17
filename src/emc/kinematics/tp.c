@@ -35,7 +35,7 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 #define VELOCITY_EPSTHON 1e-1
-#define EPSTHON 1e-5
+#define EPSTHON 1e-9
 
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
@@ -1059,12 +1059,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     SP("rt_maxaccel(%f)\n",tc->rt_maxaccel);
                     accel_vel = 0.5*tc->jerk*pow(t,2);
                     target_vel = tc->currentvel;  // possible S3 vel
-                    SP(stderr,"t(%f)  \n",t);
+                    SP("t(%f)  \n",t);
                     //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
                     decel_dist = target_vel*t - 1.0/6.0*tc->jerk*pow(t,3); // S4
-                    SP(stderr,"EXPECTED d(s4)(%f) ",decel_dist);
+                    SP("EXPECTED d(s4)(%f) ",decel_dist);
                     decel_dist += accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3); // S6
-                    SP(stderr,"d(s6)(%f) ",accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3));
+                    SP("d(s6)(%f) ",accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3));
                     t = (target_vel - 2*accel_vel)/tc->rt_maxaccel;
                     decel_dist += (target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2);
                     SP("d(s5)(%f) ",(target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2));
@@ -1120,7 +1120,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             // AT = A0 + JT
             newaccel = 0;//tc->cur_accel + tc->rt_jerk * tc->cycle_time;
             // VT = V0 + A0T + 1/2 JT2
-            newvel = tc->currentvel ;//+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+            newvel = tc->reqvel*tc->feed_override;/*tc->currentvel*/ ;//+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
             if (tc->decel_dist + (tc->currentvel )* tc->cycle_time > tc->target - tc->progress) {
                 SP("tc->decel_dist(%f)\n", tc->decel_dist);
                 tc->accel_state = ACCEL_S4;
@@ -1177,7 +1177,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             }
             t = -tc->cur_accel/tc->jerk;
             decel_dist = tc->currentvel*t + 0.5*tc->cur_accel*t*t +1.0/6.0*tc->jerk*t*t*t;
-            if (newvel <= 0.5 * (tc->accel_time + tc->target_vel) /*from S3*/) { // accel_time stores the initial-velocity of deceleration
+            if (newvel <= 0.5 * (tc->accel_time + tc->target_vel) && (decel_dist < (tc->target-tc->progress))/*from S3*/) { // accel_time stores the initial-velocity of deceleration
                 if(tc->target_vel == 0) {
                     SP("vel(%f) accel(%f) dtg(%f) decel_dist(%f)\n",
                                             tc->currentvel, tc->cur_accel, tc->target-tc->progress, decel_dist);
@@ -1185,17 +1185,39 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         double a, b, c, d;
                         a = 0.5*tc->jerk;
                         b = tc->cur_accel;
-                        c =   b*b/(4*a);
-                        d = b*b - 4*a*c + EPSTHON;
-                        assert(d>=0);
-                        t1 = (-b+sqrt(d))/(2*a);
-                        t2 = (-b-sqrt(d))/(2*a);
-                        t = t1>t2?t1:t2;
+                        c = tc->currentvel;
+                        SP("d(%f)\n",b*b-4*a*c);
+                        if((b*b-4*a*c < 0)) {
+                            c =   b*b/(4*a);
+                            tc->currentvel = c;
+                            t = -tc->cur_accel/tc->jerk;
+                            decel_dist = tc->currentvel*t + 0.5*tc->cur_accel*t*t +1.0/6.0*tc->jerk*t*t*t;
+                            d = b*b -4*a*c + EPSTHON;
+                            assert(d >=0);
+                            t1 = (-b+sqrt(d))/(2*a);
+                            t2 = (-b-sqrt(d))/(2*a);
+                            t = t1<t2?t1:t2;
+                            t = ceil(t/tc->cycle_time);
+                            tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
+                        } else {
+                            d = b*b -4*a*c + EPSTHON;
+                            assert(d >=0);
+                            t1 = (-b+sqrt(d))/(2*a);
+                            t2 = (-b-sqrt(d))/(2*a);
+                            t = t1<t2?t1:t2;
+                            t = ceil(t/tc->cycle_time);
+
+                            t1 = t*tc->cycle_time;
+                            decel_dist = tc->currentvel*t1 + 0.5*tc->cur_accel*t1*t1 +1.0/6.0*tc->jerk*t1*t1*t1;
+
+                            tc->dist_comp =  (tc->target - tc->progress - decel_dist)/(t);
+                        }
+
+
                     }
-                    t = floor(t/tc->cycle_time);
-                    tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
-                    SP("diff(%f) decel_dist(%f) dist_comp(%f) cycles(%f)\n",
-                            tc->target - tc->progress - decel_dist,decel_dist, tc->dist_comp,t);
+
+                    SP("t1(%f) t2(%f) t(%f) diff(%f) decel_dist(%f) dist_comp(%f) cycles(%f)\n",
+                            t1,t2,t*tc->cycle_time,tc->target - tc->progress - decel_dist,decel_dist, tc->dist_comp,t);
                 } else {
                     tc->dist_comp = 0;
                 }
@@ -1229,7 +1251,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s5);
                 break;
             }*/
-            if (newvel  <= tc->accel_time + tc->target_vel) { // accel_time stores the delta-V for ACCEL_S4
+            if (newvel  <= tc->accel_time + tc->target_vel && (decel_dist < (tc->target-tc->progress))) { // accel_time stores the delta-V for ACCEL_S4
                 SP("vel(%f) accel(%f) dtg(%f) decel_dist(%f)\n",
                         tc->currentvel, tc->cur_accel, tc->target-tc->progress, decel_dist);
                 if(tc->target_vel == 0) {
@@ -1239,17 +1261,39 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         double a, b, c, d;
                         a = 0.5*tc->jerk;
                         b = tc->cur_accel;
-                        c =   b*b/(4*a);
-                        d = b*b - 4*a*c + EPSTHON;
-                        assert(d >=0);
-                        t1 = (-b+sqrt(d))/(2*a);
-                        t2 = (-b-sqrt(d))/(2*a);
-                        t = t1>t2?t1:t2;
+                        c = tc->currentvel;
+                        SP("d(%f)\n",b*b-4*a*c);
+                        if((b*b-4*a*c < 0)) {
+                            c =   b*b/(4*a);
+                            tc->currentvel = c;
+                            t = -tc->cur_accel/tc->jerk;
+                            decel_dist = tc->currentvel*t + 0.5*tc->cur_accel*t*t +1.0/6.0*tc->jerk*t*t*t;
+                            d = b*b -4*a*c + EPSTHON;
+                            assert(d >=0);
+                            t1 = (-b+sqrt(d))/(2*a);
+                            t2 = (-b-sqrt(d))/(2*a);
+                            t = t1<t2?t1:t2;
+                            t = ceil(t/tc->cycle_time);
+                            tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
+
+                        } else {
+                            d = b*b -4*a*c + EPSTHON;
+                            assert(d >=0);
+                            t1 = (-b+sqrt(d))/(2*a);
+                            t2 = (-b-sqrt(d))/(2*a);
+                            t = t1<t2?t1:t2;
+                            t = ceil(t/tc->cycle_time);
+                            t1 = t*tc->cycle_time;
+                            decel_dist = tc->currentvel*t1 + 0.5*tc->cur_accel*t1*t1 +1.0/6.0*tc->jerk*t1*t1*t1;
+                            tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
+                        }
+
+
                     }
-                    t = floor(t/tc->cycle_time);
-                    tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
-                    SP("diff(%f) decel_dist(%f) dist_comp(%f) cycles(%f)\n",
-                            tc->target - tc->progress - decel_dist,decel_dist, tc->dist_comp,t);
+
+
+                    SP("t1(%f) t2(%f) t(%f) diff(%f) decel_dist(%f) dist_comp(%f) cycles(%f)\n",
+                        t1,t2,t*tc->cycle_time,tc->target - tc->progress - decel_dist,decel_dist, tc->dist_comp,t);
                 } else {
                     tc->dist_comp = 0;
                 }
@@ -1301,8 +1345,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                   decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) + 1.0/6.0*tc->jerk*pow(t,3);
 //                  SP("exclude S5");
                 }
-                newvel = tc->currentvel;
-                newaccel = tc->cur_accel;
+                newvel = tc->reqvel*tc->feed_override/*tc->currentvel*/;
+                newaccel = 0/*tc->cur_accel*/;
                 tc->decel_dist = decel_dist;
                 SP("decel_dist(%f) dtg(%f)\n",tc->decel_dist, tc->target-tc->progress);
                 tc->on_feed_change = 0;
