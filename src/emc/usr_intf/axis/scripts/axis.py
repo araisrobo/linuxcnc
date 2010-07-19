@@ -2987,7 +2987,7 @@ c.wait_complete()
 c.set_optional_stop(vars.optional_stop.get())
 c.wait_complete()
 
-o = MyOpengl(widgets.preview_frame, width=400, height=300, double=1, depth=1)
+o = MyOpengl(widgets.preview_frame, width=200, height=200, double=1, depth=1)
 o.last_line = 1
 o.pack(fill="both", expand=1)
 
