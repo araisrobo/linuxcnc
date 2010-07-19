@@ -595,7 +595,7 @@ static void update_freq(void *arg, long period)
     uint8_t r_switch_en;
     uint8_t r_index_en;
     uint8_t r_index_lock;
-    static uint8_t prev_r_switch_en = 0;
+//obsolete:    static uint8_t prev_r_switch_en = 0;
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
 
@@ -634,22 +634,23 @@ static void update_freq(void *arg, long period)
 	    *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
 	}
     }
-    // read SSIF_SWITCH_EN
-    if (memcmp
-	(&prev_r_switch_en,
-	 wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1)) {
-	memcpy(&r_switch_en,
-	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1);
-	// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_en(0x%02X) prev_switch_en(0x%02X)\n", 
-	//                               r_switch_en, prev_r_switch_en);
-	prev_r_switch_en = r_switch_en;
-    }
+
+//obsolete:    // read SSIF_SWITCH_EN
+//obsolete:    if (memcmp
+//obsolete:	(&prev_r_switch_en,
+//obsolete:	 wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1)) {
+//obsolete:	memcpy(&r_switch_en,
+//obsolete:	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_EN), 1);
+//obsolete:	// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_en(0x%02X) prev_switch_en(0x%02X)\n", 
+//obsolete:	//                               r_switch_en, prev_r_switch_en);
+//obsolete:	prev_r_switch_en = r_switch_en;
+//obsolete:    }
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock,
 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
     if (r_index_lock != prev_r_index_lock) {
-	// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n", 
-	//                                 r_index_lock, prev_r_index_lock);
+	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n", 
+	                                r_index_lock, prev_r_index_lock);
 	prev_r_index_lock = r_index_lock;
     }
     // process GPIO.OUT
@@ -763,10 +764,10 @@ static void update_freq(void *arg, long period)
 		    // reset r_index_en by SW
 		    r_index_en &= (~(1 << n));	// reset index_en[n]
 		    *(stepgen->index_enable) = 0;
-		    // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
-		    //                                 r_index_en, prev_r_index_en);
-		    // rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f)\n", 
-		    //                                 *(stepgen->index_pos));
+		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
+		                                    r_index_en, prev_r_index_en);
+		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f)\n", 
+		                                    *(stepgen->index_pos));
 		}
 	    }
 
@@ -808,7 +809,7 @@ static void update_freq(void *arg, long period)
 	// issue a WOU_WRITE 
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_INDEX_EN, 1, &r_index_en);
-	// fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
+	fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
 	wou_flush(&w_param);
 	prev_r_index_en = r_index_en;
     }
@@ -819,8 +820,8 @@ static void update_freq(void *arg, long period)
              (SSIF_BASE + SSIF_PULSE_POS),
              34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
              data);
-    wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_SWITCH_POS,
-             32, // SSIF_SWITCH_POS, SSIF_INDEX_POS
+    wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_INDEX_LOCK,
+             33, // SSIF_INDEX_LOCK, SSIF_SWITCH_POS, SSIF_INDEX_POS
              data);
     wou_flush(&w_param);
 
