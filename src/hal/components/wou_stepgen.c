@@ -615,7 +615,7 @@ static void update_freq(void *arg, long period)
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
-    // print out tx/rx data rate
+    // print out tx/rx data rate every second
     wou_status(&w_param);
 
     // /* check and update WOU Registers */
@@ -680,7 +680,7 @@ static void update_freq(void *arg, long period)
         sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
 
         wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-                        sizeof(uint16_t), &sync_cmd);
+                        sizeof(uint16_t), (uint8_t *) &sync_cmd);
 	*(m_control->sync_in_trigger) = 0;
     }
 
