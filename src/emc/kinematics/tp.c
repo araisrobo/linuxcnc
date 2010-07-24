@@ -1709,7 +1709,8 @@ void tpToggleDIOs(TC_STRUCT * tc) {
 // to motion.  It's not THAT bad and in the interest of not touching
 // stuff outside this directory, I'm going to leave it for now.
 
-int tpRunCycle(TP_STRUCT * tp, long period) {
+int tpRunCycle(TP_STRUCT * tp, long period) 
+{
     // vel = (new position - old position) / cycle time
     // (two position points required)
     //
@@ -2235,7 +2236,7 @@ int tpSetDout(TP_STRUCT *tp, int index, unsigned char start, unsigned char end) 
 }
 
 int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type) {
-    int i;
+    // int i;
     if (0 == tp) {
         return -1;
     }
