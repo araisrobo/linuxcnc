@@ -189,7 +189,10 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 // static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
-// static int pending_cnt = 0;
+static int pending_cnt;
+#define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
+
+// trace INDEX_HOMING: static int debug_cnt = 0;
 
 
 /***********************************************************************
@@ -348,7 +351,8 @@ int rtapi_app_main(void)
     /* prepare header for gnuplot */
     DPS("#%10s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s  %17s%15s%15s%15s%15s%7s\n", "dt", "pos_cmd[0]", "cur_pos[0]", "pos_fb[0]", "match_ac[0]", "curr_vel[0]", "home[0]", "pos_cmd[1]", "cur_pos[1]", "pos_fb[1]", "match_ac[1]", "curr_vel[1]", "home[1]", "pos_cmd[2]", "cur_pos[2]", "pos_fb[2]", "match_ac[2]", "curr_vel[2]", "home[2]", "pos_cmd[3]", "cur_pos[3]", "pos_fb[3]", "match_ac[3]", "curr_vel[3]", "home[3]");
 #endif
-
+    
+    pending_cnt = 0;
 
     /* test for bitfile string: bits */
     if ((bits == 0) || (bits[0] == '\0')) {
@@ -616,7 +620,7 @@ static void update_freq(void *arg, long period)
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     // print out tx/rx data rate every second
-    wou_status(&w_param);
+    // wou_status(&w_param);
 
     // /* check and update WOU Registers */
     DP("before wou_update()\n");
@@ -735,7 +739,7 @@ static void update_freq(void *arg, long period)
 	    memcpy((void *) &index_pos_tmp,
 		   wou_reg_ptr(&w_param,
 			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-
+            
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
 	    
@@ -766,8 +770,8 @@ static void update_freq(void *arg, long period)
 		    *(stepgen->index_enable) = 0;
 		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
 		                                    r_index_en, prev_r_index_en);
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f)\n", 
-		                                    *(stepgen->index_pos));
+		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f) INDEX_POS(0x%08X)\n", 
+		                                    *(stepgen->index_pos), index_pos_tmp);
 		}
 	    }
 
@@ -814,16 +818,20 @@ static void update_freq(void *arg, long period)
 	prev_r_index_en = r_index_en;
     }
     
-    // replace "bp_reg_update"
-    // send WB_RD_CMD to read registers back
-    wou_cmd (&w_param, WB_RD_CMD,
-             (SSIF_BASE + SSIF_PULSE_POS),
-             34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
-             data);
-    wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_INDEX_LOCK,
-             33, // SSIF_INDEX_LOCK, SSIF_SWITCH_POS, SSIF_INDEX_POS
-             data);
-    wou_flush(&w_param);
+    pending_cnt += 1;
+    if (pending_cnt == JNT_PER_WOF) {
+        pending_cnt = 0;
+        // replace "bp_reg_update"
+        // send WB_RD_CMD to read registers back
+        wou_cmd (&w_param, WB_RD_CMD,
+                 (SSIF_BASE + SSIF_PULSE_POS),
+                 34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
+                 data);
+        wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_INDEX_LOCK,
+                 33, // SSIF_INDEX_LOCK, SSIF_SWITCH_POS, SSIF_INDEX_POS
+                 data);
+        wou_flush(&w_param);
+    }
 
     // responsible for motion sluggish?ss
 
@@ -854,6 +862,22 @@ static void update_freq(void *arg, long period)
 	       4);
 	memcpy((void *) stepgen->enc_pos,
 	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n * 4), 4);
+        
+        //trace INDEX_HOMING: debug_cnt+=1;
+        //trace INDEX_HOMING: if (debug_cnt > 1024*4) {
+        //trace INDEX_HOMING:     hal_s32_t index_pos_tmp;
+        //trace INDEX_HOMING:     memcpy((void *) &index_pos_tmp,
+        //trace INDEX_HOMING:                     wou_reg_ptr(&w_param,
+        //trace INDEX_HOMING:                                 SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
+        //trace INDEX_HOMING:     // for joint[0]
+        //trace INDEX_HOMING:     if (0 == n) {
+        //trace INDEX_HOMING:         rtapi_print_msg(RTAPI_MSG_DBG,
+        //trace INDEX_HOMING:                         "J[%d]: INDEX_POS(0x%08X) PULSE_POS(0x%08X) ENC_POS(0x%08X)\n", 
+        //trace INDEX_HOMING:                         n, index_pos_tmp, *(stepgen->pulse_pos), *(stepgen->enc_pos));
+        //trace INDEX_HOMING:     }
+        //trace INDEX_HOMING:     if (3 == n)
+        //trace INDEX_HOMING:         debug_cnt = 0;
+        //trace INDEX_HOMING: }
 
     /**
      * Use pulse_pos because there's no enc_pos for stepping motor driver.
