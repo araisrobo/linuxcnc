@@ -1867,6 +1867,10 @@ class TclCommands(nf.TclCommands):
         open_directory = os.path.dirname(f)
         commands.open_file_name(f)
 
+    def exec_teach(event=None):
+        b = "teach-in " + open_directory+ "/teached.ngc &"
+        print b
+        os.system(b)
     def remote (cmd,arg=""):
         if cmd == "clear_live_plot":
             commands.clear_live_plot()

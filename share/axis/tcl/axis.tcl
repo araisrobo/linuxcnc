@@ -183,6 +183,10 @@ setup_menu_accel .menu.machine end [_ "Sho_w EMC Status"]
 	-command {exec debuglevel -ini $emcini &}
 setup_menu_accel .menu.machine end [_ "Set _Debug Level"]
 
+.menu.machine add command \
+        -command exec_teach 
+setup_menu_accel .menu.machine end [_ "_Teach-in"]
+
 .menu.machine add separator
 
 .menu.machine add cascade \
