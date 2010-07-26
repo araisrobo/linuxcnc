@@ -1058,7 +1058,7 @@ static void get_pos_cmds(long period)
     emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS];
     double old_pos_cmd;
-    double vel_lim;
+    // double vel_lim;
     /* used in teleop mode to compute the max accell requested */
     int onlimit = 0;
     int joint_limit[EMCMOT_MAX_JOINTS][2];
@@ -1123,7 +1123,8 @@ static void get_pos_cmds(long period)
             } else {
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
-            
+           
+#if (TRACE!=0)
             if (joint_num == 3) {
               if (joint->home_state != HOME_IDLE) {
                 DPS("j[3] st[%d]: pos_cmd(%f) f.pos_cmd(%f) f.curr_pos(%f)", 
@@ -1133,6 +1134,7 @@ static void get_pos_cmds(long period)
                     joint->pos_fb, joint->motor_pos_fb, joint->switch_pos, joint->motor_offset);
               }
             }
+#endif
 
             /* set acc limit in free TP */
             joint->free_tp.max_acc = joint->acc_limit;
