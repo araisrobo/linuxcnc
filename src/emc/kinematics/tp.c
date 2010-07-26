@@ -25,9 +25,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STATE_DEBUG 1  // for state machine debug
+#define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -925,7 +925,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 t = (target_vel - 2*accel_vel)/tc->maxaccel;
                  //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
                 decel_dist += (target_vel - accel_vel)*t -0.5*tc->maxaccel*pow(t,2);// accel_vel)*t*0.5; //S5
-                SP("S0 EXPECTED S2+S4+S5+S6 decel(%f)\n", decel_dist);
+//                SP("S0 EXPECTED S2+S4+S5+S6 decel(%f)\n", decel_dist);
 
             } else {
                 // consider deceleration progress exclude S5
@@ -940,7 +940,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 decel_dist += target_vel*t - 1.0/6.0*tc->jerk*t*t*t;       // S4
 //                SP("S0 EXPECTED S2+S4 decel(%f)\n",decel_dist);
                 decel_dist += 0.5*target_vel*t - 0.5*(tc->jerk*t)*pow(t,2) + 1.0/6.0*tc->jerk*pow(t,3); //S6
-                SP("S0 EXPECTED S2+S4+S6 decel(%f) dtg(%f)\n", decel_dist,tc->target-tc->progress);
+//                SP("S0 EXPECTED S2+S4+S6 decel(%f) dtg(%f)\n", decel_dist,tc->target-tc->progress);
 
             }
             if (decel_dist + (v1*tc->cycle_time +
