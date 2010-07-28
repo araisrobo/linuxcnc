@@ -687,6 +687,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_JOG_CONT:
+
 	    /* do a continuous jog, implemented as an incremental jog to the
 	       limit.  When the user lets go of the button an abort will
 	       stop the jog. */
@@ -754,11 +755,13 @@ check_stuff ( "before command_handler()" );
                     /* valid axis, point to it's data */
                     axis = &axes[axis_num];
                 }
-	        if (emcmotCommand->vel > 0.0) {
+
+	        if (emcmotCommand->vel > 0.0) {//TODO-eric: call kin API for max or min value
 		    axis->teleop_tp.pos_cmd = axis->max_pos_limit;
 	        } else {
 		    axis->teleop_tp.pos_cmd = axis->min_pos_limit;
 	        }
+
                 /* set velocity of jog */
 	        axis->teleop_tp.max_vel = fabs(emcmotCommand->vel);
 	        /* use max axis accel */
