@@ -26,7 +26,7 @@
 #include "hal.h"
 
 // to disable DP():
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -74,7 +74,7 @@ struct scara_data {
    PPD = Pitch Per Degree of joint[3]
                 the rotate of joint[3] may move end effector along
                 veritcal direction
-    SING = Singularity Range for Joint[1], unit: degree
+    SING = Singularity Range for Joint[1], unit: radius
 */
 
 #define D1      (*(haldata->d1))
@@ -84,7 +84,7 @@ struct scara_data {
 #define D5      (*(haldata->d5))
 #define D6      (*(haldata->d6))
 #define PPD     (*(haldata->ppd))
-#define SING    (*(haldata->sing))
+#define SING    ((*(haldata->sing))*PM_PI/180)
 
 /**
  * kinematicsLimit - calculate the the cartesian limit(MAX/MIN) of given AXIS
@@ -125,14 +125,6 @@ int kinematicsForward(const double * joint,
     double x, y, z, a;
 
     DP ("begin\n");
-    // DPS("D1=%f ", D1);
-    // DPS("D2=%f ", D2);
-    // DPS("D3=%f ", D3);
-    // DPS("D4=%f ", D4);
-    // DPS("D5=%f ", D5);
-    // DPS("D6=%f ", D6);
-    // DPS("PPD=%f ", PPD);
-    // DPS("\n");
 
     /* convert joint angles to radians for sin() and cos() */
     a0 = joint[0] * ( PM_PI / 180 );
@@ -155,8 +147,8 @@ int kinematicsForward(const double * joint,
     if (fabs(joint[1]) < SING) {
         *iflags |= SCARA_SINGULAR;
     }
-    if (joint[1] < 0) {
-	*iflags |= SCARA_LEFTY;
+    if (joint[1] < 0) {         // 是左撇子嗎？
+	*iflags |= SCARA_LEFTY;   
     }
 	
     world->tran.x = x;
@@ -194,14 +186,6 @@ int kinematicsInverse(const EmcPose *world,
     double x, y, z, a;
 
     DP ("begin\n");
-    // DPS("D1=%f ", D1);
-    // DPS("D2=%f ", D2);
-    // DPS("D3=%f ", D3);
-    // DPS("D4=%f ", D4);
-    // DPS("D5=%f ", D5);
-    // DPS("D6=%f ", D6);
-    // DPS("PPD=%f ", PPD);
-    // DPS("\n");
     
     if (*iflags & SCARA_SINGULAR) {
         DP ("quit when SCARA is at SINGULARITY configuration\n");
@@ -231,6 +215,7 @@ int kinematicsInverse(const EmcPose *world,
     
     if (fabs(q1) < SING) {
         DP ("quit when SCARA is about to move to SINGULAR position\n");
+        DP ("x(%f) y(%f) q1(%f) cur_j1(%f)\n", x, y, q1, joint[1]);
         return -1;
     }
 
@@ -294,13 +279,6 @@ KINEMATICS_TYPE kinematicsType()
 {
   return KINEMATICS_BOTH;
 }
-
-// #define DEFAULT_D1 490
-// #define DEFAULT_D2 340
-// #define DEFAULT_D3  50
-// #define DEFAULT_D4 250
-// #define DEFAULT_D5  50
-// #define DEFAULT_D6  50
 
 EXPORT_SYMBOL(kinematicsType);
 EXPORT_SYMBOL(kinematicsForward);
