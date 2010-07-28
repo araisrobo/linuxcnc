@@ -1,3 +1,10 @@
+emc2 (1:2.4.0-nurbs-2010.07.27) lucid; urgency=low
+
+  * Resolved non-smooth S-curve acceleration issue for short distance
+  * Resolved HOMING with INDEX issue
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 27 Jul 2010 07:40:48 +0800
+ 
 emc2 (1:2.4.0-nurbs-2010.07.14) lucid; urgency=low
 
   * Makefile for upstream homing.c and usb_homing.c
