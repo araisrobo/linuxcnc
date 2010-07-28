@@ -18,6 +18,7 @@
 #include "posemath.h"
 #include "rtapi_math.h"
 #include "kinematics.h"             /* decls for kinematicsForward, etc. */
+#include "art_scarakins.h"
 
 #ifdef RTAPI
 #include "rtapi.h"		/* RTAPI realtime OS API */
@@ -83,6 +84,35 @@ struct scara_data {
 #define D6  (*(haldata->d6))
 #define PPD (*(haldata->ppd))
 
+/**
+ * kinematicsLimit - calculate the the cartesian limit(MAX/MIN) of given AXIS
+ * @joint[]:  joint[0], joint[1] and joint[3] are in degrees and 
+ *            joint[2] is in length units
+ **/
+double kinematicsLimit(
+          const double *joint,  /* current joint positions */
+          const EmcPose *world, /* current cartesian position */
+          const int axis,       /* axis index of cartesian space */
+          const int type,       /* MAX or MIN limit */
+          const KINEMATICS_FORWARD_FLAGS *fflags, /* RIGHTY or LEFTY */
+          KINEMATICS_INVERSE_FLAGS *iflags)
+{
+//    double a0, a1, a3;
+//    double x, y, z, a;
+
+    DP ("begin\n");
+
+//     /* convert joint angles to radians for sin() and cos() */
+//     a0 = joint[0] * ( PM_PI / 180 );
+//     a1 = joint[1] * ( PM_PI / 180 );
+//     a3 = joint[3] * ( PM_PI / 180 );
+
+    DP ("TODO\n");
+
+    DP ("end\n");
+    return (0);
+}
+
 /* joint[0], joint[1] and joint[3] are in degrees and joint[2] is in length units */
 int kinematicsForward(const double * joint,
                       EmcPose * world,
@@ -93,21 +123,21 @@ int kinematicsForward(const double * joint,
     double x, y, z, a;
 
     DP ("begin\n");
-    DPS("D1=%f ", D1);
-    DPS("D2=%f ", D2);
-    DPS("D3=%f ", D3);
-    DPS("D4=%f ", D4);
-    DPS("D5=%f ", D5);
-    DPS("D6=%f ", D6);
-    DPS("PPD=%f ", PPD);
-    DPS("\n");
+    // DPS("D1=%f ", D1);
+    // DPS("D2=%f ", D2);
+    // DPS("D3=%f ", D3);
+    // DPS("D4=%f ", D4);
+    // DPS("D5=%f ", D5);
+    // DPS("D6=%f ", D6);
+    // DPS("PPD=%f ", PPD);
+    // DPS("\n");
 
     /* convert joint angles to radians for sin() and cos() */
     a0 = joint[0] * ( PM_PI / 180 );
     a1 = joint[1] * ( PM_PI / 180 );
     a3 = joint[3] * ( PM_PI / 180 );
-/* convert angles into world coords */
-
+    
+    /* convert angles into world coords */
     a1 = a1 + a0;
     a3 = a3 + a1;
 
@@ -117,10 +147,15 @@ int kinematicsForward(const double * joint,
     //PPD: pitch per degree
     z = D1 + D3 - joint[2] - D5 + joint[3]*PPD; 
     a = a3;
-	
+    
+    /* calculate inverse kinematics flags */
     *iflags = 0;
-    if (joint[1] < 90)
-	*iflags = 1;
+    if (fabs(joint[1]) < SINGULAR_FUZZ) {
+        *iflags |= SCARA_SINGULAR;
+    }
+    if (joint[1] < 0) {
+	*iflags |= SCARA_LEFTY;
+    }
 	
     world->tran.x = x;
     world->tran.y = y;
@@ -146,10 +181,10 @@ int kinematicsForward(const double * joint,
     return (0);
 }
 
-int kinematicsInverse(const EmcPose * world,
-                      double * joint,
-                      const KINEMATICS_INVERSE_FLAGS * iflags,
-                      KINEMATICS_FORWARD_FLAGS * fflags)
+int kinematicsInverse(const EmcPose *world,
+                      double *joint,
+                      const KINEMATICS_INVERSE_FLAGS *iflags,
+                      KINEMATICS_FORWARD_FLAGS *fflags)
 {
     double a3;
     double q0, q1;
@@ -157,14 +192,19 @@ int kinematicsInverse(const EmcPose * world,
     double x, y, z, a;
 
     DP ("begin\n");
-    DPS("D1=%f ", D1);
-    DPS("D2=%f ", D2);
-    DPS("D3=%f ", D3);
-    DPS("D4=%f ", D4);
-    DPS("D5=%f ", D5);
-    DPS("D6=%f ", D6);
-    DPS("PPD=%f ", PPD);
-    DPS("\n");
+    // DPS("D1=%f ", D1);
+    // DPS("D2=%f ", D2);
+    // DPS("D3=%f ", D3);
+    // DPS("D4=%f ", D4);
+    // DPS("D5=%f ", D5);
+    // DPS("D6=%f ", D6);
+    // DPS("PPD=%f ", PPD);
+    // DPS("\n");
+    
+    if (*iflags & SCARA_SINGULAR) {
+        DP ("quit when SCARA is at SINGULARITY configuration\n");
+        return -1;
+    }
 
     x = world->tran.x;
     y = world->tran.y;
@@ -186,9 +226,15 @@ int kinematicsInverse(const EmcPose * world,
     if(cc < -1) cc = -1;
     if(cc > 1) cc = 1;
     q1 = acos(cc);
+    
+    if (fabs(q1) < SINGULAR_FUZZ) {
+        DP ("quit when SCARA is about to move to SINGULAR position\n");
+        return -1;
+    }
 
-    if (*iflags)
+    if (*iflags & SCARA_LEFTY) {
 	q1 = -q1;
+    }
 
     /* angle to end effector */
     q0 = atan2(yt, xt);
@@ -311,3 +357,5 @@ error:
 
 void rtapi_app_exit(void) { hal_exit(comp_id); }
 #endif
+
+// vim:sw=4:sts=4:et:
