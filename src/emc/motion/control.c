@@ -1056,7 +1056,7 @@ static void get_pos_cmds(long period)
     int joint_num, axis_num, all_homed, all_at_home, result, limit;
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
-    double positions[EMCMOT_MAX_JOINTS], tmp_pos[EMCMOT_MAX_AXIS];
+    double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
     double old_pos_cmd, new_pos_cmd, new_vel_cmd;
     double vel_lim;
     /* used in teleop mode to compute the max accell requested */
@@ -1078,12 +1078,14 @@ static void get_pos_cmds(long period)
 	}
     }
     /* if less than a full complement of joints, zero out the rest */
+/*
     while ( joint_num < EMCMOT_MAX_JOINTS ) {
         positions[joint_num] = 0.0;
         // reset axis tmp also
         tmp_pos[joint_num];
         joint_num++;
     }
+*/
 
     /* RUN MOTION CALCULATIONS: */
 
@@ -1224,7 +1226,6 @@ static void get_pos_cmds(long period)
 
     case EMCMOT_MOTION_COORD:
         rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_COORD ++++\n");
-
 	/* check joint 0 to see if the interpolators are empty */
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
@@ -1289,6 +1290,7 @@ static void get_pos_cmds(long period)
             simple_tp_update(&(axis->teleop_tp), servo_period);
             axis->vel_cmd = axis->teleop_tp.curr_vel;
             axis->pos_cmd = axis->teleop_tp.curr_pos;
+
         }
 
 
@@ -1296,7 +1298,8 @@ static void get_pos_cmds(long period)
 	    to compute the next positions of the joints */
 
 	/* OUTPUT KINEMATICS - convert to joints in local array */
-	kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions, &iflags, &fflags);
+	result = kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions, &iflags, &fflags);
+	if (result != 0 ) return;
 	/* copy to joint structures and spline them up */
 	for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
 	    /* point to joint struct */
@@ -1314,23 +1317,29 @@ static void get_pos_cmds(long period)
 	    new_vel_cmd = (/*joint->pos_cmd*/new_pos_cmd - old_pos_cmd) * servo_freq;
 	    /* Check the joint limit before write cmd */
             refresh_jog_limits(joint);
-            if (new_pos_cmd  >= joint->max_jog_limit) {
-                joint->pos_cmd = joint->max_jog_limit;
-                joint->vel_cmd = 0;
-                limit = 1;
-            } else {
-                joint->pos_cmd = new_pos_cmd;
-                joint->vel_cmd = new_vel_cmd;
+            if(new_vel_cmd > 0) {
+                if (new_pos_cmd  > joint->max_jog_limit) {
+                    joint->pos_cmd = joint->max_jog_limit;
+                    joint->vel_cmd = 0;//new_vel_cmd;
+                    limit = 1;
+                } else {
+                    joint->pos_cmd = new_pos_cmd;
+                    joint->vel_cmd = new_vel_cmd;
+                }
             }
-            if (new_pos_cmd <= joint->min_jog_limit) {
-                joint->pos_cmd = joint->min_jog_limit;
-                joint->vel_cmd = 0;
-                limit = 1;
-            } else {
-                joint->pos_cmd = new_pos_cmd;
-                joint->vel_cmd = new_vel_cmd;
+            else {
+                if (new_pos_cmd < joint->min_jog_limit) {
+                    joint->pos_cmd = joint->min_jog_limit;
+                    joint->vel_cmd = 0;//tmp_vel[joint_num] = new_vel_cmd;
+                    limit = 1;
+                } else {
+                    joint->pos_cmd = new_pos_cmd;
+                    joint->vel_cmd = new_vel_cmd;
+                    /*tmp_pos[joint_num] = new_pos_cmd;
+                    tmp_vel[joint_num] = new_vel_cmd;*/
+                }
             }
-
+            positions[joint_num] = joint->pos_cmd;
 	}
 	/* END OF OUTPUT KINS */
 	/* Update live plot position */
@@ -1341,6 +1350,17 @@ static void get_pos_cmds(long period)
             emcmotStatus->carte_pos_cmd.a = (&axes[3])->teleop_tp.curr_pos;
             emcmotStatus->carte_pos_cmd.b = (&axes[4])->teleop_tp.curr_pos;
             emcmotStatus->carte_pos_cmd.c = (&axes[5])->teleop_tp.curr_pos;
+	} else {
+	    // restore
+	    kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
+
+	    (&axes[0])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.tran.x;
+	    (&axes[1])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.tran.y;
+	    (&axes[2])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.tran.z;
+	    (&axes[3])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.a;
+	    (&axes[4])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.b;
+	    (&axes[5])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.c;
+
 	}
 	/* end of teleop mode */
 	break;
