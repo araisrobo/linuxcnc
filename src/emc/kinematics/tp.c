@@ -25,9 +25,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STATE_DEBUG 0  // for state machine debug
+#define STATE_DEBUG 1  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -952,6 +952,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->decel_dist = decel_dist;
                 immediate_state = 1;
                 SP(" Leave S0 due to progress limit decel_dist(%f)\n",decel_dist);
+                tc->reqvel = (tc->currentvel + (tc->currentvel - tc->vel_from))/tc->feed_override;
+                tc->ori_reqvel = tc->reqvel;
                 EXIT_STATE(s0);
             }
             tc->decel_dist = decel_dist;
@@ -1018,6 +1020,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->accel_state = ACCEL_S2;
                 tc->rt_jerk = -tc->jerk;
                 immediate_state = 1;
+                tc->reqvel = (tc->currentvel + accel_vel)/tc->feed_override;
+                tc->ori_reqvel = tc->reqvel;
+
                 EXIT_STATE(s1);
             }
             a = decel_dist;
@@ -1149,7 +1154,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             // AT = A0 + JT
             newaccel = 0;//tc->cur_accel + tc->rt_jerk * tc->cycle_time;
             // VT = V0 + A0T + 1/2 JT2
-            newvel = /*tc->reqvel*tc->feed_override;*/tc->currentvel ;//+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+            newvel = tc->reqvel*tc->feed_override;/*tc->currentvel ;*///+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
             if (tc->decel_dist + (tc->currentvel )* tc->cycle_time > tc->target - tc->progress) {
                 SP("tc->decel_dist(%f)\n", tc->decel_dist);
                 tc->accel_state = ACCEL_S4;
@@ -1227,7 +1232,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                             t2 = (-b-sqrt(d))/(2*a);
                             t = t1<t2?t1:t2;
                             t = ceil(t/tc->cycle_time);
-                            tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
+                            tc->dist_comp = (t >= 1 ? (tc->target - tc->progress - decel_dist)/(t):0);
                         } else {
                             d = b*b -4*a*c + EPSTHON;
                             assert(d >=0);
@@ -1239,7 +1244,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                             t1 = t*tc->cycle_time;
                             decel_dist = tc->currentvel*t1 + 0.5*tc->cur_accel*t1*t1 +1.0/6.0*tc->jerk*t1*t1*t1;
 
-                            tc->dist_comp =  (tc->target - tc->progress - decel_dist)/(t);
+                            tc->dist_comp = (t >=1 ? (tc->target - tc->progress - decel_dist)/(t):0);
                         }
 
 
@@ -1303,7 +1308,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                             t2 = (-b-sqrt(d))/(2*a);
                             t = t1<t2?t1:t2;
                             t = ceil(t/tc->cycle_time);
-                            tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
+                            tc->dist_comp = (t>=1?(tc->target - tc->progress - decel_dist)/(t):0);
 
                         } else {
                             d = b*b -4*a*c + EPSTHON;
@@ -1314,7 +1319,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                             t = ceil(t/tc->cycle_time);
                             t1 = t*tc->cycle_time;
                             decel_dist = tc->currentvel*t1 + 0.5*tc->cur_accel*t1*t1 +1.0/6.0*tc->jerk*t1*t1*t1;
-                            tc->dist_comp = (tc->target - tc->progress - decel_dist)/(t);
+                            tc->dist_comp = (t>=1?(tc->target - tc->progress - decel_dist)/(t):0);
                         }
 
 
