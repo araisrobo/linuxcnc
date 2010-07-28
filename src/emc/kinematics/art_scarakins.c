@@ -34,7 +34,7 @@ static FILE *dptrace;
 #endif
 
 struct scara_data {
-    hal_float_t *d1, *d2, *d3, *d4, *d5, *d6, *ppd;
+    hal_float_t *d1, *d2, *d3, *d4, *d5, *d6, *ppd, *sing;
 } *haldata = 0;
 
 /* key dimensions
@@ -74,15 +74,17 @@ struct scara_data {
    PPD = Pitch Per Degree of joint[3]
                 the rotate of joint[3] may move end effector along
                 veritcal direction
+    SING = Singularity Range for Joint[1], unit: degree
 */
 
-#define D1  (*(haldata->d1))
-#define D2  (*(haldata->d2))
-#define D3  (*(haldata->d3))
-#define D4  (*(haldata->d4))
-#define D5  (*(haldata->d5))
-#define D6  (*(haldata->d6))
-#define PPD (*(haldata->ppd))
+#define D1      (*(haldata->d1))
+#define D2      (*(haldata->d2))
+#define D3      (*(haldata->d3))
+#define D4      (*(haldata->d4))
+#define D5      (*(haldata->d5))
+#define D6      (*(haldata->d6))
+#define PPD     (*(haldata->ppd))
+#define SING    (*(haldata->sing))
 
 /**
  * kinematicsLimit - calculate the the cartesian limit(MAX/MIN) of given AXIS
@@ -150,7 +152,7 @@ int kinematicsForward(const double * joint,
     
     /* calculate inverse kinematics flags */
     *iflags = 0;
-    if (fabs(joint[1]) < SINGULAR_FUZZ) {
+    if (fabs(joint[1]) < SING) {
         *iflags |= SCARA_SINGULAR;
     }
     if (joint[1] < 0) {
@@ -227,7 +229,7 @@ int kinematicsInverse(const EmcPose *world,
     if(cc > 1) cc = 1;
     q1 = acos(cc);
     
-    if (fabs(q1) < SINGULAR_FUZZ) {
+    if (fabs(q1) < SING) {
         DP ("quit when SCARA is about to move to SINGULAR position\n");
         return -1;
     }
@@ -326,8 +328,8 @@ int rtapi_app_main(void) {
     if((res = hal_pin_float_new("scarakins.D5", HAL_IO, &(haldata->d5), comp_id)) < 0) goto error;
     if((res = hal_pin_float_new("scarakins.D6", HAL_IO, &(haldata->d6), comp_id)) < 0) goto error;
     if((res = hal_pin_float_new("scarakins.PPD", HAL_IO, &(haldata->ppd), comp_id)) < 0) goto error;
+    if((res = hal_pin_float_new("scarakins.SING", HAL_IO, &(haldata->sing), comp_id)) < 0) goto error;
     
-     
     DPS("D1=%f ", D1);
     DPS("D2=%f ", D2);
     DPS("D3=%f ", D3);
@@ -335,6 +337,7 @@ int rtapi_app_main(void) {
     DPS("D5=%f ", D5);
     DPS("D6=%f ", D6);
     DPS("PPD=%f ", PPD);
+    DPS("SING=%f ", SING);
     DPS("\n");
     // D1 = DEFAULT_D1;
     // D2 = DEFAULT_D2;

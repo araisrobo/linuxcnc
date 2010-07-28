@@ -18,8 +18,6 @@
 #ifndef SCARA_H
 #define SCARA_H
 
-#define SINGULAR_FUZZ 0.000001
-
 /* flags for inverse and forward kinematics */
 #define SCARA_SINGULAR      0x01  /* joints at a singularity */
 #define SCARA_LEFTY         0x02  /* RIGHTY(0) or LEFTY(1) */
