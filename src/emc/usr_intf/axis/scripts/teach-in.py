@@ -72,7 +72,6 @@ def get_textbox_data():
     file_header = text.get(0.0, 9.0)
 #    print file_header
     feed_rate_string = text.get(9.0,"13.0")
-    print feed_rate_string
     output_string = text.get(13.0,END)
     entry1.delete(0, END)
     entry1.insert(0, text.get("9.8","9.end"))
@@ -130,23 +129,27 @@ def log():
     #print "G1X["+p.split(' ')[0]+"+#1000]Y["+p.split(' ')[1]+ "+#1001]Z[" + p.split(' ')[2] +"+#1002]A["+ p.split(' ')[3]+"+#1003]"
     output_string = output_string +  "G1X["+p.split(' ')[0]+"+#1000]Y["+p.split(' ')[1]+ "+#1001]Z[" + p.split(' ')[2] +"+#1002]A["+ p.split(' ')[3]+"+#1003]\n"
     update_textbox()
+    button4.config(state=DISABLED)
     
 def ins_feed_3000():
     global output_string
     output_string = output_string +"F#3000\n"
     update_textbox()
+    button4.config(state=DISABLED)
     return    
     
 def ins_feed_3001():
     global output_string
     output_string = output_string +"F#3001\n"
     update_textbox()
+    button4.config(state=DISABLED)
     return    
   
 def ins_feed_3002():
     global output_string
     output_string = output_string +"F#3002\n"
     update_textbox()
+    button4.config(state=DISABLED)
     return      
     
 def show():
@@ -171,7 +174,6 @@ def destory_bind(x):
     global feed_rate_string
     global output_string
     if det == 0:   
-         #print "M2"
         output_string = file_header+feed_rate_string+output_string + "M2\n"
         print output_string
     det = 1
@@ -187,43 +189,47 @@ button = Tkinter.Button(app, command=log, text='Learn', font=("helvetica", 14))
 button.grid(row=0, sticky= W+E)
 
 
-label2 = Tkinter.Label(app, width=40, font='fixed', anchor="w")
+label2 = Tkinter.Label(app, font='fixed', anchor="w")
 label2.config(relief= SUNKEN)
-label2.grid(row=0,column=1, ipadx=2, ipady=2, columnspan = 7, sticky= W+E)
+label2.grid(row=0,column=1, ipadx=2, ipady=2, columnspan = 11, sticky= W+E)
 
+label3 = Tkinter.Label(app, font='fixed', text="#3000=", anchor="w")
+label3.grid(row=40,column=0, ipadx=2, ipady=2, sticky=E)
 
 entry1 = Tkinter.Entry(app, font='fixed',width=10)
-entry1.grid(row=40,column=1, sticky= N+S)
+entry1.grid(row=40,column=1, sticky= W+E)
 entry1.delete(0, END)
 entry1.insert(0, "2000")
 entry1.bind('<Return>', feedrate_press)
 
-
+label4 = Tkinter.Label(app, font='fixed', text="#3001=", anchor="w")
+label4.grid(row=40,column=2, ipadx=2, ipady=2, sticky=E)
 entry2 = Tkinter.Entry(app,font='fixed',width=10)
-entry2.grid(row=40,column=3, sticky= N+S)
+entry2.grid(row=40,column=3, sticky= W+E)
 entry2.delete(0, END)
 entry2.insert(0, "2000")
 entry2.bind('<Return>', feedrate_press)
 
-
+label5 = Tkinter.Label(app, font='fixed', text="#3002=", anchor="w")
+label5.grid(row=40,column=4, ipadx=2, ipady=2, sticky=E)
 entry3 = Tkinter.Entry(app, font='fixed',width=10)
-entry3.grid(row=40,column=5, sticky= N+S)
+entry3.grid(row=40,column=5, sticky= W+E)
 entry3.delete(0, END)
 entry3.insert(0, "2000")
 entry3.bind('<Return>', feedrate_press)
 
 button1 = Tkinter.Button(app, command=ins_feed_3000, text='Insert F#3000', font=("helvetica", 14))
-button1.grid(row=40, rowspan=1)
+button1.grid(row=49, column=5, sticky= N+S+W+E)
 button2 = Tkinter.Button(app, command=ins_feed_3001, text='Insert F#3001', font=("helvetica", 14))
-button2.grid(row=40, column=2, rowspan=1)
+button2.grid(row=50, column=5, sticky= N+S+W+E)
 button3 = Tkinter.Button(app, command=ins_feed_3002, text='Insert F#3002', font=("helvetica", 14))
-button3.grid(row=40, column=4, rowspan=1)
+button3.grid(row=51, column=5, sticky= N+S+W+E)
 button4 = Tkinter.Button(app, command=get_textbox_data, text='Apply', font=("helvetica", 14))
-button4.grid(row=52, column=5, sticky= S+W+E)
+button4.grid(row=52, column=5, sticky= N+S+W+E)
 button4.config(state=DISABLED)
 
 button5 = Tkinter.Button(app, command=save_quit, text='Save Path', font=("helvetica", 14))
-button5.grid(row=53, column=5, sticky= S+W+E)
+button5.grid(row=53, column=5, sticky= N+S+W+E)
 
 
 
