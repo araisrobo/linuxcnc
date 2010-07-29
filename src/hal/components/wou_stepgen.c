@@ -192,7 +192,7 @@ static wou_param_t w_param;
 static int pending_cnt;
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 
-// trace INDEX_HOMING: static int debug_cnt = 0;
+//trace INDEX_HOMING: static int debug_cnt = 0;
 
 
 /***********************************************************************
@@ -768,21 +768,32 @@ static void update_freq(void *arg, long period)
 		    // reset r_index_en by SW
 		    r_index_en &= (~(1 << n));	// reset index_en[n]
 		    *(stepgen->index_enable) = 0;
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
-		                                    r_index_en, prev_r_index_en);
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_pos(%f) INDEX_POS(0x%08X)\n", 
-		                                    *(stepgen->index_pos), index_pos_tmp);
+		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
+		                                    n, r_index_en, prev_r_index_en);
+		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n", 
+		                                    n, *(stepgen->index_pos), index_pos_tmp);
 		}
 	    }
 
 	    if (stepgen->prev_home_state == HOME_IDLE) {
                 /**
-                 * set to ONE to load SWITCH_POS and INDEX_POS with
+                 * STEPPER: TODO set to ONE to load SWITCH_POS and INDEX_POS with
                  * PULSE_POS(stepper) or ENC_POS(servo) at beginning of
                  * homing (HOME_START state)
+                 * 
+                 * SERVO: set to ONE to load PULSE_POS, SWITCH_POS, and
+                 * INDEX_POS with ENC_POS(servo) at beginning of homing
+                 * (HOME_START state)
+                 *
 		 * reset to ZERO one cycle after setting this register
                  **/
 		r_load_pos |= (1 << n);
+                if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
+                    stepgen->accum = *(stepgen->enc_pos);
+                }
+                fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
+                        n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+	        // stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip;  
 	    }
 	}
         stepgen->prev_home_state = *stepgen->home_state;
@@ -869,25 +880,18 @@ static void update_freq(void *arg, long period)
         //trace INDEX_HOMING:     memcpy((void *) &index_pos_tmp,
         //trace INDEX_HOMING:                     wou_reg_ptr(&w_param,
         //trace INDEX_HOMING:                                 SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-        //trace INDEX_HOMING:     // for joint[0]
-        //trace INDEX_HOMING:     if (0 == n) {
+        //trace INDEX_HOMING:     // for joint[3]
+        //trace INDEX_HOMING:     if (3 == n) {
         //trace INDEX_HOMING:         rtapi_print_msg(RTAPI_MSG_DBG,
-        //trace INDEX_HOMING:                         "J[%d]: INDEX_POS(0x%08X) PULSE_POS(0x%08X) ENC_POS(0x%08X)\n", 
-        //trace INDEX_HOMING:                         n, index_pos_tmp, *(stepgen->pulse_pos), *(stepgen->enc_pos));
+        //trace INDEX_HOMING:                         "J[%d]: pos_cmd(%f) cur_pos(%f) INDEX_POS(0x%08X) PULSE_POS(0x%08X) ENC_POS(0x%08X)\n", 
+        //trace INDEX_HOMING:                         n, (*stepgen->pos_cmd), stepgen->cur_pos, index_pos_tmp, *(stepgen->pulse_pos), *(stepgen->enc_pos));
         //trace INDEX_HOMING:     }
         //trace INDEX_HOMING:     if (3 == n)
         //trace INDEX_HOMING:         debug_cnt = 0;
         //trace INDEX_HOMING: }
 
-    /**
-     * Use pulse_pos because there's no enc_pos for stepping motor driver.
-     * Also, there's no too much difference between pulse_pos and enc_pos
-     * for servo drivers.
-     **/
-	*(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
-        
         //important: // DEBUG: to guarantee that the pulse_pos command issued by FPGA equals the one sent into it
-        //important: if (n == 0) {
+        //important: if (n == 3) {
         //important:     if (stepgen->accum != *(stepgen->pulse_pos)) {
         //important:         rtapi_print("j0: accum(%lld) pulse_pos(%d)\n", stepgen->accum, *(stepgen->pulse_pos));
         //important:     }
@@ -903,9 +907,11 @@ static void update_freq(void *arg, long period)
 	    stepgen->freq = 0;
             
             /* to prevent position drift while toggeling "PWR-ON" switch */
-            stepgen->cur_pos = *stepgen->pos_fb;
+	    *(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
+            stepgen->cur_pos = *(stepgen->pos_fb);
 	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
 	    stepgen->vel_fb = 0;
+            
 	    
 	    /* and skip to next one */
 	    stepgen++;
@@ -914,6 +920,15 @@ static void update_freq(void *arg, long period)
             i += 1;
 	    continue;
 	}
+
+        /**
+         * Use pulse_pos because there's no enc_pos for stepping motor driver.
+         * Also, there's no too much difference between pulse_pos and enc_pos
+         * for servo drivers.
+         **/
+	*(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
+	// *(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
+        
 
 	//
 	// first sanity-check our maxaccel and maxvel params
@@ -1077,6 +1092,13 @@ static void update_freq(void *arg, long period)
 	wou_pos_cmd = (int) (new_vel * stepgen->pos_scale * dt);
 	stepgen->accum += wou_pos_cmd;  // calculate the pulse ticks sent to FPGA
         
+        //debug: if (wou_pos_cmd != 0) {
+        //debug:     fprintf(stderr, "wou: pos_cmd(%f) cur_pos(%f) wou_pos_cmd(%d)\n", 
+        //debug:                     *stepgen->pos_cmd, stepgen->cur_pos, wou_pos_cmd);
+        //debug: }
+        // assert (wou_pos_cmd == 0); // DEBUG
+
+
         // *crucial important*
         // the cur_pos has to be calculated based on the integer pulse
         // ticks sent to FPGA, otherwise the position loop would be wrong

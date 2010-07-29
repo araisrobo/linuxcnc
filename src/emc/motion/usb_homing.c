@@ -268,6 +268,23 @@ void do_homing(void)
 		    joint->home_pause_timer++;
 		    break;
 		}
+		
+		//??/* this moves the internal position but does not affect the
+		//??   motor position */
+		//??joint->pos_cmd = joint->motor_pos_fb;
+		//??joint->pos_fb = joint->motor_pos_fb;
+		//??joint->free_tp.curr_pos = joint->motor_pos_fb;  /* *important*, for simple_tp_update() */
+		//??joint->motor_offset = joint->motor_offset;
+                //??//DEBUG:
+		//??rtapi_print (
+                //??  _("HOME_START: j[%d] motor_pos_fb(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                //??    joint_num,
+                //??    joint->motor_pos_fb,
+                //??    joint->pos_cmd,
+                //??    joint->pos_fb,
+                //??    joint->free_tp.curr_pos,
+                //??    joint->motor_offset);
+                //??// while (1);
 
 		/* stop any existing motion */
 		joint->free_tp.enable = 0;
@@ -759,6 +776,19 @@ void do_homing(void)
 		//orig:     (joint->backlash_filt + joint->motor_offset);
 		//orig: joint->pos_cmd = joint->pos_fb;
 		//orig: joint->free_tp.curr_pos = joint->pos_fb;
+                
+                // // DEBUG ysli:
+		// rtapi_print (
+                //   _("HOME_SET_INDEX_POSITION_0: j[%d] motor_pos_fb(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                //     joint_num,
+                //     joint->motor_pos_fb,
+                //     joint->index_pos,
+                //     joint->pos_cmd,
+                //     joint->pos_fb,
+                //     joint->free_tp.curr_pos,
+                //     joint->motor_offset);
+                // // DEBUG ysli:
+                
                 offset = joint->home_offset - 
                          (joint->index_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
@@ -767,6 +797,19 @@ void do_homing(void)
 		joint->pos_fb += offset;
 		joint->free_tp.curr_pos += offset;
 		joint->motor_offset -= offset;
+                
+                // // DEBUG ysli:
+		// rtapi_print (
+                //   _("HOME_SET_INDEX_POSITION_1: j[%d] offset(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                //     joint_num,
+                //     offset,
+                //     joint->index_pos,
+                //     joint->pos_cmd,
+                //     joint->pos_fb,
+                //     joint->free_tp.curr_pos,
+                //     joint->motor_offset);
+                // // DEBUG ysli:
+                
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;
 		immediate_state = 1;
