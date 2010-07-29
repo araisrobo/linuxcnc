@@ -56,7 +56,8 @@ file_header = "\
 "
 feed_rate_string = ""
 
-output_string = "(Learned Path)\n\
+output_string = "F#3000 \n\
+(Learned Path)\n\
 "
 
 s = emc.stat()
