@@ -269,23 +269,6 @@ void do_homing(void)
 		    break;
 		}
 		
-		//??/* this moves the internal position but does not affect the
-		//??   motor position */
-		//??joint->pos_cmd = joint->motor_pos_fb;
-		//??joint->pos_fb = joint->motor_pos_fb;
-		//??joint->free_tp.curr_pos = joint->motor_pos_fb;  /* *important*, for simple_tp_update() */
-		//??joint->motor_offset = joint->motor_offset;
-                //??//DEBUG:
-		//??rtapi_print (
-                //??  _("HOME_START: j[%d] motor_pos_fb(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
-                //??    joint_num,
-                //??    joint->motor_pos_fb,
-                //??    joint->pos_cmd,
-                //??    joint->pos_fb,
-                //??    joint->free_tp.curr_pos,
-                //??    joint->motor_offset);
-                //??// while (1);
-
 		/* stop any existing motion */
 		joint->free_tp.enable = 0;
 		/* reset delay counter */
@@ -455,7 +438,7 @@ void do_homing(void)
                 
                 // // DEBUG ysli:
 		// rtapi_print (
-                //   _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)"), 
+                //   _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
                 //     joint_num,
                 //     offset,
                 //     joint->switch_pos,
@@ -659,17 +642,17 @@ void do_homing(void)
 		joint->free_tp.curr_pos += offset;
 		joint->motor_offset -= offset;
                 
-                // // DEBUG ysli:
-		// rtapi_print (
-                //   _("HOME_SET_SWITCH_POS: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
-                //     joint_num,
-                //     offset,
-                //     joint->switch_pos,
-                //     joint->pos_cmd,
-                //     joint->pos_fb,
-                //     joint->free_tp.curr_pos,
-                //     joint->motor_offset);
-                // // DEBUG ysli:
+                // DEBUG ysli:
+		rtapi_print (
+                  _("HOME_SET_SWITCH_POS: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                    joint_num,
+                    offset,
+                    joint->switch_pos,
+                    joint->pos_cmd,
+                    joint->pos_fb,
+                    joint->free_tp.curr_pos,
+                    joint->motor_offset);
+                // DEBUG ysli:
                 
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;
@@ -777,17 +760,18 @@ void do_homing(void)
 		//orig: joint->pos_cmd = joint->pos_fb;
 		//orig: joint->free_tp.curr_pos = joint->pos_fb;
                 
-                // // DEBUG ysli:
-		// rtapi_print (
-                //   _("HOME_SET_INDEX_POSITION_0: j[%d] motor_pos_fb(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
-                //     joint_num,
-                //     joint->motor_pos_fb,
-                //     joint->index_pos,
-                //     joint->pos_cmd,
-                //     joint->pos_fb,
-                //     joint->free_tp.curr_pos,
-                //     joint->motor_offset);
-                // // DEBUG ysli:
+                // DEBUG ysli:
+		rtapi_print (
+                  _("HOME_SET_INDEX_POSITION_0: j[%d] motor_pos_fb(%f) switch_pos(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                    joint_num,
+                    joint->motor_pos_fb,
+                    joint->switch_pos,
+                    joint->index_pos,
+                    joint->pos_cmd,
+                    joint->pos_fb,
+                    joint->free_tp.curr_pos,
+                    joint->motor_offset);
+                // DEBUG ysli:
                 
                 offset = joint->home_offset - 
                          (joint->index_pos - joint->motor_offset);
@@ -798,17 +782,17 @@ void do_homing(void)
 		joint->free_tp.curr_pos += offset;
 		joint->motor_offset -= offset;
                 
-                // // DEBUG ysli:
-		// rtapi_print (
-                //   _("HOME_SET_INDEX_POSITION_1: j[%d] offset(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
-                //     joint_num,
-                //     offset,
-                //     joint->index_pos,
-                //     joint->pos_cmd,
-                //     joint->pos_fb,
-                //     joint->free_tp.curr_pos,
-                //     joint->motor_offset);
-                // // DEBUG ysli:
+                // DEBUG ysli:
+		rtapi_print (
+                  _("HOME_SET_INDEX_POSITION_1: j[%d] offset(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                    joint_num,
+                    offset,
+                    joint->index_pos,
+                    joint->pos_cmd,
+                    joint->pos_fb,
+                    joint->free_tp.curr_pos,
+                    joint->motor_offset);
+                // DEBUG ysli:
                 
 		/* next state */
 		joint->home_state = HOME_FINAL_MOVE_START;

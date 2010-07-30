@@ -772,6 +772,8 @@ static void update_freq(void *arg, long period)
 		                                    n, r_index_en, prev_r_index_en);
 		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n", 
 		                                    n, *(stepgen->index_pos), index_pos_tmp);
+		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n", 
+		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
 		}
 	    }
 
@@ -912,6 +914,15 @@ static void update_freq(void *arg, long period)
 	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
 	    stepgen->vel_fb = 0;
             
+            r_load_pos = 0;
+            if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
+                r_load_pos |= (1 << n);
+                stepgen->accum = *(stepgen->enc_pos);
+                wou_cmd(&w_param,
+                        WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
+                // fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
+                //         n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+            }
 	    
 	    /* and skip to next one */
 	    stepgen++;
