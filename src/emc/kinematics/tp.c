@@ -952,8 +952,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->decel_dist = decel_dist;
                 immediate_state = 1;
                 SP(" Leave S0 due to progress limit decel_dist(%f)\n",decel_dist);
-                tc->reqvel = (tc->currentvel + (tc->currentvel - tc->vel_from))/tc->feed_override;
-                tc->ori_reqvel = tc->reqvel;
+//                tc->reqvel = (tc->currentvel + (tc->currentvel - tc->vel_from))/tc->feed_override;
+//                tc->ori_reqvel = tc->reqvel;
                 EXIT_STATE(s0);
             }
             tc->decel_dist = decel_dist;
@@ -1020,8 +1020,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->accel_state = ACCEL_S2;
                 tc->rt_jerk = -tc->jerk;
                 immediate_state = 1;
-                tc->reqvel = (tc->currentvel + accel_vel)/tc->feed_override;
-                tc->ori_reqvel = tc->reqvel;
+//                tc->reqvel = (tc->currentvel + accel_vel)/tc->feed_override;
+//                tc->ori_reqvel = tc->reqvel;
 
                 EXIT_STATE(s1);
             }
@@ -1154,7 +1154,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             // AT = A0 + JT
             newaccel = 0;//tc->cur_accel + tc->rt_jerk * tc->cycle_time;
             // VT = V0 + A0T + 1/2 JT2
-            newvel = tc->reqvel*tc->feed_override;/*tc->currentvel ;*///+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
+            newvel = /*tc->reqvel*tc->feed_override;*/tc->currentvel ;//+ tc->cur_accel * tc->cycle_time + 0.5 * tc->rt_jerk * pow(tc->cycle_time,2);
             if (tc->decel_dist + (tc->currentvel )* tc->cycle_time > tc->target - tc->progress) {
                 SP("tc->decel_dist(%f)\n", tc->decel_dist);
                 tc->accel_state = ACCEL_S4;
