@@ -67,6 +67,8 @@ static CanonConfig_t canon;
 
 static int debug_velacc = 0;
 static const double tiny = 1e-7;
+static const double huge = 1e9;
+
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -529,40 +531,40 @@ double getStraightJerk(double x, double y, double z,
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
 
-        jerk = MIN3((dx?emcAxisGetMaxJerk(0): 1e9),
-                    (dy?emcAxisGetMaxJerk(1): 1e9),
-                    (dz?emcAxisGetMaxJerk(2): 1e9));
+        jerk = MIN3((dx?emcAxisGetMaxJerk(0): huge),
+                    (dy?emcAxisGetMaxJerk(1): huge),
+                    (dz?emcAxisGetMaxJerk(2): huge));
         jerk = FROM_EXT_LEN(MIN4((jerk),
-                        (du?emcAxisGetMaxJerk(6): 1e9),
-                        (dv?emcAxisGetMaxJerk(7): 1e9),
-                        (dw?emcAxisGetMaxJerk(8): 1e9)));
+                        (du?emcAxisGetMaxJerk(6): huge),
+                        (dv?emcAxisGetMaxJerk(7): huge),
+                        (dw?emcAxisGetMaxJerk(8): huge)));
         assert(jerk > 0);
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
         jerk = FROM_EXT_ANG(MIN3(
-                    (da?emcAxisGetMaxJerk(3): 1e9),
-                    (db?emcAxisGetMaxJerk(4): 1e9),
-                    (dc?emcAxisGetMaxJerk(5): 1e9)));
+                    (da?emcAxisGetMaxJerk(3): huge),
+                    (db?emcAxisGetMaxJerk(4): huge),
+                    (dc?emcAxisGetMaxJerk(5): huge)));
         assert(jerk > 0);
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
 
         double ang_jerk;
-        jerk = MIN3( (dx?emcAxisGetMaxJerk(0): 1e9),
-                    (dy?emcAxisGetMaxJerk(1): 1e9),
-                    (dz?emcAxisGetMaxJerk(2): 1e9));
+        jerk = MIN3( (dx?emcAxisGetMaxJerk(0): huge),
+                    (dy?emcAxisGetMaxJerk(1): huge),
+                    (dz?emcAxisGetMaxJerk(2): huge));
 
         jerk = FROM_EXT_LEN(MIN4( jerk,
-                                (du?emcAxisGetMaxJerk(6): 1e9),
-                                (dv?emcAxisGetMaxJerk(7): 1e9),
-                                (dw?emcAxisGetMaxJerk(8): 1e9)));
+                                (du?emcAxisGetMaxJerk(6): huge),
+                                (dv?emcAxisGetMaxJerk(7): huge),
+                                (dw?emcAxisGetMaxJerk(8): huge)));
 
         ang_jerk = FROM_EXT_ANG(MIN3(
-                            (da?emcAxisGetMaxJerk(3): 1e9),
-                            (db?emcAxisGetMaxJerk(4): 1e9),
-                            (dc?emcAxisGetMaxJerk(5): 1e9)));
+                            (da?emcAxisGetMaxJerk(3): huge),
+                            (db?emcAxisGetMaxJerk(4): huge),
+                            (dc?emcAxisGetMaxJerk(5): huge)));
 
         jerk = MIN(jerk, ang_jerk);
 
@@ -1455,52 +1457,52 @@ void NURBS_FEED_3D (
     	canon.cartesian_move = 1;
     }
     if (canon.cartesian_move ) {
-        nurbsMoveMsg.ini_maxvel = MAX3(FROM_EXT_LEN(emcAxisGetMaxVelocity(0)),
-                                       FROM_EXT_LEN(emcAxisGetMaxVelocity(1)),
-                                       FROM_EXT_LEN(emcAxisGetMaxVelocity(2)));
+        nurbsMoveMsg.ini_maxvel = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(0)):huge,
+                                       dy > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(1)):huge,
+                                       dz > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(2)):huge);
 
-        nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MAX4(nurbsMoveMsg.ini_maxvel,
-                                             FROM_EXT_LEN(emcAxisGetMaxVelocity(6)),
-                                             FROM_EXT_LEN(emcAxisGetMaxVelocity(7)),
-                                             FROM_EXT_LEN(emcAxisGetMaxVelocity(8))));
+        nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxvel,
+                                             du > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(6)):huge,
+                                             dv > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(7)):huge,
+                                             dw > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(8)):huge));
 
-        nurbsMoveMsg.ini_maxacc = MAX3(FROM_EXT_LEN(emcAxisGetMaxAcceleration(0)),
-                                      FROM_EXT_LEN(emcAxisGetMaxAcceleration(1)),
-                                      FROM_EXT_LEN(emcAxisGetMaxAcceleration(2)));
+        nurbsMoveMsg.ini_maxacc = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(0)):huge,
+                                      dy > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(1)):huge,
+                                      dz > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(2)):huge);
 
-        nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MAX4(nurbsMoveMsg.ini_maxacc,
-                                             FROM_EXT_LEN(emcAxisGetMaxAcceleration(6)),
-                                             FROM_EXT_LEN(emcAxisGetMaxAcceleration(7)),
-                                             FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))));
+        nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxacc,
+                                             du  > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(6)):huge,
+                                             dv > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(7)):huge,
+                                             dw > 0?FROM_EXT_LEN(emcAxisGetMaxAcceleration(8)):huge));
 
-        nurbsMoveMsg.ini_maxjerk = MAX3(FROM_EXT_LEN(emcAxisGetMaxJerk(0)),
-                                        FROM_EXT_LEN(emcAxisGetMaxJerk(1)),
-                                        FROM_EXT_LEN(emcAxisGetMaxJerk(2)));
-        nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MAX4(nurbsMoveMsg.ini_maxjerk,
-                                                   FROM_EXT_LEN(emcAxisGetMaxJerk(6)),
-                                                   FROM_EXT_LEN(emcAxisGetMaxJerk(7)),
-                                                   FROM_EXT_LEN(emcAxisGetMaxJerk(8))));
+        nurbsMoveMsg.ini_maxjerk = MIN3(dx > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(0)):huge,
+                                        dy > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(1)):huge,
+                                        dz > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(2)):huge);
+        nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxjerk,
+                                                   du > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(6)):huge,
+                                                   dv > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(7)):huge,
+                                                   dw > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(8)):huge));
         vel = nurbsMoveMsg.ini_maxvel;
         if (vel > canon.linearFeedRate) {
             vel = canon.linearFeedRate;
         }
      } else {
          assert(canon.angular_move);
-         nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxVelocity(3)),
-                                        FROM_EXT_LEN(emcAxisGetMaxVelocity(4)),
-                                        FROM_EXT_LEN(emcAxisGetMaxVelocity(5))));
+         nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MIN3(da > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(3)):huge,
+                                        db > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(4)):huge,
+                                        dc > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(5)):huge));
 
 
 
-         nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxAcceleration(3)),
-                                       FROM_EXT_LEN(emcAxisGetMaxAcceleration(4)),
-                                       FROM_EXT_LEN(emcAxisGetMaxAcceleration(5))));
+         nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MIN3(da > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(3)):huge,
+                                       db > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(4)):huge,
+                                       dc > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(5)):huge));
 
 
 
-         nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MAX3(FROM_EXT_LEN(emcAxisGetMaxJerk(3)),
-                                         FROM_EXT_LEN(emcAxisGetMaxJerk(4)),
-                                         FROM_EXT_LEN(emcAxisGetMaxJerk(5))));
+         nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MIN3(da > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(3)):huge,
+                                         db > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(4)):huge,
+                                         dc > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(5)):huge));
 
          vel = nurbsMoveMsg.ini_maxvel;
          if (vel > canon.angularFeedRate) {
