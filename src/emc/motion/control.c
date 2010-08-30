@@ -1078,14 +1078,14 @@ static void get_pos_cmds(long period)
 	}
     }
     /* if less than a full complement of joints, zero out the rest */
-/*
+
     while ( joint_num < EMCMOT_MAX_JOINTS ) {
         positions[joint_num] = 0.0;
         // reset axis tmp also
-        tmp_pos[joint_num];
+        //tmp_pos[joint_num];
         joint_num++;
     }
-*/
+
 
     /* RUN MOTION CALCULATIONS: */
 
@@ -1226,6 +1226,7 @@ static void get_pos_cmds(long period)
 
     case EMCMOT_MOTION_COORD:
         rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_COORD ++++\n");
+
 	/* check joint 0 to see if the interpolators are empty */
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
@@ -1290,7 +1291,6 @@ static void get_pos_cmds(long period)
             simple_tp_update(&(axis->teleop_tp), servo_period);
             axis->vel_cmd = axis->teleop_tp.curr_vel;
             axis->pos_cmd = axis->teleop_tp.curr_pos;
-
         }
 
 
