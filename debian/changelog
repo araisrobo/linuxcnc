@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2010.09.02) lucid; urgency=low
+
+  * Bug fix for jogging
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 02 Sep 2010 06:08:02 +0800
+ 
 emc2 (1:2.4.0-nurbs-2010.07.29) lucid; urgency=low
 
   * Resolved world mode jogging issue
