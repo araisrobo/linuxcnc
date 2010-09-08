@@ -1409,7 +1409,7 @@ void NURBS_FEED_3D (
             nr_uofl_cp += 1;
         }
     }
-    x = nurbs_control_points[nr_of_ctrl_pt-1].X;
+/*    x = nurbs_control_points[nr_of_ctrl_pt-1].X;
     y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
     z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
     u = nurbs_control_points[nr_of_ctrl_pt-1].U;
@@ -1417,12 +1417,12 @@ void NURBS_FEED_3D (
     w = nurbs_control_points[nr_of_ctrl_pt-1].W;
     a = nurbs_control_points[nr_of_ctrl_pt-1].A;
     b = nurbs_control_points[nr_of_ctrl_pt-1].B;
-    c = nurbs_control_points[nr_of_ctrl_pt-1].C;
+    c = nurbs_control_points[nr_of_ctrl_pt-1].C;*/
     // assume NURBS_3D considered only xyz coord.
 //TODO-eric: do simplify numerical compare mechanism ( form ini load)
     // Figure out what kind of move we're making:
 
-    dx = fabs(x - canon.endPoint.x);
+/*    dx = fabs(x - canon.endPoint.x);
     dy = fabs(y - canon.endPoint.y);
     dz = fabs(z - canon.endPoint.z);
     da = fabs(a - canon.endPoint.a);
@@ -1430,7 +1430,17 @@ void NURBS_FEED_3D (
     dc = fabs(c - canon.endPoint.c);
     du = fabs(u - canon.endPoint.u);
     dv = fabs(v - canon.endPoint.v);
-    dw = fabs(w - canon.endPoint.w);
+    dw = fabs(w - canon.endPoint.w);*/
+    assert(nr_of_ctrl_pt > 1);
+    dx = fabs(nurbs_control_points[0].X - nurbs_control_points[1].X);
+    dy = fabs(nurbs_control_points[0].Y - nurbs_control_points[1].Y);
+    dz = fabs(nurbs_control_points[0].Z - nurbs_control_points[1].Z);
+    da = fabs(nurbs_control_points[0].A - nurbs_control_points[1].A);
+    db = fabs(nurbs_control_points[0].B - nurbs_control_points[1].B);
+    dc = fabs(nurbs_control_points[0].C - nurbs_control_points[1].C);
+    du = fabs(nurbs_control_points[0].U - nurbs_control_points[1].U);
+    dv = fabs(nurbs_control_points[0].V - nurbs_control_points[1].V);
+    dw = fabs(nurbs_control_points[0].W - nurbs_control_points[1].W);
 
     if(!axis_valid(0) || dx < tiny) dx = 0.0;
     if(!axis_valid(1) || dy < tiny) dy = 0.0;
@@ -1595,7 +1605,6 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.end.v =  nurbs_control_points[nr_of_ctrl_pt-1].V;
         nurbsMoveMsg.end.w =  nurbs_control_points[nr_of_ctrl_pt-1].W;
 
-        // for U(L)
         // for U(L)
         nurbsMoveMsg.nurbs_block.nr_of_uofl_ctrl_pts = nr_uofl_cp;
         nurbsMoveMsg.nurbs_block.nr_of_uofl_knots = nr_uofl_knot;
