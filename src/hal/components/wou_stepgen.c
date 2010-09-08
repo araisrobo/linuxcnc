@@ -857,7 +857,7 @@ static void update_freq(void *arg, long period)
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         if (*stepgen->enable) {
-            data[0] = 3;	// SVO-ON, WATCHDOG-ON
+            data[0] = 2/*3*/;	// SVO-ON, WATCHDOG-ON
         } else {
             data[0] = 0;	// SVO-OFF (disable SSIF_EN w/o JCMD_CTRL.RST)
         }
