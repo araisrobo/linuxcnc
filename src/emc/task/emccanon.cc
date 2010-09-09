@@ -1432,15 +1432,19 @@ void NURBS_FEED_3D (
     dv = fabs(v - canon.endPoint.v);
     dw = fabs(w - canon.endPoint.w);*/
     assert(nr_of_ctrl_pt > 1);
-    dx = fabs(nurbs_control_points[0].X - nurbs_control_points[1].X);
-    dy = fabs(nurbs_control_points[0].Y - nurbs_control_points[1].Y);
-    dz = fabs(nurbs_control_points[0].Z - nurbs_control_points[1].Z);
-    da = fabs(nurbs_control_points[0].A - nurbs_control_points[1].A);
-    db = fabs(nurbs_control_points[0].B - nurbs_control_points[1].B);
-    dc = fabs(nurbs_control_points[0].C - nurbs_control_points[1].C);
-    du = fabs(nurbs_control_points[0].U - nurbs_control_points[1].U);
-    dv = fabs(nurbs_control_points[0].V - nurbs_control_points[1].V);
-    dw = fabs(nurbs_control_points[0].W - nurbs_control_points[1].W);
+
+    for(i = 0; i < nr_of_ctrl_pt -1; i++) {
+		dx += fabs(nurbs_control_points[i+1].X - nurbs_control_points[i].X);
+		dy += fabs(nurbs_control_points[i+1].Y - nurbs_control_points[i].Y);
+		dz += fabs(nurbs_control_points[i+1].Z - nurbs_control_points[i].Z);
+		da += fabs(nurbs_control_points[i+1].A - nurbs_control_points[i].A);
+		db += fabs(nurbs_control_points[i+1].B - nurbs_control_points[i].B);
+		dc += fabs(nurbs_control_points[i+1].C - nurbs_control_points[i].C);
+		du += fabs(nurbs_control_points[i+1].U - nurbs_control_points[i].U);
+		dv += fabs(nurbs_control_points[i+1].V - nurbs_control_points[i].V);
+		dw += fabs(nurbs_control_points[i+1].W - nurbs_control_points[i].W);
+    }
+
 
     if(!axis_valid(0) || dx < tiny) dx = 0.0;
     if(!axis_valid(1) || dy < tiny) dy = 0.0;
