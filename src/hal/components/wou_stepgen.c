@@ -191,7 +191,7 @@ static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
-
+#define TIMEOUT_MASK 0x04
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
 
@@ -629,10 +629,10 @@ static void update_freq(void *arg, long period)
     // copy GPIO.IN ports if it differs from previous value
     if (memcmp
 	(&(gpio->prev_in),
-	 wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2)) {
+	 wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2)) {
 	// update prev_in from WOU_REGISTER
 	memcpy(&(gpio->prev_in),
-	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_SWITCH_IN), 2);
+	       wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
 	// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
 	for (i = 0; i < gpio->num_in; i++) {
 	    *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
@@ -670,22 +670,32 @@ static void update_freq(void *arg, long period)
     }
 
     /* begin: process motion synchronized input */
-/* handle with pin index
- * sync_io_data = 0;
-  for (i=0; i < m_control->num_sync_in; i++) {
-      sync_io_data |= ((*(m_control->sync_in[i]) & 1) << i);
-        if (sync_io_data != m_control->prev_in) {
-      m_control->prev_in = sync_io_data
-  }*/
-    if (*(m_control->sync_in_trigger) != 0) {
-	fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
-	       *(m_control->sync_in), *(m_control->wait_type),
-	       *(m_control->timeout));
-        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
 
-        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-                        sizeof(uint16_t), (uint8_t *) &sync_cmd);
-	*(m_control->sync_in_trigger) = 0;
+    if (*(m_control->sync_in_trigger) != 0) {
+		fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
+			   *(m_control->sync_in), *(m_control->wait_type),
+			   *(m_control->timeout));
+		assert(*(m_control->sync_in) >= 0);
+		assert(*(m_control->sync_in) < num_sync_in);
+		if(*(m_control->wait_type) & TIMEOUT_MASK) {
+			// calculate how many 0.1 sec
+			uint32_t unit;
+			unit = (uint32_t)*(m_control->timeout)/0.1;
+			unit &= SYNC_TIMEOUT_MASK; // max unit = 16^3 * 0.1 ms
+			sync_cmd = SYNC_ST | unit;
+
+		} else {
+			uint32_t unit = 0; // clean timeout (wait forever)
+			sync_cmd = SYNC_ST | unit;
+
+		}
+		wou_cmd(&w_param, WB_WR_CMD,(JCMD_BASE |  JCMD_SYNC_CMD),
+							sizeof(uint16_t), (uint8_t *) &sync_cmd);
+		sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
+
+		wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
+							sizeof(uint16_t), (uint8_t *) &sync_cmd);
+		*(m_control->sync_in_trigger) = 0;
     }
 
     /* end: process motion synchronized input */
