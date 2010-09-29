@@ -159,8 +159,15 @@ const char *ctrl_type[MAX_CHAN] =
     { "p", "p", "p", "p", "p", "p", "p", "p" };
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 		      "control type (pos or vel) for up to 8 channels");
+
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
+
+const char *bins = "\0";
+RTAPI_MP_STRING(bins, "RISC binfile");
+
+int pos_cmd_type = -1;
+RTAPI_MP_INT(pos_cmd_type, "WOU Register Value for position command type");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
@@ -368,7 +375,27 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
-    
+    /* test for risc image file string: bins */
+	if ((bins == 0) || (bins[0] == '\0')) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"WOU: ERROR: no risc binfile string: bins\n");
+	return -1;
+	} else {
+	// programming risc with binfile(bins)
+		wou_prog_risc(&w_param, bins);
+	}
+
+	if(pos_cmd_type != -1) {
+		if(pos_cmd_type == 1) {
+			data[0] = PTYPE_STEP_DIR;
+			wou_cmd (&w_param, WB_WR_CMD, (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
+								(uint8_t) 1, data);
+		}
+	} else {
+		rtapi_print_msg(RTAPI_MSG_ERR,
+				"WOU: ERROR: no position command type: pos_cmd_type\n");
+		return -1;
+	}
     /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
     // issue a WOU_WRITE 
     data[0] = 0x0F;
@@ -668,7 +695,6 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
 	wou_flush(&w_param);
     }
-
     /* begin: process motion synchronized input */
 
     if (*(m_control->sync_in_trigger) != 0) {
@@ -709,7 +735,6 @@ static void update_freq(void *arg, long period)
             sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(m_control->sync_out[i]));
             memcpy (data + j*sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
             j ++;
-            fprintf(stderr,"SYNC OUT detected pin(%d) \n",i);
         }
 	sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
        // write a wou frame for sync input into command FIFO
