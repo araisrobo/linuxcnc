@@ -166,8 +166,8 @@ RTAPI_MP_STRING(bits, "FPGA bitfile");
 const char *bins = "\0";
 RTAPI_MP_STRING(bins, "RISC binfile");
 
-int pos_cmd_type = -1;
-RTAPI_MP_INT(pos_cmd_type, "WOU Register Value for position command type");
+int pulse_type = -1;
+RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
@@ -385,12 +385,13 @@ int rtapi_app_main(void)
 		wou_prog_risc(&w_param, bins);
 	}
 
-	if(pos_cmd_type != -1) {
-		if(pos_cmd_type == 1) {
-			data[0] = PTYPE_STEP_DIR;
-			wou_cmd (&w_param, WB_WR_CMD, (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
-								(uint8_t) 1, data);
-		}
+	if(pulse_type != -1) {
+
+            data[0] = /*PTYPE_STEP_DIR*/pulse_type;
+//            if(pulse_type == 1)
+                wou_cmd (&w_param, WB_WR_CMD, (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
+                                                            (uint8_t) 1, data);
+
 	} else {
 		rtapi_print_msg(RTAPI_MSG_ERR,
 				"WOU: ERROR: no position command type: pos_cmd_type\n");
@@ -660,11 +661,15 @@ static void update_freq(void *arg, long period)
 	// update prev_in from WOU_REGISTER
 	memcpy(&(gpio->prev_in),
 	       wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
-	// rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
+	 rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
 	for (i = 0; i < gpio->num_in; i++) {
 	    *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
 	}
     }
+    memcpy(&gpio->prev_in,
+           wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
+
+//    printf("switch_in(0x%02X\n",gpio->prev_in);
 
 //obsolete:    // read SSIF_SWITCH_EN
 //obsolete:    if (memcmp
@@ -871,14 +876,50 @@ static void update_freq(void *arg, long period)
         pending_cnt = 0;
         // replace "bp_reg_update"
         // send WB_RD_CMD to read registers back
-        wou_cmd (&w_param, WB_RD_CMD,
+       /* wou_cmd (&w_param, WB_RD_CMD,
                  (SSIF_BASE + SSIF_PULSE_POS),
                  34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
                  data);
+
         wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_INDEX_LOCK,
                  33, // SSIF_INDEX_LOCK, SSIF_SWITCH_POS, SSIF_INDEX_POS
                  data);
+                 */
+
+
+        wou_cmd (&w_param,
+                WB_RD_CMD,
+                (SSIF_BASE | SSIF_PULSE_POS),
+                16,
+                data);
+        wou_cmd (&w_param,
+                WB_RD_CMD,
+                (SSIF_BASE | SSIF_ENC_POS),
+                16,
+                data);
+
+        wou_cmd (&w_param,
+                 WB_RD_CMD,
+                 (GPIO_BASE | GPIO_IN),
+                 2,
+                 data);
+        wou_cmd (&w_param,
+                WB_RD_CMD,
+                (SSIF_BASE | SSIF_INDEX_LOCK),
+                1,
+                data);
+        wou_cmd (&w_param,
+                WB_RD_CMD,
+                (SSIF_BASE | SSIF_SWITCH_POS),
+                16,
+                data);
+        wou_cmd (&w_param,
+                WB_RD_CMD,
+                (SSIF_BASE | SSIF_INDEX_POS),
+                16,
+                data);
         wou_flush(&w_param);
+
     }
 
     // responsible for motion sluggish?ss
