@@ -169,6 +169,9 @@ RTAPI_MP_STRING(bins, "RISC binfile");
 int pulse_type = -1;
 RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 
+int enc_type = -1;
+RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
+
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
@@ -375,28 +378,39 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
+
     /* test for risc image file string: bins */
-	if ((bins == 0) || (bins[0] == '\0')) {
+    if ((bins == 0) || (bins[0] == '\0')) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"WOU: ERROR: no risc binfile string: bins\n");
 	return -1;
-	} else {
+    } else {
 	// programming risc with binfile(bins)
-		wou_prog_risc(&w_param, bins);
-	}
+        wou_prog_risc(&w_param, bins);
+    }
 
-	if(pulse_type != -1) {
+    if(pulse_type != -1) {
+        data[0] = pulse_type;
+        wou_cmd (&w_param, WB_WR_CMD, 
+                (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE), 
+                (uint8_t) 1, data);
+    } else {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "WOU: ERROR: no pulse type: pulse_type\n");
+        return -1;
+    }
 
-            data[0] = /*PTYPE_STEP_DIR*/pulse_type;
-//            if(pulse_type == 1)
-                wou_cmd (&w_param, WB_WR_CMD, (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
-                                                            (uint8_t) 1, data);
+    if(enc_type != -1) {
+        data[0] = enc_type;
+        wou_cmd (&w_param, WB_WR_CMD, 
+                (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE), 
+                (uint8_t) 1, data);
+    } else {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "WOU: ERROR: no encoder type: enc_type\n");
+        return -1;
+    }
 
-	} else {
-		rtapi_print_msg(RTAPI_MSG_ERR,
-				"WOU: ERROR: no position command type: pos_cmd_type\n");
-		return -1;
-	}
     /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
     // issue a WOU_WRITE 
     data[0] = 0x0F;
