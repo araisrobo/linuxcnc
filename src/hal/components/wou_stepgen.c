@@ -200,7 +200,7 @@ static const char wou_id = 0;
 // static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
 static int pending_cnt;
-#define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
+#define JNT_PER_WOF     1       // SYNC_JNT commands per WOU_FRAME
 #define TIMEOUT_MASK 0x04
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
@@ -344,6 +344,56 @@ static int export_gpio(gpio_t * addr);
 static int export_m_control(m_control_t * m_control);
 static void update_freq(void *arg, long period);
 
+
+/************************************************************************
+ * mailbox callback function for libwou                                 *
+ ************************************************************************/
+FILE *mbox_fp;
+static uint32_t pulse_pos_tmp[4];
+static uint32_t enc_pos_tmp[4];
+static void fetchmail(const uint8_t *buf_head)
+{
+    static uint32_t n=0;
+    int i;
+    uint16_t mail_tag;
+    // uint32_t pos;
+    uint32_t *p;
+
+    // fprintf (stderr, "USTEP::MAILBOX: ");
+    // for (i=0; i < (1 + buf_head[0] + CRC_SIZE); i++) {
+    //     fprintf (stderr, "<%.2X>", buf_head[i]);
+    // }
+    // fprintf (stderr, "\n");
+
+    memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
+    // fprintf (mbox_fp, "mail_tag(0x%04X)\n", mail_tag);
+    if (mail_tag == 0x0001) {
+        n += 1;
+        // for (i=4; i<(1 + buf_head[0] + CRC_SIZE - 4); i+=8) {
+        //     // memcpy(&pos, (buf_head + i), sizeof(uint32_t));
+        //     // fprintf (stderr, "J[%d]: pulse_pos(0x%08X) ", (i-4)/8, pos);
+        //     p = (uint32_t *) (buf_head + i);
+        //     fprintf (mbox_fp, "J[%d]: pulse_pos(0x%08X) ", (i-4)/8, *p);
+        //     memcpy(&pos, (buf_head + i + 4), sizeof(uint32_t));
+        //     fprintf (mbox_fp, "enc_pos(0x%08X)\n", pos);
+        // }
+        fprintf (mbox_fp, "%10u  ", n);
+        for (i=0; i<num_chan; i++) {
+            p = (uint32_t *) (buf_head + 4 + i*8);
+            // fprintf (mbox_fp, "J[%d]: pulse_pos(0x%08X) ", i, *p);
+            fprintf (mbox_fp, "%16u  ", *p);
+            pulse_pos_tmp[i] = *p;
+            p = (uint32_t *) (buf_head + 4 + i*8 + 4);
+            // fprintf (mbox_fp, "enc_pos(0x%08X)\n", *p);
+            fprintf (mbox_fp, "%16u  ", *p);
+            enc_pos_tmp[i] = *p;
+        }
+        fprintf (mbox_fp, "\n");
+    }
+
+}
+
+
 /***********************************************************************
 *                       INIT AND EXIT CODE                             *
 ************************************************************************/
@@ -387,6 +437,9 @@ int rtapi_app_main(void)
     } else {
 	// programming risc with binfile(bins)
         wou_prog_risc(&w_param, bins);
+        // set mailbox callback function
+        mbox_fp = fopen ("./mbox.log", "w");
+        wou_set_mbox_cb (&w_param, fetchmail);
     }
 
     if(pulse_type != -1) {
@@ -890,22 +943,13 @@ static void update_freq(void *arg, long period)
         pending_cnt = 0;
         // replace "bp_reg_update"
         // send WB_RD_CMD to read registers back
-       /* wou_cmd (&w_param, WB_RD_CMD,
-                 (SSIF_BASE + SSIF_PULSE_POS),
-                 34,  // SSIF_PULSE_POS, SSIF_ENC_POS, SSIF_SWITCH_IN
-                 data);
-
-        wou_cmd (&w_param, WB_RD_CMD, SSIF_BASE + SSIF_INDEX_LOCK,
-                 33, // SSIF_INDEX_LOCK, SSIF_SWITCH_POS, SSIF_INDEX_POS
-                 data);
-                 */
-
 
         wou_cmd (&w_param,
                 WB_RD_CMD,
                 (SSIF_BASE | SSIF_PULSE_POS),
                 16,
                 data);
+
         wou_cmd (&w_param,
                 WB_RD_CMD,
                 (SSIF_BASE | SSIF_ENC_POS),
@@ -917,26 +961,28 @@ static void update_freq(void *arg, long period)
                  (GPIO_BASE | GPIO_IN),
                  2,
                  data);
+
         wou_cmd (&w_param,
                 WB_RD_CMD,
                 (SSIF_BASE | SSIF_INDEX_LOCK),
                 1,
                 data);
+
         wou_cmd (&w_param,
                 WB_RD_CMD,
                 (SSIF_BASE | SSIF_SWITCH_POS),
                 16,
                 data);
+
         wou_cmd (&w_param,
                 WB_RD_CMD,
                 (SSIF_BASE | SSIF_INDEX_POS),
                 16,
                 data);
+
         wou_flush(&w_param);
 
     }
-
-    // responsible for motion sluggish?ss
 
     // check wou.stepgen.00.enable signal directly
     stepgen = arg;
@@ -965,6 +1011,8 @@ static void update_freq(void *arg, long period)
 	       4);
 	memcpy((void *) stepgen->enc_pos,
 	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n * 4), 4);
+//mailbox:	*(stepgen->pulse_pos) = pulse_pos_tmp[n];
+//mailbox:	*(stepgen->enc_pos) = enc_pos_tmp[n];
         
         //trace INDEX_HOMING: debug_cnt+=1;
         //trace INDEX_HOMING: if (debug_cnt > 1024*4) {
