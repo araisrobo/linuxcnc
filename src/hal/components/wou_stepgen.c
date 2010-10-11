@@ -147,6 +147,14 @@
 static FILE *dptrace;
 #endif
 
+// to disable MAILBOX dump: #define MBOX_LOG 0
+#define MBOX_LOG 1
+#if (MBOX_LOG)
+static FILE *mbox_fp;
+#endif
+
+
+
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
@@ -259,33 +267,28 @@ typedef struct {
 } stepgen_t;
 
 typedef struct {
-    // 16in 8out
-    hal_bit_t *in[16];
-    hal_bit_t *out[8];
-    int num_in;
-    int num_out;
-    uint8_t prev_out;
-    uint16_t prev_in;
+    // Digital I/O: 16in 8out
+    hal_bit_t   *in[16];
+    hal_bit_t   *out[8];
+    int         num_in;
+    int         num_out;
+    uint8_t     prev_out;
+    uint16_t    prev_in;
+    // Analog I/O: 32bit
+    hal_s32_t   *a_in[1];       /* pin: analog input */
 } gpio_t;
 
 typedef struct {
     /* sync input pins (input to motmod) */
-//    hal_bit_t   *sync_in[64]; //replace with pin index
     hal_bit_t *sync_in_trigger;
     hal_u32_t *sync_in;		//
     hal_u32_t *wait_type;
     hal_float_t *timeout;
     int num_sync_in;
-//    uint64_t    prev_in;
     /* sync output pins (output from motmod) */
     hal_bit_t *sync_out[64];
     int num_sync_out;
     uint64_t prev_out;		//ON or OFF
-    /* immeidate_pos pins */
-/*    hal_float_t *immeidate_pos[9];
-    hal_u32_t   *
-    int         num_immediate_pos;*/
-
 } m_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -348,47 +351,54 @@ static void update_freq(void *arg, long period);
 /************************************************************************
  * mailbox callback function for libwou                                 *
  ************************************************************************/
-FILE *mbox_fp;
-static uint32_t pulse_pos_tmp[4];
-static uint32_t enc_pos_tmp[4];
 static void fetchmail(const uint8_t *buf_head)
 {
-    static uint32_t n=0;
-    int i;
-    uint16_t mail_tag;
-    // uint32_t pos;
-    uint32_t *p;
+    int         i;
+    uint16_t    mail_tag;
+    uint32_t    *p;
+    stepgen_t   *stepgen;
 
-    // fprintf (stderr, "USTEP::MAILBOX: ");
-    // for (i=0; i < (1 + buf_head[0] + CRC_SIZE); i++) {
-    //     fprintf (stderr, "<%.2X>", buf_head[i]);
-    // }
-    // fprintf (stderr, "\n");
+#if (MBOX_LOG)
+    uint32_t    bp_tick;
+    p = (uint32_t *) (buf_head + 4);   
+    bp_tick = *p;
+#endif
 
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
-    // fprintf (mbox_fp, "mail_tag(0x%04X)\n", mail_tag);
+
     if (mail_tag == 0x0001) {
-        n += 1;
-        // for (i=4; i<(1 + buf_head[0] + CRC_SIZE - 4); i+=8) {
-        //     // memcpy(&pos, (buf_head + i), sizeof(uint32_t));
-        //     // fprintf (stderr, "J[%d]: pulse_pos(0x%08X) ", (i-4)/8, pos);
-        //     p = (uint32_t *) (buf_head + i);
-        //     fprintf (mbox_fp, "J[%d]: pulse_pos(0x%08X) ", (i-4)/8, *p);
-        //     memcpy(&pos, (buf_head + i + 4), sizeof(uint32_t));
-        //     fprintf (mbox_fp, "enc_pos(0x%08X)\n", pos);
-        // }
-        fprintf (mbox_fp, "%10u  ", n);
+        /* for PLASMA with ADC_SPI */
+
+        // BP_TICK
+        p = (uint32_t *) (buf_head + 4);
+
+        stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            p = (uint32_t *) (buf_head + 4 + i*8);
-            // fprintf (mbox_fp, "J[%d]: pulse_pos(0x%08X) ", i, *p);
-            fprintf (mbox_fp, "%16u  ", *p);
-            pulse_pos_tmp[i] = *p;
-            p = (uint32_t *) (buf_head + 4 + i*8 + 4);
-            // fprintf (mbox_fp, "enc_pos(0x%08X)\n", *p);
-            fprintf (mbox_fp, "%16u  ", *p);
-            enc_pos_tmp[i] = *p;
+            // PULSE_POS
+            p += 1;         
+            *(stepgen->pulse_pos) = *p;
+            // ENC_POS
+            p += 1;         
+            *(stepgen->enc_pos) = *p;
+            stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "\n");
+        
+        // ADC_SPI
+        p += 1;   
+        *(gpio->a_in[0]) = *p;
+
+#if (MBOX_LOG)
+        fprintf (mbox_fp, "%10u  ", bp_tick);
+        stepgen = stepgen_array;
+        for (i=0; i<num_chan; i++) {
+            fprintf (mbox_fp, "%10u  %10u  ", 
+                    *(stepgen->pulse_pos), 
+                    *(stepgen->enc_pos)
+                    );
+            stepgen += 1;   // point to next joint
+        }
+        fprintf (mbox_fp, "%10u\n", *(gpio->a_in[0]));
+#endif
     }
 
 }
@@ -437,8 +447,10 @@ int rtapi_app_main(void)
     } else {
 	// programming risc with binfile(bins)
         wou_prog_risc(&w_param, bins);
-        // set mailbox callback function
+#if (MBOX_LOG)
         mbox_fp = fopen ("./mbox.log", "w");
+#endif
+        // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
     }
 
@@ -697,7 +709,7 @@ static void update_freq(void *arg, long period)
 //obsolete:    static uint8_t prev_r_switch_en = 0;
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
-
+    uint32_t immediate_data = 0;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -775,18 +787,36 @@ static void update_freq(void *arg, long period)
 			   *(m_control->timeout));
 		assert(*(m_control->sync_in) >= 0);
 		assert(*(m_control->sync_in) < num_sync_in);
-		if(*(m_control->wait_type) & TIMEOUT_MASK) {
-			// calculate how many 0.1 sec
-			uint32_t unit;
-			unit = (uint32_t)*(m_control->timeout)/0.1;
-			unit &= SYNC_TIMEOUT_MASK; // max unit = 16^3 * 0.1 ms
-			sync_cmd = SYNC_ST | unit;
 
-		} else {
-			uint32_t unit = 0; // clean timeout (wait forever)
-			sync_cmd = SYNC_ST | unit;
 
-		}
+
+   // setup sync timeout
+    immediate_data = 153*1000; // ticks about 0.6 sec
+    // transmit immediate data
+    for(j=0; i<sizeof(uint32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[i];
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
+                sizeof(uint16_t), data);
+    }
+    sync_cmd = SYNC_ST; 
+    memcpy(data, &sync_cmd, sizeof(uint16_t));
+    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
+            sizeof(uint16_t), data);
+
+
+// remove for update timeout:		if(*(m_control->wait_type) & TIMEOUT_MASK) {
+// remove for update timeout:			// calculate how many 0.1 sec
+// remove for update timeout:			uint32_t unit;
+// remove for update timeout:			unit = (uint32_t)*(m_control->timeout)/0.1;
+// remove for update timeout:			unit &= SYNC_TIMEOUT_MASK; // max unit = 16^3 * 0.1 ms
+// remove for update timeout:			sync_cmd = SYNC_ST | unit;
+// remove for update timeout:
+// remove for update timeout:		} else {
+// remove for update timeout:			uint32_t unit = 0; // clean timeout (wait forever)
+// remove for update timeout:			sync_cmd = SYNC_ST | unit;
+// remove for update timeout:
+// remove for update timeout:		}
 		wou_cmd(&w_param, WB_WR_CMD,(JCMD_BASE |  JCMD_SYNC_CMD),
 							sizeof(uint16_t), (uint8_t *) &sync_cmd);
 		sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
@@ -1011,14 +1041,11 @@ static void update_freq(void *arg, long period)
     i = 0;
     stepgen = arg;
     for (n = 0; n < num_chan; n++) {
-	/* update registers from FPGA */
-	memcpy((void *) stepgen->pulse_pos,
-	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n * 4),
-	       4);
-	memcpy((void *) stepgen->enc_pos,
-	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n * 4), 4);
-//mailbox:	*(stepgen->pulse_pos) = pulse_pos_tmp[n];
-//mailbox:	*(stepgen->enc_pos) = enc_pos_tmp[n];
+//to fetchmail():	/* update registers from FPGA */
+//to fetchmail():	memcpy((void *) stepgen->pulse_pos,
+//to fetchmail():	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_PULSE_POS + n * 4), 4);
+//to fetchmail():	memcpy((void *) stepgen->enc_pos,
+//to fetchmail():	       wou_reg_ptr(&w_param, SSIF_BASE + SSIF_ENC_POS + n * 4), 4);
         
         //trace INDEX_HOMING: debug_cnt+=1;
         //trace INDEX_HOMING: if (debug_cnt > 1024*4) {
@@ -1341,8 +1368,8 @@ static int export_gpio(gpio_t * addr)
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
-
-    /* export pin for counts captured by wou_update() */
+    
+    // export Digital IN
     for (i = 0; i < 16; i++) {
 	retval = hal_pin_bit_newf(HAL_OUT, &(addr->in[i]), comp_id,
 				  "wou.gpio.in.%02d", i);
@@ -1352,6 +1379,7 @@ static int export_gpio(gpio_t * addr)
 	*(addr->in[i]) = 0;
     }
 
+    // export Digital OUT
     for (i = 0; i < 8; i++) {
 	retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id,
 				  "wou.gpio.out.%02d", i);
@@ -1359,6 +1387,16 @@ static int export_gpio(gpio_t * addr)
 	    return retval;
 	}
 	*(addr->out[i]) = 0;
+    }
+    
+    // export Analog IN
+    for (i = 0; i < 1; i++) {
+        retval = hal_pin_s32_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
+                                  "wou.gpio.a_in.%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+	*(addr->a_in[i]) = 0;
     }
 
     /* set default parameter values */
@@ -1369,7 +1407,7 @@ static int export_gpio(gpio_t * addr)
     // gpio.in[0] is SVO-ALM, which is low active;
     // set "prev_in[0]" as 1 also
     *(addr->in[0]) = 1;
-
+    
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
