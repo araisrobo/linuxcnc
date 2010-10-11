@@ -205,7 +205,6 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
-// static const char *bitfile = "./fpga_top.bit";
 static wou_param_t w_param;
 static int pending_cnt;
 #define JNT_PER_WOF     1       // SYNC_JNT commands per WOU_FRAME
@@ -971,20 +970,20 @@ static void update_freq(void *arg, long period)
     pending_cnt += 1;
     if (pending_cnt == JNT_PER_WOF) {
         pending_cnt = 0;
-        // replace "bp_reg_update"
+
         // send WB_RD_CMD to read registers back
 
-        wou_cmd (&w_param,
-                WB_RD_CMD,
-                (SSIF_BASE | SSIF_PULSE_POS),
-                16,
-                data);
+        //fetchmail: wou_cmd (&w_param,
+        //fetchmail:         WB_RD_CMD,
+        //fetchmail:         (SSIF_BASE | SSIF_PULSE_POS),
+        //fetchmail:         16,
+        //fetchmail:         data);
 
-        wou_cmd (&w_param,
-                WB_RD_CMD,
-                (SSIF_BASE | SSIF_ENC_POS),
-                16,
-                data);
+        //fetchmail: wou_cmd (&w_param,
+        //fetchmail:         WB_RD_CMD,
+        //fetchmail:         (SSIF_BASE | SSIF_ENC_POS),
+        //fetchmail:         16,
+        //fetchmail:         data);
 
         wou_cmd (&w_param,
                  WB_RD_CMD,
