@@ -288,6 +288,9 @@ typedef struct {
     hal_bit_t *sync_out[64];
     int num_sync_out;
     uint64_t prev_out;		//ON or OFF
+    hal_bit_t *position_compensation_en;
+    hal_u32_t *position_compensation_ref;
+
 } mcode_var_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -778,8 +781,25 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
 	wou_flush(&w_param);
     }
-    /* begin: process motion synchronized input */
 
+    /* begin: process position compensation enable */
+    if(*(m_control->position_compensation_en) != 0) {
+        immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
+        fprintf(stderr,"set position compensation enable ref(%d)\n",immediate_data);
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_PC;
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+    }
+    /* end: process position compensation enable */
+
+    /* begin: process motion synchronized input */
     if (*(m_control->sync_in_trigger) != 0) {
         fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
                    *(m_control->sync_in), *(m_control->wait_type),
@@ -812,7 +832,6 @@ static void update_freq(void *arg, long period)
         // end: trigger sync in and wait timeout
         *(m_control->sync_in_trigger) = 0;
     }
-
     /* end: process motion synchronized input */
 
     /* begin: process motion synchronized output */
@@ -1696,6 +1715,22 @@ static int export_mcode_var_t(mcode_var_t * m_control)
 	}
 	*(m_control->sync_out[i]) = 0;
     }
+
+    retval =
+            hal_pin_bit_newf(HAL_IO, &(m_control->position_compensation_en), comp_id,
+                            "wou.pos.comp.en");
+    if (retval != 0) {
+        return retval;
+    }
+    *(m_control->position_compensation_en) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(m_control->position_compensation_ref), comp_id,
+                            "wou.pos.comp.ref");
+    if (retval != 0) {
+            return retval;
+    }
+    *(m_control->position_compensation_ref) = 0;
+
     m_control->num_sync_in = num_sync_in;
     m_control->num_sync_out = num_sync_out;
     m_control->prev_out = 0;
