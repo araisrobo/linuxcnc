@@ -4005,6 +4005,17 @@ void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
 
     return;
 }
+
+void SET_MOTION_POS_COMP_EN(int en_flag, int pos_comp_ref)
+{
+    EMC_MOTION_SET_POS_COMP_EN pos_comp_en_msg;
+    pos_comp_en_msg.en_flag = en_flag;
+    pos_comp_en_msg.pos_comp_ref = pos_comp_ref;
+    interp_list.append(pos_comp_en_msg);
+
+    return;
+}
+/* M201 replace by position compensatino enable
 void SET_MOTION_IMMEDIATE_POS(int axis,double value)
 {
     EMC_MOTION_SET_IMMEDIATE_POS immpos_msg;
@@ -4013,7 +4024,8 @@ void SET_MOTION_IMMEDIATE_POS(int axis,double value)
     immpos_msg.pos = value;
     interp_list.append(immpos_msg);
     return;
-}
+}*/
+
 
 // vim:sw=4:sts=4:et:
 

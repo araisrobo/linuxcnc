@@ -134,6 +134,7 @@ extern "C" {
 	EMCMOT_SET_AOUT,	/* sets or unsets a AIO, this can be imediate or synched with motion */
         EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
         EMCMOT_SET_SYNC_INPUT,
+        EMCMOT_SET_POS_COMP_EN,
 
 	EMCMOT_SET_SPINDLE_VEL,	/* set the spindle vel (>0 means forward, <0 means backward) */
 	EMCMOT_SPINDLE_ON,	/* start the spindle */
@@ -168,7 +169,7 @@ extern "C" {
         EMCMOT_SET_AXIS_POSITION_LIMITS, /* set the axis position +/- limits */
         EMCMOT_SET_AXIS_VEL_LIMIT,      /* set the max axis vel */
         EMCMOT_SET_AXIS_ACC_LIMIT,      /* set the max axis acc */
-        EMCMOT_SET_IMMEDIATE_POS,
+//        EMCMOT_SET_IMMEDIATE_POS,    /* M201 replace by position compensation enable
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -234,6 +235,8 @@ extern "C" {
 	unsigned char now, out, start, end;	/* these are related to synched AOUT/DOUT. now=wether now or synched, out = which gets set, start=start value, end=end value */
 	int wait_type;
 	double timeout;
+	int pos_comp_en;
+	int pos_comp_ref;
 	unsigned char mode;	/* used for turning overrides etc. on/off */
 	double comp_nominal, comp_forward, comp_reverse; /* compensation triplet, nominal, forward, reverse */
         unsigned char probe_type; /* ~1 = error if probe operation is unsuccessful (ngc default)

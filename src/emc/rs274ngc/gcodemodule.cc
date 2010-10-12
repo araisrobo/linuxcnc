@@ -611,7 +611,9 @@ void SET_AUX_OUTPUT_VALUE(int index, double value) {}
 void CLEAR_MOTION_OUTPUT_BIT(int bit) {}
 void SET_MOTION_OUTPUT_BIT(int bit) {}
 void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type, double timeout, unsigned char now) {}
-void SET_MOTION_IMMEDIATE_POS(int axis,double value) {}
+void SET_MOTION_POS_COMP_EN(int en_flag, int pos_comp_ref) {};
+/* M201 replace by set position compensatino enabel
+ void SET_MOTION_IMMEDIATE_POS(int axis,double value) {} */
 void SET_MOTION_OUTPUT_VALUE(int index, double value) {}
 void TURN_PROBE_ON() {}
 void TURN_PROBE_OFF() {}

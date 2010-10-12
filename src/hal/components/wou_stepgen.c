@@ -288,6 +288,7 @@ typedef struct {
     hal_bit_t *sync_out[64];
     int num_sync_out;
     uint64_t prev_out;		//ON or OFF
+    hal_bit_t *position_compensation_en_trigger;
     hal_bit_t *position_compensation_en;
     hal_u32_t *position_compensation_ref;
 
@@ -627,7 +628,7 @@ int rtapi_app_main(void)
     }
 /* put export m_control below */
     // static int export_m_control (m_control_t *m_control)
-    retval = export_mcode_var(&m_control);
+    retval = export_mcode_var(m_control);
     if (retval != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"GPIO: ERROR:  m_control var export failed\n");
@@ -783,19 +784,23 @@ static void update_freq(void *arg, long period)
     }
 
     /* begin: process position compensation enable */
-    if(*(m_control->position_compensation_en) != 0) {
+    if(*(m_control->position_compensation_en_trigger) != 0) {
+        fprintf(stderr,"position compensation enable triggered(%d)\n",
+                *(m_control->position_compensation_en));
         immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
         fprintf(stderr,"set position compensation enable ref(%d)\n",immediate_data);
+
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
         }
-        sync_cmd = SYNC_PC;
+        sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(m_control->position_compensation_en));
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
+        *(m_control->position_compensation_en_trigger) = 0;
     }
     /* end: process position compensation enable */
 
@@ -1662,7 +1667,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 }
 
 
-static int export_mcode_var_t(mcode_var_t * m_control)
+static int export_mcode_var(mcode_var_t * m_control)
 {
     int i, retval, msg;
     /* This function exports a lot of stuff, which results in a lot of
@@ -1717,7 +1722,15 @@ static int export_mcode_var_t(mcode_var_t * m_control)
     }
 
     retval =
-            hal_pin_bit_newf(HAL_IO, &(m_control->position_compensation_en), comp_id,
+            hal_pin_bit_newf(HAL_IN, &(m_control->position_compensation_en_trigger), comp_id,
+                            "wou.pos.comp.en.trigger");
+    if (retval != 0) {
+        return retval;
+    }
+    *(m_control->position_compensation_en_trigger) = 0;
+
+    retval =
+            hal_pin_bit_newf(HAL_IN, &(m_control->position_compensation_en), comp_id,
                             "wou.pos.comp.en");
     if (retval != 0) {
         return retval;

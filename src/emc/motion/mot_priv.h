@@ -118,12 +118,17 @@ typedef struct {
     hal_float_t *analog_input[EMCMOT_MAX_AIO]; /* RPI array: input pins for analog Inputs */
     hal_float_t *analog_output[EMCMOT_MAX_AIO]; /* RPI array: output pins for analog Inputs */
 
+    hal_bit_t *pos_comp_en_trigger;
+    hal_bit_t *pos_comp_en;
+    hal_u32_t *pos_comp_ref;
     //hal_bit_t *sync_in[EMCMOT_MAX_SYNC_INPUT];
     hal_bit_t *sync_in_trigger;
     hal_u32_t *sync_in;
     hal_u32_t *sync_wait_type;
     hal_float_t *timeout;
-    hal_float_t *immediate_pos_cmd[EMCMOT_MAX_AXIS];
+    /* M201 EMCMOT_SET_IMMEDIATE_POS replaced by EMCMOT_SET_POS_COMP
+     * hal_float_t *immediate_pos_cmd[EMCMOT_MAX_AXIS];*/
+
     // creating a lot of pins for spindle control to be very flexible
     // the user needs only a subset of these
 
@@ -222,8 +227,11 @@ extern void emcmotSetCycleTime(unsigned long nsec);
 extern void emcmotDioWrite(int index, char value);
 extern void emcmotAioWrite(int index, double value);
 extern void emcmotSyncInputWrite(int index, double timeout, int wait_type);
-/* relate to immediate position command */
-extern void emcmotImmediatePosWrite(int axis, float pos);
+extern void emcmotPosCompWrite(int pos_comp_en, int pos_comp_ref);
+/* M201 EMCMOT_SET_IMMEDIATE_POS replaced by EMCMOT_SET_POS_COMP
+ *  relate to immediate position command
+extern void emcmotImmediatePosWrite(int axis, float pos);*/
+
 /* homing is no longer in control.c, make functions public */
 extern void do_homing_sequence(void);
 extern void do_homing(void);
