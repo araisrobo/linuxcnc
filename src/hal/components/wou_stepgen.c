@@ -781,28 +781,30 @@ static void update_freq(void *arg, long period)
     /* begin: process motion synchronized input */
 
     if (*(m_control->sync_in_trigger) != 0) {
-		fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
-			   *(m_control->sync_in), *(m_control->wait_type),
-			   *(m_control->timeout));
-		assert(*(m_control->sync_in) >= 0);
-		assert(*(m_control->sync_in) < num_sync_in);
+        fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
+                   *(m_control->sync_in), *(m_control->wait_type),
+                   *(m_control->timeout));
+        assert(*(m_control->sync_in) >= 0);
+        assert(*(m_control->sync_in) < num_sync_in);
 
 
 
-   // setup sync timeout
-    immediate_data = 153*1000; // ticks about 0.6 sec
-    // transmit immediate data
-    for(j=0; i<sizeof(uint32_t); j++) {
-        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[i];
+       // begin: setup sync timeout
+        immediate_data = (uint32_t)(*(m_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
+        //immediate_data = 153*1000; // ticks about 0.6 sec
+        // transmit immediate data
+        fprintf(stderr,"set risc timeout(%u)\n",immediate_data);
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_ST;
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
                 sizeof(uint16_t), data);
-    }
-    sync_cmd = SYNC_ST; 
-    memcpy(data, &sync_cmd, sizeof(uint16_t));
-    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
-            sizeof(uint16_t), data);
-
+        // end: setup sync timeout
 
 // remove for update timeout:		if(*(m_control->wait_type) & TIMEOUT_MASK) {
 // remove for update timeout:			// calculate how many 0.1 sec
@@ -816,13 +818,14 @@ static void update_freq(void *arg, long period)
 // remove for update timeout:			sync_cmd = SYNC_ST | unit;
 // remove for update timeout:
 // remove for update timeout:		}
-		wou_cmd(&w_param, WB_WR_CMD,(JCMD_BASE |  JCMD_SYNC_CMD),
-							sizeof(uint16_t), (uint8_t *) &sync_cmd);
-		sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
+// remove for update timeout:        wou_cmd(&w_param, WB_WR_CMD,(JCMD_BASE |  JCMD_SYNC_CMD),
+// remove for update timeout:                                             sizeof(uint16_t), (uint8_t *) &sync_cmd);
 
-		wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-							sizeof(uint16_t), (uint8_t *) &sync_cmd);
-		*(m_control->sync_in_trigger) = 0;
+        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
+                                                sizeof(uint16_t), (uint8_t *) &sync_cmd);
+
+        *(m_control->sync_in_trigger) = 0;
     }
 
     /* end: process motion synchronized input */
