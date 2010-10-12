@@ -288,12 +288,12 @@ typedef struct {
     hal_bit_t *sync_out[64];
     int num_sync_out;
     uint64_t prev_out;		//ON or OFF
-} m_control_t;
+} mcode_var_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
 static gpio_t *gpio;
-static m_control_t *m_control;
+static mcode_var_t *m_control;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -343,7 +343,7 @@ static double recip_dt;		/* recprocal of period, avoids divides */
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode);
 static int export_gpio(gpio_t * addr);
-static int export_m_control(m_control_t * m_control);
+static int export_mcode_var(mcode_var_t * m_control);
 static void update_freq(void *arg, long period);
 
 
@@ -594,7 +594,7 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-    m_control = hal_malloc(sizeof(m_control_t));
+    m_control = hal_malloc(sizeof(mcode_var_t));
     if (m_control == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"M_CONTROL: ERROR: hal_malloc() failed\n");
@@ -624,7 +624,7 @@ int rtapi_app_main(void)
     }
 /* put export m_control below */
     // static int export_m_control (m_control_t *m_control)
-    retval = export_m_control(m_control);
+    retval = export_mcode_var(&m_control);
     if (retval != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"GPIO: ERROR:  m_control var export failed\n");
@@ -805,26 +805,11 @@ static void update_freq(void *arg, long period)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
                 sizeof(uint16_t), data);
         // end: setup sync timeout
-
-// remove for update timeout:		if(*(m_control->wait_type) & TIMEOUT_MASK) {
-// remove for update timeout:			// calculate how many 0.1 sec
-// remove for update timeout:			uint32_t unit;
-// remove for update timeout:			unit = (uint32_t)*(m_control->timeout)/0.1;
-// remove for update timeout:			unit &= SYNC_TIMEOUT_MASK; // max unit = 16^3 * 0.1 ms
-// remove for update timeout:			sync_cmd = SYNC_ST | unit;
-// remove for update timeout:
-// remove for update timeout:		} else {
-// remove for update timeout:			uint32_t unit = 0; // clean timeout (wait forever)
-// remove for update timeout:			sync_cmd = SYNC_ST | unit;
-// remove for update timeout:
-// remove for update timeout:		}
-// remove for update timeout:        wou_cmd(&w_param, WB_WR_CMD,(JCMD_BASE |  JCMD_SYNC_CMD),
-// remove for update timeout:                                             sizeof(uint16_t), (uint8_t *) &sync_cmd);
-
+        // begin: trigger sync in and wait timeout 
         sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
         wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
                                                 sizeof(uint16_t), (uint8_t *) &sync_cmd);
-
+        // end: trigger sync in and wait timeout
         *(m_control->sync_in_trigger) = 0;
     }
 
@@ -1658,7 +1643,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 }
 
 
-static int export_m_control(m_control_t * m_control)
+static int export_mcode_var_t(mcode_var_t * m_control)
 {
     int i, retval, msg;
     /* This function exports a lot of stuff, which results in a lot of
