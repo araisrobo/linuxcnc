@@ -323,7 +323,6 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
 
 void emcmotPosCompWrite(int pos_comp_en, int pos_comp_ref)
 {
-    fprintf(stderr,"emcmotPosCompWrite \n");
     *(emcmot_hal_data->pos_comp_en_trigger) = 1;
     *(emcmot_hal_data->pos_comp_en) = pos_comp_en;
     *(emcmot_hal_data->pos_comp_ref) = pos_comp_ref;

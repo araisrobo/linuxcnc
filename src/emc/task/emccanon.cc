@@ -4009,10 +4009,11 @@ void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
 void SET_MOTION_POS_COMP_EN(int en_flag, int pos_comp_ref)
 {
     EMC_MOTION_SET_POS_COMP_EN pos_comp_en_msg;
+    pos_comp_en_msg.now = 0;
     pos_comp_en_msg.en_flag = en_flag;
     pos_comp_en_msg.pos_comp_ref = pos_comp_ref;
+    flush_segments();
     interp_list.append(pos_comp_en_msg);
-
     return;
 }
 /* M201 replace by position compensatino enable

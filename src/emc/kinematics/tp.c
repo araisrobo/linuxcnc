@@ -504,7 +504,6 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
     if(pos_comp_en.pos_comp_en_triggered != 0) {
-        fprintf(stderr,"tpAddLine pos comp en triggered !=0 \n");
         tc.pos_comp_en = pos_comp_en;
         tpClearPosCompEn();
     } else {
