@@ -180,6 +180,9 @@ RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 int enc_type = -1;
 RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
+int adc_spi_en = 0;
+RTAPI_MP_INT(adc_spi_en, "Analog to Digital Converter Enable Signal");
+
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
@@ -473,6 +476,28 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_ERR,
                         "WOU: ERROR: no encoder type: enc_type\n");
         return -1;
+    }
+    
+    if (1 == adc_spi_en) {
+        rtapi_print_msg(RTAPI_MSG_INFO,
+                        "WOU: enable ADC_SPI\n");
+        // set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
+        data[0] = 19; 
+        wou_cmd (&w_param, WB_WR_CMD, 
+                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR), 
+                 (uint8_t) 1, data);
+        
+        // enable ADC_SPI with LOOP mode
+        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
+        //                      (0)Differential mode,
+        //                      (0)D2 ... dont care,
+        //                      (0)D1 ... Ch0 = IN+,
+        //                      (0)D2 ... CH1 = IN-   }
+        data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
+                  | (ADC_SPI_CMD_MASK & 0x10);
+        wou_cmd (&w_param, WB_WR_CMD, 
+                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL), 
+                 (uint8_t) 1, data);
     }
 
     /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
