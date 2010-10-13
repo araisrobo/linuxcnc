@@ -504,7 +504,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
     if(pos_comp_en.pos_comp_en_triggered != 0) {
-
+        fprintf(stderr,"tpAddLine pos comp en triggered !=0 \n");
         tc.pos_comp_en = pos_comp_en;
         tpClearPosCompEn();
     } else {
@@ -1749,11 +1749,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
 }
 void tpToggleCompPosEn(TC_STRUCT * tc)
 {
-    fprintf(stderr,"tpToggleCompPosEn (%d) \n",
-            tc->pos_comp_en.pos_comp_en_triggered);
+    /*fprintf(stderr,"tpToggleCompPosEn (%d) \n",
+            tc->pos_comp_en.pos_comp_en_triggered);*/
     if (tc->pos_comp_en.pos_comp_en_triggered !=0 ) {
         emcmotPosCompWrite( tc->pos_comp_en.en_flag, tc->pos_comp_en.pos_comp_ref);
     }
+    tc->pos_comp_en.pos_comp_en_triggered = 0;
 }
 void tpToggleDIOs(TC_STRUCT * tc)
 {
@@ -2199,6 +2200,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         tp->currentPos.w += primary_displacement.w + secondary_displacement.w;
     } else { // if (nexttc && (tc->distance_to_go <= tc->tolerance))
         tpToggleDIOs(tc); //check and do DIO changes
+        tpToggleCompPosEn(tc);
+
         target = tcGetEndpoint(tc);
         tp->motionType = tc->canon_motion_type;
         emcmotStatus->distance_to_go = tc->distance_to_go;
@@ -2255,12 +2258,10 @@ int tpAbort(TP_STRUCT * tp) {
     if (0 == tp) {
         return -1;
     }
-
     if (!tp->aborting) {
         /* to abort, signal a pause and set our abort flag */
         tp->aborting = 1;
     }
-    tpSetPosCompEnWrite(tp,0,0);
     tpClearPosCompEn();
     return tpClearDIOs(); //clears out any already cached DIOs
 }
