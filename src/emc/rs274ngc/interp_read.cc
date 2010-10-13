@@ -1024,7 +1024,7 @@ int Interp::read_m(char *line,   //!< string: line of RS274 code being processed
   CHKS((value > 199 && value >209), NCE_M_CODE_GREATER_THAN_199); // artek m-code 200-209
   mode = _ems[value];
   CHKS((mode == -1), NCE_UNKNOWN_M_CODE_USED);
-  CHKS((block->m_modes[mode] != -1),
+  CHKS((block->m_modes[mode] != -1 && (mode != 11)),
       NCE_TWO_M_CODES_USED_FROM_SAME_MODAL_GROUP);
   block->m_modes[mode] = value;
   block->m_count++;

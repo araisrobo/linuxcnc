@@ -155,7 +155,9 @@ class PM_CARTESIAN;
 #define EMC_MOTION_SET_DOUT_TYPE                     ((NMLTYPE) 305)
 #define EMC_MOTION_ADAPTIVE_TYPE                     ((NMLTYPE) 306)
 #define EMC_MOTION_SET_SYNC_INPUT_TYPE               ((NMLTYPE) 307)
-#define EMC_MOTION_SET_IMMEDIATE_POS_TYPE            ((NMLTYPE) 308)
+#define EMC_MOTION_SET_POS_COMP_EN_TYPE              ((NMLTYPE) 308)
+/* M201 replace by position compensation enable
+#define EMC_MOTION_SET_IMMEDIATE_POS_TYPE            ((NMLTYPE) 308)*/
 #define EMC_MOTION_STAT_TYPE                         ((NMLTYPE) 399)
 
 // NML for EMC_TASK
@@ -491,8 +493,10 @@ extern int emcMotionSetDout(unsigned char index, unsigned char start,
                             unsigned char end, unsigned char now);
 extern int emcMotionSetSyncInput(unsigned char index, unsigned char now,
         int wait_type, double timeout);
+extern int emcMotionSetPosCompEnable(int en_flag, int pos_comp_ref);
 extern int emcMotionUpdate(EMC_MOTION_STAT * stat);
-extern int emcMotionSetImmediatePos(int axis, double pos);
+/* M201 replace by position compensation enable
+extern int emcMotionSetImmediatePos(int axis, double pos);*/
 // implementation functions for EMC_TASK types
 
 extern int emcTaskInit();

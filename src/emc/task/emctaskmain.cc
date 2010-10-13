@@ -753,7 +753,9 @@ static int emcTaskPlan(void)
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
-	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+	    case EMC_MOTION_SET_POS_COMP_EN_TYPE:
+	    /*  M201 replace by position compensation enable
+             case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:*/
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -872,7 +874,9 @@ static int emcTaskPlan(void)
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
-	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+	    case EMC_MOTION_SET_POS_COMP_EN_TYPE:
+	  /* M201 replaced by position compensation enable
+	   case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:*/
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1293,7 +1297,9 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
-	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+	    case EMC_MOTION_SET_POS_COMP_EN_TYPE:
+	  /* M201 replaced by position compensation enable
+	    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:*/
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1456,7 +1462,9 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_MOTION_ADAPTIVE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	break;
-    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+   /* M201 replaced by position compensation enable
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:*/
+    case EMC_MOTION_SET_POS_COMP_EN_TYPE:
         return EMC_TASK_EXEC_DONE;
         break;
     default:
@@ -1804,14 +1812,19 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 				  ((EMC_MOTION_SET_DOUT *) cmd)->now);
 	break;
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:
-           retval = emcMotionSetSyncInput(((EMC_MOTION_SET_SYNC_INPUT *) cmd)->index,
-                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now,
-                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->wait_type,
-                                     ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->timeout);
+       retval = emcMotionSetSyncInput(((EMC_MOTION_SET_SYNC_INPUT *) cmd)->index,
+                                 ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now,
+                                 ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->wait_type,
+                                 ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->timeout);
            break;
-    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+    case EMC_MOTION_SET_POS_COMP_EN_TYPE:
+        retval = emcMotionSetPosCompEnable(((EMC_MOTION_SET_POS_COMP_EN *) cmd)->en_flag,
+                                           ((EMC_MOTION_SET_POS_COMP_EN *) cmd)->pos_comp_ref );
+        break;
+ /*   M201 replace by position compensation enable
+      case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
         retval = emcMotionSetImmediatePos(((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->axis,
-                                             ((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->pos);
+                                             ((EMC_MOTION_SET_IMMEDIATE_POS *) cmd)->pos);*/
         break;
     case EMC_MOTION_ADAPTIVE_TYPE:
 	retval = emcTrajSetAFEnable(((EMC_MOTION_ADAPTIVE *) cmd)->status);
@@ -2231,7 +2244,9 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:
-    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:
+    case EMC_MOTION_SET_POS_COMP_EN_TYPE:
+/* M201 replaced by position compensation enable
+    case EMC_MOTION_SET_IMMEDIATE_POS_TYPE:*/
 	return EMC_TASK_EXEC_DONE;
 	break;
 

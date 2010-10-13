@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -42,6 +42,7 @@ extern emcmot_debug_t *emcmotDebug;
 static int immediate_state ;
 int output_chan = 0;
 syncdio_t syncdio; //record tpSetDout's here
+pos_comp_en_t pos_comp_en;
 
 int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
     if (0 == tp) {
@@ -76,10 +77,11 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
 // this clears any potential DIO toggles
 // anychanged signals if any DIOs need to be changed
 // dios[i] = 1, DIO needs to get turned on, -1 = off
-int tpClearDIOs() {
+int tpClearDIOs()
+{
     int i;
     syncdio.anychanged = 0;
-    syncdio.sync_input_triggled = 0;
+    syncdio.sync_input_triggered = 0;
     for (i = 0; i < emcmotConfig->numDIO; i++)
         syncdio.dios[i] = 0;
     // also clean sync_input status
@@ -91,6 +93,13 @@ int tpClearDIOs() {
     return 0;
 }
 
+int tpClearPosCompEn()
+{
+    pos_comp_en.pos_comp_en_triggered = 0;
+    pos_comp_en.en_flag = 0;
+    pos_comp_en.pos_comp_ref = 0;
+    return 0;
+}
 /*
  tpClear() is a "soft init" in the sense that the TP_STRUCT configuration
  parameters (cycleTime, vMax, and aMax) are left alone, but the queue is
@@ -123,7 +132,7 @@ int tpClear(TP_STRUCT * tp) {
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
     ZERO_EMC_POSE(emcmotStatus->dtg);
-
+    tpClearPosCompEn();
     return tpClearDIOs();
 }
 
@@ -352,12 +361,21 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.velocity_mode = tp->velocity_mode;
     tc.enables = enables;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
-        tc.syncdio.sync_input_triggled = 0;
+        tc.syncdio.sync_input_triggered = 0;
+    }
+
+    if(tc.pos_comp_en.pos_comp_en_triggered != 0) {
+        tc.pos_comp_en = pos_comp_en;
+        tpClearPosCompEn();
+    } else {
+        tc.pos_comp_en.en_flag = 0;
+        tc.pos_comp_en.pos_comp_en_triggered = 0;
+        tc.pos_comp_en.pos_comp_ref = 0;
     }
 
     if (tcqPut(&tp->queue, tc) == -1) {
@@ -478,14 +496,22 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.uu_per_rev = tp->uu_per_rev;
     tc.enables = enables;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
-        tc.syncdio.sync_input_triggled = 0;
+        tc.syncdio.sync_input_triggered = 0;
     }
+    if(pos_comp_en.pos_comp_en_triggered != 0) {
 
+        tc.pos_comp_en = pos_comp_en;
+        tpClearPosCompEn();
+    } else {
+        tc.pos_comp_en.en_flag = 0;
+        tc.pos_comp_en.pos_comp_en_triggered = 0;
+        tc.pos_comp_en.pos_comp_ref = 0;
+    }
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -601,14 +627,21 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.uu_per_rev = tp->uu_per_rev;
     tc.enables = enables;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
-        tc.syncdio.sync_input_triggled = 0;
+        tc.syncdio.sync_input_triggered = 0;
     }
-
+    if(pos_comp_en.pos_comp_en_triggered!= 0) {
+        tc.pos_comp_en = pos_comp_en;
+        tpClearPosCompEn();
+    } else {
+        tc.pos_comp_en.en_flag = 0;
+        tc.pos_comp_en.pos_comp_en_triggered = 0;
+        tc.pos_comp_en.pos_comp_ref = 0;
+    }
     if (tcqPut(&tp->queue, tc) == -1) {
         return -1;
     }
@@ -794,14 +827,21 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.uu_per_rev = tp->uu_per_rev;
         tc.enables = enables;
 
-        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggled != 0)) {
+        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
             tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
             tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
         } else {
             tc.syncdio.anychanged = 0;
-            tc.syncdio.sync_input_triggled = 0;
+            tc.syncdio.sync_input_triggered = 0;
         }
-
+        if(pos_comp_en.pos_comp_en_triggered != 0) {
+            tc.pos_comp_en = pos_comp_en;
+            tpClearPosCompEn();
+        } else {
+            tc.pos_comp_en.en_flag = 0;
+            tc.pos_comp_en.pos_comp_en_triggered = 0;
+            tc.pos_comp_en.pos_comp_ref = 0;
+        }
         if (tcqPut(&tp->queue, tc) == -1) {
             rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
             return -1;
@@ -1707,8 +1747,16 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     if (v)
         *v = newvel;
 }
-
-void tpToggleDIOs(TC_STRUCT * tc) {
+void tpToggleCompPosEn(TC_STRUCT * tc)
+{
+    fprintf(stderr,"tpToggleCompPosEn (%d) \n",
+            tc->pos_comp_en.pos_comp_en_triggered);
+    if (tc->pos_comp_en.pos_comp_en_triggered !=0 ) {
+        emcmotPosCompWrite( tc->pos_comp_en.en_flag, tc->pos_comp_en.pos_comp_ref);
+    }
+}
+void tpToggleDIOs(TC_STRUCT * tc)
+{
     int i = 0;
     if (tc->syncdio.anychanged != 0) { // we have DIO's to turn on or off
         fprintf(stderr,"tpToggleDIOs syncdio changed\n");
@@ -1724,14 +1772,14 @@ void tpToggleDIOs(TC_STRUCT * tc) {
 	}
 	tc->syncdio.anychanged = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }
-    if(tc->syncdio.sync_input_triggled != 0) {
+    if(tc->syncdio.sync_input_triggered != 0) {
         /* replace with pin index for sync in
          * for (i=0; i < emcmotConfig->numSyncIn; i++) {
          if (tc->syncdio.sync_in[i] > 0) emcmotSyncInputWrite(i, tc->syncdio.timeout, tc->syncdio.wait_type); //
          }*/
         emcmotSyncInputWrite(tc->syncdio.sync_in, tc->syncdio.timeout,
                 tc->syncdio.wait_type);
-        tc->syncdio.sync_input_triggled = 0; //we have turned them all on/off, nothing else to do for this TC the next time
+        tc->syncdio.sync_input_triggered = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }
 }
 
@@ -2112,6 +2160,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         } else {
 
             tpToggleDIOs(nexttc); //check and do DIO changes
+            tpToggleCompPosEn(nexttc); // check if any position compensation flag enable or not
             target = tcGetEndpoint(nexttc);
             tp->motionType = nexttc->canon_motion_type;
             emcmotStatus->distance_to_go = nexttc->distance_to_go;
@@ -2190,6 +2239,7 @@ int tpPause(TP_STRUCT * tp) {
         return -1;
     }
     tp->pausing = 1;
+    emcmotPosCompWrite(0, 0);
     return 0;
 }
 
@@ -2208,9 +2258,10 @@ int tpAbort(TP_STRUCT * tp) {
 
     if (!tp->aborting) {
         /* to abort, signal a pause and set our abort flag */
-        tpPause(tp);
         tp->aborting = 1;
     }
+    tpSetPosCompEnWrite(tp,0,0);
+    tpClearPosCompEn();
     return tpClearDIOs(); //clears out any already cached DIOs
 }
 
@@ -2277,7 +2328,7 @@ int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type) {
     if (index < 0 || index > EMCMOT_MAX_SYNC_INPUT) {
         return -1;
     }
-    syncdio.sync_input_triggled = 1; //something has changed
+    syncdio.sync_input_triggered = 1; //something has changed
     /*  replace with index
      for (i=0; i<EMCMOT_MAX_SYNC_INPUT; i++) {
      syncdio.sync_in[i] = -1;
@@ -2289,5 +2340,14 @@ int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type) {
     syncdio.timeout = timeout;
     return 0;
 }
-
+int tpSetPosCompEnWrite(TP_STRUCT *tp, int en_flag, int pos_comp_ref)
+{
+    if(0 == tp) {
+        return -1;
+    }
+    pos_comp_en.pos_comp_en_triggered = 1;
+    pos_comp_en.en_flag = en_flag;
+    pos_comp_en.pos_comp_ref = pos_comp_ref;
+    return 0;
+}
 // vim:sw=4:sts=4:et:

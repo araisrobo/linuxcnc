@@ -332,7 +332,9 @@ static int init_hal_io(void)
 
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->sync_in_trigger), mot_comp_id, "motion.sync-in-trigger")) != 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->sync_in), mot_comp_id, "motion.sync-in-index")) != 0) goto error;
-
+    if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->pos_comp_en_trigger), mot_comp_id, "motion.pos-comp-en-trigger")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->pos_comp_en), mot_comp_id, "motion.pos-comp-en")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pos_comp_ref), mot_comp_id, "motion.pos-comp-ref")) != 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->sync_wait_type ), mot_comp_id, "motion.sync-in-wait-type")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->timeout ), mot_comp_id, "motion.sync-in-timeout")) != 0) goto error;
     /* export machine wide hal pins */
@@ -462,9 +464,10 @@ static int init_hal_io(void)
         if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_vel_lim), mot_comp_id, "axis.%c.teleop-vel-lim", "xyzabcuvw"[n])) != 0) goto error;
         if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_tp_enable), mot_comp_id, "axis.%c.teleop-tp-enable", "xyzabcuvw"[n])) != 0) goto error;
     }
-    for (n = 0; n < EMCMOT_MAX_AXIS; n++) {
+    /* M201 replace by position compensation enable
+     * for (n = 0; n < EMCMOT_MAX_AXIS; n++) {
         if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->immediate_pos_cmd[n]), mot_comp_id, "motion.immediate-pos-cmd-%02d", n)) != 0) goto error;
-    }
+    }*/
     /* Done! */
     rtapi_print_msg(RTAPI_MSG_INFO,
 	"MOTION: init_hal_io() complete, %d axes.\n", n);

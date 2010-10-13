@@ -291,12 +291,16 @@ typedef struct {
     hal_bit_t *sync_out[64];
     int num_sync_out;
     uint64_t prev_out;		//ON or OFF
-} m_control_t;
+    hal_bit_t *position_compensation_en_trigger;
+    hal_bit_t *position_compensation_en;
+    hal_u32_t *position_compensation_ref;
+
+} mcode_var_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
 static gpio_t *gpio;
-static m_control_t *m_control;
+static mcode_var_t *m_control;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -346,7 +350,7 @@ static double recip_dt;		/* recprocal of period, avoids divides */
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode);
 static int export_gpio(gpio_t * addr);
-static int export_m_control(m_control_t * m_control);
+static int export_mcode_var(mcode_var_t * m_control);
 static void update_freq(void *arg, long period);
 
 
@@ -619,7 +623,7 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-    m_control = hal_malloc(sizeof(m_control_t));
+    m_control = hal_malloc(sizeof(mcode_var_t));
     if (m_control == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"M_CONTROL: ERROR: hal_malloc() failed\n");
@@ -649,7 +653,7 @@ int rtapi_app_main(void)
     }
 /* put export m_control below */
     // static int export_m_control (m_control_t *m_control)
-    retval = export_m_control(m_control);
+    retval = export_mcode_var(m_control);
     if (retval != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"GPIO: ERROR:  m_control var export failed\n");
@@ -803,53 +807,61 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
 	wou_flush(&w_param);
     }
+
+    /* begin: process position compensation enable */
+    if(*(m_control->position_compensation_en_trigger) != 0) {
+        fprintf(stderr,"position compensation enable triggered(%d)\n",
+                *(m_control->position_compensation_en));
+        immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
+        fprintf(stderr,"set position compensation enable ref(%d)\n",immediate_data);
+
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(m_control->position_compensation_en));
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        *(m_control->position_compensation_en_trigger) = 0;
+    }
+    /* end: process position compensation enable */
+
     /* begin: process motion synchronized input */
-
     if (*(m_control->sync_in_trigger) != 0) {
-		fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
-			   *(m_control->sync_in), *(m_control->wait_type),
-			   *(m_control->timeout));
-		assert(*(m_control->sync_in) >= 0);
-		assert(*(m_control->sync_in) < num_sync_in);
+        fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
+                   *(m_control->sync_in), *(m_control->wait_type),
+                   *(m_control->timeout));
+        assert(*(m_control->sync_in) >= 0);
+        assert(*(m_control->sync_in) < num_sync_in);
 
 
 
-   // setup sync timeout
-    immediate_data = 153*1000; // ticks about 0.6 sec
-    // transmit immediate data
-    for(j=0; i<sizeof(uint32_t); j++) {
-        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[i];
+       // begin: setup sync timeout
+        immediate_data = (uint32_t)(*(m_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
+        //immediate_data = 153*1000; // ticks about 0.6 sec
+        // transmit immediate data
+        fprintf(stderr,"set risc timeout(%u)\n",immediate_data);
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_ST;
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
                 sizeof(uint16_t), data);
+        // end: setup sync timeout
+        // begin: trigger sync in and wait timeout 
+        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
+                                                sizeof(uint16_t), (uint8_t *) &sync_cmd);
+        // end: trigger sync in and wait timeout
+        *(m_control->sync_in_trigger) = 0;
     }
-    sync_cmd = SYNC_ST; 
-    memcpy(data, &sync_cmd, sizeof(uint16_t));
-    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
-            sizeof(uint16_t), data);
-
-
-// remove for update timeout:		if(*(m_control->wait_type) & TIMEOUT_MASK) {
-// remove for update timeout:			// calculate how many 0.1 sec
-// remove for update timeout:			uint32_t unit;
-// remove for update timeout:			unit = (uint32_t)*(m_control->timeout)/0.1;
-// remove for update timeout:			unit &= SYNC_TIMEOUT_MASK; // max unit = 16^3 * 0.1 ms
-// remove for update timeout:			sync_cmd = SYNC_ST | unit;
-// remove for update timeout:
-// remove for update timeout:		} else {
-// remove for update timeout:			uint32_t unit = 0; // clean timeout (wait forever)
-// remove for update timeout:			sync_cmd = SYNC_ST | unit;
-// remove for update timeout:
-// remove for update timeout:		}
-		wou_cmd(&w_param, WB_WR_CMD,(JCMD_BASE |  JCMD_SYNC_CMD),
-							sizeof(uint16_t), (uint8_t *) &sync_cmd);
-		sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
-
-		wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-							sizeof(uint16_t), (uint8_t *) &sync_cmd);
-		*(m_control->sync_in_trigger) = 0;
-    }
-
     /* end: process motion synchronized input */
 
     /* begin: process motion synchronized output */
@@ -1680,7 +1692,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 }
 
 
-static int export_m_control(m_control_t * m_control)
+static int export_mcode_var(mcode_var_t * m_control)
 {
     int i, retval, msg;
     /* This function exports a lot of stuff, which results in a lot of
@@ -1733,6 +1745,30 @@ static int export_m_control(m_control_t * m_control)
 	}
 	*(m_control->sync_out[i]) = 0;
     }
+
+    retval =
+            hal_pin_bit_newf(HAL_IN, &(m_control->position_compensation_en_trigger), comp_id,
+                            "wou.pos.comp.en.trigger");
+    if (retval != 0) {
+        return retval;
+    }
+    *(m_control->position_compensation_en_trigger) = 0;
+
+    retval =
+            hal_pin_bit_newf(HAL_IN, &(m_control->position_compensation_en), comp_id,
+                            "wou.pos.comp.en");
+    if (retval != 0) {
+        return retval;
+    }
+    *(m_control->position_compensation_en) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(m_control->position_compensation_ref), comp_id,
+                            "wou.pos.comp.ref");
+    if (retval != 0) {
+            return retval;
+    }
+    *(m_control->position_compensation_ref) = 0;
+
     m_control->num_sync_in = num_sync_in;
     m_control->num_sync_out = num_sync_out;
     m_control->prev_out = 0;

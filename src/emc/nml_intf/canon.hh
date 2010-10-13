@@ -742,9 +742,10 @@ extern void SET_AUX_OUTPUT_VALUE(int index, double value);
 
 extern void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
         double timeout, unsigned char now);
-
-/* Commands to set immediate position command */
-extern void SET_MOTION_IMMEDIATE_POS(int axis,double value);
+extern void SET_MOTION_POS_COMP_EN(int en_flag, int pos_comp_ref);
+/* M201 replace by position compensation enableextern
+ * Commands to set immediate position command
+  void SET_MOTION_IMMEDIATE_POS(int axis,double value);*/
 
 /* Commands to wait for, query input bits and analog values */
 

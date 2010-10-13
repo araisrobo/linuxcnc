@@ -1069,10 +1069,15 @@ void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
 {
     return;
 }
-void SET_MOTION_IMMEDIATE_POS(int axis,double value)
+void SET_MOTION_POS_COMP_EN(int en_flag, int pos_comp_ref)
 {
     return;
 }
+/* M201 replace by set position compensatino enabel
+void SET_MOTION_IMMEDIATE_POS(int axis,double value)
+{
+    return;
+}*/
 void CLEAR_AUX_OUTPUT_BIT(int index)
 {
   return;

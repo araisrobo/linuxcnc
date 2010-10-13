@@ -1142,6 +1142,20 @@ class EMC_MOTION_SET_SYNC_INPUT:public EMC_MOTION_CMD_MSG {
     unsigned char now;          // wether command is imediate or synched with motion
 };
 
+class EMC_MOTION_SET_POS_COMP_EN:public EMC_MOTION_CMD_MSG {
+  public:
+    EMC_MOTION_SET_POS_COMP_EN():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_POS_COMP_EN_TYPE,
+                                             sizeof(EMC_MOTION_SET_POS_COMP_EN)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    int en_flag;
+    int pos_comp_ref;
+    unsigned char now;          // wether command is imediate or synched with motion
+                                // this command has not yet applied
+};
+/* M201 replace by set position compensatino enabel
 
 class EMC_MOTION_SET_IMMEDIATE_POS:public EMC_MOTION_CMD_MSG {
   public:
@@ -1155,6 +1169,7 @@ class EMC_MOTION_SET_IMMEDIATE_POS:public EMC_MOTION_CMD_MSG {
     int axis;
     double pos;
 };
+*/
 
 
 

@@ -321,6 +321,15 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
     }
 }
 
+void emcmotPosCompWrite(int pos_comp_en, int pos_comp_ref)
+{
+    fprintf(stderr,"emcmotPosCompWrite \n");
+    *(emcmot_hal_data->pos_comp_en_trigger) = 1;
+    *(emcmot_hal_data->pos_comp_en) = pos_comp_en;
+    *(emcmot_hal_data->pos_comp_ref) = pos_comp_ref;
+}
+/*
+ * M201 EMCMOT_SET_IMMEDIATE_POS replaced by EMCMOT_SET_POS_COMP
 void emcmotImmediatePosWrite(int axis, float pos)
 {
     if((axis >= 9 || (axis < 0))) {
@@ -329,6 +338,7 @@ void emcmotImmediatePosWrite(int axis, float pos)
        *(emcmot_hal_data->immediate_pos_cmd[axis]) = pos;
     }
 }
+*/
 
 /*! \function emcmotAioWrite()
 
@@ -1523,16 +1533,27 @@ check_stuff ( "before command_handler()" );
                     emcmotCommand->timeout, emcmotCommand->wait_type);
             }
 	    break;
+	case EMCMOT_SET_POS_COMP_EN:
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_POS_COMP_EN");
+
+	    if (emcmotCommand->now) {
+	        emcmotPosCompWrite(emcmotCommand->pos_comp_en, emcmotCommand->pos_comp_ref);
+	    } else {
+	        tpSetPosCompEnWrite(&emcmotDebug->coord_tp,
+	                emcmotCommand->pos_comp_en, emcmotCommand->pos_comp_ref);
+	    }
+	    break;
+	/*   M201 EMCMOT_SET_IMMEDIATE_POS replaced by EMCMOT_SET_POS_COMP
 	case EMCMOT_SET_IMMEDIATE_POS:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_IMMEDIATE_POS");
 	    emcmotImmediatePosWrite(emcmotCommand->axis, emcmotCommand->offset);
-            /*if (emcmotCommand->now) { //we set it right away
+            if (emcmotCommand->now) { //we set it right away
                 emcmotSyncInputWrite(emcmotCommand->out, emcmotCommand->start);
-            }*/ /*else { // we put it on the TP queue, warning: only room for one in there, any new ones will overwrite
+            } else { // we put it on the TP queue, warning: only room for one in there, any new ones will overwrite
                 tpSetSyncInput(&emcmotDebug->coord_tp, emcmotCommand->out,
                     emcmotCommand->start, emcmotCommand->end);
-            }*/
-	    break;
+            }
+	    break;*/
 	case EMCMOT_SET_SPINDLE_VEL:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_SPINDLE_VEL");
 	    emcmotStatus->spindle.speed = emcmotCommand->vel;
