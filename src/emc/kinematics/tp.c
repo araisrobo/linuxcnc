@@ -2239,6 +2239,7 @@ int tpPause(TP_STRUCT * tp) {
         return -1;
     }
     tp->pausing = 1;
+    emcmotPosCompWrite(0, 0);
     return 0;
 }
 
@@ -2257,9 +2258,9 @@ int tpAbort(TP_STRUCT * tp) {
 
     if (!tp->aborting) {
         /* to abort, signal a pause and set our abort flag */
-        tpPause(tp);
         tp->aborting = 1;
     }
+    tpSetPosCompEnWrite(tp,0,0);
     tpClearPosCompEn();
     return tpClearDIOs(); //clears out any already cached DIOs
 }

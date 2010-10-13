@@ -63,6 +63,7 @@ extern int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace);
 extern int tpClear(TP_STRUCT * tp);
 extern int tpInit(TP_STRUCT * tp);
 extern int tpClearDIOs(void);
+extern int tpSetPosCompEnWrite(TP_STRUCT *tp, int en_flag, int pos_comp_ref);
 extern int tpSetCycleTime(TP_STRUCT * tp, double secs);
 extern int tpSetVmax(TP_STRUCT * tp, double vmax, double ini_maxvel);
 extern int tpSetVlimit(TP_STRUCT * tp, double limit);
