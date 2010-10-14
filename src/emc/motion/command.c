@@ -323,7 +323,6 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
 
 void emcmotPosCompWrite(int pos_comp_en, int pos_comp_ref)
 {
-    fprintf(stderr,"emcmotPosCompWrite \n");
     *(emcmot_hal_data->pos_comp_en_trigger) = 1;
     *(emcmot_hal_data->pos_comp_en) = pos_comp_en;
     *(emcmot_hal_data->pos_comp_ref) = pos_comp_ref;
@@ -962,7 +961,6 @@ check_stuff ( "before command_handler()" );
 	    /* emcmotDebug->coord_tp up a linear move */
 	    /* requires motion enabled, coordinated mode, not on limits */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_LINE");
-	    fprintf(stderr,"SET_LINE\n");
 	    if (!GET_MOTION_COORD_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
 		reportError(_("need to be enabled, in coord mode for linear move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
@@ -1536,8 +1534,6 @@ check_stuff ( "before command_handler()" );
 	    break;
 	case EMCMOT_SET_POS_COMP_EN:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_POS_COMP_EN");
-	    fprintf(stderr,"SET_POS_COMP_EN\n");
-
 	    if (emcmotCommand->now) {
 	        emcmotPosCompWrite(emcmotCommand->pos_comp_en, emcmotCommand->pos_comp_ref);
 	    } else {

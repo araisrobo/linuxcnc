@@ -810,10 +810,10 @@ static void update_freq(void *arg, long period)
 
     /* begin: process position compensation enable */
     if(*(m_control->position_compensation_en_trigger) != 0) {
-        fprintf(stderr,"position compensation enable triggered(%d)\n",
-                *(m_control->position_compensation_en));
+
         immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
-        fprintf(stderr,"set position compensation enable ref(%d)\n",immediate_data);
+        fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
+                        *(m_control->position_compensation_en),immediate_data);
 
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
