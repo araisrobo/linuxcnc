@@ -230,6 +230,7 @@ typedef struct {
 
     /* stuff that is both read and written by makepulses */
     volatile long long accum;	/* frequency generator accumulator */
+    hal_s32_t rawcount;		/* param: position command in counts */
     /* stuff that is read but not written by makepulses */
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
@@ -979,7 +980,10 @@ static void update_freq(void *arg, long period)
                  **/
 		r_load_pos |= (1 << n);
                 if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
-                    stepgen->accum = *(stepgen->enc_pos);
+                    /* accumulator gets a half step offset, so it will step half
+                       way between integer positions, not at the integer positions */
+                    stepgen->accum = *(stepgen->enc_pos) + (1L << (PICKOFF-1));
+                    stepgen->rawcount = *(stepgen->enc_pos);
                 }
                 fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
                         n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
@@ -1139,7 +1143,10 @@ static void update_freq(void *arg, long period)
             r_load_pos = 0;
             if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
                 r_load_pos |= (1 << n);
-                stepgen->accum = *(stepgen->enc_pos);
+                /* accumulator gets a half step offset, so it will step half
+                   way between integer positions, not at the integer positions */
+                stepgen->accum = *(stepgen->enc_pos) + (1L << (PICKOFF-1));
+                stepgen->rawcount = *(stepgen->enc_pos);
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
                 // fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
@@ -1154,13 +1161,13 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
 
-        /**
-         * Use pulse_pos because there's no enc_pos for stepping motor driver.
-         * Also, there's no too much difference between pulse_pos and enc_pos
-         * for servo drivers.
-         **/
-	*(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
-	// *(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
+        //obsolete: /**
+        //obsolete:  * Use pulse_pos because there's no enc_pos for stepping motor driver.
+        //obsolete:  * Also, there's no too much difference between pulse_pos and enc_pos
+        //obsolete:  * for servo drivers.
+        //obsolete:  **/
+	//obsolete: *(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
+	*(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
         
 
 	//
@@ -1321,9 +1328,10 @@ static void update_freq(void *arg, long period)
 	}
 
 	// calculate WOU commands
-	// each AXIS cycle is 1310720ns, 32768 ticks of 40ns(25MHz) clocks
-	wou_pos_cmd = (int) (new_vel * stepgen->pos_scale * dt);
-	stepgen->accum += wou_pos_cmd;  // calculate the pulse ticks sent to FPGA
+        stepgen->accum += (long long) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
+        // wou_pos_cmd: the pulse ticks sent to FPGA
+	wou_pos_cmd = (int) ((stepgen->accum >> PICKOFF) - stepgen->rawcount);
+        stepgen->rawcount += wou_pos_cmd;
         
         //debug: if (wou_pos_cmd != 0) {
         //debug:     fprintf(stderr, "wou: pos_cmd(%f) cur_pos(%f) wou_pos_cmd(%d)\n", 
@@ -1335,8 +1343,8 @@ static void update_freq(void *arg, long period)
         // *crucial important*
         // the cur_pos has to be calculated based on the integer pulse
         // ticks sent to FPGA, otherwise the position loop would be wrong
-	stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip;  
-
+	stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
+                                    * (1.0/(1L << PICKOFF));  
 	assert(wou_pos_cmd < 8192);
 	assert(wou_pos_cmd > -8192);
 
@@ -1478,9 +1486,9 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     /* export param variable for raw counts */
-//    retval = hal_param_s32_newf(HAL_RO, &(addr->rawcount), comp_id,
-//      "wou.stepgen.%d.rawcounts", num);
-//    if (retval != 0) { return retval; }
+    retval = hal_param_s32_newf(HAL_RO, &(addr->rawcount), comp_id,
+                                "wou.stepgen.%d.rawcount", num);
+    if (retval != 0) { return retval; }
 
     /* export pin for counts captured by wou_update() */
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_pos), comp_id,
@@ -1675,7 +1683,10 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     }
     /* init the step generator core to zero output */
     addr->cur_pos = 0.0;
-    addr->accum = 0;
+    /* accumulator gets a half step offset, so it will step half
+       way between integer positions, not at the integer positions */
+    addr->accum = 1 << (PICKOFF-1);
+    addr->rawcount = 0;
 
     addr->vel_fb = 0;
     addr->prev_pos_cmd = 0;
