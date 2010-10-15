@@ -401,17 +401,17 @@ static void fetchmail(const uint8_t *buf_head)
 //        *(gpio->a_in[1]) = *p;
 
 #if (MBOX_LOG)
-        fprintf (mbox_fp, "%10u  ", bp_tick);
+        fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            fprintf (mbox_fp, "%10u  %10u  ", 
+            fprintf (mbox_fp, "%10d  %10d  ",
                     *(stepgen->pulse_pos), 
                     *(stepgen->enc_pos)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10u", *(gpio->a_in[0]));
-        fprintf (mbox_fp, "%10u\n", *(p));
+        fprintf (mbox_fp, "%10d", *(gpio->a_in[0]));
+        fprintf (mbox_fp, "%10d\n", *(p));
 #endif
         break;
     case MT_ERROR_CODE:
