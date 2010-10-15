@@ -391,7 +391,11 @@ static void fetchmail(const uint8_t *buf_head)
         
         // ADC_SPI
         p += 1;   
+        // original value
         *(gpio->a_in[0]) = *p;
+        p += 1;
+        // filitered value
+//        *(gpio->a_in[1]) = *p;
 
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10u  ", bp_tick);
@@ -403,7 +407,8 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10u\n", *(gpio->a_in[0]));
+        fprintf (mbox_fp, "%10u", *(gpio->a_in[0]));
+        fprintf (mbox_fp, "%10u\n", *(p));
 #endif
     }
 
