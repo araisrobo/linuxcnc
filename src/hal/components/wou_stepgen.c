@@ -135,7 +135,7 @@
 #include <stdint.h>
 #include <wou.h>
 #include <wb_regs.h>
-
+#include <mailtag.h>
 #define MAX_CHAN 8
 #define MAX_STEP_CUR 255
 
@@ -371,8 +371,11 @@ static void fetchmail(const uint8_t *buf_head)
 #endif
 
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
+    switch(mail_tag)
+    {
+    //if (mail_tag == 0x0001) {
+    case MT_MOTION_STATUS:
 
-    if (mail_tag == 0x0001) {
         /* for PLASMA with ADC_SPI */
 
         // BP_TICK
@@ -410,6 +413,13 @@ static void fetchmail(const uint8_t *buf_head)
         fprintf (mbox_fp, "%10u", *(gpio->a_in[0]));
         fprintf (mbox_fp, "%10u\n", *(p));
 #endif
+        break;
+    case MT_ERROR_CODE:
+        // error code
+        p = (uint32_t *) (buf_head + 4);
+        fprintf(mbox_fp, "error occure with code(%d)\n",*p);
+        break;
+
     }
 
 }
