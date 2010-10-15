@@ -2260,8 +2260,8 @@ int tpAbort(TP_STRUCT * tp) {
     if (!tp->aborting) {
         /* to abort, signal a pause and set our abort flag */
         tp->aborting = 1;
+        emcmotPosCompWrite(0, 0);
     }
-    emcmotPosCompWrite(0, 0);
     tpClearPosCompEn();
     return tpClearDIOs(); //clears out any already cached DIOs
 }
