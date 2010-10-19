@@ -411,8 +411,8 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d", *(gpio->a_in[0]));
-        fprintf (mbox_fp, "%10d\n", *(p));
+        fprintf (mbox_fp, "%10d\n", *(gpio->a_in[0]));
+       // fprintf (mbox_fp, "%10d\n", *(p));
 #endif
         break;
     case MT_ERROR_CODE:
