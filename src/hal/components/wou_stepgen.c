@@ -124,7 +124,7 @@
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
 #include "hal.h"		/* HAL public API decls */
-
+#include <math.h>
 #include <string.h>
 #include <float.h>
 #include <assert.h>
@@ -343,7 +343,7 @@ static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
-
+static int remove_thc_effect = 0;
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
@@ -397,9 +397,9 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;   
         // original value
         *(gpio->a_in[0]) = *p;
-        p += 1;
+		
         // filitered value
-//        *(gpio->a_in[1]) = *p;
+		// p += 1;
 
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
@@ -411,13 +411,14 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d\n", *(gpio->a_in[0]));
-       // fprintf (mbox_fp, "%10d\n", *(p));
+        fprintf (mbox_fp, "%10d \n", *(gpio->a_in[0]));
 #endif
         break;
     case MT_ERROR_CODE:
+
         // error code
         p = (uint32_t *) (buf_head + 4);
+        p += 1;
         fprintf(mbox_fp, "error occure with code(%d)\n",*p);
         break;
 
@@ -753,7 +754,7 @@ static void update_freq(void *arg, long period)
 //obsolete:    static uint8_t prev_r_switch_en = 0;
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
-    uint32_t immediate_data = 0;
+    int32_t immediate_data = 0;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -827,20 +828,28 @@ static void update_freq(void *arg, long period)
     /* begin: process position compensation enable */
     if(*(m_control->position_compensation_en_trigger) != 0) {
 
-        immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
-        fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
-                        *(m_control->position_compensation_en),immediate_data);
+        if(*(m_control->position_compensation_en) ==2) {
+            // update accum, rawcount and cur_pos , when THC finish working
+            // a wait 1 sec is necessary
+            fprintf(stderr, "position_compensation_en == 2\n");
+            remove_thc_effect = 1;
+        } else {
+            immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
+            fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
+                            *(m_control->position_compensation_en),immediate_data);
 
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            for(j=0; j<sizeof(uint32_t); j++) {
+                sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                memcpy(data, &sync_cmd, sizeof(uint16_t));
+                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                        sizeof(uint16_t), data);
+            }
+            sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(m_control->position_compensation_en));
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+
         }
-        sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(m_control->position_compensation_en));
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
         *(m_control->position_compensation_en_trigger) = 0;
     }
     /* end: process position compensation enable */
@@ -1168,7 +1177,15 @@ static void update_freq(void *arg, long period)
         //obsolete:  **/
 	//obsolete: *(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
 	*(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
-        
+
+	if(remove_thc_effect == 1 && n==2) {
+		remove_thc_effect = 0;
+		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
+		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
+		stepgen->accum -=  (((long long) immediate_data)<<PICKOFF);
+		stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
+		                                    * (1.0/(1L << PICKOFF));
+	}
 
 	//
 	// first sanity-check our maxaccel and maxvel params
@@ -1205,20 +1222,22 @@ static void update_freq(void *arg, long period)
 	}
 
 	/* at this point, all scaling, limits, and other parameter
-	   changes have been handled - time for the main control */
+	   changes hrawcount_diff_accumave been handled - time for the main control */
 	if (stepgen->pos_mode) {
 	    DPS("  %17.7f", *stepgen->pos_cmd);
 
-// took from src/hal/drivers/mesa-hostmot2/stepgen.c:
-// Here's the stepgen position controller.  It uses first-order
-// feedforward and proportional error feedback.  This code is based
-// on John Kasunich's software stepgen code.
+/*      XXX: Poisition command diverge when THC work with this method.
+
+            // took from src/hal/drivers/mesa-hostmot2/stepgen.c:
+            // Here's the stepgen position controller.  It uses first-order
+            // feedforward and proportional error feedback.  This code is based
+            // on John Kasunich's software stepgen code.
 
 	    // calculate feed-forward velocity in machine units per second
 	    ff_vel =
-		((*stepgen->pos_cmd) - stepgen->prev_pos_cmd) * recip_dt;
+		((*stepgen->pos_cmd) - stepgen->cur_pos) * recip_dt;
 
-	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
+//	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
 
 	    velocity_error = (stepgen->vel_fb) - ff_vel;
 
@@ -1267,6 +1286,8 @@ static void update_freq(void *arg, long period)
 	    // Note: this assumes that position-cmd keeps the current velocity
 	    position_cmd_at_match =
 		*stepgen->pos_cmd + (ff_vel * seconds_to_vel_match);
+	    position_cmd_at_match =
+	                    stepgen->cur_pos + (ff_vel * seconds_to_vel_match);
 	    error_at_match = position_at_match - position_cmd_at_match;
 
 	    if (seconds_to_vel_match < dt) {
@@ -1294,45 +1315,98 @@ static void update_freq(void *arg, long period)
 	    } else {
 		// we're going to have to work for more than one period to match velocity
 		// FIXME: I dont really get this part yet
+	        /*
 
 		double dv;
 		double dp;
-
-		/* calculate change in final position if we ramp in the opposite direction for one period */
+		 calculate change in final position if we ramp in the opposite direction for one period
 		dv = -2.0 * match_accel * dt;
 		dp = dv * seconds_to_vel_match;
 
-		/* decide which way to ramp */
+		 decide which way to ramp
 		if (fabs(error_at_match + (dp * 2.0)) <
 		    fabs(error_at_match)) {
 		    match_accel = -match_accel;
 		}
+//		 and do it
+		 velocity_cmd = stepgen->vel_fb + (match_accel * dt);
+            }
+*/
+	    // begin: T-curve style command loop profile
+            double discr, newvel, newaccel=0;
+            int sign = 1;
+            if(*stepgen->pos_cmd < stepgen->cur_pos) sign = -1;
+            ff_vel = sign * ((*stepgen->pos_cmd) - stepgen->cur_pos) * recip_dt;
 
-		/* and do it */
-		velocity_cmd = stepgen->vel_fb + (match_accel * dt);
-	    }
 
-	    new_vel = velocity_cmd;
-	    /* apply frequency limit */
-	    if (new_vel > maxvel) {
-		new_vel = maxvel;
-	    } else if (new_vel < -maxvel) {
-		new_vel = -maxvel;
-	    }
-	    stepgen->vel_fb = new_vel;
+            discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
+            if(discr > 0.0) {
+                // should never happen: means we've overshot the target
+                newvel  = 0.0;
+            } else {
+                discr = 0.25 * dt*dt - 2.0 / stepgen->maxaccel * discr;
+                newvel = -0.5 * stepgen->maxaccel * dt +
+                        stepgen->maxaccel * sqrt(discr);
+
+            }
+
+            if(newvel <= 0.0) {
+                // also should never happen - if we already finished this tc, it was
+                // caught above
+
+                newvel = newaccel = 0.0;
+                /*if(n==2)
+                fprintf(stderr, "pos_cmd(%f) cur_pos(%f) newvel(%f)\n",
+                        *(stepgen->pos_cmd), stepgen->cur_pos, newvel);*/
+                stepgen->cur_pos = (*stepgen->pos_cmd);
+//                    assert(0);
+            } else {
+                // constrain velocity
+                if(newvel > ff_vel)
+                    newvel = ff_vel;
+                if(newvel > stepgen->maxvel) newvel = stepgen->maxvel;
+
+
+                // get resulting acceleration
+                newaccel = (newvel - stepgen->vel_fb)/ dt;
+
+                // constrain acceleration and get resulting velocity
+                if(newaccel > 0.0 && newaccel > stepgen->maxaccel) {
+                    newaccel = stepgen->maxaccel;
+                    newvel = stepgen->vel_fb + newaccel * dt;
+                }
+                if(newaccel < 0.0 && newaccel < -stepgen->maxaccel) {
+                    newaccel = -stepgen->maxaccel;
+                    newvel = stepgen->vel_fb + newaccel * dt;
+                }
+
+
+            }
+            stepgen->vel_fb = newvel;
+            velocity_cmd = sign * newvel;
+
+
+            new_vel = velocity_cmd;
+            /* apply frequency limit */
+            if (new_vel > maxvel) {
+                new_vel = maxvel;
+            } else if (new_vel < -maxvel) {
+                new_vel = -maxvel;
+            }
+
 
 	} else {
 	    // do not support velocity mode yet
 	    assert(0);
 	    /* end of velocity mode */
-	}
+	} //if (stepgen->pos_mode) {
 
 	// calculate WOU commands
         stepgen->accum += (long long) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
         // wou_pos_cmd: the pulse ticks sent to FPGA
 	wou_pos_cmd = (int) ((stepgen->accum >> PICKOFF) - stepgen->rawcount);
         stepgen->rawcount += wou_pos_cmd;
-        
+
         //debug: if (wou_pos_cmd != 0) {
         //debug:     fprintf(stderr, "wou: pos_cmd(%f) cur_pos(%f) wou_pos_cmd(%d)\n", 
         //debug:                     *stepgen->pos_cmd, stepgen->cur_pos, wou_pos_cmd);
