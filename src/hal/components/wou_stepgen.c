@@ -210,7 +210,7 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
-#define JNT_PER_WOF     3       // SYNC_JNT commands per WOU_FRAME
+#define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 #define TIMEOUT_MASK 0x04
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
@@ -823,6 +823,9 @@ static void update_freq(void *arg, long period)
 	// issue a WOU_WRITE while got new GPIO.OUT value
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
 	wou_flush(&w_param);
+
+
+
     }
 
     /* begin: process position compensation enable */
@@ -895,16 +898,19 @@ static void update_freq(void *arg, long period)
     for (i = 0; i < m_control->num_sync_out; i++) {
         if(((m_control->prev_out >> i) & 0x01) !=
                 ((*(m_control->sync_out[i]) & 1))) {
+
             sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(m_control->sync_out[i]));
-            memcpy (data + j*sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             j ++;
         }
+
 	sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
        // write a wou frame for sync input into command FIFO
     }
+
+
     if (j > 0) {
-        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-                        j*sizeof(uint16_t), data);
         m_control->prev_out = sync_io_data;
     }
     /* end: process motion synchronized output */
@@ -1225,113 +1231,6 @@ static void update_freq(void *arg, long period)
 	   changes hrawcount_diff_accumave been handled - time for the main control */
 	if (stepgen->pos_mode) {
 	    DPS("  %17.7f", *stepgen->pos_cmd);
-
-/*      XXX: Poisition command diverge when THC work with this method.
-
-            // took from src/hal/drivers/mesa-hostmot2/stepgen.c:
-            // Here's the stepgen position controller.  It uses first-order
-            // feedforward and proportional error feedback.  This code is based
-            // on John Kasunich's software stepgen code.
-
-	    // calculate feed-forward velocity in machine units per second
-	    ff_vel =
-		((*stepgen->pos_cmd) - stepgen->cur_pos) * recip_dt;
-
-//	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
-
-	    velocity_error = (stepgen->vel_fb) - ff_vel;
-
-            // DP("\nDEBUG: ff_vel(%15.7f) velocity_error(%15.7f)\n", ff_vel, velocity_error);
-
-	    // Do we need to change speed to match the speed of position-cmd?
-	    // If maxaccel is 0, there's no accel limit: fix this velocity error
-	    // by the next servo period!  This leaves acceleration control up to
-	    // the trajectory planner.
-	    // If maxaccel is not zero, the user has specified a maxaccel and we
-	    // adhere to that.
-	    if (velocity_error > 0.0) {
-		if (stepgen->maxaccel == 0) {
-		    match_accel = -velocity_error * recip_dt;
-		} else {
-		    match_accel = -stepgen->maxaccel;
-		}
-	    } else if (velocity_error < 0.0) {
-		if (stepgen->maxaccel == 0) {
-		    match_accel = velocity_error * recip_dt;
-		} else {
-		    match_accel = stepgen->maxaccel;
-		}
-	    } else {
-		match_accel = 0;
-	    }
-
-	    if (match_accel == 0) {
-		// vel is just right, dont need to accelerate
-		seconds_to_vel_match = 0.0;
-	    } else {
-		seconds_to_vel_match = -velocity_error / match_accel;
-	    }
-
-	    // compute expected position at the time of velocity match
-	    // Note: this is "feedback position at the beginning of the servo period after we attain velocity match"
-	    {
-		double avg_v;
-		avg_v = (ff_vel + stepgen->vel_fb) * 0.5;
-		// position_at_match = *stepgen->pos_fb + (avg_v * (seconds_to_vel_match + dt));
-		position_at_match =
-		    stepgen->cur_pos +
-		    (avg_v * (seconds_to_vel_match + dt));
-	    }
-
-	    // Note: this assumes that position-cmd keeps the current velocity
-	    position_cmd_at_match =
-		*stepgen->pos_cmd + (ff_vel * seconds_to_vel_match);
-	    position_cmd_at_match =
-	                    stepgen->cur_pos + (ff_vel * seconds_to_vel_match);
-	    error_at_match = position_at_match - position_cmd_at_match;
-
-	    if (seconds_to_vel_match < dt) {
-		// we can match velocity in one period
-		// try to correct whatever position error we have
-		// orig: velocity_cmd = ff_vel - (0.5 * error_at_match * recip_dt);
-		// velocity_cmd = (*stepgen->pos_cmd - *stepgen->pos_fb) * recip_dt;
-		velocity_cmd =
-		    (*stepgen->pos_cmd - stepgen->cur_pos) * recip_dt;
-
-		// apply accel limits?
-		if (stepgen->maxaccel > 0) {
-		    if (velocity_cmd >
-			(stepgen->vel_fb + (stepgen->maxaccel * dt))) {
-			velocity_cmd =
-			    stepgen->vel_fb + (stepgen->maxaccel * dt);
-		    } else if (velocity_cmd <
-			       (stepgen->vel_fb -
-				(stepgen->maxaccel * dt))) {
-			velocity_cmd =
-			    stepgen->vel_fb - (stepgen->maxaccel * dt);
-		    }
-		}
-
-	    } else {
-		// we're going to have to work for more than one period to match velocity
-		// FIXME: I dont really get this part yet
-	        /*
-
-		double dv;
-		double dp;
-		 calculate change in final position if we ramp in the opposite direction for one period
-		dv = -2.0 * match_accel * dt;
-		dp = dv * seconds_to_vel_match;
-
-		 decide which way to ramp
-		if (fabs(error_at_match + (dp * 2.0)) <
-		    fabs(error_at_match)) {
-		    match_accel = -match_accel;
-		}
-//		 and do it
-		 velocity_cmd = stepgen->vel_fb + (match_accel * dt);
-            }
-*/
 	    // begin: T-curve style command loop profile
             double discr, newvel, newaccel=0;
             int sign = 1;
@@ -1355,18 +1254,12 @@ static void update_freq(void *arg, long period)
                 // caught above
 
                 newvel = newaccel = 0.0;
-                /*if(n==2)
-                fprintf(stderr, "pos_cmd(%f) cur_pos(%f) newvel(%f)\n",
-                        *(stepgen->pos_cmd), stepgen->cur_pos, newvel);*/
                 stepgen->cur_pos = (*stepgen->pos_cmd);
-//                    assert(0);
             } else {
                 // constrain velocity
                 if(newvel > ff_vel)
                     newvel = ff_vel;
                 if(newvel > stepgen->maxvel) newvel = stepgen->maxvel;
-
-
                 // get resulting acceleration
                 newaccel = (newvel - stepgen->vel_fb)/ dt;
 
@@ -1384,8 +1277,6 @@ static void update_freq(void *arg, long period)
             }
             stepgen->vel_fb = newvel;
             velocity_cmd = sign * newvel;
-
-
             new_vel = velocity_cmd;
             /* apply frequency limit */
             if (new_vel > maxvel) {
@@ -1393,8 +1284,6 @@ static void update_freq(void *arg, long period)
             } else if (new_vel < -maxvel) {
                 new_vel = -maxvel;
             }
-
-
 	} else {
 	    // do not support velocity mode yet
 	    assert(0);
