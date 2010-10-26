@@ -210,7 +210,7 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
-#define JNT_PER_WOF     1       // SYNC_JNT commands per WOU_FRAME
+#define JNT_PER_WOF     3       // SYNC_JNT commands per WOU_FRAME
 #define TIMEOUT_MASK 0x04
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
