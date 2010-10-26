@@ -214,7 +214,7 @@ void NURBS_FEED_3D (
             if ( axis_mask &  AXIS_MASK_X ) {
                 X = 0.0;
                 for (i=0; i<=d; i++) {
-                    X += N[i]*cp[tmp1+i].X;
+                    X += N[i]*cp[tmp1+i].X*cp[tmp1+i].R;
                 }
                 X = X/R;
                 _pos_x = X;
@@ -223,7 +223,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_Y) {
                 Y = 0.0;
                 for (i=0; i<=d; i++) {
-                    Y += N[i]*cp[tmp1+i].Y;
+                    Y += N[i]*cp[tmp1+i].Y*cp[tmp1+i].R;
                 }
                 Y = Y/R;
                 _pos_y = Y;
@@ -232,7 +232,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_Z) {
                     Z = 0.0;
                     for (i=0; i<=d; i++) {
-                            Z += N[i]*cp[tmp1+i].Z;
+                            Z += N[i]*cp[tmp1+i].Z*cp[tmp1+i].R;
                     }
                     Z = Z/R;
                     _pos_z = Z;
@@ -241,7 +241,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_A) {
                     A = 0.0;
                     for (i=0; i<=d; i++) {
-                            A += N[i]*cp[tmp1+i].A;
+                            A += N[i]*cp[tmp1+i].A*cp[tmp1+i].R;
                     }
                     A = A/R;
                     _pos_a = A;
@@ -249,7 +249,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_B) {
                     B = 0.0;
                     for (i=0; i<=d; i++) {
-                            B += N[i]*cp[tmp1+i].B;
+                            B += N[i]*cp[tmp1+i].B*cp[tmp1+i].R;
                     }
                     B = B/R;
                     _pos_b = B;
@@ -257,7 +257,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_C) {
                     C = 0.0;
                     for (i=0; i<=d; i++) {
-                            C += N[i]*cp[tmp1+i].C;
+                            C += N[i]*cp[tmp1+i].C*cp[tmp1+i].R;
                     }
                     C = C/R;
                     _pos_c = C;
@@ -265,7 +265,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_U) {
                     U = 0.0;
                     for (i=0; i<=d; i++) {
-                            U += N[i]*cp[tmp1+i].U;
+                            U += N[i]*cp[tmp1+i].U*cp[tmp1+i].R;
                     }
                     U = U/R;
                     _pos_u = u;
@@ -273,7 +273,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_V) {
                     V = 0.0;
                     for (i=0; i<=d; i++) {
-                            V += N[i]*cp[tmp1+i].V;
+                            V += N[i]*cp[tmp1+i].V*cp[tmp1+i].R;
                     }
                     V = V/R;
                     _pos_v = V;
@@ -281,7 +281,7 @@ void NURBS_FEED_3D (
             if ( axis_mask & AXIS_MASK_W) {
                     W = 0.0;
                     for (i=0; i<=d; i++) {
-                            W += N[i]*cp[tmp1+i].W;
+                            W += N[i]*cp[tmp1+i].W*cp[tmp1+i].R;
                     }
                     W = W/R;
                     _pos_w = W;

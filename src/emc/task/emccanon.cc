@@ -1531,6 +1531,7 @@ void NURBS_FEED_3D (
             canon.angularFeedRate,nurbsMoveMsg.vel);*/
 
     for (i=0;i<nr_of_ctrl_pt;i++) {
+
         x = nurbs_control_points[i].X;
         y = nurbs_control_points[i].Y;
         z = nurbs_control_points[i].Z;
@@ -1541,6 +1542,17 @@ void NURBS_FEED_3D (
         v = nurbs_control_points[i].V;
         w = nurbs_control_points[i].W;
         from_prog(x, y, z, a, b, c, u, v, w);
+        rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
+
+        x *= nurbs_control_points[i].R;
+        y *= nurbs_control_points[i].R;
+        z *= nurbs_control_points[i].R;
+        a *= nurbs_control_points[i].R;
+        b *= nurbs_control_points[i].R;
+        c *= nurbs_control_points[i].R;
+        u *= nurbs_control_points[i].R;
+        v *= nurbs_control_points[i].R;
+        w *= nurbs_control_points[i].R;
         to_ext_pose(x, y, z, a, b, c, u, v, w);
         nurbsMoveMsg.vel = canon.linearFeedRate;
         nurbsMoveMsg.nurbs_block.nr_of_ctrl_pts = nr_of_ctrl_pt;
@@ -1635,15 +1647,37 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.nurbs_block.order = k;
        // nurbsMoveMsg.nurbs_block.knot = nurbs_knot_vector[i];
         nurbsMoveMsg.nurbs_block.weight = 1;
-        nurbsMoveMsg.end.tran.x = nurbs_control_points[nr_of_ctrl_pt-1].X;;
-        nurbsMoveMsg.end.tran.y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
-        nurbsMoveMsg.end.tran.z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
-        nurbsMoveMsg.end.a =  nurbs_control_points[nr_of_ctrl_pt-1].A;
-        nurbsMoveMsg.end.b =  nurbs_control_points[nr_of_ctrl_pt-1].B;
-        nurbsMoveMsg.end.c =  nurbs_control_points[nr_of_ctrl_pt-1].C;
-        nurbsMoveMsg.end.u =  nurbs_control_points[nr_of_ctrl_pt-1].U;
-        nurbsMoveMsg.end.v =  nurbs_control_points[nr_of_ctrl_pt-1].V;
-        nurbsMoveMsg.end.w =  nurbs_control_points[nr_of_ctrl_pt-1].W;
+
+        x = nurbs_control_points[nr_of_ctrl_pt-1].X;
+        y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
+        z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
+        a = nurbs_control_points[nr_of_ctrl_pt-1].A;
+        b = nurbs_control_points[nr_of_ctrl_pt-1].B;
+        c = nurbs_control_points[nr_of_ctrl_pt-1].C;
+        u = nurbs_control_points[nr_of_ctrl_pt-1].U;
+        v = nurbs_control_points[nr_of_ctrl_pt-1].V;
+        w = nurbs_control_points[nr_of_ctrl_pt-1].W;
+        from_prog(x, y, z, a, b, c, u, v, w);
+        rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
+
+        x *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        y *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        a *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        b *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        c *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        u *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        v *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+        w *= nurbs_control_points[nr_of_ctrl_pt-1].R;
+
+        nurbsMoveMsg.end.tran.x = x;
+        nurbsMoveMsg.end.tran.y = y;
+        nurbsMoveMsg.end.tran.z = z;
+        nurbsMoveMsg.end.a = a;
+        nurbsMoveMsg.end.b = b;
+        nurbsMoveMsg.end.c = c;
+        nurbsMoveMsg.end.u = u;
+        nurbsMoveMsg.end.v = v;
+        nurbsMoveMsg.end.w = w;
         // U(L)
         nurbsMoveMsg.nurbs_block.nr_of_uofl_ctrl_pts = nr_uofl_cp;
         nurbsMoveMsg.nurbs_block.nr_of_uofl_knots = nr_uofl_knot;

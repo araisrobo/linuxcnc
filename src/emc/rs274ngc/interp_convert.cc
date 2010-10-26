@@ -265,15 +265,16 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 		 ("Must specify positive weight R for every Control Point"));
 	    CP.R = block->r_number;
             // convert from 3D(W=1) to 4D(,where 'x = X*Weight')
-            CP.X *= CP.R;
-            CP.Y *= CP.R;
-            CP.Z *= CP.R;
-            CP.A *= CP.R;
-            CP.B *= CP.R;
-            CP.C *= CP.R;
-            CP.U *= CP.R;
-            CP.V *= CP.R;
-            CP.W *= CP.R;
+            /*  This part moved to NURBS_FEED_3D()
+                CP.X *= CP.R;
+                CP.Y *= CP.R;
+                CP.Z *= CP.R;
+                CP.A *= CP.R;
+                CP.B *= CP.R;
+                CP.C *= CP.R;
+                CP.U *= CP.R;
+                CP.V *= CP.R;
+                CP.W *= CP.R;*/
             CP.F = block->f_number;
 //            CP.F *= CP.R;
 	    nurbs_control_points.push_back(CP);
