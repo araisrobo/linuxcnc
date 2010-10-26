@@ -275,7 +275,7 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
             CP.V *= CP.R;
             CP.W *= CP.R;
             CP.F = block->f_number;
-            CP.F *= CP.R;
+//            CP.F *= CP.R;
 	    nurbs_control_points.push_back(CP);
 	}
 

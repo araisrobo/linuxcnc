@@ -228,31 +228,22 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                                 l, tc->nurbs_block.uofl_knots_ptr);
 
             nurbs_basisfun(s,l,tc->nurbs_block.uofl_order-1,tc->nurbs_block.uofl_knots_ptr,NL);
-//            for(i=0 ; i < tc->nurbs_block.nr_of_ctrl_pts ; i ++) {
-//                fprintf(stderr,"%f \n",tc->nurbs_block.uofl_ctrl_pts_ptr[i]);
-//            }
-//            assert(0);
             tmp1 = s - tc->nurbs_block.uofl_order +1;
             LR = 0.0;
             for(i=0;i<=tc->nurbs_block.uofl_order-1;i++){
                 LR += NL[i]*tc->nurbs_block.uofl_weights[tmp1+i];
             }
             u = 0.0;
-//            fprintf(stderr,"tmp1(%d) \n",tmp1);
             for (i=0; i<=tc->nurbs_block.uofl_order -1; i++) {
                     u += NL[i]*tc->nurbs_block.uofl_ctrl_pts_ptr[tmp1+i];
-//                    fprintf(stderr,"NL[%d](%f) u(%f) \n",i,NL[i],u);
             }
             u = u/LR;
-            //u = l;
-//            DP("u(%f) length(%f)\n",u,l*tc->nurbs_block.curve_len);
             if (u<1) {
                 s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
                                     u, tc->nurbs_block.knots_ptr);  //return span index of u_i
                 nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
                                                   // output: N:basis functions
                 tmp1 = s - tc->nurbs_block.order +1;
-//                fprintf(stderr,"tmp1(%d) \n",tmp1);
                 R = 0.0;
                 for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
 
@@ -352,40 +343,10 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 }
 
                 F = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                       F += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F;
-               /*        if(F == tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F) {
-                           count ++;
-                       } else {
-                           F = tc->nurbs_block.ctrl_pts_ptr[tmp1+i].F;
-                           count = 0;
-                       }*/
-                }
-                /*if(count > tc->nurbs_block.order/2) {
-                   F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
-                } else {
-                   F = tc->nurbs_block.ctrl_pts_ptr[tmp1+tc->nurbs_block.order -1].F;;
-                }*/
-//               F = F/R; //TODO-eric: to confirm if weight number affect reqvel
-               /* if (tmpF == F && (abs(tc->reqvel - F) > 1)) {
-                    count ++;
-                    if(count > 1) {
-                        fprintf(stderr,"equalvalue(%f)\n",F);
-                        tc->reqvel = F;
-                        count = 0;
-                    }
+                F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
+                // XXX: It is not good idea to use nurbs to compute a feedrate for NURBS
 
-                }
-                tmpF = F;*/
-                if(abs(F-tc->nurbs_block.ctrl_pts_ptr[tmp1].F) >
-                    abs(F-tc->nurbs_block.ctrl_pts_ptr[tmp1 + tc->nurbs_block.order -1].F)) {
-                    F = tc->nurbs_block.ctrl_pts_ptr[tmp1 + tc->nurbs_block.order -1].F;
-                } else {
-                    F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
-                }
-                if((abs(tc->reqvel - F/R) > 1e-1) && (F/R != 0)) {
-                    tc->reqvel = F/R;
-                }
+                tc->reqvel = F;
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {
                     last_l = 0;
