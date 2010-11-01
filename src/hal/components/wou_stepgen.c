@@ -1093,19 +1093,22 @@ static void update_freq(void *arg, long period)
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         if (*stepgen->enable) {
-            data[0] = 1;
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data); // risc on
-            wou_flush(&w_param);
+            data[0] = 1;        // RISC ON
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
             data[0] = 2/*3*/;	// SVO-ON, WATCHDOG-ON
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
+            wou_flush(&w_param);
         } else {
-            data[0] = 0;	// SVO-OFF (disable SSIF_EN w/o JCMD_CTRL.RST)
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data); // risc off
+            data[0] = 0; // RESET GPIO_OUT
+            wou_cmd (&w_param, WB_WR_CMD,
+                     (uint16_t) (GPIO_BASE | GPIO_OUT),
+                     (uint8_t) 1, data);
+            data[0] = 0;	// RISC OFF
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
+            data[0] = 0;        // SVO-OFF
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
             wou_flush(&w_param);
         }
-//        wou_cmd (&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data); //wou_cmd
-        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-        wou_flush(&w_param);
-        // DP ("toggle ENABLE(%d)\n", *stepgen->enable);
     }
     
     i = 0;
