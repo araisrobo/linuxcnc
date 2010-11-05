@@ -344,6 +344,8 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
                 F = 0.0;
                 F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
+                /*fprintf(stderr, "nr_of_ctrl_pts(%d) span(%d) F(%f) \n",
+                        tc->nurbs_block.nr_of_ctrl_pts ,tmp1, F);*/
                 // XXX: It is not good idea to use nurbs to compute a feedrate for NURBS
 
                 tc->reqvel = F;
