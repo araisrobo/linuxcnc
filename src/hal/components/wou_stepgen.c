@@ -398,8 +398,8 @@ static void fetchmail(const uint8_t *buf_head)
         // original value
         *(gpio->a_in[0]) = *p;
 		
-        // filitered value
-		// p += 1;
+        // risc optional output
+        p += 1;
 
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
@@ -411,7 +411,8 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d \n", *(gpio->a_in[0]));
+        fprintf (mbox_fp, "%10d %10d \n", *(gpio->a_in[0]),*p);
+
 #endif
         break;
     case MT_ERROR_CODE:
