@@ -1,7 +1,6 @@
 /********************************************************************
 * Description:  wou_stepgen.c
 *               This file, 'wou_stepgen.c', is a HAL component that 
-*               provides pulse/dir commands for MESA 7i43U through USB.
 *               It was based on stepgen.c by John Kasunich.
 *
 * Author: Yi-Shin Li
@@ -251,6 +250,7 @@ typedef struct {
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
+    double prv_pos_cmd;
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t cur_pos;	/* current position (position units) */
@@ -775,7 +775,7 @@ static void update_freq(void *arg, long period)
     // wou_status(&w_param);
 
     // /* check and update WOU Registers */
-    DP("before wou_update()\n");
+//    DP("before wou_update()\n");
     wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
@@ -1232,26 +1232,33 @@ static void update_freq(void *arg, long period)
 
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
+
+
+
+
 	if (stepgen->pos_mode) {
 	    DPS("  %17.7f", *stepgen->pos_cmd);
+
 	    // begin: T-curve style command loop profile
             double discr, newvel, newaccel=0;
             int sign = 1;
             if(*stepgen->pos_cmd < stepgen->cur_pos) sign = -1;
             ff_vel = sign * ((*stepgen->pos_cmd) - stepgen->cur_pos) * recip_dt;
 
+            if(stepgen->prv_pos_cmd == *stepgen->pos_cmd) {
+                discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
+                if(discr > 0.0) {
+                    // should never happen: means we've overshot the target
+                    newvel  = 0.0;
+                } else {
+                    discr = 0.25 * dt*dt - 2.0 / stepgen->maxaccel * discr;
+                    newvel = -0.5 * stepgen->maxaccel * dt +
+                            stepgen->maxaccel * sqrt(discr);
 
-            discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
-            if(discr > 0.0) {
-                // should never happen: means we've overshot the target
-                newvel  = 0.0;
-            } else {
-                discr = 0.25 * dt*dt - 2.0 / stepgen->maxaccel * discr;
-                newvel = -0.5 * stepgen->maxaccel * dt +
-                        stepgen->maxaccel * sqrt(discr);
-
+                }
+            } else  {
+                newvel = ff_vel;
             }
-
             if(newvel <= 0.0) {
                 // also should never happen - if we already finished this tc, it was
                 // caught above
@@ -1292,6 +1299,7 @@ static void update_freq(void *arg, long period)
 	    assert(0);
 	    /* end of velocity mode */
 	} //if (stepgen->pos_mode) {
+	stepgen->prv_pos_cmd = *stepgen->pos_cmd;
 
 	// calculate WOU commands
         stepgen->accum += (long long) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
