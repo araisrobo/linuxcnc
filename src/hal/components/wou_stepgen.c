@@ -436,7 +436,9 @@ static void fetchmail(const uint8_t *buf_head)
         // error code
         p = (uint32_t *) (buf_head + 4);
         p += 1;
+#if (MBOX_LOG)
         fprintf(mbox_fp, "error occure with code(%d)\n",*p);
+#endif
         break;
 
     }
