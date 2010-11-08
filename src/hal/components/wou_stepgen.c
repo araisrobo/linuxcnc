@@ -147,7 +147,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
