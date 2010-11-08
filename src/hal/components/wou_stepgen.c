@@ -355,6 +355,11 @@ static int export_mcode_var(mcode_var_t * m_control);
 static void update_freq(void *arg, long period);
 
 
+void endian_swap(uint32_t  *x)
+{
+    *x = (*x>>24) | ((*x<<8) & 0x00FF0000) |((*x>>8) & 0x0000FF00) |(*x<<24);
+}
+
 /************************************************************************
  * mailbox callback function for libwou                                 *
  ************************************************************************/
@@ -364,7 +369,7 @@ static void fetchmail(const uint8_t *buf_head)
     uint16_t    mail_tag;
     uint32_t    *p;
     stepgen_t   *stepgen;
-
+    uint32_t    din;
 #if (MBOX_LOG)
     uint32_t    bp_tick;
     p = (uint32_t *) (buf_head + 4);   
@@ -392,7 +397,18 @@ static void fetchmail(const uint8_t *buf_head)
             *(stepgen->enc_pos) = *p;
             stepgen += 1;   // point to next joint
         }
-        
+        // digital inpout
+        p += 1;
+        din = *p;
+       /* endian_swap(&din);
+        for(i=0; i<num_sync_in; i++) {
+            *(gpio->in[i]) = (*p & (0x1 << i )) >> i; // TODO: confirm endian_swap
+        }*/
+        p += 1;
+       /* if(num_sync_in >=32) {
+            din = *p;
+        }*/
+        din = *p;
         // ADC_SPI
         p += 1;   
         // original value
@@ -780,16 +796,17 @@ static void update_freq(void *arg, long period)
     wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
+
     if (memcmp
-	(&(gpio->prev_in),
-	 wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2)) {
-	// update prev_in from WOU_REGISTER
-	memcpy(&(gpio->prev_in),
-	       wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
-	 rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
-	for (i = 0; i < gpio->num_in; i++) {
-	    *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
-	}
+        (&(gpio->prev_in),
+         wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2)) {
+        // update prev_in from WOU_REGISTER
+        memcpy(&(gpio->prev_in),
+               wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
+         rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
+        for (i = 0; i < gpio->num_in; i++) {
+            *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
+        }
     }
     memcpy(&gpio->prev_in,
            wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
