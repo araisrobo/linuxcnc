@@ -2346,9 +2346,13 @@ int tpSetPosCompEnWrite(TP_STRUCT *tp, int en_flag, int pos_comp_ref)
     if(0 == tp) {
         return -1;
     }
-    pos_comp_en.pos_comp_en_triggered = 1;
-    pos_comp_en.en_flag = en_flag;
-    pos_comp_en.pos_comp_ref = pos_comp_ref;
+    if(pos_comp_en.en_flag != 2) {
+        pos_comp_en.pos_comp_en_triggered = 1;
+        pos_comp_en.en_flag = en_flag;
+        pos_comp_en.pos_comp_ref = pos_comp_ref;
+    } else {
+        emcmotPosCompWrite(pos_comp_en.en_flag, pos_comp_en.pos_comp_ref);
+    }
     return 0;
 }
 // vim:sw=4:sts=4:et:

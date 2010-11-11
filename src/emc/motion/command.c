@@ -302,7 +302,7 @@ void emcmotDioWrite(int index, char value)
 
 void emcmotSyncInputWrite(int index, double timeout, int wait_type)
 {
-    int i;
+
     if ((index >= emcmotConfig->numSyncIn) || (index < 0)) {
         rtapi_print_msg(RTAPI_MSG_ERR, "ERROR: index out of range, %d not in [0..%d] (increase num_dio/EMCMOT_MAX_DIO=%d)\n", index, emcmotConfig->numDIO, EMCMOT_MAX_DIO);
     } else {
@@ -1537,8 +1537,12 @@ check_stuff ( "before command_handler()" );
 	    if (emcmotCommand->now) {
 	        emcmotPosCompWrite(emcmotCommand->pos_comp_en, emcmotCommand->pos_comp_ref);
 	    } else {
+	        if(emcmotCommand->pos_comp_en != 2) {
 	        tpSetPosCompEnWrite(&emcmotDebug->coord_tp,
 	                emcmotCommand->pos_comp_en, emcmotCommand->pos_comp_ref);
+	        } else {
+	            emcmotPosCompWrite(emcmotCommand->pos_comp_en, emcmotCommand->pos_comp_ref);
+	        }
 	    }
 	    break;
 	/*   M201 EMCMOT_SET_IMMEDIATE_POS replaced by EMCMOT_SET_POS_COMP
