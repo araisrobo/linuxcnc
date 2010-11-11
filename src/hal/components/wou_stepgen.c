@@ -368,7 +368,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, accum;
+    int32_t     pid_output, original_adc_data;
     stepgen_t   *stepgen;
 
 #if (MBOX_LOG)
@@ -408,7 +408,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;   
         *(gpio->a_in[0]) = *p;
         p += 1;
-        accum = *p;
+        original_adc_data = *p;
         // risc optional output
         p += 1;
 
@@ -422,7 +422,7 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d %10d\n", *(gpio->a_in[0]), din[0], pid_output, accum);
+        fprintf (mbox_fp, "%10d  %10d %10d %10d\n", *(gpio->a_in[0]), original_adc_data, pid_output, din[0]);
 
 #endif
         break;
