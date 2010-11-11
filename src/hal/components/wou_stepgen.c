@@ -367,7 +367,8 @@ static void fetchmail(const uint8_t *buf_head)
 {
     int         i;
     uint16_t    mail_tag;
-    uint32_t    *p, din[2];
+    uint32_t    *p, din[1];
+    int32_t     pid_output, accum;
     stepgen_t   *stepgen;
 
 #if (MBOX_LOG)
@@ -400,20 +401,14 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
-       /* endian_swap(&din);
-        for(i=0; i<num_sync_in; i++) {
-            *(gpio->in[i]) = (*p & (0x1 << i )) >> i; // TODO: confirm endian_swap
-        }*/
+        // pid output
         p += 1;
-       /* if(num_sync_in >=32) {
-            din = *p;
-        }*/
-        din[1] = *p;
-        // ADC_SPI
+        pid_output = *p;
+        // ADC_SPI (  filtered value)
         p += 1;   
-        // original value
         *(gpio->a_in[0]) = *p;
-		
+        p += 1;
+        accum = *p;
         // risc optional output
         p += 1;
 
@@ -427,7 +422,7 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d\n", *(gpio->a_in[0]), din[0], din[1]);
+        fprintf (mbox_fp, "%10d  %10d %10d %10d\n", *(gpio->a_in[0]), din[0], pid_output, accum);
 
 #endif
         break;
@@ -1209,13 +1204,13 @@ static void update_freq(void *arg, long period)
 
 	if(remove_thc_effect == 1 && n==2) {
 		remove_thc_effect = 2;
-		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
+//		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
 		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
 		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
 		stepgen->accum -=  (((long long) immediate_data)<<PICKOFF);
 		stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
 		                                    * (1.0/(1L << PICKOFF));
-		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
+//		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
 	}
 
 	//
