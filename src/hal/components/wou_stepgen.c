@@ -367,9 +367,9 @@ static void fetchmail(const uint8_t *buf_head)
 {
     int         i;
     uint16_t    mail_tag;
-    uint32_t    *p;
+    uint32_t    *p, din[2];
     stepgen_t   *stepgen;
-    uint32_t    din;
+
 #if (MBOX_LOG)
     uint32_t    bp_tick;
     p = (uint32_t *) (buf_head + 4);   
@@ -399,7 +399,7 @@ static void fetchmail(const uint8_t *buf_head)
         }
         // digital inpout
         p += 1;
-        din = *p;
+        din[0] = *p;
        /* endian_swap(&din);
         for(i=0; i<num_sync_in; i++) {
             *(gpio->in[i]) = (*p & (0x1 << i )) >> i; // TODO: confirm endian_swap
@@ -408,7 +408,7 @@ static void fetchmail(const uint8_t *buf_head)
        /* if(num_sync_in >=32) {
             din = *p;
         }*/
-        din = *p;
+        din[1] = *p;
         // ADC_SPI
         p += 1;   
         // original value
@@ -427,7 +427,7 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d %10d \n", *(gpio->a_in[0]),*p);
+        fprintf (mbox_fp, "%10d  %10d %10d\n", *(gpio->a_in[0]), din[0], din[1]);
 
 #endif
         break;
@@ -1208,12 +1208,14 @@ static void update_freq(void *arg, long period)
 	*(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
 
 	if(remove_thc_effect == 1 && n==2) {
-		remove_thc_effect = 0;
+		remove_thc_effect = 2;
+		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
 		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
 		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
 		stepgen->accum -=  (((long long) immediate_data)<<PICKOFF);
 		stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
 		                                    * (1.0/(1L << PICKOFF));
+		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
 	}
 
 	//
@@ -1265,7 +1267,7 @@ static void update_freq(void *arg, long period)
             if(*stepgen->pos_cmd < stepgen->cur_pos) sign = -1;
             ff_vel = sign * ((*stepgen->pos_cmd) - stepgen->cur_pos) * recip_dt;
 
-            if(stepgen->prv_pos_cmd == *stepgen->pos_cmd) {
+            if(remove_thc_effect == 2 /*&& stepgen->prv_pos_cmd == *stepgen->pos_cmd*/) {
                 discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
                 if(discr > 0.0) {
                     // should never happen: means we've overshot the target
@@ -1276,14 +1278,19 @@ static void update_freq(void *arg, long period)
                             stepgen->maxaccel * sqrt(discr);
 
                 }
+                /*if(*stepgen->pos_cmd == stepgen->cur_pos) {
+                    remove_thc_effect =0;
+
+                }*/
             } else  {
                 newvel = ff_vel;
             }
             if(newvel <= 0.0) {
                 // also should never happen - if we already finished this tc, it was
                 // caught above
-
+                remove_thc_effect = 0;
                 newvel = newaccel = 0.0;
+//                printf("remove_thc_effect value reset \n");
                 stepgen->cur_pos = (*stepgen->pos_cmd);
             } else {
                 // constrain velocity
