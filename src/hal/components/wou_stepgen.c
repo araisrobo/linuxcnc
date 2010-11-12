@@ -153,6 +153,13 @@ static FILE *mbox_fp;
 #endif
 
 
+typedef enum thc_control {
+    THC_INIT,
+    THC_ENABLE,
+    THC_REMOVE_EFFECT,
+    THC_WAIT_MOTION_SYNC,
+};
+
 
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
@@ -343,7 +350,7 @@ static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
-static int remove_thc_effect = 0;
+static int remove_thc_effect = THC_INIT;
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
@@ -850,7 +857,7 @@ static void update_freq(void *arg, long period)
             // update accum, rawcount and cur_pos , when THC finish working
             // a wait 1 sec is necessary
             fprintf(stderr, "position_compensation_en == 2\n");
-            remove_thc_effect = 1;
+            remove_thc_effect = THC_REMOVE_EFFECT;
         } else {
             immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
             fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
@@ -1202,8 +1209,8 @@ static void update_freq(void *arg, long period)
 	//obsolete: *(stepgen->pos_fb) = *(stepgen->pulse_pos) * stepgen->scale_recip;
 	*(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
 
-	if(remove_thc_effect == 1 && n==2) {
-		remove_thc_effect = 2;
+	if(remove_thc_effect == THC_REMOVE_EFFECT && n==2) {
+		remove_thc_effect = THC_WAIT_MOTION_SYNC;
 //		fprintf(stderr, "accum(%lld) rawcount(%d) enc_pos(%d) \n", stepgen->accum, stepgen->rawcount, *stepgen->enc_pos);
 		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
 		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
@@ -1262,7 +1269,7 @@ static void update_freq(void *arg, long period)
             if(*stepgen->pos_cmd < stepgen->cur_pos) sign = -1;
             ff_vel = sign * ((*stepgen->pos_cmd) - stepgen->cur_pos) * recip_dt;
 
-            if(remove_thc_effect == 2 /*&& stepgen->prv_pos_cmd == *stepgen->pos_cmd*/) {
+            if(remove_thc_effect == THC_WAIT_MOTION_SYNC /*&& stepgen->prv_pos_cmd == *stepgen->pos_cmd*/) {
                 discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
                 if(discr > 0.0) {
                     // should never happen: means we've overshot the target
@@ -1283,7 +1290,7 @@ static void update_freq(void *arg, long period)
             if(newvel <= 0.0) {
                 // also should never happen - if we already finished this tc, it was
                 // caught above
-                remove_thc_effect = 0;
+                if(n==2 && remove_thc_effect == THC_WAIT_MOTION_SYNC) remove_thc_effect = THC_INIT;
                 newvel = newaccel = 0.0;
 //                printf("remove_thc_effect value reset \n");
                 stepgen->cur_pos = (*stepgen->pos_cmd);
