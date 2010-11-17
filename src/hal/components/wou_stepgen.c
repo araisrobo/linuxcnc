@@ -147,7 +147,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 0 
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -375,7 +375,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data;
+    int32_t     pid_output, original_adc_data, debug, accum, error, debug2;
     stepgen_t   *stepgen;
 
 #if (MBOX_LOG)
@@ -418,7 +418,13 @@ static void fetchmail(const uint8_t *buf_head)
         original_adc_data = *p;
         // risc optional output
         p += 1;
-
+        accum = *p;
+        p += 1;
+        debug = *p;
+        p += 1;
+        error = *p;
+        p += 1;
+        debug2 = *p;
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -429,7 +435,7 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d %10d\n", *(gpio->a_in[0]), original_adc_data, pid_output, din[0]);
+        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d\n", *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum,debug,error,debug2);
 
 #endif
         break;
@@ -439,7 +445,7 @@ static void fetchmail(const uint8_t *buf_head)
         p = (uint32_t *) (buf_head + 4);
         p += 1;
 #if (MBOX_LOG)
-        fprintf(mbox_fp, "error occure with code(%d)\n",*p);
+        fprintf(mbox_fp, "# error occure with code(%d)\n",*p);
 #endif
         break;
 
