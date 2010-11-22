@@ -147,7 +147,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0 
+#define MBOX_LOG 1 
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -536,20 +536,29 @@ int rtapi_app_main(void)
     if (1 == adc_spi_en) {
         rtapi_print_msg(RTAPI_MSG_INFO,
                         "WOU: enable ADC_SPI\n");
-        // set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
-        data[0] = 19; 
+        //MCP3204: // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
+        //MCP3204: data[0] = 19; 
+        data[0] = 17;   // MCP3202
         wou_cmd (&w_param, WB_WR_CMD, 
                  (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR), 
                  (uint8_t) 1, data);
         
         // enable ADC_SPI with LOOP mode
-        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
+        //MCP3204: // ADC_SPI_CMD: 0x10: { (1)START_BIT,
+        //MCP3204: //                      (0)Differential mode,
+        //MCP3204: //                      (0)D2 ... dont care,
+        //MCP3204: //                      (0)D1 ... Ch0 = IN+,
+        //MCP3204: //                      (0)D0 ... CH1 = IN-   }
+        //MCP3204: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
+        //MCP3204:           | (ADC_SPI_CMD_MASK & 0x10);
+        
+        // MCP3202: 
+        // ADC_SPI_CMD: 0x04: { (1)START_BIT,
         //                      (0)Differential mode,
-        //                      (0)D2 ... dont care,
-        //                      (0)D1 ... Ch0 = IN+,
-        //                      (0)D2 ... CH1 = IN-   }
+        //                      (0)SIGN   Ch0 = IN+,
+        //                                CH1 = IN-   }
         data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-                  | (ADC_SPI_CMD_MASK & 0x10);
+                  | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
         wou_cmd (&w_param, WB_WR_CMD, 
                  (uint16_t) (SPI_BASE | ADC_SPI_CTRL), 
                  (uint8_t) 1, data);
