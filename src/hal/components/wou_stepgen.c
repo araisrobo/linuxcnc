@@ -1109,18 +1109,18 @@ static void update_freq(void *arg, long period)
             data[0] = 2/*3*/;	// SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
             wou_flush(&w_param);
-        } 
-        //obsolete: else {
-        //obsolete:     data[0] = 0; // RESET GPIO_OUT
-        //obsolete:     wou_cmd (&w_param, WB_WR_CMD,
-        //obsolete:              (uint16_t) (GPIO_BASE | GPIO_OUT),
-        //obsolete:              (uint8_t) 1, data);
-        //obsolete:     data[0] = 0;	// RISC OFF
-        //obsolete:     wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
-        //obsolete:     data[0] = 0;        // SVO-OFF
-        //obsolete:     wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-        //obsolete:     wou_flush(&w_param);
-        //obsolete: }
+        } else {
+            data[0] = 0; // RESET GPIO_OUT
+            wou_cmd (&w_param, WB_WR_CMD,
+                     (uint16_t) (GPIO_BASE | GPIO_OUT),
+                     (uint8_t) 1, data);
+// obsolete:  data[0] = 0;	// RISC OFF
+// obsolete:  wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
+            data[0] = 0;        // SVO-OFF
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
+            wou_flush(&w_param);
+
+        }
     }
     
     i = 0;
