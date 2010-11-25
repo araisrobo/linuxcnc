@@ -300,13 +300,17 @@ typedef struct {
     hal_bit_t *position_compensation_en_trigger;
     hal_bit_t *position_compensation_en;
     hal_u32_t *position_compensation_ref;
-
-} mcode_var_t;
+    // velocity control
+    hal_float_t *requested_vel;
+    hal_float_t *current_vel;
+    uint32_t fp_requested_vel;
+    uint32_t fp_current_vel;
+} machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
 static gpio_t *gpio;
-static mcode_var_t *m_control;
+static machine_control_t *machine_control;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -356,7 +360,7 @@ static int remove_thc_effect = THC_INIT;
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode);
 static int export_gpio(gpio_t * addr);
-static int export_mcode_var(mcode_var_t * m_control);
+static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
 
 
@@ -373,7 +377,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data, debug, accum, error, debug2;
+    int32_t     pid_output, original_adc_data, debug, accum, error, debug2, req_vel, cur_vel;
     stepgen_t   *stepgen;
 
 #if (MBOX_LOG)
@@ -423,6 +427,10 @@ static void fetchmail(const uint8_t *buf_head)
         error = *p;
         p += 1;
         debug2 = *p;
+        p += 1;
+        req_vel = *p;
+        p += 1;
+        cur_vel = *p;
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -433,7 +441,9 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d\n", *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum,debug,error,debug2);
+        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d %10d %10d\n",
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum,debug,error,debug2,
+                req_vel >> 20, cur_vel >> 20);
 
 #endif
         break;
@@ -683,10 +693,10 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-    m_control = hal_malloc(sizeof(mcode_var_t));
-    if (m_control == 0) {
+    machine_control = hal_malloc(sizeof(machine_control_t));
+    if (machine_control == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"M_CONTROL: ERROR: hal_malloc() failed\n");
+			"MACHINE_CONTROL: ERROR: hal_malloc() failed\n");
 	hal_exit(comp_id);
 	return -1;
     }
@@ -711,16 +721,16 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-/* put export m_control below */
+/* put export machine_control below */
     // static int export_m_control (m_control_t *m_control)
-    retval = export_mcode_var(m_control);
+    retval = export_machine_control(machine_control);
     if (retval != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"GPIO: ERROR:  m_control var export failed\n");
+			"MACHINE_CONTROL: ERROR:  machine_control var export failed\n");
 	hal_exit(comp_id);
 	return -1;
     }
-/* put export m_control above */
+/* put export machine_control above */
     retval = hal_export_funct("wou.stepgen.update-freq", update_freq,
 			      stepgen_array, 1, 0, comp_id);
     if (retval != 0) {
@@ -787,6 +797,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     int32_t immediate_data = 0;
+    int32_t fp_req_vel, fp_cur_vel;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -852,17 +863,17 @@ static void update_freq(void *arg, long period)
     }
 
     /* begin: process position compensation enable */
-    if(*(m_control->position_compensation_en_trigger) != 0) {
+    if(*(machine_control->position_compensation_en_trigger) != 0) {
 
-        if(*(m_control->position_compensation_en) ==2) {
+        if(*(machine_control->position_compensation_en) ==2) {
             // update accum, rawcount and cur_pos , when THC finish working
             // a wait 1 sec is necessary
             fprintf(stderr, "position_compensation_en == 2\n");
             remove_thc_effect = THC_REMOVE_EFFECT;
         } else {
-            immediate_data = (uint32_t)(*(m_control->position_compensation_ref));
+            immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
             fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
-                            *(m_control->position_compensation_en),immediate_data);
+                            *(machine_control->position_compensation_en),immediate_data);
 
             for(j=0; j<sizeof(uint32_t); j++) {
                 sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -870,28 +881,28 @@ static void update_freq(void *arg, long period)
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
             }
-            sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(m_control->position_compensation_en));
+            sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(machine_control->position_compensation_en));
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
 
         }
-        *(m_control->position_compensation_en_trigger) = 0;
+        *(machine_control->position_compensation_en_trigger) = 0;
     }
     /* end: process position compensation enable */
 
     /* begin: process motion synchronized input */
-    if (*(m_control->sync_in_trigger) != 0) {
+    if (*(machine_control->sync_in_trigger) != 0) {
         fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
-                   *(m_control->sync_in), *(m_control->wait_type),
-                   *(m_control->timeout));
-        assert(*(m_control->sync_in) >= 0);
-        assert(*(m_control->sync_in) < num_sync_in);
+                   *(machine_control->sync_in), *(machine_control->wait_type),
+                   *(machine_control->timeout));
+        assert(*(machine_control->sync_in) >= 0);
+        assert(*(machine_control->sync_in) < num_sync_in);
 
 
 
        // begin: setup sync timeout
-        immediate_data = (uint32_t)(*(m_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
+        immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
         //immediate_data = 153*1000; // ticks about 0.6 sec
         // transmit immediate data
         fprintf(stderr,"set risc timeout(%u)\n",immediate_data);
@@ -907,34 +918,35 @@ static void update_freq(void *arg, long period)
                 sizeof(uint16_t), data);
         // end: setup sync timeout
         // begin: trigger sync in and wait timeout 
-        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(m_control->sync_in)) | SYNC_DI_TYPE(*(m_control->wait_type));
+        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(machine_control->sync_in)) |
+                                           SYNC_DI_TYPE(*(machine_control->wait_type));
         wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-                                                sizeof(uint16_t), (uint8_t *) &sync_cmd);
+                                      sizeof(uint16_t), (uint8_t *) &sync_cmd);
         // end: trigger sync in and wait timeout
-        *(m_control->sync_in_trigger) = 0;
+        *(machine_control->sync_in_trigger) = 0;
     }
     /* end: process motion synchronized input */
 
     /* begin: process motion synchronized output */
     sync_io_data = 0;
     j = 0;
-    for (i = 0; i < m_control->num_sync_out; i++) {
-        if(((m_control->prev_out >> i) & 0x01) !=
-                ((*(m_control->sync_out[i]) & 1))) {
+    for (i = 0; i < machine_control->num_sync_out; i++) {
+        if(((machine_control->prev_out >> i) & 0x01) !=
+                ((*(machine_control->sync_out[i]) & 1))) {
 
-            sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(m_control->sync_out[i]));
+            sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(machine_control->sync_out[i]));
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             j ++;
         }
 
-	sync_io_data |= ((*(m_control->sync_out[i]) & 1) << i);
+	sync_io_data |= ((*(machine_control->sync_out[i]) & 1) << i);
        // write a wou frame for sync input into command FIFO
     }
 
 
     if (j > 0) {
-        m_control->prev_out = sync_io_data;
+        machine_control->prev_out = sync_io_data;
     }
     /* end: process motion synchronized output */
     /* point at stepgen data */
@@ -1363,8 +1375,42 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
-        
+    // send velocity status
+    // TODO: confirm if 20 bit decimal fraction is enough???
+    fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 20));
+    fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 20));
+    if (fp_req_vel != machine_control->fp_requested_vel) {
+        // forward requested velocity
+        machine_control->fp_requested_vel = fp_req_vel;
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&fp_req_vel)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_REQV;
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+    }
 
+    if (fp_cur_vel != machine_control->fp_current_vel) {
+        // forward current velocity
+        machine_control->fp_current_vel = fp_cur_vel;
+
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&fp_cur_vel)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_CURV;
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+
+
+    }
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
 	DPS("\n");
@@ -1677,90 +1723,101 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 }
 
 
-static int export_mcode_var(mcode_var_t * m_control)
+static int export_machine_control(machine_control_t * machine_control)
 {
     int i, retval, msg;
-    /* This function exports a lot of stuff, which results in a lot of
-       logging if msg_level is at INFO or ALL. So we save the current value
-       of msg_level and restore it later.  If you actually need to log this
-       function's actions, change the second line below
-     */
+
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
-/*   export pin for counts captured by wou_update()*/
-/* replace with pin index
-  for (i = 0; i < num_sync_in; i++) {
-    retval = hal_pin_bit_newf(HAL_IN, &(m_control->sync_in[i]), comp_id,
-                              "wou.sync.in.%02d", i);
-    if (retval != 0) { return retval; }
-    *(m_control->sync_in[i]) = 0;
-  }
-*/
     retval =
-	hal_pin_bit_newf(HAL_IO, &(m_control->sync_in_trigger), comp_id,
+	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
 			 "wou.sync.in.trigger");
-    *(m_control->sync_in_trigger) = 0;	// pin index must not beyond index
-
+    *(machine_control->sync_in_trigger) = 0;	// pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
     retval =
-	hal_pin_u32_newf(HAL_IN, &(m_control->sync_in), comp_id,
+	hal_pin_u32_newf(HAL_IN, &(machine_control->sync_in), comp_id,
 			 "wou.sync.in.index");
-    *(m_control->sync_in) = 0;	// pin index must not beyond index
-
-    retval = hal_pin_u32_newf(HAL_IN, &(m_control->wait_type), comp_id,
+    *(machine_control->sync_in) = 0;	// pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wait_type), comp_id,
 			      "wou.sync.in.wait_type");
     if (retval != 0) {
 	return retval;
     }
-    *(m_control->wait_type) = 0;
-    retval = hal_pin_float_newf(HAL_IN, &(m_control->timeout), comp_id,
+    *(machine_control->wait_type) = 0;
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->timeout), comp_id,
 				"wou.sync.in.timeout");
     if (retval != 0) {
 	return retval;
     }
-    *(m_control->timeout) = 0.0;
+    *(machine_control->timeout) = 0.0;
 
     for (i = 0; i < num_sync_out; i++) {
 	retval =
-	    hal_pin_bit_newf(HAL_IN, &(m_control->sync_out[i]), comp_id,
+	    hal_pin_bit_newf(HAL_IN, &(machine_control->sync_out[i]), comp_id,
 			     "wou.sync.out.%02d", i);
 	if (retval != 0) {
 	    return retval;
 	}
-	*(m_control->sync_out[i]) = 0;
+	*(machine_control->sync_out[i]) = 0;
     }
 
     retval =
-            hal_pin_bit_newf(HAL_IN, &(m_control->position_compensation_en_trigger), comp_id,
+            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en_trigger), comp_id,
                             "wou.pos.comp.en.trigger");
     if (retval != 0) {
         return retval;
     }
-    *(m_control->position_compensation_en_trigger) = 0;
+    *(machine_control->position_compensation_en_trigger) = 0;
 
     retval =
-            hal_pin_bit_newf(HAL_IN, &(m_control->position_compensation_en), comp_id,
+            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en), comp_id,
                             "wou.pos.comp.en");
     if (retval != 0) {
         return retval;
     }
-    *(m_control->position_compensation_en) = 0;
+    *(machine_control->position_compensation_en) = 0;
 
-    retval = hal_pin_u32_newf(HAL_IN, &(m_control->position_compensation_ref), comp_id,
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->position_compensation_ref), comp_id,
                             "wou.pos.comp.ref");
     if (retval != 0) {
             return retval;
     }
-    *(m_control->position_compensation_ref) = 0;
+    *(machine_control->position_compensation_ref) = 0;
 
-    m_control->num_sync_in = num_sync_in;
-    m_control->num_sync_out = num_sync_out;
-    m_control->prev_out = 0;
-//  m_control->prev_in = 0;
+
+    retval =
+            hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
+                                "wou.requested-vel");
+    *(machine_control->requested_vel) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval =
+            hal_pin_float_newf(HAL_IN, &(machine_control->current_vel), comp_id,
+                             "wou.current-vel");
+    *(machine_control->current_vel) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+
+
+    machine_control->num_sync_in = num_sync_in;
+    machine_control->num_sync_out = num_sync_out;
+    machine_control->prev_out = 0;
+
+    machine_control->fp_current_vel = 0;
+    machine_control->fp_requested_vel = 0;
+
 
 /*
-  *(m_control->)
+  *(machine_control->)
   for (i = 0; i < 9; i++) {
     retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id,
                               "wou.gpio.out.%02d", i);
