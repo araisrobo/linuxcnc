@@ -427,10 +427,10 @@ static void fetchmail(const uint8_t *buf_head)
         error = *p;
         p += 1;
         debug2 = *p;
-        p += 1;
+/*        p += 1;
         req_vel = *p;
         p += 1;
-        cur_vel = *p;
+        cur_vel = *p;*/
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -441,9 +441,9 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d %10d %10d\n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum,debug,error,debug2,
-                req_vel >> 20, cur_vel >> 20);
+        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d \n",
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum,debug,error,debug2/*,
+                req_vel >> 20, cur_vel >> 20*/);
 
 #endif
         break;
