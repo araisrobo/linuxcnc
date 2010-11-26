@@ -147,7 +147,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1 
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -300,6 +300,7 @@ typedef struct {
     hal_bit_t *position_compensation_en_trigger;
     hal_bit_t *position_compensation_en;
     hal_u32_t *position_compensation_ref;
+    int8_t position_compensation_en_flag;
     // velocity control
     hal_float_t *requested_vel;
     hal_float_t *current_vel;
@@ -377,7 +378,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data, debug, accum, error, debug2, req_vel, cur_vel;
+    int32_t     pid_output, original_adc_data, accum, error, cur_vel, req_vel;
     stepgen_t   *stepgen;
 
 #if (MBOX_LOG)
@@ -422,11 +423,11 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         accum = *p;
         p += 1;
-        debug = *p;
-        p += 1;
         error = *p;
         p += 1;
-        debug2 = *p;
+        req_vel = (*p) >> 20;
+        p += 1;
+        cur_vel = (*p) >> 20;
 /*        p += 1;
         req_vel = *p;
         p += 1;
@@ -442,7 +443,7 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
         fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d \n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum,debug,error,debug2/*,
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum, error, cur_vel, req_vel/*,
                 req_vel >> 20, cur_vel >> 20*/);
 
 #endif
@@ -452,11 +453,18 @@ static void fetchmail(const uint8_t *buf_head)
         // error code
         p = (uint32_t *) (buf_head + 4);
         p += 1;
+        bp_tick = *p;
+        p += 1;
 #if (MBOX_LOG)
-        fprintf(mbox_fp, "# error occure with code(%d)\n",*p);
+        fprintf(mbox_fp, "# error occure with code(%d) bp_tick(%d)\n",*p, bp_tick);
+//        fprintf(mbox_fp, "# error occure with code(%d)\n",bp_tick);
 #endif
         break;
-
+    default:
+#if (MBOX_LOG)
+        fprintf(mbox_fp, "# unknown mail tag\n"
+                );
+#endif
     }
 
 }
@@ -885,6 +893,8 @@ static void update_freq(void *arg, long period)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+
+            machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
 
         }
         *(machine_control->position_compensation_en_trigger) = 0;
@@ -1377,39 +1387,42 @@ static void update_freq(void *arg, long period)
     }
     // send velocity status
     // TODO: confirm if 20 bit decimal fraction is enough???
-    fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 20));
-    fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 20));
-    if (fp_req_vel != machine_control->fp_requested_vel) {
-        // forward requested velocity
-        machine_control->fp_requested_vel = fp_req_vel;
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&fp_req_vel)[j];
+
+    if(machine_control->position_compensation_en_flag == 1) {
+        fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 20));
+        fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 20));
+        if (fp_req_vel != machine_control->fp_requested_vel) {
+            // forward requested velocity
+            machine_control->fp_requested_vel = fp_req_vel;
+            for(j=0; j<sizeof(uint32_t); j++) {
+                sync_cmd = SYNC_DATA | ((uint8_t *)&fp_req_vel)[j];
+                memcpy(data, &sync_cmd, sizeof(uint16_t));
+                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                        sizeof(uint16_t), data);
+            }
+            sync_cmd = SYNC_REQV;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
         }
-        sync_cmd = SYNC_REQV;
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-    }
 
-    if (fp_cur_vel != machine_control->fp_current_vel) {
-        // forward current velocity
-        machine_control->fp_current_vel = fp_cur_vel;
+        if (fp_cur_vel != machine_control->fp_current_vel) {
+            // forward current velocity
+            machine_control->fp_current_vel = fp_cur_vel;
 
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&fp_cur_vel)[j];
+            for(j=0; j<sizeof(uint32_t); j++) {
+                sync_cmd = SYNC_DATA | ((uint8_t *)&fp_cur_vel)[j];
+                memcpy(data, &sync_cmd, sizeof(uint16_t));
+                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                        sizeof(uint16_t), data);
+            }
+            sync_cmd = SYNC_CURV;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+
+
         }
-        sync_cmd = SYNC_CURV;
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-
-
     }
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
@@ -1815,7 +1828,7 @@ static int export_machine_control(machine_control_t * machine_control)
     machine_control->fp_current_vel = 0;
     machine_control->fp_requested_vel = 0;
 
-
+    machine_control->position_compensation_en_flag = 0;
 /*
   *(machine_control->)
   for (i = 0; i < 9; i++) {
