@@ -380,9 +380,10 @@ static void fetchmail(const uint8_t *buf_head)
     uint32_t    *p, din[1];
     int32_t     pid_output, original_adc_data, accum, error, cur_vel, req_vel;
     stepgen_t   *stepgen;
+    uint32_t    bp_tick;
 
 #if (MBOX_LOG)
-    uint32_t    bp_tick;
+
     p = (uint32_t *) (buf_head + 4);   
     bp_tick = *p;
 #endif
@@ -465,6 +466,7 @@ static void fetchmail(const uint8_t *buf_head)
         fprintf(mbox_fp, "# unknown mail tag\n"
                 );
 #endif
+        break;
     }
 
 }
