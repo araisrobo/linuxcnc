@@ -235,6 +235,7 @@ typedef struct {
 
     int64_t     accum;	        /* frequency generator accumulator */
     int32_t     rawcount;	/* raw position command in counts */
+    double      cmd_diff;       /* difference between this pos_cmd and prev_pos_cmd */
     /* stuff that is read but not written by makepulses */
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
@@ -255,7 +256,7 @@ typedef struct {
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
-    double prv_pos_cmd;
+    int64_t      prev_pulse_cmd;
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t cur_pos;	/* current position (position units) */
@@ -347,6 +348,7 @@ static const unsigned char num_phases_lut[] =
 #define DOWN_PIN	1	/* output phase used for DOWN signal */
 
 #define PICKOFF		28	/* bit location in DDS accum */
+#define FRACTION_BIT    20
 
 /* other globals */
 static int comp_id;		/* component ID */
@@ -1332,9 +1334,37 @@ static void update_freq(void *arg, long period)
 	     end of velocity mode
 	}*/
 
-	wou_pos_cmd = (((int32_t)(*stepgen->pos_cmd) * stepgen->pos_scale * (1<<20)) - stepgen->prv_pos_cmd);
-	stepgen->prv_pos_cmd = ((int32_t)(*stepgen->pos_cmd) * stepgen->pos_scale * (1<<20));
-        
+	if (stepgen->pos_mode) {
+            stepgen->cmd_diff = ((*stepgen->pos_cmd) - stepgen->cur_pos);
+            if((stepgen->cmd_diff * stepgen->pos_scale) >= 8192  ) {
+                stepgen->cmd_diff = 8192 * stepgen->scale_recip;
+            } else if((stepgen->cmd_diff * stepgen->pos_scale) <= -8192) {
+                stepgen->cmd_diff = -8192 * stepgen->scale_recip;
+            }
+            stepgen->accum += (int64_t) (stepgen->cmd_diff * stepgen->pos_scale * (1L<<PICKOFF));
+            wou_pos_cmd =  ((int32_t)(stepgen->accum >> PICKOFF) - stepgen->rawcount);
+            stepgen->rawcount += wou_pos_cmd;
+            stepgen->cur_pos =(double) stepgen->accum * stepgen->scale_recip * (1.0/(1L << PICKOFF));
+	} else {
+            // do not support velocity mode yet
+            assert(0);
+             /*end of velocity mode*/
+        }
+/*	stepgen->cmd_diff = ((((int64_t)(*stepgen->pos_cmd) * stepgen->pos_scale * (1L<<PICKOFF)) -
+	        stepgen->prev_pulse_cmd));
+
+	if((stepgen->cmd_diff >> PICKOFF) >= (8192)) {
+	    stepgen->cmd_diff =  8192 << PICKOFF;
+	} else if ((stepgen->cmd_diff >> PICKOFF) <= -(8192)) {
+	    stepgen->cmd_diff =  -(8192 << PICKOFF);
+	}
+	stepgen->prev_pulse_cmd = stepgen->prev_pulse_cmd + stepgen->cmd_diff;
+        stepgen->cur_pos = (stepgen->prev_pulse_cmd >> PICKOFF) *
+                stepgen->scale_recip;
+	wou_pos_cmd = stepgen->cmd_diff >> PICKOFF;*/
+
+
+
 	// calculate WOU commands
 	// stepgen->pos_cmd will e
 /*        stepgen->accum += (int64_t) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
@@ -1347,14 +1377,13 @@ static void update_freq(void *arg, long period)
         // *crucial important*
         // the cur_pos has to be calculated based on the integer pulse
         // ticks sent to FPGA, otherwise the position loop would be wrong
-	stepgen->cur_pos = *stepgen->pos_cmd;/*(double) stepgen->accum * stepgen->scale_recip
-                                    * (1.0/(1L << PICKOFF))*/;
+//	stepgen->cur_pos = *stepgen->pos_cmd;/*(double) stepgen->accum * stepgen->scale_recip
+//                                    * (1.0/(1L << PICKOFF))*/;
 	// not accurate enough: stepgen->cur_pos = ((double) stepgen->rawcount) * stepgen->scale_recip;
+
 	assert(wou_pos_cmd < 8192);
 	assert(wou_pos_cmd > -8192);
 	{
-
-
 	    // SYNC_JNT: opcode for SYNC_JNT command
 	    // DIR_P: Direction, (positive(1), negative(0))
 	    // POS_MASK: relative position mask
