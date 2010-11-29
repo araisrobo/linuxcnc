@@ -380,9 +380,9 @@ static void fetchmail(const uint8_t *buf_head)
     uint32_t    *p, din[1];
     int32_t     pid_output, original_adc_data, accum, error, cur_vel, req_vel;
     stepgen_t   *stepgen;
-
-#if (MBOX_LOG)
     uint32_t    bp_tick;
+#if (MBOX_LOG)
+
     p = (uint32_t *) (buf_head + 4);   
     bp_tick = *p;
 #endif
@@ -465,6 +465,7 @@ static void fetchmail(const uint8_t *buf_head)
         fprintf(mbox_fp, "# unknown mail tag\n"
                 );
 #endif
+        break;
     }
 
 }
@@ -1257,7 +1258,7 @@ static void update_freq(void *arg, long period)
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
 
-
+/*
 	if (stepgen->pos_mode) {
 	    DPS("  %17.7f", *stepgen->pos_cmd);
 
@@ -1277,7 +1278,7 @@ static void update_freq(void *arg, long period)
             //     ff_vel = dist_to_go * recip_dt;
             // }
 
-            if(remove_thc_effect == THC_WAIT_MOTION_SYNC /*&& stepgen->prv_pos_cmd == *stepgen->pos_cmd*/) {
+            if(remove_thc_effect == THC_WAIT_MOTION_SYNC && stepgen->prv_pos_cmd == *stepgen->pos_cmd) {
                 discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
                 if(discr > 0.0) {
                     // should never happen: means we've overshot the target
@@ -1319,7 +1320,7 @@ static void update_freq(void *arg, long period)
             stepgen->vel_fb = newvel;
             velocity_cmd = sign * newvel;
             new_vel = velocity_cmd;
-            /* apply frequency limit */
+             apply frequency limit
             if (new_vel > maxvel) {
                 new_vel = maxvel;
             } else if (new_vel < -maxvel) {
@@ -1328,23 +1329,26 @@ static void update_freq(void *arg, long period)
 	} else {
 	    // do not support velocity mode yet
 	    assert(0);
-	    /* end of velocity mode */
-	}
-	stepgen->prv_pos_cmd = *stepgen->pos_cmd;
+	     end of velocity mode
+	}*/
+
+	wou_pos_cmd = (((int32_t)(*stepgen->pos_cmd) * stepgen->pos_scale * (1<<20)) - stepgen->prv_pos_cmd);
+	stepgen->prv_pos_cmd = ((int32_t)(*stepgen->pos_cmd) * stepgen->pos_scale * (1<<20));
         
 	// calculate WOU commands
-        stepgen->accum += (int64_t) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
+	// stepgen->pos_cmd will e
+/*        stepgen->accum += (int64_t) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
         // wou_pos_cmd: the pulse ticks sent to FPGA
 	wou_pos_cmd =  ((int32_t)(stepgen->accum >> PICKOFF) - stepgen->rawcount);
         stepgen->rawcount += wou_pos_cmd;
         
-        DPS ("%15d%15d", wou_pos_cmd, *(stepgen->enc_pos));
+        DPS ("%15d%15d", wou_pos_cmd, *(stepgen->enc_pos));*/
 
         // *crucial important*
         // the cur_pos has to be calculated based on the integer pulse
         // ticks sent to FPGA, otherwise the position loop would be wrong
-	stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
-                                    * (1.0/(1L << PICKOFF));  
+	stepgen->cur_pos = *stepgen->pos_cmd;/*(double) stepgen->accum * stepgen->scale_recip
+                                    * (1.0/(1L << PICKOFF))*/;
 	// not accurate enough: stepgen->cur_pos = ((double) stepgen->rawcount) * stepgen->scale_recip;
 	assert(wou_pos_cmd < 8192);
 	assert(wou_pos_cmd > -8192);
