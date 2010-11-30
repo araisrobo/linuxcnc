@@ -170,9 +170,6 @@ void NURBS_FEED_3D (
     double u = 0.0;
     int   i;
     
-    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n", //TODO-eric:GCODE NURBS_FEED_3D Print
-    //         __FILE__, __FUNCTION__, __LINE__, c.size());
-    
     // INPUT:
     //    d - Degree of the B-Spline.
     //    c - Control Points, matrix of size (dim,nc).
@@ -289,12 +286,7 @@ void NURBS_FEED_3D (
 
             STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
                           _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
-            // printf("%s: (%s:%d): x(%f) y(%f) z(%f)\n", 
-            //         __FILE__, __FUNCTION__, __LINE__, _pos_x, _pos_y, _pos_z);
-            // printf("%s: (%s:%d): a(%f) b(%f) c(%f)\n", 
-            //         __FILE__, __FUNCTION__, __LINE__, _pos_a, _pos_b, _pos_c);
-            // printf("%s: (%s:%d): u(%f) v(%f) w(%f)\n",
-            //         __FILE__, __FUNCTION__, __LINE__, _pos_u, _pos_v, _pos_w);
+
 
         }
     } else {
