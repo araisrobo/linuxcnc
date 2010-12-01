@@ -203,7 +203,8 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 		 ("Cannot make a NURBS with 0 feedrate"));
 	}
 
-	CHKS((!(block->k_flag)/*&&!(block->d_flag)*/), ("You must specify Knots(K)"));
+	CHKS(!(((block->k_flag)||(block->d_flag))), ("You must specify Knots(K) or (D)"));
+
 	// Find NURBS control point dimention mask
 	if (axis_mask == 0) {
 	    if (block->x_flag == ON) {
