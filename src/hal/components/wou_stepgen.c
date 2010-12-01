@@ -147,7 +147,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 0 
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -443,7 +443,7 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d \n",
+        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d %10d %10d %10d \n",
                 *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum, error, cur_vel, req_vel/*,
                 req_vel >> 20, cur_vel >> 20*/);
 
