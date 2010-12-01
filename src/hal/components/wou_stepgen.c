@@ -1350,20 +1350,6 @@ static void update_freq(void *arg, long period)
             assert(0);
              /*end of velocity mode*/
         }
-/*	stepgen->cmd_diff = ((((int64_t)(*stepgen->pos_cmd) * stepgen->pos_scale * (1L<<PICKOFF)) -
-	        stepgen->prev_pulse_cmd));
-
-	if((stepgen->cmd_diff >> PICKOFF) >= (8192)) {
-	    stepgen->cmd_diff =  8192 << PICKOFF;
-	} else if ((stepgen->cmd_diff >> PICKOFF) <= -(8192)) {
-	    stepgen->cmd_diff =  -(8192 << PICKOFF);
-	}
-	stepgen->prev_pulse_cmd = stepgen->prev_pulse_cmd + stepgen->cmd_diff;
-        stepgen->cur_pos = (stepgen->prev_pulse_cmd >> PICKOFF) *
-                stepgen->scale_recip;
-	wou_pos_cmd = stepgen->cmd_diff >> PICKOFF;*/
-
-
 
 	// calculate WOU commands
 	// stepgen->pos_cmd will e
