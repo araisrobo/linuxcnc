@@ -250,6 +250,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
                                                   // output: N:basis functions
                 tmp1 = s - tc->nurbs_block.order +1;
+
                 R = 0.0;
                 for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
 
