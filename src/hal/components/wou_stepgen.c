@@ -529,6 +529,9 @@ int rtapi_app_main(void)
 #endif
         // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
+        data[0] = 1;        // RISC ON
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
+
     }
 
     if(pulse_type != -1) {
@@ -1128,8 +1131,8 @@ static void update_freq(void *arg, long period)
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         if (*stepgen->enable) {
-            data[0] = 1;        // RISC ON
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
+// obsolete:             data[0] = 1;        // RISC ON
+// obsolete:             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
             data[0] = 2/*3*/;	// SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
             wou_flush(&w_param);
@@ -1351,8 +1354,6 @@ static void update_freq(void *arg, long period)
 	assert(wou_pos_cmd < 8192);
 	assert(wou_pos_cmd > -8192);
 	{
-
-
 	    // SYNC_JNT: opcode for SYNC_JNT command
 	    // DIR_P: Direction, (positive(1), negative(0))
 	    // POS_MASK: relative position mask
@@ -1407,7 +1408,6 @@ static void update_freq(void *arg, long period)
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
         }
-
         if (fp_cur_vel != machine_control->fp_current_vel) {
             // forward current velocity
             machine_control->fp_current_vel = fp_cur_vel;
@@ -1422,8 +1422,6 @@ static void update_freq(void *arg, long period)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-
-
         }
     }
 #if (TRACE!=0)
