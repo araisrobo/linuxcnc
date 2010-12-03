@@ -147,7 +147,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 1
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -427,9 +427,9 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         error = *p;
         p += 1;
-        req_vel = (*p) >> 20;
+        req_vel = (*p) ;
         p += 1;
-        cur_vel = (*p) >> 20;
+        cur_vel = (*p) ;
 /*        p += 1;
         req_vel = *p;
         p += 1;
