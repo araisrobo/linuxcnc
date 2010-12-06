@@ -147,8 +147,7 @@ EmcPose tcGetEndpoint(TC_STRUCT * tc) {
     return tcGetPosReal(tc, 1);
 }
 
-static double tmpF = 0;
-static int count = 0;
+
 EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 {
     EmcPose pos;
@@ -157,7 +156,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose uvw;
     
     double progress = of_endpoint? tc->target: tc->progress;
+#if(TRACE != 0)
     static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
+#endif
 
     if (tc->motion_type == TC_RIGIDTAP) {
         if(tc->coords.rigidtap.state > REVERSING) {
@@ -212,38 +213,44 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     &uvw);
 
     } else {
-        int s, tmp1,i,count;
-        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR, F,
-                     l ,delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
-
+        int s, tmp1,i;
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR, F, l;
+#if(TRACE != 0)
+        double delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
+#endif
         N = tc->nurbs_block.N;
         NL = tc->nurbs_block.NL;
         assert(tc->motion_type == TC_NURBS);
 
-        // compute U(L)
         l = progress / tc->target;
 
         if (l<1) {
-            s = nurbs_findspan(tc->nurbs_block.nr_of_uofl_ctrl_pts-1, tc->nurbs_block.uofl_order - 1,
-                                l, tc->nurbs_block.uofl_knots_ptr);
+            if(tc->nurbs_block.nr_of_uofl_ctrl_pts) {
+                s = nurbs_findspan(tc->nurbs_block.nr_of_uofl_ctrl_pts-1, tc->nurbs_block.uofl_order - 1,
+                                    l, tc->nurbs_block.uofl_knots_ptr);
 
-            nurbs_basisfun(s,l,tc->nurbs_block.uofl_order-1,tc->nurbs_block.uofl_knots_ptr,NL);
-            tmp1 = s - tc->nurbs_block.uofl_order +1;
-            LR = 0.0;
-            for(i=0;i<=tc->nurbs_block.uofl_order-1;i++){
-                LR += NL[i]*tc->nurbs_block.uofl_weights[tmp1+i];
+                nurbs_basisfun(s,l,tc->nurbs_block.uofl_order-1,tc->nurbs_block.uofl_knots_ptr,NL);
+                tmp1 = s - tc->nurbs_block.uofl_order +1;
+                LR = 0.0;
+                for(i=0;i<=tc->nurbs_block.uofl_order-1;i++){
+                    LR += NL[i]*tc->nurbs_block.uofl_weights[tmp1+i];
+                }
+                u = 0.0;
+                for (i=0; i<=tc->nurbs_block.uofl_order -1; i++) {
+                        u += NL[i]*tc->nurbs_block.uofl_ctrl_pts_ptr[tmp1+i];
+                }
+                u = u/LR;
+            } else {
+                u = l;
             }
-            u = 0.0;
-            for (i=0; i<=tc->nurbs_block.uofl_order -1; i++) {
-                    u += NL[i]*tc->nurbs_block.uofl_ctrl_pts_ptr[tmp1+i];
-            }
-            u = u/LR;
             if (u<1) {
+
                 s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
                                     u, tc->nurbs_block.knots_ptr);  //return span index of u_i
                 nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
                                                   // output: N:basis functions
                 tmp1 = s - tc->nurbs_block.order +1;
+
                 R = 0.0;
                 for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
 

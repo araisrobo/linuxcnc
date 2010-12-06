@@ -170,9 +170,6 @@ void NURBS_FEED_3D (
     double u = 0.0;
     int   i;
     
-    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() begin\n", //TODO-eric:GCODE NURBS_FEED_3D Print
-    //         __FILE__, __FUNCTION__, __LINE__, c.size());
-    
     // INPUT:
     //    d - Degree of the B-Spline.
     //    c - Control Points, matrix of size (dim,nc).
@@ -181,7 +178,7 @@ void NURBS_FEED_3D (
     // OUTPUT:
     //    p - Evaluated points, matrix of size (dim,nu)
 
-    int d = order-1;
+    int d = order /* this order is degree not order.*/;//order-1;
     int nu = c.size() * 10 + 1; // u.length();
     int nc = c.size(), knot_size;
     double       *N ,*knot,R, X, Y, Z, A , B, C, U, V, W;
@@ -194,7 +191,7 @@ void NURBS_FEED_3D (
     memcpy(cp,&c[0],sizeof(CONTROL_POINT)*c.size());
     knot_size = k.size();
 
-    if (nc + d == (int)(knot_size - 1)) {
+    if (nc + d == (int)(knot_size + 1)) {
         int s, tmp1;
         
         for (int col(0); col<nu; col++) {
@@ -289,18 +286,17 @@ void NURBS_FEED_3D (
 
             STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
                           _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
-            // printf("%s: (%s:%d): x(%f) y(%f) z(%f)\n", 
-            //         __FILE__, __FUNCTION__, __LINE__, _pos_x, _pos_y, _pos_z);
-            // printf("%s: (%s:%d): a(%f) b(%f) c(%f)\n", 
-            //         __FILE__, __FUNCTION__, __LINE__, _pos_a, _pos_b, _pos_c);
-            // printf("%s: (%s:%d): u(%f) v(%f) w(%f)\n",
-            //         __FILE__, __FUNCTION__, __LINE__, _pos_u, _pos_v, _pos_w);
+
 
         }
     } else {
-        fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k) - 1.\n");
+        /*fprintf(stderr, "inconsistent bspline data, d(%d) + columns(c(%d)) != length(k(%d)) - 1.\n",
+                d, nc, k);*/
+        fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k).\n");
     }
 
+    fprintf(stderr, "TODO: confirm this case inconsistent bspline data, d(%d) + columns(c(%d)) != length(k(%d)) - 1.\n",
+                    d, nc, knot_size);
     free(N);
     free(cp);
     free(knot);

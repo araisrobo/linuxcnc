@@ -137,7 +137,7 @@
 #include <mailtag.h>
 #define MAX_CHAN 8
 #define MAX_STEP_CUR 255
-
+#define PLASMA_ON_BIT 0x02
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include "dptrace.h"
@@ -288,6 +288,9 @@ typedef struct {
 } gpio_t;
 
 typedef struct {
+    /* plasma control */
+    hal_bit_t *thc_enbable;
+    hal_bit_t *plasma_enable;
     /* sync input pins (input to motmod) */
     hal_bit_t *sync_in_trigger;
     hal_u32_t *sync_in;		//
@@ -427,9 +430,9 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         error = *p;
         p += 1;
-        req_vel = (*p) ;
+        req_vel = (*p) >> 20;
         p += 1;
-        cur_vel = (*p) ;
+        cur_vel = (*p) >> 20;
 /*        p += 1;
         req_vel = *p;
         p += 1;
@@ -444,7 +447,7 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d %10d %10d %10d %10d %10d \n",
+        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d %10d %10d %10d \n",
                 *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum, error, cur_vel, req_vel/*,
                 req_vel >> 20, cur_vel >> 20*/);
 
@@ -530,6 +533,9 @@ int rtapi_app_main(void)
 #endif
         // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
+        data[0] = 1;        // RISC ON
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
+
     }
 
     if(pulse_type != -1) {
@@ -866,11 +872,20 @@ static void update_freq(void *arg, long period)
     if (data[0] != gpio->prev_out) {
 	gpio->prev_out = data[0];
 	// issue a WOU_WRITE while got new GPIO.OUT value
-	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
-	wou_flush(&w_param);
+	// check if plasma enabled
 
+	/* M63 M62 not actually control this block , add just for in-case*/
+	if((data[0] & PLASMA_ON_BIT) /* plasma on bit */) {
+	    if(*(machine_control->plasma_enable)) {
 
+	        wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
+                wou_flush(&w_param);
+	    }
+	} else {
 
+	    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
+	    wou_flush(&w_param);
+	}
     }
 
     /* begin: process position compensation enable */
@@ -882,22 +897,24 @@ static void update_freq(void *arg, long period)
             fprintf(stderr, "position_compensation_en == 2\n");
             remove_thc_effect = THC_REMOVE_EFFECT;
         } else {
-            immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
-            fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
-                            *(machine_control->position_compensation_en),immediate_data);
+            if(*(machine_control->thc_enbable)) {
+                immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
+                fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
+                                *(machine_control->position_compensation_en),immediate_data);
 
-            for(j=0; j<sizeof(uint32_t); j++) {
-                sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                for(j=0; j<sizeof(uint32_t); j++) {
+                    sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                            sizeof(uint16_t), data);
+                }
+                sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(machine_control->position_compensation_en));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
-            }
-            sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(machine_control->position_compensation_en));
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
 
-            machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
+                machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
+            }
 
         }
         *(machine_control->position_compensation_en_trigger) = 0;
@@ -946,10 +963,13 @@ static void update_freq(void *arg, long period)
     for (i = 0; i < machine_control->num_sync_out; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
                 ((*(machine_control->sync_out[i]) & 1))) {
-
-            sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(machine_control->sync_out[i]));
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
+            if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
+                fprintf(stderr,"plasma enabled disable command (%d) send\n",
+                        *(machine_control->sync_out[i]));
+                sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(machine_control->sync_out[i]));
+                memcpy(data, &sync_cmd, sizeof(uint16_t));
+                wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
+            }
             j ++;
         }
 
@@ -1129,8 +1149,8 @@ static void update_freq(void *arg, long period)
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         if (*stepgen->enable) {
-            data[0] = 1;        // RISC ON
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
+// obsolete:             data[0] = 1;        // RISC ON
+// obsolete:             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
             data[0] = 2/*3*/;	// SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
             wou_flush(&w_param);
@@ -1424,7 +1444,6 @@ static void update_freq(void *arg, long period)
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
         }
-
         if (fp_cur_vel != machine_control->fp_current_vel) {
             // forward current velocity
             machine_control->fp_current_vel = fp_cur_vel;
@@ -1439,8 +1458,6 @@ static void update_freq(void *arg, long period)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-
-
         }
     }
 #if (TRACE!=0)
@@ -1838,6 +1855,20 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
+    /* for plasma control */
+
+    retval =
+                hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
+                                "wou.thc_enable");
+        if (retval != 0) {
+            return retval;
+        }retval =
+                hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
+                                "wou.plasma_enable");
+        if (retval != 0) {
+            return retval;
+        }
 
 
     machine_control->num_sync_in = num_sync_in;

@@ -203,7 +203,8 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 		 ("Cannot make a NURBS with 0 feedrate"));
 	}
 
-	CHKS((!(block->k_flag)&&!(block->d_flag)), ("You must specify Knots(K,D)"));
+	CHKS(!(((block->k_flag)||(block->d_flag))), ("You must specify Knots(K) or (D)"));
+
 	// Find NURBS control point dimention mask
 	if (axis_mask == 0) {
 	    if (block->x_flag == ON) {
@@ -244,8 +245,8 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 	// I: NURBS Curve Length
 
 	if (block->i_flag == ON) {
-	    /*  printf("%s: (%s:%d): nurbs curve length %f\n",
-	       __FILE__, __FUNCTION__, __LINE__, block->i_number); */
+	 /*     printf("%s: (%s:%d): nurbs curve length %f\n",
+	       __FILE__, __FUNCTION__, __LINE__, block->i_number);*/
 	    CHKS(block->i_number <= 0.0,
 		 ("Must specify NURBS curve length"));
 
