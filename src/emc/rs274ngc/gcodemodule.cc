@@ -178,7 +178,7 @@ void NURBS_FEED_3D (
     // OUTPUT:
     //    p - Evaluated points, matrix of size (dim,nu)
 
-    int d = order /* this order is degree not order.*/;//order-1;
+    int d = order-1;
     int nu = c.size() * 10 + 1; // u.length();
     int nc = c.size(), knot_size;
     double       *N ,*knot,R, X, Y, Z, A , B, C, U, V, W;
@@ -191,7 +191,7 @@ void NURBS_FEED_3D (
     memcpy(cp,&c[0],sizeof(CONTROL_POINT)*c.size());
     knot_size = k.size();
 
-    if (nc + d == (int)(knot_size + 1)) {
+    if (nc + d == (int)(knot_size - 1)) {
         int s, tmp1;
         
         for (int col(0); col<nu; col++) {
@@ -292,11 +292,9 @@ void NURBS_FEED_3D (
     } else {
         /*fprintf(stderr, "inconsistent bspline data, d(%d) + columns(c(%d)) != length(k(%d)) - 1.\n",
                 d, nc, k);*/
-        fprintf(stderr, "inconsistent bspline data, d + columns(c) != length(k).\n");
+        fprintf(stderr, "src/emc/rs274gnc/gcodemodule.cc:inconsistent bspline data, d + columns(c) != length(k).\n");
     }
 
-    fprintf(stderr, "TODO: confirm this case inconsistent bspline data, d(%d) + columns(c(%d)) != length(k(%d)) - 1.\n",
-                    d, nc, knot_size);
     free(N);
     free(cp);
     free(knot);
