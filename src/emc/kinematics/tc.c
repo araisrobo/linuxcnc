@@ -248,8 +248,20 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
                                     u, tc->nurbs_block.knots_ptr);  //return span index of u_i
                 nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
-                                                  // output: N:basis functions
-                tmp1 = s - tc->nurbs_block.order +1;
+                               // output: N:basis functions
+                // refer to bspeval.cc::line(70) of octave
+                // refer to opennurbs_evaluate_nurbs.cpp::line(985) of openNurbs
+                // refer to ON_NurbsCurve::Evaluate() for ...
+                // refer to opennurbs_knot.cpp::ON_NurbsSpanIndex()
+                // http://www.rhino3d.com/nurbs.htm (What is NURBS?)
+                //    Some modelers that use older algorithms for NURBS
+                //    evaluation require two extra knot values for a total of
+                //    degree+N+1 knots. When Rhino is exporting and importing
+                //    NURBS geometry, it automatically adds and removes these
+                //    two superfluous knots as the situation requires.
+                tmp1 = s - tc->nurbs_block.order + 1;
+                assert(tmp1 >= 0);
+                assert(tmp1 < tc->nurbs_block.nr_of_ctrl_pts);
 
                 R = 0.0;
                 for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
