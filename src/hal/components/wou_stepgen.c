@@ -351,7 +351,7 @@ static const unsigned char num_phases_lut[] =
 #define DOWN_PIN	1	/* output phase used for DOWN signal */
 
 #define PICKOFF		28	/* bit location in DDS accum */
-#define FRACTION_BIT    20
+#define FRACTION_BIT    15
 
 /* other globals */
 static int comp_id;		/* component ID */
@@ -1427,11 +1427,10 @@ static void update_freq(void *arg, long period)
 	stepgen++;
     }
     // send velocity status
-    // TODO: confirm if 20 bit decimal fraction is enough???
-
+    // TODO: confirm if 15 bit decimal fraction is enough???
     if(machine_control->position_compensation_en_flag == 1) {
-        fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 20));
-        fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 20));
+        fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 15));
+        fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 15));
         if (fp_req_vel != machine_control->fp_requested_vel) {
             // forward requested velocity
             machine_control->fp_requested_vel = fp_req_vel;
