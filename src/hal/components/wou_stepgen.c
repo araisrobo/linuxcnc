@@ -232,11 +232,8 @@ static int pending_cnt;
 typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
-
-    int64_t     accum;	        /* frequency generator accumulator */
-    int32_t     rawcount;	/* raw position command in counts */
-    double      cmd_diff;       /* difference between this pos_cmd and prev_pos_cmd */
     /* stuff that is read but not written by makepulses */
+    int64_t rawcount;
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
@@ -351,7 +348,7 @@ static const unsigned char num_phases_lut[] =
 #define DOWN_PIN	1	/* output phase used for DOWN signal */
 
 #define PICKOFF		28	/* bit location in DDS accum */
-#define FRACTION_BIT    15
+#define FRACTION_BIT    7
 
 /* other globals */
 static int comp_id;		/* component ID */
@@ -792,10 +789,10 @@ static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
     int n, i;
-    double new_vel;
+//    double new_vel;
 
-    double ff_vel;
-    double velocity_cmd;
+//    double ff_vel;
+//    double velocity_cmd;
 
     double physical_maxvel;	// max vel supported by current step timings & position-scale
     double maxvel;		// actual max vel to use this time
@@ -1068,12 +1065,12 @@ static void update_freq(void *arg, long period)
                     /* accumulator gets a half step offset, so it will step half
                        way between integer positions, not at the integer positions */
                     stepgen->rawcount = *(stepgen->enc_pos);
-                    stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF) + (1L << (PICKOFF-1));
-                    stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
-                                                * (1.0/(1L << PICKOFF));  
+//                    stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF) + (1L << (PICKOFF-1));
+                    stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
+                                                /** (1.0/(1L << PICKOFF))*/;
                 }
-                fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
-                        n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+                fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
+                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
 	    }
 	}
         stepgen->prev_home_state = *stepgen->home_state;
@@ -1184,8 +1181,8 @@ static void update_freq(void *arg, long period)
 	    stepgen->freq = 0;
             
             /* to prevent position drift while toggeling "PWR-ON" switch */
-            stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
-                                        * (1.0/(1L << PICKOFF));  
+            stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
+                                        /** (1.0/(1L << PICKOFF))*/;
             // less accurate: stepgen->cur_pos = ((double) stepgen->rawcount) * stepgen->scale_recip;
 	    *(stepgen->pos_fb) = stepgen->cur_pos;
 	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
@@ -1200,14 +1197,14 @@ static void update_freq(void *arg, long period)
                  * positions.
                  **/
                 stepgen->rawcount = *(stepgen->enc_pos);
-                stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF) 
-                                 + (1L << (PICKOFF-1));
+                /*stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF)
+                                 + (1L << (PICKOFF-1));*/
                 /* load SWITCH, INDEX, and PULSE positions with ENC_POS */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-                fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
-                        n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-                fprintf(stderr, "j[%d] cur_pos(%f) pos_cmd(%f) rawcount(%d)\n", 
+                fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
+                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+                fprintf(stderr, "j[%d] cur_pos(%f) pos_cmd(%f) rawcount(%lld)\n",
                         n, stepgen->cur_pos, *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
@@ -1240,9 +1237,9 @@ static void update_freq(void *arg, long period)
 		remove_thc_effect = THC_WAIT_MOTION_SYNC;
 		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
 		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
-		stepgen->accum -=  (((int64_t) immediate_data)<<PICKOFF);
-		stepgen->cur_pos = (double) stepgen->accum * stepgen->scale_recip
-		                                    * (1.0/(1L << PICKOFF));
+//		stepgen->accum -=  (((int64_t) immediate_data)<<PICKOFF);
+		stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
+		                                    /** (1.0/(1L << PICKOFF))*/;
 	}
 
 	//
@@ -1282,143 +1279,56 @@ static void update_freq(void *arg, long period)
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
 
-/*
 	if (stepgen->pos_mode) {
-	    DPS("  %17.7f", *stepgen->pos_cmd);
-
-	    // begin: T-curve style command loop profile
-            double discr, newvel, newaccel=0;
-            double dist_to_go;
-            int sign = 1;
-            if(*stepgen->pos_cmd < stepgen->cur_pos) {
-                sign = -1;
+            wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - stepgen->cur_pos) *
+                                                ((stepgen->pos_scale)) *( 1 << FRACTION_BIT));
+//            assert(wou_pos_cmd < 8192);
+//            assert(wou_pos_cmd > -8192);
+            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
+                fprintf(stderr,"wou_pos_cmd(%d) pos_cmd(%.10f) cur_pos(%.10f)\n", wou_pos_cmd,
+                        *stepgen->pos_cmd, stepgen->cur_pos);
+                assert(0);
             }
-            dist_to_go = (double) sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
-            ff_vel = dist_to_go * recip_dt;
-            // if ((dist_to_go * stepgen->pos_scale) < 0.5) {
-            //     // skip if distance to go is less than ONE step pulse
-            //     ff_vel = 0;
-            // } else {
-            //     ff_vel = dist_to_go * recip_dt;
-            // }
+            // SYNC_JNT: opcode for SYNC_JNT command
+            // DIR_P: Direction, (positive(1), negative(0))
+            // POS_MASK: relative position mask
 
-            if(remove_thc_effect == THC_WAIT_MOTION_SYNC && stepgen->prv_pos_cmd == *stepgen->pos_cmd) {
-                discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
-                if(discr > 0.0) {
-                    // should never happen: means we've overshot the target
-                    newvel  = 0.0;
-                } else {
-                    discr = 0.25 * dt*dt - 2.0 / stepgen->maxaccel * discr;
-                    newvel = -0.5 * stepgen->maxaccel * dt +
-                            stepgen->maxaccel * sqrt(discr);
-
-                }
-            } else  {
-                newvel = ff_vel;
-            }
-
-            if(newvel <= 0.0) {
-                // also should never happen - if we already finished this tc, it was caught above
-                if(n==2 && remove_thc_effect == THC_WAIT_MOTION_SYNC) {
-                    remove_thc_effect = THC_INIT;
-                }
-                newvel = newaccel = 0.0;
+            if (wou_pos_cmd >= 0) {
+                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BIT));
+                // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
+                sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
+                // data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20);
+                // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
             } else {
-                // constrain velocity
-                if(newvel > ff_vel)
-                    newvel = ff_vel;
-                if(newvel > stepgen->maxvel) newvel = stepgen->maxvel;
-                // get resulting acceleration
-                newaccel = (newvel - stepgen->vel_fb)/ dt;
+                // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
+                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BIT));
+                wou_pos_cmd *= -1;
+                sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
+                // data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F);
+                // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
+            }
+            memcpy(data + n * sizeof(uint16_t), &sync_cmd,
+                   sizeof(uint16_t));
 
-                // constrain acceleration and get resulting velocity
-                if(newaccel > 0.0 && newaccel > stepgen->maxaccel) {
-                    newaccel = stepgen->maxaccel;
-                    newvel = stepgen->vel_fb + newaccel * dt;
-                }
-                if(newaccel < 0.0 && newaccel < -stepgen->maxaccel) {
-                    newaccel = -stepgen->maxaccel;
-                    newvel = stepgen->vel_fb + newaccel * dt;
-                }
-            }
-            stepgen->vel_fb = newvel;
-            velocity_cmd = sign * newvel;
-            new_vel = velocity_cmd;
-             apply frequency limit
-            if (new_vel > maxvel) {
-                new_vel = maxvel;
-            } else if (new_vel < -maxvel) {
-                new_vel = -maxvel;
-            }
-	} else {
-	    // do not support velocity mode yet
-	    assert(0);
-	     end of velocity mode
-	}*/
 
-	if (stepgen->pos_mode) {
-            stepgen->cmd_diff = ((*stepgen->pos_cmd) - stepgen->cur_pos);
-            if((stepgen->cmd_diff * stepgen->pos_scale) >= 8192  ) {
-                stepgen->cmd_diff = 8192 * stepgen->scale_recip;
-            } else if((stepgen->cmd_diff * stepgen->pos_scale) <= -8192) {
-                stepgen->cmd_diff = -8192 * stepgen->scale_recip;
-            }
-            stepgen->accum += (int64_t) (stepgen->cmd_diff * stepgen->pos_scale * (1L<<PICKOFF));
-            wou_pos_cmd =  ((int32_t)(stepgen->accum >> PICKOFF) - stepgen->rawcount);
-            stepgen->rawcount += wou_pos_cmd;
-            stepgen->cur_pos =(double) stepgen->accum * stepgen->scale_recip * (1.0/(1L << PICKOFF));
+
+
+
 	} else {
             // do not support velocity mode yet
             assert(0);
              /*end of velocity mode*/
         }
 
-	// calculate WOU commands
-	// stepgen->pos_cmd will e
-/*        stepgen->accum += (int64_t) (new_vel * stepgen->pos_scale * dt * (1L << PICKOFF));
-        // wou_pos_cmd: the pulse ticks sent to FPGA
-	wou_pos_cmd =  ((int32_t)(stepgen->accum >> PICKOFF) - stepgen->rawcount);
-        stepgen->rawcount += wou_pos_cmd;
-        
-        DPS ("%15d%15d", wou_pos_cmd, *(stepgen->enc_pos));*/
 
-        // *crucial important*
-        // the cur_pos has to be calculated based on the integer pulse
-        // ticks sent to FPGA, otherwise the position loop would be wrong
-//	stepgen->cur_pos = *stepgen->pos_cmd;/*(double) stepgen->accum * stepgen->scale_recip
-//                                    * (1.0/(1L << PICKOFF))*/;
-	// not accurate enough: stepgen->cur_pos = ((double) stepgen->rawcount) * stepgen->scale_recip;
 
-	assert(wou_pos_cmd < 8192);
-	assert(wou_pos_cmd > -8192);
-	{
-	    // SYNC_JNT: opcode for SYNC_JNT command
-	    // DIR_P: Direction, (positive(1), negative(0))
-	    // POS_MASK: relative position mask
 
-	    if (wou_pos_cmd >= 0) {
-		// data[0]: MSB {dir, pos[12:8]}, dir(1): positive
-		sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
-		// data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20);
-		// data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
-	    } else {
-		// data[0]: MSB {dir, pos[12:8]}, dir(0): negative
-		wou_pos_cmd *= -1;
-		sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
-		// data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F);
-		// data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
-	    }
-	    memcpy(data + n * sizeof(uint16_t), &sync_cmd,
-		   sizeof(uint16_t));
-
-	    if (n == (num_chan - 1)) {
-		// send to WOU when all axes commands are generated
-		wou_cmd(&w_param,
-			WB_WR_CMD,
-			(JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
-	    }
-	}
-
+        if (n == (num_chan - 1)) {
+            // send to WOU when all axes commands are generated
+            wou_cmd(&w_param,
+                    WB_WR_CMD,
+                    (JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
+        }
 	DPS("%15.7f%15.7f%15.7f%7d",
 	    stepgen->cur_pos, *stepgen->pos_fb, 
             new_vel, *stepgen->home_state);
@@ -1740,7 +1650,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     addr->cur_pos = 0.0;
     /* accumulator gets a half step offset, so it will step half
        way between integer positions, not at the integer positions */
-    addr->accum = 1L << (PICKOFF-1);
+//    addr->accum = 1L << (PICKOFF-1);
     addr->rawcount = 0;
 
     addr->vel_fb = 0;
