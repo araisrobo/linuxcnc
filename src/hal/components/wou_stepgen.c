@@ -792,7 +792,21 @@ static void update_freq(void *arg, long period)
     double new_vel;
 
     double ff_vel;
+    double velocity_error;
+    double match_accel;
+    double seconds_to_vel_match;
+    double position_at_match;
+    double position_cmd_at_match;
+    double error_at_match;
     double velocity_cmd;
+
+
+
+
+
+
+
+
 
     double physical_maxvel;	// max vel supported by current step timings & position-scale
     double maxvel;		// actual max vel to use this time
@@ -1282,71 +1296,187 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
 	    DPS("  %17.7f", *stepgen->pos_cmd);
-
-	    // begin: T-curve style command loop profile
-            double discr, newvel, newaccel=0;
-            double dist_to_go;
-            int sign = 1;
-            if(*stepgen->pos_cmd < stepgen->cur_pos) {
-                sign = -1;
-            }
-            dist_to_go = (double) sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
-            ff_vel = dist_to_go * recip_dt;
-            // if ((dist_to_go * stepgen->pos_scale) < 0.5) {
-            //     // skip if distance to go is less than ONE step pulse
-            //     ff_vel = 0;
-            // } else {
-            //     ff_vel = dist_to_go * recip_dt;
-            // }
-
-            if(remove_thc_effect == THC_WAIT_MOTION_SYNC /*&& stepgen->prv_pos_cmd == *stepgen->pos_cmd*/) {
-                discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
-                if(discr > 0.0) {
-                    // should never happen: means we've overshot the target
-                    newvel  = 0.0;
-                } else {
-                    discr = 0.25 * dt*dt - 2.0 / stepgen->maxaccel * discr;
-                    newvel = -0.5 * stepgen->maxaccel * dt +
-                            stepgen->maxaccel * sqrt(discr);
-
+	    if(remove_thc_effect == THC_WAIT_MOTION_SYNC) {
+                // begin: T-curve style command loop profile
+                double discr, newvel, newaccel=0;
+                double dist_to_go;
+                int sign = 1;
+                if(*stepgen->pos_cmd < stepgen->cur_pos) {
+                    sign = -1;
                 }
-            } else  {
-                newvel = ff_vel;
-            }
+                dist_to_go = (double) sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
+                ff_vel = dist_to_go * recip_dt;
+                // if ((dist_to_go * stepgen->pos_scale) < 0.5) {
+                //     // skip if distance to go is less than ONE step pulse
+                //     ff_vel = 0;
+                // } else {
+                //     ff_vel = dist_to_go * recip_dt;
+                // }
 
-            if(newvel <= 0.0) {
-                // also should never happen - if we already finished this tc, it was caught above
-                if(n==2 && remove_thc_effect == THC_WAIT_MOTION_SYNC) {
-                    remove_thc_effect = THC_INIT;
-                }
-                newvel = newaccel = 0.0;
-            } else {
-                // constrain velocity
-                if(newvel > ff_vel)
+                if(remove_thc_effect == THC_WAIT_MOTION_SYNC && stepgen->prv_pos_cmd == *stepgen->pos_cmd) {
+                    discr = 0.5 * dt * stepgen->vel_fb - sign * ((*stepgen->pos_cmd) - stepgen->cur_pos);
+                    if(discr > 0.0) {
+                        // should never happen: means we've overshot the target
+                        newvel  = 0.0;
+                    } else {
+                        discr = 0.25 * dt*dt - 2.0 / stepgen->maxaccel * discr;
+                        newvel = -0.5 * stepgen->maxaccel * dt +
+                                stepgen->maxaccel * sqrt(discr);
+
+                    }
+                } else  {
                     newvel = ff_vel;
-                if(newvel > stepgen->maxvel) newvel = stepgen->maxvel;
-                // get resulting acceleration
-                newaccel = (newvel - stepgen->vel_fb)/ dt;
+                }
 
-                // constrain acceleration and get resulting velocity
-                if(newaccel > 0.0 && newaccel > stepgen->maxaccel) {
-                    newaccel = stepgen->maxaccel;
-                    newvel = stepgen->vel_fb + newaccel * dt;
+                if(newvel <= 0.0) {
+                    // also should never happen - if we already finished this tc, it was caught above
+                    if(n==2 && remove_thc_effect == THC_WAIT_MOTION_SYNC) {
+                        remove_thc_effect = THC_INIT;
+                    }
+                    newvel = newaccel = 0.0;
+                } else {
+                    // constrain velocity
+                    if(newvel > ff_vel)
+                        newvel = ff_vel;
+                    if(newvel > stepgen->maxvel) newvel = stepgen->maxvel;
+                    // get resulting acceleration
+                    newaccel = (newvel - stepgen->vel_fb)/ dt;
+
+                    // constrain acceleration and get resulting velocity
+                    if(newaccel > 0.0 && newaccel > stepgen->maxaccel) {
+                        newaccel = stepgen->maxaccel;
+                        newvel = stepgen->vel_fb + newaccel * dt;
+                    }
+                    if(newaccel < 0.0 && newaccel < -stepgen->maxaccel) {
+                        newaccel = -stepgen->maxaccel;
+                        newvel = stepgen->vel_fb + newaccel * dt;
+                    }
                 }
-                if(newaccel < 0.0 && newaccel < -stepgen->maxaccel) {
-                    newaccel = -stepgen->maxaccel;
-                    newvel = stepgen->vel_fb + newaccel * dt;
+                stepgen->vel_fb = newvel;
+                velocity_cmd = sign * newvel;
+                new_vel = velocity_cmd;
+
+                if (new_vel > maxvel) {
+                    new_vel = maxvel;
+                } else if (new_vel < -maxvel) {
+                    new_vel = -maxvel;
                 }
-            }
-            stepgen->vel_fb = newvel;
-            velocity_cmd = sign * newvel;
-            new_vel = velocity_cmd;
-            /* apply frequency limit */
-            if (new_vel > maxvel) {
-                new_vel = maxvel;
-            } else if (new_vel < -maxvel) {
-                new_vel = -maxvel;
-            }
+
+	    } else {
+
+                // took from src/hal/drivers/mesa-hostmot2/stepgen.c:
+                // Here's the stepgen position controller.  It uses first-order
+                // feedforward and proportional error feedback.  This code is based
+                // on John Kasunich's software stepgen code.
+
+                // calculate feed-forward velocity in machine units per second
+                ff_vel =
+                    ((*stepgen->pos_cmd) - stepgen->prev_pos_cmd) * recip_dt;
+
+                stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
+
+                velocity_error = (stepgen->vel_fb) - ff_vel;
+
+                // DP("\nDEBUG: ff_vel(%15.7f) velocity_error(%15.7f)\n", ff_vel, velocity_error);
+
+                // Do we need to change speed to match the speed of position-cmd?
+                // If maxaccel is 0, there's no accel limit: fix this velocity error
+                // by the next servo period!  This leaves acceleration control up to
+                // the trajectory planner.
+                // If maxaccel is not zero, the user has specified a maxaccel and we
+                // adhere to that.
+                if (velocity_error > 0.0) {
+                    if (stepgen->maxaccel == 0) {
+                        match_accel = -velocity_error * recip_dt;
+                    } else {
+                        match_accel = -stepgen->maxaccel;
+                    }
+                } else if (velocity_error < 0.0) {
+                    if (stepgen->maxaccel == 0) {
+                        match_accel = velocity_error * recip_dt;
+                    } else {
+                        match_accel = stepgen->maxaccel;
+                    }
+                } else {
+                    match_accel = 0;
+                }
+
+                if (match_accel == 0) {
+                    // vel is just right, dont need to accelerate
+                    seconds_to_vel_match = 0.0;
+                } else {
+                    seconds_to_vel_match = -velocity_error / match_accel;
+                }
+
+                // compute expected position at the time of velocity match
+                // Note: this is "feedback position at the beginning of the servo period after we attain velocity match"
+                {
+                    double avg_v;
+                    avg_v = (ff_vel + stepgen->vel_fb) * 0.5;
+                    // position_at_match = *stepgen->pos_fb + (avg_v * (seconds_to_vel_match + dt));
+                    position_at_match =
+                        stepgen->cur_pos +
+                        (avg_v * (seconds_to_vel_match + dt));
+                }
+
+                // Note: this assumes that position-cmd keeps the current velocity
+                position_cmd_at_match =
+                    *stepgen->pos_cmd + (ff_vel * seconds_to_vel_match);
+                error_at_match = position_at_match - position_cmd_at_match;
+
+                if (seconds_to_vel_match < dt) {
+                    // we can match velocity in one period
+                    // try to correct whatever position error we have
+                    // orig: velocity_cmd = ff_vel - (0.5 * error_at_match * recip_dt);
+                    // velocity_cmd = (*stepgen->pos_cmd - *stepgen->pos_fb) * recip_dt;
+                    velocity_cmd =
+                        (*stepgen->pos_cmd - stepgen->cur_pos) * recip_dt;
+
+                    // apply accel limits?
+                    if (stepgen->maxaccel > 0) {
+                        if (velocity_cmd >
+                            (stepgen->vel_fb + (stepgen->maxaccel * dt))) {
+                            velocity_cmd =
+                                stepgen->vel_fb + (stepgen->maxaccel * dt);
+                        } else if (velocity_cmd <
+                                   (stepgen->vel_fb -
+                                    (stepgen->maxaccel * dt))) {
+                            velocity_cmd =
+                                stepgen->vel_fb - (stepgen->maxaccel * dt);
+                        }
+                    }
+
+                } else {
+                    // we're going to have to work for more than one period to match velocity
+                    // FIXME: I dont really get this part yet
+
+                    double dv;
+                    double dp;
+
+                    /* calculate change in final position if we ramp in the opposite direction for one period */
+                    dv = -2.0 * match_accel * dt;
+                    dp = dv * seconds_to_vel_match;
+
+                    /* decide which way to ramp */
+                    if (fabs(error_at_match + (dp * 2.0)) <
+                        fabs(error_at_match)) {
+                        match_accel = -match_accel;
+                    }
+
+                    /* and do it */
+                    velocity_cmd = stepgen->vel_fb + (match_accel * dt);
+                }
+
+                new_vel = velocity_cmd;
+                /* apply frequency limit */
+                if (new_vel > maxvel) {
+                    new_vel = maxvel;
+                } else if (new_vel < -maxvel) {
+                    new_vel = -maxvel;
+                }
+                stepgen->vel_fb = new_vel;
+	    }
+
 	} else {
 	    // do not support velocity mode yet
 	    assert(0);
