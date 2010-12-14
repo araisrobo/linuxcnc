@@ -380,7 +380,8 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data, accum, error, cur_vel, req_vel, accel, vel, cmd_accum;
+    int32_t     pid_output, original_adc_data, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
+                avg_vel, position_at_match, position_cmd_at_match;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
 #if (MBOX_LOG)
@@ -422,14 +423,26 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         original_adc_data = *p;
         // risc optional output
-        p += 1;
-        accum = *p;
-        p += 1;
-        error = *p;
-        p += 1;
-        vel = (*p) ;
-        p += 1;
-        accel = (*p) ;
+        /*original_adc_data, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
+                        avg_vel, position_at_match, position_cmd_at_match;*/
+        p+=1;
+        pos_cmd = *p;
+        p+=1;
+        pos = *p;
+        p+=1;
+        vel_cmd = *p;
+        p+=1;
+        ff_vel = *p;
+        p+=1;
+        vel_error = *p;
+        p+=1;
+        bp_to_vel_match = *p;
+        p+=1;
+        avg_vel = *p;
+        p+=1;
+        position_at_match = *p;
+        p+=1;
+        position_cmd_at_match = *p;
 //        p += 1;
 //        cmd_accum = (*p);
 /*        p += 1;
@@ -446,9 +459,9 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d %10d %10d %10d   \n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],accum, error, vel, accel/*,
-                req_vel >> 20, cur_vel >> 20*/);
+        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d %10d %10d %10d %10d %10d %10d %10d %10d  \n",
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],pos_cmd, pos, vel_cmd, ff_vel,
+                vel_error, bp_to_vel_match, avg_vel, position_at_match, position_cmd_at_match);
 
 #endif
         break;
