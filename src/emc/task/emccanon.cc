@@ -1456,20 +1456,22 @@ void NURBS_FEED_3D (
     if(!axis_valid(7) || dv < tiny) dv = 0.0;
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
-    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
-        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
-        canon.cartesian_move = 0;
-    } else {
+    if((dx!=0 || dy!=0 || dz!=0 || du!=0 || dv!=0 || dw!=0 ) && (da==0) && (db==0) && (dc==0)) {
         canon.cartesian_move = 1;
-    }
-    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
         canon.angular_move = 0;
-    } else {
+    } else if (((da!=0) || (db!=0) || (dc!=0)) && (dx==0) && (dy==0) && (dz==0) &&
+            (du==0) && (dv==0) && (dw==0)) {
+        canon.cartesian_move = 0;
         canon.angular_move = 1;
+    } else if ((dx!=0 || dy!=0 || dz!=0 || du!=0 || dv!=0 || dw!=0) || (da!=0) || (db!=0) || (dc!=0)) {
+        canon.cartesian_move = 0;
+        canon.angular_move = 1;
+    } else {
+        fprintf(stderr,"emccanon.cc: unknown case for nurbs motion type\n");
+        assert(0);
     }
-    if ( canon.angular_move == 0 && canon.cartesian_move == 0) {
-    	canon.cartesian_move = 1;
-    }
+
+
     if (canon.cartesian_move ) {
         nurbsMoveMsg.ini_maxvel = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(0)):huge,
                                        dy > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(1)):huge,
@@ -1502,19 +1504,58 @@ void NURBS_FEED_3D (
         }
      } else {
          assert(canon.angular_move);
-         nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MIN3(da > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(3)):huge,
+         // radius of axis-a is calculated from y=0, z=0
+         // TODO: this is for hg plasma
+         double linear_vel_a, linear_accel_a, linear_jerk_a, y, z, r, angular_v, angular_a, angular_j;
+         y = nurbs_control_points[i].Y;
+         z = nurbs_control_points[i].Z;
+         r = sqrt(y*y+z*z);
+         angular_v = emcAxisGetMaxVelocity(3);
+         angular_a = emcAxisGetMaxAcceleration(3);
+         angular_j = emcAxisGetMaxJerk(3);
+         linear_vel_a = angular_v/360.0*2*M_PI*r;
+         linear_accel_a = angular_a/360.0*2*M_PI*r;
+         linear_jerk_a = angular_j/360.0*2*M_PI*r;
+         nurbsMoveMsg.ini_maxvel = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(0)):huge,
+                                                dy > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(1)):huge,
+                                                dz > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(2)):huge);
+
+         nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxvel,
+                                              du > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(6)):huge,
+                                              dv > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(7)):huge,
+                                              dw > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(8)):huge));
+
+         nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxvel,
+                                        da > 0? FROM_EXT_LEN(linear_vel_a/*emcAxisGetMaxVelocity(3)*/):huge,
                                         db > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(4)):huge,
                                         dc > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(5)):huge));
 
 
+         nurbsMoveMsg.ini_maxacc = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(0)):huge,
+                                       dy > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(1)):huge,
+                                       dz > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(2)):huge);
 
-         nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MIN3(da > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(3)):huge,
+         nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxacc,
+                                              du  > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(6)):huge,
+                                              dv > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(7)):huge,
+                                              dw > 0?FROM_EXT_LEN(emcAxisGetMaxAcceleration(8)):huge));
+
+
+         nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxacc,
+                                       da > 0? FROM_EXT_LEN(linear_accel_a/*emcAxisGetMaxAcceleration(3)*/):huge,
                                        db > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(4)):huge,
                                        dc > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(5)):huge));
 
 
-
-         nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MIN3(da > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(3)):huge,
+         nurbsMoveMsg.ini_maxjerk = MIN3(dx > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(0)):huge,
+                                                 dy > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(1)):huge,
+                                                 dz > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(2)):huge);
+         nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxjerk,
+                                                    du > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(6)):huge,
+                                                    dv > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(7)):huge,
+                                                    dw > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(8)):huge));
+         nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxjerk,
+                                         da > 0?FROM_EXT_LEN(linear_jerk_a/*emcAxisGetMaxJerk(3)*/):huge,
                                          db > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(4)):huge,
                                          dc > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(5)):huge));
 
@@ -1522,6 +1563,8 @@ void NURBS_FEED_3D (
          if (vel > canon.angularFeedRate) {
              vel = canon.angularFeedRate;
          }
+         fprintf(stderr,"2 vel(%f)\n", vel);
+//         assert(0);
      }
    /* nurbsMoveMsg.vel = vel; //move to control points feed cycle */
 /*
@@ -1576,11 +1619,14 @@ void NURBS_FEED_3D (
 
             nurbsMoveMsg.vel = FROM_PROG_LEN(nurbs_control_points[i].F)/60;
             vel = nurbsMoveMsg.vel;
+//            fprintf(stderr,"nurbs vel(%f) 1 \n", vel);
         } else {
             if(i != 0) {
                 nurbsMoveMsg.vel = vel;//FROM_PROG_LEN(nurbs_control_points[i-1].F);
+//                fprintf(stderr,"nurbs vel 2(%f)\n", vel);
             } else {
                 nurbsMoveMsg.vel = vel;
+//                fprintf(stderr,"nurbs vel 3(%f)\n", vel);
             }
         }
         // for U(L)
