@@ -355,7 +355,7 @@ static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
-static int remove_thc_effect = THC_INIT;
+//static int remove_thc_effect = THC_INIT;
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
@@ -903,12 +903,12 @@ static void update_freq(void *arg, long period)
     /* begin: process position compensation enable */
     if(*(machine_control->position_compensation_en_trigger) != 0) {
 
-        if(*(machine_control->position_compensation_en) ==2) {
+        /*if(*(machine_control->position_compensation_en) ==2) {
             // update accum, rawcount and cur_pos , when THC finish working
             // a wait 1 sec is necessary
             fprintf(stderr, "position_compensation_en == 2\n");
             remove_thc_effect = THC_REMOVE_EFFECT;
-        } else {
+        } else {*/
             if(*(machine_control->thc_enbable)) {
                 immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
                 fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
@@ -928,7 +928,7 @@ static void update_freq(void *arg, long period)
                 machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
             }
 
-        }
+//        }
         *(machine_control->position_compensation_en_trigger) = 0;
     }
     /* end: process position compensation enable */
@@ -1246,14 +1246,16 @@ static void update_freq(void *arg, long period)
 	//less accurate: *(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
 	*(stepgen->pos_fb) = stepgen->cur_pos;
 
+/*
 	if(remove_thc_effect == THC_REMOVE_EFFECT && n==2) {
 		remove_thc_effect = THC_WAIT_MOTION_SYNC;
 		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
 		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
 //		stepgen->accum -=  (((int64_t) immediate_data)<<PICKOFF);
 		stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
-		                                    /** (1.0/(1L << PICKOFF))*/;
+		                                    * (1.0/(1L << PICKOFF));
 	}
+*/
 
 	//
 	// first sanity-check our maxaccel and maxvel params
