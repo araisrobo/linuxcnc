@@ -1339,8 +1339,26 @@ static void update_freq(void *arg, long period)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+
+
+            // forward current velocity
+           machine_control->fp_current_vel = fp_cur_vel;
+
+           for(j=0; j<sizeof(uint32_t); j++) {
+               sync_cmd = SYNC_DATA | ((uint8_t *)&fp_cur_vel)[j];
+               memcpy(data, &sync_cmd, sizeof(uint16_t));
+               wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                       sizeof(uint16_t), data);
+           }
+           sync_cmd = SYNC_CURV;
+           memcpy(data, &sync_cmd, sizeof(uint16_t));
+           wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                   sizeof(uint16_t), data);
+
         }
-        if (fp_cur_vel != machine_control->fp_current_vel) {
+        if ((abs(fp_cur_vel - fp_req_vel)) < (1<<15) &&
+                (fp_cur_vel != machine_control->fp_current_vel)) {
+                /*!= machine_control->fp_current_vel*/
             // forward current velocity
             machine_control->fp_current_vel = fp_cur_vel;
 
