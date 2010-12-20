@@ -1563,8 +1563,6 @@ void NURBS_FEED_3D (
          if (vel > canon.angularFeedRate) {
              vel = canon.angularFeedRate;
          }
-         fprintf(stderr,"2 vel(%f)\n", vel);
-//         assert(0);
      }
    /* nurbsMoveMsg.vel = vel; //move to control points feed cycle */
 /*
@@ -1619,14 +1617,11 @@ void NURBS_FEED_3D (
 
             nurbsMoveMsg.vel = FROM_PROG_LEN(nurbs_control_points[i].F)/60;
             vel = nurbsMoveMsg.vel;
-//            fprintf(stderr,"nurbs vel(%f) 1 \n", vel);
         } else {
             if(i != 0) {
                 nurbsMoveMsg.vel = vel;//FROM_PROG_LEN(nurbs_control_points[i-1].F);
-//                fprintf(stderr,"nurbs vel 2(%f)\n", vel);
             } else {
                 nurbsMoveMsg.vel = vel;
-//                fprintf(stderr,"nurbs vel 3(%f)\n", vel);
             }
         }
         // for U(L)

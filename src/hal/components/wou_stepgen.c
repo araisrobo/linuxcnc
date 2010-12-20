@@ -153,13 +153,6 @@ static FILE *mbox_fp;
 #endif
 
 
-enum thc_control {
-    THC_INIT,
-    THC_REMOVE_EFFECT,
-    THC_WAIT_MOTION_SYNC
-};
-
-
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
@@ -1243,19 +1236,7 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
 
-	//less accurate: *(stepgen->pos_fb) = *(stepgen->enc_pos) * stepgen->scale_recip;
 	*(stepgen->pos_fb) = stepgen->cur_pos;
-
-/*
-	if(remove_thc_effect == THC_REMOVE_EFFECT && n==2) {
-		remove_thc_effect = THC_WAIT_MOTION_SYNC;
-		immediate_data = stepgen->rawcount - *(stepgen->enc_pos);
-		stepgen->rawcount -= immediate_data;//*(stepgen->enc_pos);
-//		stepgen->accum -=  (((int64_t) immediate_data)<<PICKOFF);
-		stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
-		                                    * (1.0/(1L << PICKOFF));
-	}
-*/
 
 	//
 	// first sanity-check our maxaccel and maxvel params
@@ -1297,11 +1278,8 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - stepgen->cur_pos) *
                                                 ((stepgen->pos_scale)) *( 1 << FRACTION_BIT));
-//            assert(wou_pos_cmd < 8192);
-//            assert(wou_pos_cmd > -8192);
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
-                fprintf(stderr,"wou_pos_cmd(%d) pos_cmd(%.10f) cur_pos(%.10f)\n", wou_pos_cmd,
-                        *stepgen->pos_cmd, stepgen->cur_pos);
+                fprintf(stderr,"pulse_cmd(%d) beyond 64 per base period\n", wou_pos_cmd >> FRACTION_BIT);
                 assert(0);
             }
             // SYNC_JNT: opcode for SYNC_JNT command
@@ -1325,18 +1303,11 @@ static void update_freq(void *arg, long period)
             memcpy(data + n * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
 
-
-
-
-
 	} else {
             // do not support velocity mode yet
             assert(0);
              /*end of velocity mode*/
         }
-
-
-
 
         if (n == (num_chan - 1)) {
             // send to WOU when all axes commands are generated
@@ -1352,7 +1323,6 @@ static void update_freq(void *arg, long period)
 	stepgen++;
     }
     // send velocity status
-    // TODO: confirm if 15 bit decimal fraction is enough???
     if(machine_control->position_compensation_en_flag == 1) {
         fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 15));
         fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 15));
