@@ -819,7 +819,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     int32_t immediate_data = 0;
-    int32_t fp_req_vel, fp_cur_vel;
+    int32_t fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -859,8 +859,6 @@ static void update_freq(void *arg, long period)
     memcpy(&gpio->prev_in,
            wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
 
-//    printf("switch_in(0x%02X\n",gpio->prev_in);
-
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock,
 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
@@ -894,47 +892,37 @@ static void update_freq(void *arg, long period)
     }
 
     /* begin: process position compensation enable */
-    if(*(machine_control->position_compensation_en_trigger) != 0) {
+    if((*(machine_control->position_compensation_en_trigger) != 0)) {
 
-        /*if(*(machine_control->position_compensation_en) ==2) {
-            // update accum, rawcount and cur_pos , when THC finish working
-            // a wait 1 sec is necessary
-            fprintf(stderr, "position_compensation_en == 2\n");
-            remove_thc_effect = THC_REMOVE_EFFECT;
-        } else {*/
-            if(*(machine_control->thc_enbable)) {
-                immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
-                fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
-                                *(machine_control->position_compensation_en),immediate_data);
+        if(*(machine_control->thc_enbable)) {
+            immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
+            fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
+                            *(machine_control->position_compensation_en),immediate_data);
 
-                for(j=0; j<sizeof(uint32_t); j++) {
-                    sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                            sizeof(uint16_t), data);
-                }
-                sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(machine_control->position_compensation_en));
+            for(j=0; j<sizeof(uint32_t); j++) {
+                sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
-
-                machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
             }
+            sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(machine_control->position_compensation_en));
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
 
-//        }
+            machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
+        }
         *(machine_control->position_compensation_en_trigger) = 0;
     }
     /* end: process position compensation enable */
 
     /* begin: process motion synchronized input */
     if (*(machine_control->sync_in_trigger) != 0) {
-        fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
+        /*fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
                    *(machine_control->sync_in), *(machine_control->wait_type),
-                   *(machine_control->timeout));
+                   *(machine_control->timeout));*/
         assert(*(machine_control->sync_in) >= 0);
         assert(*(machine_control->sync_in) < num_sync_in);
-
-
 
        // begin: setup sync timeout
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
@@ -969,7 +957,7 @@ static void update_freq(void *arg, long period)
         if(((machine_control->prev_out >> i) & 0x01) !=
                 ((*(machine_control->sync_out[i]) & 1))) {
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
-                fprintf(stderr,"plasma enabled disable command (%d) send\n",
+                fprintf(stderr,"plasma_switch(%d)\n",
                         *(machine_control->sync_out[i]));
                 sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(machine_control->sync_out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1187,14 +1175,14 @@ static void update_freq(void *arg, long period)
 	    stepgen->freq = 0;
             
             /* to prevent position drift while toggeling "PWR-ON" switch */
-            stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
-                                        /** (1.0/(1L << PICKOFF))*/;
+            stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip;
             // less accurate: stepgen->cur_pos = ((double) stepgen->rawcount) * stepgen->scale_recip;
 	    *(stepgen->pos_fb) = stepgen->cur_pos;
 	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
 	    stepgen->vel_fb = 0;
             
             r_load_pos = 0;
+
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
                 r_load_pos |= (1 << n);
                 /**
@@ -1356,7 +1344,9 @@ static void update_freq(void *arg, long period)
                    sizeof(uint16_t), data);
 
         }
-        if ((abs(fp_cur_vel - fp_req_vel)) < (1<<15) &&
+        fp_diff = fp_cur_vel - fp_req_vel;
+        fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
+        if ((fp_diff) < (1<<15) &&
                 (fp_cur_vel != machine_control->fp_current_vel)) {
                 /*!= machine_control->fp_current_vel*/
             // forward current velocity

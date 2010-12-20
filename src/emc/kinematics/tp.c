@@ -1822,11 +1822,11 @@ void tpToggleDIOs(TC_STRUCT * tc) {
     if (tc->syncdio.anychanged != 0) { // we have DIO's to turn on or off
         for (i = 0; i < emcmotConfig->numDIO; i++) {
             if (tc->syncdio.dios[i] > 0) {
-                fprintf(stderr, "set DOUT(%d) %d\n", i, tc->syncdio.dios[i]);
+//                fprintf(stderr, "set DOUT(%d) %d\n", i, tc->syncdio.dios[i]);
                 emcmotDioWrite(i, 1); // turn DIO[i] on
             }
             if (tc->syncdio.dios[i] < 0) {
-                fprintf(stderr, "set DOUT(%d) %d\n", i, tc->syncdio.dios[i]);
+//                fprintf(stderr, "set DOUT(%d) %d\n", i, tc->syncdio.dios[i]);
                 emcmotDioWrite(i, 0); // turn DIO[i] off
             }
         }
@@ -2319,7 +2319,6 @@ int tpAbort(TP_STRUCT * tp) {
     if (!tp->aborting) {
         /* to abort, signal a pause and set our abort flag */
         tp->aborting = 1;
-        emcmotPosCompWrite(0, 0);
     }
     tpClearPosCompEn();
     return tpClearDIOs(); //clears out any already cached DIOs
