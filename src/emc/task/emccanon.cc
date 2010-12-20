@@ -1563,15 +1563,8 @@ void NURBS_FEED_3D (
          if (vel > canon.angularFeedRate) {
              vel = canon.angularFeedRate;
          }
-         fprintf(stderr,"2 vel(%f)\n", vel);
-//         assert(0);
      }
-   /* nurbsMoveMsg.vel = vel; //move to control points feed cycle */
-/*
-    double newLinearFeedRate = FROM_PROG_LEN(rate),
-           newAngularFeedRate = FROM_PROG_ANG(rate);*/
-/*    printf("FEEDRATE for NURBS linear(%f) angular(%f)  nurbsMoveMsg.vel(%f) \n",canon.linearFeedRate,
-            canon.angularFeedRate,nurbsMoveMsg.vel);*/
+
 
     for (i=0;i<nr_of_ctrl_pt;i++) {
 
