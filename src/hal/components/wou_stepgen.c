@@ -203,13 +203,22 @@ RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
 int num_sync_out = 8;
 RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 
+int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
+RTAPI_MP_ARRAY_INT(pulse_fraction_bit, MAX_CHAN,
+                   "Pulse command fraction bits for up to 8 channels");
+
+int thc_velocity = 5;
+RTAPI_MP_INT(thc_velocity, "Define THC velocity");
+
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
+static int mot_parm_configured = 0;
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
-#define TIMEOUT_MASK 0x04
+
+
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
 
@@ -340,8 +349,7 @@ static const unsigned char num_phases_lut[] =
 #define UP_PIN		0	/* output phase used for UP signal */
 #define DOWN_PIN	1	/* output phase used for DOWN signal */
 
-#define PICKOFF		28	/* bit location in DDS accum */
-#define FRACTION_BIT    7
+//#define PICKOFF		26	/* bit location in DDS accum */
 
 /* other globals */
 static int comp_id;		/* component ID */
@@ -373,8 +381,8 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
-                avg_vel, position_at_match, position_cmd_at_match;
+    int32_t     pid_output, original_adc_data;/*, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
+                avg_vel, position_at_match, position_cmd_at_match;*/
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
 #if (MBOX_LOG)
@@ -416,10 +424,10 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         original_adc_data = *p;
         // risc optional output
-        /*original_adc_data, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
-                        avg_vel, position_at_match, position_cmd_at_match;*/
+        /*
         p+=1;
         pos_cmd = *p;
+
         p+=1;
         pos = *p;
         p+=1;
@@ -435,7 +443,7 @@ static void fetchmail(const uint8_t *buf_head)
         p+=1;
         position_at_match = *p;
         p+=1;
-        position_cmd_at_match = *p;
+        position_cmd_at_match = *p;*/
 //        p += 1;
 //        cmd_accum = (*p);
 /*        p += 1;
@@ -452,9 +460,9 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d %10d %10d %10d %10d %10d %10d %10d %10d  \n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],pos_cmd, pos, vel_cmd, ff_vel,
-                vel_error, bp_to_vel_match, avg_vel, position_at_match, position_cmd_at_match);
+        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X \n",
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0]/*,pos_cmd, pos, vel_cmd, ff_vel,
+                vel_error, bp_to_vel_match, avg_vel, position_at_match, position_cmd_at_match*/);
 
 #endif
         break;
@@ -880,7 +888,6 @@ static void update_freq(void *arg, long period)
 	/* M63 M62 not actually control this block , add just for in-case*/
 	if((data[0] & PLASMA_ON_BIT) /* plasma on bit */) {
 	    if(*(machine_control->plasma_enable)) {
-
 	        wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
                 wou_flush(&w_param);
 	    }
@@ -918,9 +925,6 @@ static void update_freq(void *arg, long period)
 
     /* begin: process motion synchronized input */
     if (*(machine_control->sync_in_trigger) != 0) {
-        /*fprintf(stderr,"sync_input detected pin(%d) wait_type(%d) timeout(%f)\n",
-                   *(machine_control->sync_in), *(machine_control->wait_type),
-                   *(machine_control->timeout));*/
         assert(*(machine_control->sync_in) >= 0);
         assert(*(machine_control->sync_in) < num_sync_in);
 
@@ -1142,10 +1146,93 @@ static void update_freq(void *arg, long period)
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         if (*stepgen->enable) {
-// obsolete:             data[0] = 1;        // RISC ON
-// obsolete:             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
-            data[0] = 2/*3*/;	// SVO-ON, WATCHDOG-ON
+            data[0] = 2/*3*/;   // SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
+            if( mot_parm_configured == 0) {
+                // TODO: remove when link going well while ssif disabled
+               // mot_parm_configured = 1;
+                for(n=0;n<num_chan;n++) {
+                    // joint acceleration, acceleration_rcip, velocity, fraction_bits
+                    // compensation velocity
+                    // to send fraction bits
+                    immediate_data = (uint32_t)(pulse_fraction_bit[n]);
+                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+                    for(j=0; j<sizeof(uint32_t); j++) {
+                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                        memcpy(data, &sync_cmd, sizeof(uint16_t));
+                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+                    }
+                    sync_cmd = SYNC_MOT_PARM | FRACTION_BITS | (n & SFIFO_MOT_PARM_ID_MASK);
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+                    // to send velocity
+                    immediate_data = (uint32_t)(stepgen->maxvel*(stepgen->pos_scale)*
+                                                    dt*(1 << pulse_fraction_bit[n]));
+                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+                    for(j=0; j<sizeof(uint32_t); j++) {
+
+
+                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                        memcpy(data, &sync_cmd, sizeof(uint16_t));
+                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+
+                    }
+                    sync_cmd = SYNC_MOT_PARM | MAX_VELOCITY_VAL | (n & SFIFO_MOT_PARM_ID_MASK);
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+
+                    // to send acceleration
+                    immediate_data = (uint32_t)(stepgen->maxaccel*(stepgen->pos_scale)*dt*
+                                                    dt*(1 << pulse_fraction_bit[n]));
+                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+                    for(j=0; j<sizeof(uint32_t); j++) {
+                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                        memcpy(data, &sync_cmd, sizeof(uint16_t));
+                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+                    }
+                    sync_cmd = SYNC_MOT_PARM | MAX_ACCEL_VAL | (n & SFIFO_MOT_PARM_ID_MASK);
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                            sizeof(uint16_t), data);
+
+                    // to send acceleration recip
+                    immediate_data = (uint32_t)((1/(stepgen->maxaccel*(stepgen->pos_scale)*dt*
+                                                    dt))*(1 << pulse_fraction_bit[n]));
+                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+                    for(j=0; j<sizeof(uint32_t); j++) {
+
+
+                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                        memcpy(data, &sync_cmd, sizeof(uint16_t));
+                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+                    }
+                    sync_cmd = SYNC_MOT_PARM | MAX_ACC_RECIP_VAL | (n & SFIFO_MOT_PARM_ID_MASK);
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                            sizeof(uint16_t), data);
+
+                }
+                // to send position compensation velocity
+                immediate_data = thc_velocity;
+                immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+                for(j=0; j<sizeof(uint32_t); j++) {
+                    sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                           sizeof(uint16_t), data);
+                }
+                sync_cmd = SYNC_MOT_PARM | COMP_VEL_VAL | (2 & SFIFO_MOT_PARM_ID_MASK); // apply THC to Z
+                memcpy(data, &sync_cmd, sizeof(uint16_t));
+                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                       sizeof(uint16_t), data);
+            }
+
             wou_flush(&w_param);
         } else {
             data[0] = 0; // RESET GPIO_OUT
@@ -1221,6 +1308,7 @@ static void update_freq(void *arg, long period)
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
+            wou_flush(&w_param);
 	    continue;
 	}
 
@@ -1265,9 +1353,9 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - stepgen->cur_pos) *
-                                                ((stepgen->pos_scale)) *( 1 << FRACTION_BIT));
+                                                ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
-                fprintf(stderr,"pulse_cmd(%d) beyond 64 per base period\n", wou_pos_cmd >> FRACTION_BIT);
+                fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
             // SYNC_JNT: opcode for SYNC_JNT command
@@ -1275,14 +1363,14 @@ static void update_freq(void *arg, long period)
             // POS_MASK: relative position mask
 
             if (wou_pos_cmd >= 0) {
-                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BIT));
+                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
                 // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
                 // data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20);
                 // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
             } else {
                 // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
-                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BIT));
+                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
                 wou_pos_cmd *= -1;
                 sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
                 // data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F);
@@ -1338,17 +1426,16 @@ static void update_freq(void *arg, long period)
                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                        sizeof(uint16_t), data);
            }
-           sync_cmd = SYNC_CURV;
+           /*sync_cmd = SYNC_CURV;
            memcpy(data, &sync_cmd, sizeof(uint16_t));
            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                   sizeof(uint16_t), data);
+                   sizeof(uint16_t), data);*/
 
         }
         fp_diff = fp_cur_vel - fp_req_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
         if ((fp_diff) < (1<<15) &&
                 (fp_cur_vel != machine_control->fp_current_vel)) {
-                /*!= machine_control->fp_current_vel*/
             // forward current velocity
             machine_control->fp_current_vel = fp_cur_vel;
 
@@ -1433,7 +1520,7 @@ static int export_gpio(gpio_t * addr)
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
-}				// export_gpio ()
+} // export_gpio ()
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode)
