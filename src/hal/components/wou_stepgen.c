@@ -307,8 +307,9 @@ typedef struct {
     // velocity control
     hal_float_t *requested_vel;
     hal_float_t *current_vel;
-    uint32_t fp_requested_vel;
-    uint32_t fp_current_vel;
+    int32_t fp_requested_vel;
+    int32_t fp_current_vel;
+    int32_t vel_sync;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1400,56 +1401,39 @@ static void update_freq(void *arg, long period)
     }
     // send velocity status
     if(machine_control->position_compensation_en_flag == 1) {
-        fp_req_vel = (uint32_t)((*machine_control->requested_vel) * (1 << 15));
-        fp_cur_vel = (uint32_t)((*machine_control->current_vel) * (1 << 15));
+        fp_req_vel = (uint32_t)((*machine_control->requested_vel));
+        fp_cur_vel = (uint32_t)((*machine_control->current_vel));
         if (fp_req_vel != machine_control->fp_requested_vel) {
             // forward requested velocity
             machine_control->fp_requested_vel = fp_req_vel;
-            for(j=0; j<sizeof(uint32_t); j++) {
-                sync_cmd = SYNC_DATA | ((uint8_t *)&fp_req_vel)[j];
-                memcpy(data, &sync_cmd, sizeof(uint16_t));
-                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                        sizeof(uint16_t), data);
-            }
-            sync_cmd = SYNC_REQV;
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-
-
             // forward current velocity
            machine_control->fp_current_vel = fp_cur_vel;
-
-           for(j=0; j<sizeof(uint32_t); j++) {
-               sync_cmd = SYNC_DATA | ((uint8_t *)&fp_cur_vel)[j];
-               memcpy(data, &sync_cmd, sizeof(uint16_t));
-               wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                       sizeof(uint16_t), data);
-           }
-           /*sync_cmd = SYNC_CURV;
+           sync_cmd = SYNC_VEL;
            memcpy(data, &sync_cmd, sizeof(uint16_t));
            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                   sizeof(uint16_t), data);*/
-
+                   sizeof(uint16_t), data);
+           machine_control->vel_sync = 0;
         }
         fp_diff = fp_cur_vel - fp_req_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if ((fp_diff) < (1<<15) &&
-                (fp_cur_vel != machine_control->fp_current_vel)) {
+        if (((fp_diff) < 2) &&   //  120 mm/min
+                (fp_cur_vel != machine_control->fp_current_vel) &&
+                (machine_control->vel_sync == 0)) {
             // forward current velocity
-            machine_control->fp_current_vel = fp_cur_vel;
 
-            for(j=0; j<sizeof(uint32_t); j++) {
-                sync_cmd = SYNC_DATA | ((uint8_t *)&fp_cur_vel)[j];
-                memcpy(data, &sync_cmd, sizeof(uint16_t));
-                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                        sizeof(uint16_t), data);
-            }
-            sync_cmd = SYNC_CURV;
+            machine_control->vel_sync = 1;
+            sync_cmd = (SYNC_VEL | (fp_cur_vel << 1)) | 0x0001;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+        } else if(machine_control->vel_sync == 1 && (fp_diff > 2)){
+            machine_control->vel_sync = 0;
+            sync_cmd = (SYNC_VEL|(fp_cur_vel << 1)) & 0xFFFE;
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                   sizeof(uint16_t), data);
         }
+        machine_control->fp_current_vel = fp_cur_vel;
     }
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
