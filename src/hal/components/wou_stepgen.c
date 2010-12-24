@@ -135,6 +135,7 @@
 #include <wou.h>
 #include <wb_regs.h>
 #include <mailtag.h>
+#include <sync_cmd.h>
 #define MAX_CHAN 8
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
@@ -382,8 +383,8 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data;/*, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
-                avg_vel, position_at_match, position_cmd_at_match;*/
+    int32_t     pid_output, original_adc_data, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
+                avg_vel, position_at_match, position_cmd_at_match;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
 #if (MBOX_LOG)
@@ -425,7 +426,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         original_adc_data = *p;
         // risc optional output
-        /*
+
         p+=1;
         pos_cmd = *p;
 
@@ -444,7 +445,7 @@ static void fetchmail(const uint8_t *buf_head)
         p+=1;
         position_at_match = *p;
         p+=1;
-        position_cmd_at_match = *p;*/
+        position_cmd_at_match = *p;
 //        p += 1;
 //        cmd_accum = (*p);
 /*        p += 1;
@@ -461,9 +462,9 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X \n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0]/*,pos_cmd, pos, vel_cmd, ff_vel,
-                vel_error, bp_to_vel_match, avg_vel, position_at_match, position_cmd_at_match*/);
+        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d  %10d %10d %10d  %10d %10d %10d  %10d %10d\n",
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],pos_cmd, pos, vel_cmd, ff_vel,
+                vel_error, bp_to_vel_match, avg_vel, position_at_match, position_cmd_at_match);
 
 #endif
         break;
@@ -946,8 +947,8 @@ static void update_freq(void *arg, long period)
                 sizeof(uint16_t), data);
         // end: setup sync timeout
         // begin: trigger sync in and wait timeout 
-        sync_cmd = SYNC_DIN | SYNC_IO_ID(*(machine_control->sync_in)) |
-                                           SYNC_DI_TYPE(*(machine_control->wait_type));
+        sync_cmd = SYNC_DIN | PACK_IO_ID(*(machine_control->sync_in)) |
+                                           PACK_DI_TYPE(*(machine_control->wait_type));
         wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
                                       sizeof(uint16_t), (uint8_t *) &sync_cmd);
         // end: trigger sync in and wait timeout
@@ -964,7 +965,7 @@ static void update_freq(void *arg, long period)
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
                 fprintf(stderr,"plasma_switch(%d)\n",
                         *(machine_control->sync_out[i]));
-                sync_cmd = SYNC_DOUT | SYNC_IO_ID(i) | SYNC_DO_VAL(*(machine_control->sync_out[i]));
+                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
@@ -1164,13 +1165,15 @@ static void update_freq(void *arg, long period)
                         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                                 sizeof(uint16_t), data);
                     }
-                    sync_cmd = SYNC_MOT_PARM | FRACTION_BITS | (n & SFIFO_MOT_PARM_ID_MASK);
+                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(FRACTION_BIT) |PACK_MOT_PARAM_ID(n);
                     memcpy(data, &sync_cmd, sizeof(uint16_t));
                     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                                 sizeof(uint16_t), data);
                     // to send velocity
                     immediate_data = (uint32_t)(stepgen->maxvel*(stepgen->pos_scale)*
                                                     dt*(1 << pulse_fraction_bit[n]));
+                    fprintf(stderr,"j[%d] max_pulse_per_bp*2^%d = (%d) ", n, pulse_fraction_bit[n], immediate_data);
+                    assert(immediate_data>0);
                     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
                     for(j=0; j<sizeof(uint32_t); j++) {
 
@@ -1181,7 +1184,7 @@ static void update_freq(void *arg, long period)
                                 sizeof(uint16_t), data);
 
                     }
-                    sync_cmd = SYNC_MOT_PARM | MAX_VELOCITY_VAL | (n & SFIFO_MOT_PARM_ID_MASK);
+                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_VELOCITY) | PACK_MOT_PARAM_ID(n);
                     memcpy(data, &sync_cmd, sizeof(uint16_t));
                     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                                 sizeof(uint16_t), data);
@@ -1189,6 +1192,8 @@ static void update_freq(void *arg, long period)
                     // to send acceleration
                     immediate_data = (uint32_t)(stepgen->maxaccel*(stepgen->pos_scale)*dt*
                                                     dt*(1 << pulse_fraction_bit[n]));
+                    fprintf(stderr,"max_pulse_diff_per_bp*2^%d = (%d) ", pulse_fraction_bit[n], immediate_data);
+                    assert(immediate_data>0);
                     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
                     for(j=0; j<sizeof(uint32_t); j++) {
                         sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1196,7 +1201,8 @@ static void update_freq(void *arg, long period)
                         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                                 sizeof(uint16_t), data);
                     }
-                    sync_cmd = SYNC_MOT_PARM | MAX_ACCEL_VAL | (n & SFIFO_MOT_PARM_ID_MASK);
+                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL) | PACK_MOT_PARAM_ID(n);
+
                     memcpy(data, &sync_cmd, sizeof(uint16_t));
                     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                             sizeof(uint16_t), data);
@@ -1204,6 +1210,8 @@ static void update_freq(void *arg, long period)
                     // to send acceleration recip
                     immediate_data = (uint32_t)((1/(stepgen->maxaccel*(stepgen->pos_scale)*dt*
                                                     dt))*(1 << pulse_fraction_bit[n]));
+                    fprintf(stderr,"(max_pulse_diff_recip_per_bp)*2^%d = d(%d)\n", pulse_fraction_bit[n], immediate_data);
+                    assert(immediate_data>0);
                     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
                     for(j=0; j<sizeof(uint32_t); j++) {
 
@@ -1213,7 +1221,9 @@ static void update_freq(void *arg, long period)
                         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                                 sizeof(uint16_t), data);
                     }
-                    sync_cmd = SYNC_MOT_PARM | MAX_ACC_RECIP_VAL | (n & SFIFO_MOT_PARM_ID_MASK);
+
+                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_RECIP) | PACK_MOT_PARAM_ID(n);
+
                     memcpy(data, &sync_cmd, sizeof(uint16_t));
                     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                             sizeof(uint16_t), data);
@@ -1221,6 +1231,7 @@ static void update_freq(void *arg, long period)
                 }
                 // to send position compensation velocity
                 immediate_data = thc_velocity;
+                assert(immediate_data>0);
                 immediate_data = immediate_data > 0? immediate_data:-immediate_data;
                 for(j=0; j<sizeof(uint32_t); j++) {
                     sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1228,7 +1239,8 @@ static void update_freq(void *arg, long period)
                     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                            sizeof(uint16_t), data);
                 }
-                sync_cmd = SYNC_MOT_PARM | COMP_VEL_VAL | (2 & SFIFO_MOT_PARM_ID_MASK); // apply THC to Z
+                // apply THC to Z
+                sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(COMP_VEL) | PACK_MOT_PARAM_ID(2);
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                        sizeof(uint16_t), data);
@@ -1355,7 +1367,7 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - stepgen->cur_pos) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
-            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
+            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
@@ -1367,6 +1379,7 @@ static void update_freq(void *arg, long period)
                 stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
                 // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
+
                 // data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20);
                 // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
             } else {
