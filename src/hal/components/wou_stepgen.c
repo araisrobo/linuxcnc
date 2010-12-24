@@ -736,7 +736,6 @@ int rtapi_app_main(void)
         /*fprintf(stderr,"[%d] maxvel(%s) maxaccel(%s) home_vel(%s) home_search_vel(%s) home_latch_vel(%s) pos_scale(%s)\n",
                 n, max_vel_str[n], max_accel_str[n], home_vel_str[n], home_search_vel_str[n],
                 home_latch_vel_str[n], pos_scale_str[n]);*/
-
         // joint acceleration, acceleration_rcip, velocity, fraction_bits
         // compensation velocity
         // to send fraction bits
@@ -747,12 +746,13 @@ int rtapi_app_main(void)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+            wou_flush(&w_param);
         }
         sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(FRACTION_BIT) |PACK_MOT_PARAM_ID(n);
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-
+        wou_flush(&w_param);
         pos_scale = atof(pos_scale_str[n]);
         max_vel = atof(max_vel_str[n]);
         // to send velocity
@@ -769,13 +769,13 @@ int rtapi_app_main(void)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-
+            wou_flush(&w_param);
         }
         sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_VELOCITY) | PACK_MOT_PARAM_ID(n);
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-
+        wou_flush(&w_param);
         // to send acceleration
         max_accel = atof(max_accel_str[n]);
         immediate_data = (uint32_t)(max_accel*pos_scale*dt*
@@ -790,13 +790,14 @@ int rtapi_app_main(void)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+            wou_flush(&w_param);
         }
         sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL) | PACK_MOT_PARAM_ID(n);
 
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
-
+        wou_flush(&w_param);
         // to send acceleration recip
 
 
@@ -812,13 +813,14 @@ int rtapi_app_main(void)
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
+            wou_flush(&w_param);
         }
         sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_RECIP) | PACK_MOT_PARAM_ID(n);
 
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
-
+        wou_flush(&w_param);
     }
     // to send position compensation velocity
     immediate_data = thc_velocity;
