@@ -130,8 +130,9 @@
 #include <stdio.h>
 #include "rtapi_math.h"
 #include "motion.h"
-
 #include <stdint.h>
+#include <stdlib.h>
+
 #include <wou.h>
 #include <wb_regs.h>
 #include <mailtag.h>
@@ -193,8 +194,7 @@ RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
 
 int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
-// int jcmd_dir_pol = -1;
-// RTAPI_MP_INT(jcmd_dir_pol, "WOU Register Value for JCMD_DIR_POL");
+
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
@@ -207,16 +207,45 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
 RTAPI_MP_ARRAY_INT(pulse_fraction_bit, MAX_CHAN,
                    "Pulse command fraction bits for up to 8 channels");
-
 int thc_velocity = 5;
-RTAPI_MP_INT(thc_velocity, "Define THC velocity");
+RTAPI_MP_INT(thc_velocity, "Torch Height Control velocity");
+
+const char *max_vel_str[MAX_CHAN] =
+    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+RTAPI_MP_ARRAY_STRING(max_vel_str, MAX_CHAN,
+                      "max velocity value for up to 8 channels");
+
+const char *max_accel_str[MAX_CHAN] =
+    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+RTAPI_MP_ARRAY_STRING(max_accel_str, MAX_CHAN,
+                      "max acceleration value for up to 8 channels");
+
+const char *home_vel_str[MAX_CHAN] =
+    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
+RTAPI_MP_ARRAY_STRING(home_vel_str, MAX_CHAN,
+                      "home velocity value for up to 8 channels");
+
+const char *home_latch_vel_str[MAX_CHAN] =
+    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
+RTAPI_MP_ARRAY_STRING(home_latch_vel_str, MAX_CHAN,
+                      "home_latch velocity value for up to 8 channels");
+
+const char *home_search_vel_str[MAX_CHAN] =
+    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
+RTAPI_MP_ARRAY_STRING(home_search_vel_str, MAX_CHAN,
+                      "home_latch velocity value for up to 8 channels");
+
+const char *pos_scale_str[MAX_CHAN] =
+    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
+RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
+                      "pos scale value for up to 8 channels");
 
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
-static int mot_parm_configured = 0;
+
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 
 
@@ -497,11 +526,12 @@ static void fetchmail(const uint8_t *buf_head)
 
 int rtapi_app_main(void)
 {
-    int n, retval;
+    int n, retval, j;
 
     uint8_t data[MAX_DSIZE];
-//    int ret;
-
+    int32_t immediate_data;
+    uint16_t sync_cmd;
+    double max_vel, max_accel, pos_scale;
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
@@ -690,17 +720,121 @@ int rtapi_app_main(void)
 			"STEPGEN: ERROR: no channels configured\n");
 	return -1;
     }
-
     /* test for dt: servo_period_ns */
     if ((servo_period_ns == -1)) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"WOU: ERROR: no value for servo_period_ns\n");
-	return -1;
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "WOU: ERROR: no value for servo_period_ns\n");
+        return -1;
     } else {
         /* precompute some constants */
         dt = (double) servo_period_ns * 0.000000001;
         recip_dt = 1.0 / dt;
     }
+
+    /* configure motion parameters for risc*/
+    for(n=0; n<num_chan; n++) {
+        /*fprintf(stderr,"[%d] maxvel(%s) maxaccel(%s) home_vel(%s) home_search_vel(%s) home_latch_vel(%s) pos_scale(%s)\n",
+                n, max_vel_str[n], max_accel_str[n], home_vel_str[n], home_search_vel_str[n],
+                home_latch_vel_str[n], pos_scale_str[n]);*/
+
+        // joint acceleration, acceleration_rcip, velocity, fraction_bits
+        // compensation velocity
+        // to send fraction bits
+        immediate_data = (uint32_t)(pulse_fraction_bit[n]);
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(FRACTION_BIT) |PACK_MOT_PARAM_ID(n);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+
+        pos_scale = atof(pos_scale_str[n]);
+        max_vel = atof(max_vel_str[n]);
+        // to send velocity
+        immediate_data = (uint32_t)(max_vel*pos_scale*
+                                        dt*(1 << pulse_fraction_bit[n]));
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+        fprintf(stderr,"j[%d] max_pulse_per_bp*2^%d = (%d) ", n, pulse_fraction_bit[n], immediate_data);
+
+        assert(immediate_data>0);
+        for(j=0; j<sizeof(uint32_t); j++) {
+
+
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+
+        }
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_VELOCITY) | PACK_MOT_PARAM_ID(n);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+
+        // to send acceleration
+        max_accel = atof(max_accel_str[n]);
+        immediate_data = (uint32_t)(max_accel*pos_scale*dt*
+                                        dt*(1 << pulse_fraction_bit[n]));
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+        fprintf(stderr,"max_pulse_diff_per_bp*2^%d = (%d) ", pulse_fraction_bit[n], immediate_data);
+
+        assert(immediate_data>0);
+
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL) | PACK_MOT_PARAM_ID(n);
+
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+
+        // to send acceleration recip
+
+
+        immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
+                                        dt))*(1 << pulse_fraction_bit[n]));
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+        fprintf(stderr,"(max_pulse_diff_recip_per_bp)*2^%d = (%d)\n", pulse_fraction_bit[n], immediate_data);
+        assert(immediate_data>0);
+        for(j=0; j<sizeof(uint32_t); j++) {
+
+
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        }
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_RECIP) | PACK_MOT_PARAM_ID(n);
+
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+
+    }
+    // to send position compensation velocity
+    immediate_data = thc_velocity;
+//    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+    for(j=0; j<sizeof(uint32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+               sizeof(uint16_t), data);
+    }
+    // apply THC to Z
+    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(COMP_VEL) | PACK_MOT_PARAM_ID(2);
+    memcpy(data, &sync_cmd, sizeof(uint16_t));
+    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+           sizeof(uint16_t), data);
+
 
     /* have good config info, connect to the HAL */
     comp_id = hal_init("wou");
@@ -1150,102 +1284,6 @@ static void update_freq(void *arg, long period)
         if (*stepgen->enable) {
             data[0] = 2/*3*/;   // SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-            if( mot_parm_configured == 0) {
-                // TODO: remove when link going well while ssif disabled
-               // mot_parm_configured = 1;
-                for(n=0;n<num_chan;n++) {
-                    // joint acceleration, acceleration_rcip, velocity, fraction_bits
-                    // compensation velocity
-                    // to send fraction bits
-                    immediate_data = (uint32_t)(pulse_fraction_bit[n]);
-                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-                    for(j=0; j<sizeof(uint32_t); j++) {
-                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                        memcpy(data, &sync_cmd, sizeof(uint16_t));
-                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-                    }
-                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(FRACTION_BIT) |PACK_MOT_PARAM_ID(n);
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-                    // to send velocity
-                    immediate_data = (uint32_t)(stepgen->maxvel*(stepgen->pos_scale)*
-                                                    dt*(1 << pulse_fraction_bit[n]));
-                    fprintf(stderr,"j[%d] max_pulse_per_bp*2^%d = (%d) ", n, pulse_fraction_bit[n], immediate_data);
-                    assert(immediate_data>0);
-                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-                    for(j=0; j<sizeof(uint32_t); j++) {
-
-
-                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                        memcpy(data, &sync_cmd, sizeof(uint16_t));
-                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-
-                    }
-                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_VELOCITY) | PACK_MOT_PARAM_ID(n);
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-
-                    // to send acceleration
-                    immediate_data = (uint32_t)(stepgen->maxaccel*(stepgen->pos_scale)*dt*
-                                                    dt*(1 << pulse_fraction_bit[n]));
-                    fprintf(stderr,"max_pulse_diff_per_bp*2^%d = (%d) ", pulse_fraction_bit[n], immediate_data);
-                    assert(immediate_data>0);
-                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-                    for(j=0; j<sizeof(uint32_t); j++) {
-                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                        memcpy(data, &sync_cmd, sizeof(uint16_t));
-                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-                    }
-                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL) | PACK_MOT_PARAM_ID(n);
-
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                            sizeof(uint16_t), data);
-
-                    // to send acceleration recip
-                    immediate_data = (uint32_t)((1/(stepgen->maxaccel*(stepgen->pos_scale)*dt*
-                                                    dt))*(1 << pulse_fraction_bit[n]));
-                    fprintf(stderr,"(max_pulse_diff_recip_per_bp)*2^%d = d(%d)\n", pulse_fraction_bit[n], immediate_data);
-                    assert(immediate_data>0);
-                    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-                    for(j=0; j<sizeof(uint32_t); j++) {
-
-
-                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                        memcpy(data, &sync_cmd, sizeof(uint16_t));
-                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-                    }
-
-                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_RECIP) | PACK_MOT_PARAM_ID(n);
-
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                            sizeof(uint16_t), data);
-
-                }
-                // to send position compensation velocity
-                immediate_data = thc_velocity;
-                assert(immediate_data>0);
-                immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-                for(j=0; j<sizeof(uint32_t); j++) {
-                    sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                           sizeof(uint16_t), data);
-                }
-                // apply THC to Z
-                sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(COMP_VEL) | PACK_MOT_PARAM_ID(2);
-                memcpy(data, &sync_cmd, sizeof(uint16_t));
-                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                       sizeof(uint16_t), data);
-            }
-
             wou_flush(&w_param);
         } else {
             data[0] = 0; // RESET GPIO_OUT
