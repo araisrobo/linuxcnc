@@ -132,6 +132,7 @@
 #include "motion.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -220,6 +221,11 @@ const char *max_accel_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(max_accel_str, MAX_CHAN,
                       "max acceleration value for up to 8 channels");
 
+const char *pos_scale_str[MAX_CHAN] =
+    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
+RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
+                      "pos scale value for up to 8 channels");
+
 const char *home_vel_str[MAX_CHAN] =
     { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
 RTAPI_MP_ARRAY_STRING(home_vel_str, MAX_CHAN,
@@ -235,11 +241,11 @@ const char *home_search_vel_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(home_search_vel_str, MAX_CHAN,
                       "home_latch velocity value for up to 8 channels");
 
-const char *pos_scale_str[MAX_CHAN] =
-    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
-RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
-                      "pos scale value for up to 8 channels");
 
+const char *home_use_index_str[MAX_CHAN] =
+    { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
+RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
+                      "home use index flag for up to 8 channels");
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
@@ -804,7 +810,7 @@ int rtapi_app_main(void)
         immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
                                         dt))*(1 << pulse_fraction_bit[n]));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        fprintf(stderr,"(max_pulse_diff_recip_per_bp)*2^%d = (%d)\n", pulse_fraction_bit[n], immediate_data);
+        fprintf(stderr,"(max_pulse_diff_recip_per_bp)*2^%d = (%d) ", pulse_fraction_bit[n], immediate_data);
         assert(immediate_data>0);
         for(j=0; j<sizeof(uint32_t); j++) {
 
@@ -821,6 +827,29 @@ int rtapi_app_main(void)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
+
+        // send home use index flag
+        if(strcmp(home_use_index_str[n],"YES")==0) {
+            immediate_data = 1;
+            fprintf(stderr,"use_index = yes\n");
+        } else {
+            immediate_data = 0;
+            fprintf(stderr,"use_index = no\n");
+        }
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+            wou_flush(&w_param);
+        }
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(USE_INDEX) | PACK_MOT_PARAM_ID(n);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        wou_flush(&w_param);
+
+
     }
     // to send position compensation velocity
     immediate_data = thc_velocity;
@@ -1068,7 +1097,7 @@ static void update_freq(void *arg, long period)
 
        // begin: setup sync timeout
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
-        //immediate_data = 153*1000; // ticks about 0.6 sec
+        //immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
         // transmit immediate data
         fprintf(stderr,"set risc timeout(%u)\n",immediate_data);
         for(j=0; j<sizeof(uint32_t); j++) {
@@ -1162,7 +1191,16 @@ static void update_freq(void *arg, long period)
 		    // set r_switch_en to locate SWITCH_POS
 		    // r_switch_en is reset by HW 
 		    r_switch_en |= (1 << n);
+
+		    //TODO: make risc understand, it is on homing motion.
+
 		}
+	    } else {
+	        if (stepgen->prev_home_state != *stepgen->home_state) {
+
+                    //TODO: make risc understand, it is leaving homing motion.
+
+                }
 	    }
 
 	    /* check if we should wait for Motor Index Toggle */
