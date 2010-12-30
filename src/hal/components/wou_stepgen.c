@@ -238,6 +238,7 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
+static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 
@@ -1166,6 +1167,7 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
                 prev_switch_pos = switch_pos_tmp;
 	    }
+
 	    /* check if we should wait for HOME Switch Toggle */
 	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
 		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
@@ -1217,16 +1219,15 @@ static void update_freq(void *arg, long period)
                         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                                 sizeof(uint16_t), data);
                         wou_flush(&w_param);
-                        /*fprintf(stderr,"j[%d] config move type (%d) state(%d)\n",
-                                n , immediate_data,  *stepgen->home_state);*/
+
                     }
 
 		}
 
-	    } else {
-	        if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
+	    } else if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
 	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
-	            immediate_data = NORMAL_MOVE;
+                if(normal_move_flag[n] == 1) {
+                    immediate_data = NORMAL_MOVE;
 
                     for(j=0; j<sizeof(uint32_t); j++) {
                         sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1241,14 +1242,16 @@ static void update_freq(void *arg, long period)
                             sizeof(uint16_t), data);
                     wou_flush(&w_param);
 
-                    (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
-                    (*stepgen->pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
-	        }
-	        /*if (stepgen->prev_home_state != *stepgen->home_state) {
-	            fprintf(stderr,"j[%d]   state(%d)\n",
-                                            n,  *stepgen->home_state);
-	        }*/
-	    }
+
+                    normal_move_flag[n] = 0;
+                }
+                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
+                (*stepgen->pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
+            } else if(*stepgen->home_state == HOME_START) {
+                normal_move_flag[n] = 1;
+            }
+
+
 
 	    /* check if we should wait for Motor Index Toggle */
 	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
