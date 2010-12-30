@@ -133,6 +133,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -246,6 +247,8 @@ const char *home_use_index_str[MAX_CHAN] =
     { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
 RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
                       "home use index flag for up to 8 channels");
+
+static int home_use_index[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
@@ -537,7 +540,8 @@ int rtapi_app_main(void)
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
     uint16_t sync_cmd;
-    double max_vel, max_accel, pos_scale;
+    char str[50];
+    double max_vel, max_accel, pos_scale, home_vel;
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
@@ -739,14 +743,30 @@ int rtapi_app_main(void)
 
     /* configure motion parameters for risc*/
     for(n=0; n<num_chan; n++) {
-        /*fprintf(stderr,"[%d] maxvel(%s) maxaccel(%s) home_vel(%s) home_search_vel(%s) home_latch_vel(%s) pos_scale(%s)\n",
-                n, max_vel_str[n], max_accel_str[n], home_vel_str[n], home_search_vel_str[n],
-                home_latch_vel_str[n], pos_scale_str[n]);*/
-        // joint acceleration, acceleration_rcip, velocity, fraction_bits
-        // compensation velocity
-        // to send fraction bits
+
+        // config home_Vel
+        home_vel = atof(home_vel_str[n]);
+        immediate_data = (uint32_t)(home_vel*pos_scale*
+                dt*(1 << pulse_fraction_bit[n]));
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+        fprintf(stderr,"j[%d] home_vel(%d) ",
+                        n, immediate_data);
+        for(j=0; j<sizeof(uint32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+            wou_flush(&w_param);
+        }
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(HOME_VEL) |PACK_MOT_PARAM_ID(n);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), data);
+        wou_flush(&w_param);
+        // config fraction bits
         immediate_data = (uint32_t)(pulse_fraction_bit[n]);
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -761,11 +781,12 @@ int rtapi_app_main(void)
         wou_flush(&w_param);
         pos_scale = atof(pos_scale_str[n]);
         max_vel = atof(max_vel_str[n]);
-        // to send velocity
+        // config velocity
         immediate_data = (uint32_t)(max_vel*pos_scale*
                                         dt*(1 << pulse_fraction_bit[n]));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        fprintf(stderr,"j[%d] max_pulse_per_bp*2^%d = (%d) ", n, pulse_fraction_bit[n], immediate_data);
+        fprintf(stderr," max_vel(%f)*pos_scale(%f)*dt(%f)*2^%d = (%d) ",
+                max_vel, pos_scale, dt, pulse_fraction_bit[n], immediate_data);
 
         assert(immediate_data>0);
         for(j=0; j<sizeof(uint32_t); j++) {
@@ -782,12 +803,13 @@ int rtapi_app_main(void)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
         wou_flush(&w_param);
-        // to send acceleration
+        // config acceleration
         max_accel = atof(max_accel_str[n]);
         immediate_data = (uint32_t)(max_accel*pos_scale*dt*
                                         dt*(1 << pulse_fraction_bit[n]));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        fprintf(stderr,"max_pulse_diff_per_bp*2^%d = (%d) ", pulse_fraction_bit[n], immediate_data);
+        fprintf(stderr,"max_accel(%f)*pos_scale(%f)*dt(%f)*dt(%f)*2^%d = (%d) ",
+                max_accel, pos_scale, dt, dt, pulse_fraction_bit[n], immediate_data);
 
         assert(immediate_data>0);
 
@@ -804,17 +826,14 @@ int rtapi_app_main(void)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
-        // to send acceleration recip
-
-
+        // config acceleration recip
         immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
                                         dt))*(1 << pulse_fraction_bit[n]));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        fprintf(stderr,"(max_pulse_diff_recip_per_bp)*2^%d = (%d) ", pulse_fraction_bit[n], immediate_data);
+        fprintf(stderr,"(1/(max_accel(%f)*pos_scale(%f)*dt(%f)*dt(%f)))*2^%d = (%d) ",
+                max_accel, pos_scale, dt, dt, pulse_fraction_bit[n], immediate_data);
         assert(immediate_data>0);
         for(j=0; j<sizeof(uint32_t); j++) {
-
-
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
@@ -828,14 +847,22 @@ int rtapi_app_main(void)
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
 
-        // send home use index flag
-        if(strcmp(home_use_index_str[n],"YES")==0) {
-            immediate_data = 1;
+        // config move type
+        for(j = 0; home_use_index_str[j]; j++) {
+            str[j] = toupper(home_use_index_str[n][j]);
+        }
+        str[j] = '\0';
+
+        if((strcmp(str,"YES") == 0)) {
+            home_use_index[n] = 1;
             fprintf(stderr,"use_index = yes\n");
         } else {
-            immediate_data = 0;
             fprintf(stderr,"use_index = no\n");
+            home_use_index[n] = 0;
         }
+
+        // set move type as normal by default
+        immediate_data = NORMAL_MOVE;
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -843,13 +870,11 @@ int rtapi_app_main(void)
                     sizeof(uint16_t), data);
             wou_flush(&w_param);
         }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(USE_INDEX) | PACK_MOT_PARAM_ID(n);
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MOTION_TYPE) | PACK_MOT_PARAM_ID(n);
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
-
-
     }
     // to send position compensation velocity
     immediate_data = thc_velocity;
@@ -1166,6 +1191,7 @@ static void update_freq(void *arg, long period)
     r_index_en = prev_r_index_en;
     for (n = 0; n < num_chan; n++) {
 	if (*stepgen->home_state != HOME_IDLE) {
+	    static hal_s32_t prev_switch_pos;
 	    hal_s32_t switch_pos_tmp;
 	    hal_s32_t index_pos_tmp;
 	    /* update home switch and motor index position while homing */
@@ -1178,9 +1204,10 @@ static void update_freq(void *arg, long period)
             
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
-	    
-            // fprintf(stderr, "wou: switch_pos(%f)\n", *(stepgen->switch_pos));
-
+	    if(prev_switch_pos != switch_pos_tmp) {
+                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
+                prev_switch_pos = switch_pos_tmp;
+	    }
 	    /* check if we should wait for HOME Switch Toggle */
 	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
 		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
@@ -1192,15 +1219,75 @@ static void update_freq(void *arg, long period)
 		    // r_switch_en is reset by HW 
 		    r_switch_en |= (1 << n);
 
-		    //TODO: make risc understand, it is on homing motion.
+		   /* fprintf(stderr,"j[%d] wait state(%d)\n",
+		                                n,  *stepgen->home_state);*/
+
+		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
+                        immediate_data = SEARCH_HOME_HIGH;
+                    } else if((*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT)) {
+                        immediate_data = SEARCH_HOME_LOW;
+                    } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
+                        immediate_data = SEARCH_HOME_LOW;
+                    } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
+                        if(home_use_index[n] == 1) {
+                            immediate_data = SWITCH_INDEX_HOME_MOVE;
+                        } else {
+                            immediate_data = SEARCH_HOME_HIGH;
+                        }
+                    } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
+                        if(home_use_index[n] == 1) {
+                            immediate_data = SWITCH_INDEX_HOME_MOVE;
+                        } else {
+                            immediate_data = SEARCH_HOME_LOW;
+                        }
+                    } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
+
+
+                            immediate_data = INDEX_HOME_MOVE;
+                    }
+
+                    if (stepgen->prev_home_state != *stepgen->home_state) {
+                        for(j=0; j<sizeof(uint32_t); j++) {
+                            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                            memcpy(data, &sync_cmd, sizeof(uint16_t));
+                            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                    sizeof(uint16_t), data);
+                            wou_flush(&w_param);
+                        }
+                        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MOTION_TYPE) | PACK_MOT_PARAM_ID(n);
+                        memcpy(data, &sync_cmd, sizeof(uint16_t));
+                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+                        wou_flush(&w_param);
+                        /*fprintf(stderr,"j[%d] config move type (%d) state(%d)\n",
+                                n , immediate_data,  *stepgen->home_state);*/
+                    }
 
 		}
+
 	    } else {
-	        if (stepgen->prev_home_state != *stepgen->home_state) {
+	        if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
+	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
+	            immediate_data = NORMAL_MOVE;
 
-                    //TODO: make risc understand, it is leaving homing motion.
+                    for(j=0; j<sizeof(uint32_t); j++) {
+                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+                        memcpy(data, &sync_cmd, sizeof(uint16_t));
+                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                                sizeof(uint16_t), data);
+                        wou_flush(&w_param);
+                    }
+                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MOTION_TYPE) | PACK_MOT_PARAM_ID(n);
+                    memcpy(data, &sync_cmd, sizeof(uint16_t));
+                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                            sizeof(uint16_t), data);
+                    wou_flush(&w_param);
 
-                }
+	        }
+	        /*if (stepgen->prev_home_state != *stepgen->home_state) {
+	            fprintf(stderr,"j[%d]   state(%d)\n",
+                                            n,  *stepgen->home_state);
+	        }*/
 	    }
 
 	    /* check if we should wait for Motor Index Toggle */
@@ -1445,7 +1532,11 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - stepgen->cur_pos) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
+            /*if(n==0) {
+                fprintf(stderr,"pos_cmd(%f) cur_pos(%f) \n",(*stepgen->pos_cmd), stepgen->cur_pos);
+            }*/
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
+                fprintf(stderr,"pos_cmd(%f) cur_pos(%f) \n",(*stepgen->pos_cmd), stepgen->cur_pos);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
