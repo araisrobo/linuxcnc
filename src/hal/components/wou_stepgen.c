@@ -143,7 +143,7 @@
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -294,10 +294,10 @@ typedef struct {
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
-    int64_t      prev_pulse_cmd;
+
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
-    hal_float_t cur_pos;	/* current position (position units) */
+//    hal_float_t cur_pos;	/* current position (position units) */
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
@@ -307,8 +307,7 @@ typedef struct {
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
 
     double vel_fb;
-    double prev_pos_cmd;	/* prev pos_cmd in counts */
-    double prev_pos;		/* prev position in counts */
+    double prev_pos_cmd;	/* prev pos_cmd: previous position command */
     double sum_err_0;
     double sum_err_1;
 } stepgen_t;
@@ -484,12 +483,7 @@ static void fetchmail(const uint8_t *buf_head)
         position_at_match = *p;
         p+=1;
         position_cmd_at_match = *p;
-//        p += 1;
-//        cmd_accum = (*p);
-/*        p += 1;
-        req_vel = *p;
-        p += 1;
-        cur_vel = *p;*/
+
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -546,16 +540,16 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
-    DPS("#%10s  %17s%15s%15s%15s%7s  %17s%15s%15s%15s%7s  %17s%15s%15s%15s%7s  %17s%15s%15s%15s%7s\n", 
+    DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s\n",
          "1.dt", 
-         "2.pos_cmd[0]", "3.cur_pos[0]", "4.pos_fb[0]", 
-         "5.curr_vel[0]", "6.home[0]", 
-         "7.pos_cmd[1]", "8.cur_pos[1]", "9.pos_fb[1]", 
-         "10.curr_vel[1]", "11.home[1]", 
-         "12.pos_cmd[2]", "13.cur_pos[2]", "14.pos_fb[2]", 
-         "15.curr_vel[2]", "16.home[2]", 
-         "17.pos_cmd[3]", "18.cur_pos[3]", "19.pos_fb[3]", 
-         "20.curr_vel[3]", "21.home[3]");
+         "3.prev_pos_cmd[0]", "4.pos_fb[0]",
+         "6.home[0]",
+         "8.prev_pos_cmd[1]", "9.pos_fb[1]",
+         "11.home[1]",
+         "13.prev_pos_cmd[2]", "14.pos_fb[2]",
+         "16.home[2]",
+         "18.prev_pos_cmd[3]", "19.pos_fb[3]",
+         "21.home[3]");
 #endif
     
     pending_cnt = 0;
@@ -1283,6 +1277,8 @@ static void update_freq(void *arg, long period)
                             sizeof(uint16_t), data);
                     wou_flush(&w_param);
 
+                    (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
+                    (*stepgen->pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
 	        }
 	        /*if (stepgen->prev_home_state != *stepgen->home_state) {
 	            fprintf(stderr,"j[%d]   state(%d)\n",
@@ -1327,7 +1323,7 @@ static void update_freq(void *arg, long period)
                        way between integer positions, not at the integer positions */
                     stepgen->rawcount = *(stepgen->enc_pos);
 //                    stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF) + (1L << (PICKOFF-1));
-                    stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip
+                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip
                                                 /** (1.0/(1L << PICKOFF))*/;
                 }
                 fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
@@ -1440,14 +1436,12 @@ static void update_freq(void *arg, long period)
 	    stepgen->freq = 0;
             
             /* to prevent position drift while toggeling "PWR-ON" switch */
-            stepgen->cur_pos = (double) (stepgen->rawcount) * stepgen->scale_recip;
-            // less accurate: stepgen->cur_pos = ((double) stepgen->rawcount) * stepgen->scale_recip;
-	    *(stepgen->pos_fb) = stepgen->cur_pos;
-	    stepgen->prev_pos_cmd = (*stepgen->pos_cmd);
+            (stepgen->prev_pos_cmd) = (double) (*stepgen->enc_pos) * stepgen->scale_recip;
+            // less accurate: (stepgen->prev_pos_cmd) = ((double) stepgen->rawcount) * stepgen->scale_recip;
+	    *(stepgen->pos_fb) = (stepgen->prev_pos_cmd);
 	    stepgen->vel_fb = 0;
             
             r_load_pos = 0;
-
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
                 r_load_pos |= (1 << n);
                 /**
@@ -1456,19 +1450,17 @@ static void update_freq(void *arg, long period)
                  * positions.
                  **/
                 stepgen->rawcount = *(stepgen->enc_pos);
-                /*stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF)
-                                 + (1L << (PICKOFF-1));*/
                 /* load SWITCH, INDEX, and PULSE positions with ENC_POS */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
                 fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-                fprintf(stderr, "j[%d] cur_pos(%f) pos_cmd(%f) rawcount(%lld)\n",
-                        n, stepgen->cur_pos, *(stepgen->pos_cmd), stepgen->rawcount);
+                fprintf(stderr, "j[%d] prev_pos_cmd(%f) pos_cmd(%f) rawcount(%lld)\n",
+                        n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
-                
-//SERVO:            stepgen->cur_pos = *(stepgen->pos_fb);
+
+//SERVO:            (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
 //SERVO:            if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
 //SERVO:                r_load_pos |= (1 << n);
 //SERVO:                /* accumulator gets a half step offset, so it will step half
@@ -1490,8 +1482,7 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
 
-	*(stepgen->pos_fb) = stepgen->cur_pos;
-
+	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
@@ -1528,36 +1519,25 @@ static void update_freq(void *arg, long period)
 
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
-
 	if (stepgen->pos_mode) {
-            wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - stepgen->cur_pos) *
+            wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
-            /*if(n==0) {
-                fprintf(stderr,"pos_cmd(%f) cur_pos(%f) \n",(*stepgen->pos_cmd), stepgen->cur_pos);
-            }*/
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
-                fprintf(stderr,"pos_cmd(%f) cur_pos(%f) \n",(*stepgen->pos_cmd), stepgen->cur_pos);
+                fprintf(stderr,"pos_cmd(%f) prev_pos_cmd(%f) \n",(*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
+                fprintf(stderr,"wou_stepgen.c: prev_home_state(%d), home_state(%d)\n", 
+                        stepgen->prev_home_state, *stepgen->home_state);
                 assert(0);
             }
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
-
+            (stepgen->prev_pos_cmd) += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
             if (wou_pos_cmd >= 0) {
-                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
-                // data[0]: MSB {dir, pos[12:8]}, dir(1): positive
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
-
-                // data[2*n    ] = (uint8_t) (((wou_pos_cmd >> 8) & 0x1F) | 0x20);
-                // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
             } else {
-                // data[0]: MSB {dir, pos[12:8]}, dir(0): negative
-                stepgen->cur_pos += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
                 wou_pos_cmd *= -1;
                 sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
-                // data[2*n    ] = (uint8_t) ((wou_pos_cmd >> 8) & 0x1F);
-                // data[2*n + 1] = (uint8_t) (wou_pos_cmd & 0xFF);
             }
             memcpy(data + n * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
@@ -1574,9 +1554,9 @@ static void update_freq(void *arg, long period)
                     WB_WR_CMD,
                     (JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
         }
-	DPS("%15.7f%15.7f%15.7f%7d",
-	    stepgen->cur_pos, *stepgen->pos_fb, 
-            new_vel, *stepgen->home_state);
+	DPS("%15.7f%15.7f%7d",
+	    (stepgen->prev_pos_cmd), *stepgen->pos_fb,
+             *stepgen->home_state);
 
 	/* move on to next channel */
 	stepgen++;
@@ -1893,7 +1873,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	addr->dir_setup = 0;
     }
     /* init the step generator core to zero output */
-    addr->cur_pos = 0.0;
+//    addr->cur_pos = 0.0;
     /* accumulator gets a half step offset, so it will step half
        way between integer positions, not at the integer positions */
 //    addr->accum = 1L << (PICKOFF-1);
@@ -1901,7 +1881,6 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 
     addr->vel_fb = 0;
     addr->prev_pos_cmd = 0;
-    addr->prev_pos = 0;
     addr->sum_err_0 = 0;
     addr->sum_err_1 = 0;
 

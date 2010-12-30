@@ -438,7 +438,7 @@ void do_homing(void)
                 
                 // // DEBUG ysli:
 		// rtapi_print (
-                //   _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
+                //   _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"),
                 //     joint_num,
                 //     offset,
                 //     joint->switch_pos,
@@ -446,7 +446,7 @@ void do_homing(void)
                 //     joint->pos_fb,
                 //     joint->free_tp.curr_pos,
                 //     joint->motor_offset);
-                // // DEBUG ysli:
+                // DEBUG ysli:
                 
 		break;
 
@@ -604,6 +604,7 @@ void do_homing(void)
 			joint->free_tp.enable = 0;
 			/* go to next step */
 			joint->home_state = HOME_SET_SWITCH_POSITION;
+
 			immediate_state = 1;
 			break;
 		    }
@@ -637,11 +638,10 @@ void do_homing(void)
                          (joint->switch_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
 		   motor position */
-		joint->pos_cmd += offset;
-		joint->pos_fb += offset;
-		joint->free_tp.curr_pos += offset;
-		joint->motor_offset -= offset;
-                
+                joint->pos_fb += offset;
+                joint->pos_cmd = joint->pos_fb;
+                joint->free_tp.curr_pos = joint->pos_fb;
+                joint->motor_offset -= offset;
                 // DEBUG ysli:
 		rtapi_print (
                   _("HOME_SET_SWITCH_POS: j[%d] offset(%f) switch_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
