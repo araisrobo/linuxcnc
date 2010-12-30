@@ -227,22 +227,6 @@ const char *pos_scale_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
                       "pos scale value for up to 8 channels");
 
-const char *home_vel_str[MAX_CHAN] =
-    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
-RTAPI_MP_ARRAY_STRING(home_vel_str, MAX_CHAN,
-                      "home velocity value for up to 8 channels");
-
-const char *home_latch_vel_str[MAX_CHAN] =
-    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
-RTAPI_MP_ARRAY_STRING(home_latch_vel_str, MAX_CHAN,
-                      "home_latch velocity value for up to 8 channels");
-
-const char *home_search_vel_str[MAX_CHAN] =
-    { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
-RTAPI_MP_ARRAY_STRING(home_search_vel_str, MAX_CHAN,
-                      "home_latch velocity value for up to 8 channels");
-
-
 const char *home_use_index_str[MAX_CHAN] =
     { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
 RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
@@ -535,7 +519,7 @@ int rtapi_app_main(void)
     int32_t immediate_data;
     uint16_t sync_cmd;
     char str[50];
-    double max_vel, max_accel, pos_scale, home_vel;
+    double max_vel, max_accel, pos_scale;
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
@@ -737,26 +721,6 @@ int rtapi_app_main(void)
 
     /* configure motion parameters for risc*/
     for(n=0; n<num_chan; n++) {
-
-        // config home_Vel
-        home_vel = atof(home_vel_str[n]);
-        immediate_data = (uint32_t)(home_vel*pos_scale*
-                dt*(1 << pulse_fraction_bit[n]));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        fprintf(stderr,"j[%d] home_vel(%d) ",
-                        n, immediate_data);
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(HOME_VEL) |PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        wou_flush(&w_param);
         // config fraction bits
         immediate_data = (uint32_t)(pulse_fraction_bit[n]);
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
