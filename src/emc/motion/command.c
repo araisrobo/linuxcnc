@@ -327,18 +327,6 @@ void emcmotPosCompWrite(int pos_comp_en, int pos_comp_ref)
     *(emcmot_hal_data->pos_comp_en) = pos_comp_en;
     *(emcmot_hal_data->pos_comp_ref) = pos_comp_ref;
 }
-/*
- * M201 EMCMOT_SET_IMMEDIATE_POS replaced by EMCMOT_SET_POS_COMP
-void emcmotImmediatePosWrite(int axis, float pos)
-{
-    if((axis >= 9 || (axis < 0))) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "ERROR: axis out of range, %d not in [0...9] \n",axis);
-    } else {
-       *(emcmot_hal_data->immediate_pos_cmd[axis]) = pos;
-    }
-}
-*/
-
 /*! \function emcmotAioWrite()
 
   sets or clears a HAL AIO pin, 

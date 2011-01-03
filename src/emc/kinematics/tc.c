@@ -269,69 +269,97 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     R += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].R;
                 }
 
-                X = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_X) {
+                    X = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
 
-                }
-                X = X/R;
-                xyz.tran.x = X;
-
-                Y = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Y;
-                }
-                Y = Y/R;
-                xyz.tran.y = Y;
-
-                Z = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Z;
-                }
-                Z = Z/R;
-                xyz.tran.z = Z;
-
-                A = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        A += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].A;
-                }
-                A = A/R;
-                abc.tran.x = A;
-
-                B = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        B += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].B;
-                }
-                B = B/R;
-                abc.tran.y = B;
-
-                C = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        C += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].C;
-                }
-                C = C/R;
-                abc.tran.z = C;
-
-                U = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        U += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].U;
-                }
-                U = U/R;
-                uvw.tran.x = U;
-
-                V = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        V += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].V;
-                }
-                V = V/R;
-                uvw.tran.y = V;
-
-                W = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                        W += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].W;
-                }
-                W = W/R;
-                uvw.tran.z = W;
+                    }
+                    X = X/R;
+                    xyz.tran.x = X;
+//                } else {
+                //    xyz.tran.x = pos.tran.x;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_Y) {
+                    Y = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Y;
+                    }
+                    Y = Y/R;
+                    xyz.tran.y = Y;
+//                } else {
+                 //   xyz.tran.y = pos.tran.y;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_Z) {
+                    Z = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Z;
+                    }
+                    Z = Z/R;
+                    xyz.tran.z = Z;
+//                } else {
+                 //   xyz.tran.z = pos.tran.z;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_A) {
+                    A = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            A += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].A;
+                    }
+                    A = A/R;
+                    abc.tran.x = A;
+//                } else {
+                //    abc.tran.x = pos.a;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_B) {
+                    B = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            B += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].B;
+                    }
+                    B = B/R;
+                    abc.tran.y = B;
+//                } else {
+                 //   abc.tran.y = pos.b;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_C) {
+                    C = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            C += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].C;
+                    }
+                    C = C/R;
+                    abc.tran.z = C;
+//                } else {
+                 //   abc.tran.z = pos.c;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_U) {
+                    U = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            U += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].U;
+                    }
+                    U = U/R;
+                    uvw.tran.x = U;
+//                } else {
+                 //   uvw.tran.x = pos.u;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_V) {
+                    V = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            V += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].V;
+                    }
+                    V = V/R;
+                    uvw.tran.y = V;
+//                } else {
+                //    uvw.tran.y = pos.v;
+//                }
+//                if (tc->nurbs_block.axis_mask & AXIS_MASK_W) {
+                    W = 0.0;
+                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                            W += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].W;
+                    }
+                    W = W/R;
+                    uvw.tran.z = W;
+//                } else {
+                //    uvw.tran.z = pos.w;
+//                }
 
                 F = 0.0;
                 F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
