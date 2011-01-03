@@ -143,7 +143,7 @@
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0 
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
