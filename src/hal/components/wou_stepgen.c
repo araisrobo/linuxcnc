@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0 
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -405,8 +405,8 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data, pos_cmd, pos, vel_cmd, ff_vel, vel_error, bp_to_vel_match,
-                avg_vel, position_at_match, position_cmd_at_match;
+    int32_t     pid_output, original_adc_data, pos_cmd, pos, vel_cmd;/*, ff_vel, vel_error, bp_to_vel_match,
+                avg_vel, position_at_match, position_cmd_at_match*/
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
 #if (MBOX_LOG)
@@ -456,7 +456,7 @@ static void fetchmail(const uint8_t *buf_head)
         pos = *p;
         p+=1;
         vel_cmd = *p;
-        p+=1;
+        /*p+=1;
         ff_vel = *p;
         p+=1;
         vel_error = *p;
@@ -467,7 +467,7 @@ static void fetchmail(const uint8_t *buf_head)
         p+=1;
         position_at_match = *p;
         p+=1;
-        position_cmd_at_match = *p;
+        position_cmd_at_match = *p;*/
 
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
@@ -479,9 +479,8 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d  %10d %10d %10d  %10d %10d %10d  %10d %10d\n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],pos_cmd, pos, vel_cmd, ff_vel,
-                vel_error, bp_to_vel_match, avg_vel, position_at_match, position_cmd_at_match);
+        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d  %10d %10d \n",
+                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],pos_cmd, pos, vel_cmd);
 
 #endif
         break;
