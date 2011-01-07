@@ -209,8 +209,9 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
 RTAPI_MP_ARRAY_INT(pulse_fraction_bit, MAX_CHAN,
                    "Pulse command fraction bits for up to 8 channels");
-int thc_velocity = 5;
-RTAPI_MP_INT(thc_velocity, "Torch Height Control velocity");
+
+const char *thc_velocity = "1.0"; // 1mm/s
+RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
 const char *max_vel_str[MAX_CHAN] =
     { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
@@ -405,8 +406,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-    int32_t     pid_output, original_adc_data, pos_cmd, pos, vel_cmd;/*, ff_vel, vel_error, bp_to_vel_match,
-                avg_vel, position_at_match, position_cmd_at_match*/
+
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
 #if (MBOX_LOG)
@@ -439,35 +439,9 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
-        // pid output
-        p += 1;
-        pid_output = *p;
         // ADC_SPI (  filtered value)
         p += 1;   
         *(gpio->a_in[0]) = *p;
-        p += 1;
-        original_adc_data = *p;
-        // risc optional output
-
-        p+=1;
-        pos_cmd = *p;
-
-        p+=1;
-        pos = *p;
-        p+=1;
-        vel_cmd = *p;
-        /*p+=1;
-        ff_vel = *p;
-        p+=1;
-        vel_error = *p;
-        p+=1;
-        bp_to_vel_match = *p;
-        p+=1;
-        avg_vel = *p;
-        p+=1;
-        position_at_match = *p;
-        p+=1;
-        position_cmd_at_match = *p;*/
 
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
@@ -479,8 +453,8 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d  %10d %10d 0x%04X %10d  %10d %10d \n",
-                *(gpio->a_in[0]), original_adc_data, pid_output, din[0],pos_cmd, pos, vel_cmd);
+        fprintf (mbox_fp, "%10d 0x%04X \n",
+                *(gpio->a_in[0]), din[0]);
 
 #endif
         break;
@@ -519,7 +493,7 @@ int rtapi_app_main(void)
     int32_t immediate_data;
     uint16_t sync_cmd;
     char str[50];
-    double max_vel, max_accel, pos_scale;
+    double max_vel, max_accel, pos_scale, thc_vel;
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
@@ -835,8 +809,9 @@ int rtapi_app_main(void)
         wou_flush(&w_param);
     }
     // to send position compensation velocity
-    immediate_data = thc_velocity;
-//    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+    thc_vel = atof(thc_velocity);
+    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << pulse_fraction_bit[n]));
+    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     for(j=0; j<sizeof(uint32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
         memcpy(data, &sync_cmd, sizeof(uint16_t));
