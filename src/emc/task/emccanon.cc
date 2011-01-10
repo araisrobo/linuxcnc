@@ -1386,7 +1386,6 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & nurbs_control_points ,
     const std::vector<double> & nurbs_knot_vector,
-    const std::vector<uofl_block_t> & uofl,
     unsigned int k, double curve_length, uint32_t axis_mask)
 {
     EMC_TRAJ_NURBS_MOVE nurbsMoveMsg;
@@ -1398,39 +1397,14 @@ void NURBS_FEED_3D (
     nurbsMoveMsg.feed_mode = canon.feed_mode;
     nurbsMoveMsg.type = EMC_MOTION_TYPE_FEED;
 
-    nurbsMoveMsg.nurbs_block.uofl_order = 1+1;    // TODO-eric:implement uofl order
+//    nurbsMoveMsg.nurbs_block.uofl_order = 1+1;    // TODO-eric:implement uofl order
 
     nr_of_ctrl_pt = nurbs_control_points.size();
     nr_of_knot = nurbs_knot_vector.size();
-    nr_uofl_knot = uofl.size();
-    nr_uofl_cp  = 0;
-    for ( i = 0 ; i < uofl.size() ; i++ ) {
-        if ( uofl[i].uofl_ctrl_pt_flag == ON ) {
-            nr_uofl_cp += 1;
-        }
-    }
-/*    x = nurbs_control_points[nr_of_ctrl_pt-1].X;
-    y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
-    z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
-    u = nurbs_control_points[nr_of_ctrl_pt-1].U;
-    v = nurbs_control_points[nr_of_ctrl_pt-1].V;
-    w = nurbs_control_points[nr_of_ctrl_pt-1].W;
-    a = nurbs_control_points[nr_of_ctrl_pt-1].A;
-    b = nurbs_control_points[nr_of_ctrl_pt-1].B;
-    c = nurbs_control_points[nr_of_ctrl_pt-1].C;*/
     // assume NURBS_3D considered only xyz coord.
 //TODO-eric: do simplify numerical compare mechanism ( form ini load)
     // Figure out what kind of move we're making:
 
-/*    dx = fabs(x - canon.endPoint.x);
-    dy = fabs(y - canon.endPoint.y);
-    dz = fabs(z - canon.endPoint.z);
-    da = fabs(a - canon.endPoint.a);
-    db = fabs(b - canon.endPoint.b);
-    dc = fabs(c - canon.endPoint.c);
-    du = fabs(u - canon.endPoint.u);
-    dv = fabs(v - canon.endPoint.v);
-    dw = fabs(w - canon.endPoint.w);*/
     assert(nr_of_ctrl_pt > 1);
 
     for(i = 0; i < nr_of_ctrl_pt -1; i++) {
@@ -1470,8 +1444,6 @@ void NURBS_FEED_3D (
         fprintf(stderr,"emccanon.cc: unknown case for nurbs motion type\n");
         assert(0);
     }
-
-
     if (canon.cartesian_move ) {
         nurbsMoveMsg.ini_maxvel = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(0)):huge,
                                        dy > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(1)):huge,
@@ -1612,30 +1584,14 @@ void NURBS_FEED_3D (
 
             nurbsMoveMsg.vel = FROM_PROG_LEN(nurbs_control_points[i].F)/60;
             vel = nurbsMoveMsg.vel;
-//            fprintf(stderr,"nurbs vel(%f) 1 \n", vel);
         } else {
             if(i != 0) {
                 nurbsMoveMsg.vel = vel;//FROM_PROG_LEN(nurbs_control_points[i-1].F);
-//                fprintf(stderr,"nurbs vel 2(%f)\n", vel);
             } else {
                 nurbsMoveMsg.vel = vel;
-//                fprintf(stderr,"nurbs vel 3(%f)\n", vel);
             }
         }
-        // for U(L)
-        nurbsMoveMsg.nurbs_block.nr_of_uofl_ctrl_pts = nr_uofl_cp;
-        nurbsMoveMsg.nurbs_block.nr_of_uofl_knots = nr_uofl_knot;
-        if ( i < nr_uofl_cp) {
-            assert(uofl[i].uofl_ctrl_pt_flag == ON);
-            assert(uofl[i].uofl_knot_flag == ON);
-            nurbsMoveMsg.nurbs_block.uofl_cp = uofl[i].uofl_ctrl_pt ;
-            nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
-            nurbsMoveMsg.nurbs_block.uofl_weight = uofl[i].uofl_weight;
-        } else if ( i < nr_uofl_knot) {
-            assert(uofl[i].uofl_knot_flag == ON);
 
-            nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
-        }
         interp_list.set_line_number(line_number);
         interp_list.append(nurbsMoveMsg);
         canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
@@ -1681,76 +1637,6 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.end.v = v;
         nurbsMoveMsg.end.w = w;
 
-        // for U(L)
-        nurbsMoveMsg.nurbs_block.nr_of_uofl_ctrl_pts = nr_uofl_cp;
-        nurbsMoveMsg.nurbs_block.nr_of_uofl_knots = nr_uofl_knot;
-        if ( i < nr_uofl_cp) {
-            assert(uofl[i].uofl_ctrl_pt_flag == ON);
-            assert(uofl[i].uofl_knot_flag == ON);
-            nurbsMoveMsg.nurbs_block.uofl_cp = uofl[i].uofl_ctrl_pt ;
-            nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
-            nurbsMoveMsg.nurbs_block.uofl_weight = uofl[i].uofl_weight;
-        } else if ( i < nr_uofl_knot) {
-            assert(uofl[i].uofl_knot_flag == ON);
-            nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
-        }
-
-        interp_list.set_line_number(line_number);
-        interp_list.append(nurbsMoveMsg);
-        canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
-    }
-    for(; i < nr_uofl_knot ; i++) {
-        nurbsMoveMsg.vel = canon.linearFeedRate;
-        nurbsMoveMsg.nurbs_block.nr_of_ctrl_pts = nr_of_ctrl_pt;
-        nurbsMoveMsg.nurbs_block.nr_of_knots = nr_of_knot;
-        nurbsMoveMsg.nurbs_block.curve_len = curve_length;
-        nurbsMoveMsg.nurbs_block.order = k;
-       // nurbsMoveMsg.nurbs_block.knot = nurbs_knot_vector[i];
-        nurbsMoveMsg.nurbs_block.weight = 1;
-
-        x = nurbs_control_points[nr_of_ctrl_pt-1].X;
-        y = nurbs_control_points[nr_of_ctrl_pt-1].Y;
-        z = nurbs_control_points[nr_of_ctrl_pt-1].Z;
-        a = nurbs_control_points[nr_of_ctrl_pt-1].A;
-        b = nurbs_control_points[nr_of_ctrl_pt-1].B;
-        c = nurbs_control_points[nr_of_ctrl_pt-1].C;
-        u = nurbs_control_points[nr_of_ctrl_pt-1].U;
-        v = nurbs_control_points[nr_of_ctrl_pt-1].V;
-        w = nurbs_control_points[nr_of_ctrl_pt-1].W;
-        from_prog(x, y, z, a, b, c, u, v, w);
-        rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-
-        x *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        y *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        a *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        b *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        c *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        u *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        v *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-        w *= nurbs_control_points[nr_of_ctrl_pt-1].R;
-
-        nurbsMoveMsg.end.tran.x = x;
-        nurbsMoveMsg.end.tran.y = y;
-        nurbsMoveMsg.end.tran.z = z;
-        nurbsMoveMsg.end.a = a;
-        nurbsMoveMsg.end.b = b;
-        nurbsMoveMsg.end.c = c;
-        nurbsMoveMsg.end.u = u;
-        nurbsMoveMsg.end.v = v;
-        nurbsMoveMsg.end.w = w;
-        // U(L)
-        nurbsMoveMsg.nurbs_block.nr_of_uofl_ctrl_pts = nr_uofl_cp;
-        nurbsMoveMsg.nurbs_block.nr_of_uofl_knots = nr_uofl_knot;
-        if ( i < nr_uofl_cp) {
-            assert(uofl[i].uofl_ctrl_pt_flag == ON);
-            assert(uofl[i].uofl_knot_flag == ON);
-            nurbsMoveMsg.nurbs_block.uofl_cp = uofl[i].uofl_ctrl_pt ;
-            nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
-            nurbsMoveMsg.nurbs_block.uofl_weight = uofl[i].uofl_weight;
-        } else if ( i < nr_uofl_knot) {
-            assert(uofl[i].uofl_knot_flag == ON);
-            nurbsMoveMsg.nurbs_block.uofl_knot = uofl[i].uofl_knot;
-        }
         interp_list.set_line_number(line_number);
         interp_list.append(nurbsMoveMsg);
         canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);

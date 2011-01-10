@@ -252,7 +252,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
 
   if (block->e_flag == ON) {
     CHKS(((motion != G_76) && (block->m_modes[5] != 66) && 
-      (block->m_modes[5] != 67) && (block->m_modes[5] != 68) && (motion!=G_6_2)),
+      (block->m_modes[5] != 67) && (block->m_modes[5] != 68)),
        _("E word with no G76, M66, M67 or M68 to use it"));
   }
 
@@ -269,7 +269,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
 
   if (block->j_flag == ON) {    /* could still be useless if xz_plane arc */
     CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) && 
-          (motion != G_76) && (motion != G_87) && (motion != G_6_2) && (block->g_modes[0] != G_10)),
+          (motion != G_76) && (motion != G_87) && (block->g_modes[0] != G_10)),
         _("J word with no G2, G3, G5, G5.1, G6.2, G10, G76 or G87 to use it"));
   }
 

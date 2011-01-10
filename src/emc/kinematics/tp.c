@@ -665,9 +665,8 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         unsigned char enables, double vel, double ini_maxvel,
         double ini_maxacc, double ini_maxjerk) {
     static TC_STRUCT tc;
-    static uint32_t knots_todo = 0, uofl_knots_todo = 0, order = 0,
-            nr_of_ctrl_pts = 0, nr_of_knots = 0, nr_uofl_cp = 0, nr_uofl_knots =
-                    0, nofl_order = 0;
+    static uint32_t knots_todo = 0, order = 0,
+            nr_of_ctrl_pts = 0, nr_of_knots = 0;
     nurbs_block_t *nurbs_to_tc = &tc.nurbs_block;//EmcPose* control_points;
     if (ini_maxjerk == 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
@@ -682,21 +681,14 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         return -1;
     }
 
-    if (0 == knots_todo && 0 == uofl_knots_todo) {
+    if (0 == knots_todo) {
         //        fprintf(stderr,"TC_NURBS PARAM INIT\n");
         knots_todo = nurbs_block.nr_of_knots;
-        uofl_knots_todo = nurbs_block.nr_of_uofl_knots;
         order = nurbs_block.order;
-        nofl_order = nurbs_block.uofl_order;
-        //        DP("uofl_order %d\n",nurbs_block.uofl_order);
+
         nr_of_ctrl_pts = nurbs_block.nr_of_ctrl_pts;
         nr_of_knots = nurbs_block.nr_of_knots;
-        nr_uofl_cp = nurbs_block.nr_of_uofl_ctrl_pts;
-        nr_uofl_knots = nurbs_block.nr_of_uofl_knots;
-        //        DP("nr_uofl_knots(%d) nr_uofl_cp(%d) nr_of_knots (%d) \n",
-        //                nr_uofl_knots,
-        //                nr_uofl_cp,
-        //                nr_of_knots);
+
 
         nurbs_to_tc->ctrl_pts_ptr = (CONTROL_POINT*) malloc(
                 sizeof(CONTROL_POINT) * nurbs_block.nr_of_ctrl_pts);
@@ -704,21 +696,6 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
                 * nurbs_block.nr_of_knots);
         nurbs_to_tc->N = (double*) malloc(sizeof(double) * (order + 1));
         nurbs_to_tc->axis_mask = nurbs_block.axis_mask;
-        nurbs_to_tc->uofl_ctrl_pts_ptr = (double*) malloc(sizeof(double)
-                * nurbs_block.nr_of_uofl_ctrl_pts);
-        nurbs_to_tc->uofl_knots_ptr = (double*) malloc(sizeof(double)
-                * nurbs_block.nr_of_uofl_knots);
-        nurbs_to_tc->uofl_weights = (double*) malloc(sizeof(double)
-                * nurbs_block.nr_of_uofl_ctrl_pts);
-        nurbs_to_tc->NL = (double*) malloc(sizeof(double)
-                * (nurbs_block.uofl_order + 1));
-        //        DP("ctrl_pts_ptr(%p) knots_ptr(%p) N(%p) uofl_ctrl_pts_ptr(%p)  uofl_knots_ptr(%p) uofl_weights(%p) \n",
-        //                nurbs_to_tc->ctrl_pts_ptr,
-        //                nurbs_to_tc->knots_ptr,
-        //                nurbs_to_tc->N,
-        //                nurbs_to_tc->uofl_ctrl_pts_ptr,
-        //                nurbs_to_tc->uofl_knots_ptr,
-        //                nurbs_to_tc->uofl_weights);
 
     }
     if (knots_todo > 0) {
@@ -743,26 +720,9 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         }
         knots_todo -= 1;
     }
-    if (uofl_knots_todo > 0) {
-        if (uofl_knots_todo > (nr_uofl_knots - nr_uofl_cp)) { // this part add ctrl pts and knots
 
-            nurbs_to_tc->uofl_ctrl_pts_ptr[nr_uofl_knots - uofl_knots_todo]
-                    = nurbs_block.uofl_cp;
-            nurbs_to_tc->uofl_weights[nr_uofl_knots - uofl_knots_todo]
-                    = nurbs_block.uofl_weight;
-            nurbs_to_tc->uofl_knots_ptr[nr_uofl_knots - uofl_knots_todo]
-                    = nurbs_block.uofl_knot;
 
-        } else {
-            nurbs_to_tc->uofl_knots_ptr[nr_uofl_knots - uofl_knots_todo]
-                    = nurbs_block.uofl_knot;
-
-        }
-
-        uofl_knots_todo -= 1;
-    }
-
-    if ((0 == knots_todo) && (0 == uofl_knots_todo)) {
+    if ((0 == knots_todo)) {
         // knots == 0 means all NURBS collected
 #if 0 //dump control points and knots info
         uint32_t i=0;
@@ -805,11 +765,8 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 
         tc.nurbs_block.curve_len = nurbs_block.curve_len;
         tc.nurbs_block.order = nurbs_block.order;
-        tc.nurbs_block.uofl_order = nurbs_block.uofl_order;
         tc.nurbs_block.nr_of_ctrl_pts = nurbs_block.nr_of_ctrl_pts;
         tc.nurbs_block.nr_of_knots = nurbs_block.nr_of_knots;
-        tc.nurbs_block.nr_of_uofl_ctrl_pts = nurbs_block.nr_of_uofl_ctrl_pts;
-        tc.nurbs_block.nr_of_uofl_knots = nurbs_block.nr_of_uofl_knots;
 
         tc.cur_accel = 0.0;
         tc.currentvel = 0.0;
