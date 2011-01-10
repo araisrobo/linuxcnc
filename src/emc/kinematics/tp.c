@@ -2257,7 +2257,7 @@ int tpPause(TP_STRUCT * tp) {
         return -1;
     }
     tp->pausing = 1;
-    emcmotPosCompWrite(0, 0);
+    //emcmotPosCompWrite(0, 0);// not necessary
     return 0;
 }
 
@@ -2273,11 +2273,13 @@ int tpAbort(TP_STRUCT * tp) {
     if (0 == tp) {
         return -1;
     }
+    tp->pausing = 1;    // triggle state machine to deceleration
+
     if (!tp->aborting) {
         /* to abort, signal a pause and set our abort flag */
         tp->aborting = 1;
     }
-    tpClearPosCompEn();
+    tpClearPosCompEn(); // disable risc auto control motion
     return tpClearDIOs(); //clears out any already cached DIOs
 }
 
