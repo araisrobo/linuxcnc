@@ -45,18 +45,9 @@ typedef struct
     uint32_t                    nr_of_knots;
     uint32_t                    order;
     double                      curve_len;
+    double                      curvature;
     double                      knot;
     double                      weight;
-/*    // U(L) nurbs parameters
-    double                      *uofl_weights;
-    double                      *uofl_ctrl_pts_ptr;
-    uint32_t                    nr_of_uofl_ctrl_pts;
-    double                      *uofl_knots_ptr;
-    uint32_t                    nr_of_uofl_knots;
-    uint32_t                    uofl_order;
-    double                      uofl_cp;
-    double                      uofl_knot;
-    double                      uofl_weight;*/
 
     double                      *N; // basis function buffer
 //    double                      *NL; // basis function buffer for U(L)

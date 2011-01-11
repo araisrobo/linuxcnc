@@ -214,7 +214,8 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
     } else {
         int s, tmp1,i;
-        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, F;
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, F, D;
+        double       curve_accel;
 #if(TRACE != 0)
         double delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
 #endif
@@ -312,13 +313,32 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
             }
             W = W/R;
             uvw.tran.z = W;
+
             F = 0.0;
             F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
-            /*fprintf(stderr, "nr_of_ctrl_pts(%d) span(%d) F(%f) \n",
-                    tc->nurbs_block.nr_of_ctrl_pts ,tmp1, F);*/
-            // XXX: It is not good idea to use nurbs to compute a feedrate for NURBS
-
             tc->reqvel = F;
+
+            D = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    D += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].D;
+            }
+            D = D/R;
+
+            // compute allowed feed
+            if(!of_endpoint) {
+                curve_accel = (tc->currentvel * tc->currentvel)/D;
+                if(curve_accel > tc->maxaccel) {
+                    // modify req_vel
+//                    fprintf(stderr,"prev_req_vel(%f) ", tc->reqvel);
+                    tc->reqvel = pmSqrt((tc->maxaccel * D));
+//                    fprintf(stderr,"new_reqvel(%f)\n",tc->reqvel);
+                }
+            }
+            /*if(!of_endpoint) {
+                fprintf(stderr,"prog(%f) req_vel(%f) curvature(%f) cur_vel(%f) u(%f) Y(%f)\n",
+                        tc->progress, tc->reqvel ,D, tc->currentvel, u, Y);
+            }*/
+
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {
                     last_l = 0;

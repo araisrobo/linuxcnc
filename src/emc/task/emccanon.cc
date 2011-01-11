@@ -1389,8 +1389,8 @@ void NURBS_FEED_3D (
     unsigned int k, double curve_length, uint32_t axis_mask)
 {
     EMC_TRAJ_NURBS_MOVE nurbsMoveMsg;
-    uint32_t nr_of_ctrl_pt, nr_of_knot, i, nr_uofl_knot, nr_uofl_cp;
-    double x,y,z,a,b,c,u,v,w,vel;
+    uint32_t nr_of_ctrl_pt, nr_of_knot, i;
+    double x,y,z,a,b,c,u,v,w,vel,d, max_d;
     double dx, dy, dz, da, db, dc, du, dv, dw;
 
     flush_segments(); // NURBS move is not similar to point-to-point move
@@ -1536,7 +1536,12 @@ void NURBS_FEED_3D (
              vel = canon.angularFeedRate;
          }
      }
-
+    max_d = 0;
+    for(i=0;i<nr_of_ctrl_pt;i++) {
+        d = nurbs_control_points[i].D;
+        d *= nurbs_control_points[i].R;
+        max_d = max(d, max_d);
+    }
 
     for (i=0;i<nr_of_ctrl_pt;i++) {
 
@@ -1549,6 +1554,7 @@ void NURBS_FEED_3D (
         u = nurbs_control_points[i].U;
         v = nurbs_control_points[i].V;
         w = nurbs_control_points[i].W;
+        d = nurbs_control_points[i].D;
         from_prog(x, y, z, a, b, c, u, v, w);
         rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
 
@@ -1561,6 +1567,8 @@ void NURBS_FEED_3D (
         u *= nurbs_control_points[i].R;
         v *= nurbs_control_points[i].R;
         w *= nurbs_control_points[i].R;
+        d *= nurbs_control_points[i].R;
+
         to_ext_pose(x, y, z, a, b, c, u, v, w);
         nurbsMoveMsg.vel = canon.linearFeedRate;
         nurbsMoveMsg.nurbs_block.nr_of_ctrl_pts = nr_of_ctrl_pt;
@@ -1578,6 +1586,11 @@ void NURBS_FEED_3D (
         nurbsMoveMsg.end.u =  u;
         nurbsMoveMsg.end.v =  v;
         nurbsMoveMsg.end.w =  w;
+        if(d > 0) {
+            nurbsMoveMsg.nurbs_block.curvature = d;
+        } else {
+            nurbsMoveMsg.nurbs_block.curvature = max_d;
+        }
         nurbsMoveMsg.nurbs_block.axis_mask = axis_mask;
         // feed rate
         if(nurbs_control_points[i].F != -1 ) {
