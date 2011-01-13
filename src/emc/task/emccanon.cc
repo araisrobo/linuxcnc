@@ -1541,6 +1541,9 @@ void NURBS_FEED_3D (
         d = nurbs_control_points[i].D;
         d *= nurbs_control_points[i].R;
         max_d = max(d, max_d);
+        if(max_d <= 0) {
+            max_d = huge;
+        }
     }
 
     for (i=0;i<nr_of_ctrl_pt;i++) {
