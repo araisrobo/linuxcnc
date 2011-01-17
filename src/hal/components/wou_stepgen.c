@@ -499,7 +499,7 @@ int rtapi_app_main(void)
     uint16_t sync_cmd;
     char str[50];
     double max_vel, max_accel, pos_scale, thc_vel, value;
-    int32_t bitn;
+    int32_t bitn, vel_bit, accel_bit, accel_recip_bit, param_bit;
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
@@ -612,7 +612,7 @@ int rtapi_app_main(void)
     /* test for GPIO_MASK_IN0: gpio_mask_in0 */
     if ((gpio_mask_in0 == -1)) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"WOU: ERROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
+			"WOU: ERall_value_fraction_bitROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
 	return -1;
     } else {
 	// un-mask HOME-SWITCH inputs (bits_i[5:2])
@@ -701,7 +701,7 @@ int rtapi_app_main(void)
 
     /* configure motion parameters for risc*/
     for(n=0; n<num_chan; n++) {
-        /* config fraction bits */
+        /* compute fraction bits */
         // compute proper fraction bit for command
         // compute fraction bit for velocity
         // accurate 0.0001 mm
@@ -713,8 +713,48 @@ int rtapi_app_main(void)
         while(((int32_t)value>>bitn)>0) {
             bitn++;
         }
-        pulse_fraction_bit[n] = bitn;
-        fprintf(stderr,"bitn(%d) ", bitn);
+        pulse_fraction_bit[n] = bitn;  // cmd fraction bit never modified
+
+
+        // fraction bit for vel
+        max_vel = atof(max_vel_str[n]);
+        value = (1.0/(max_vel*pos_scale*dt));
+        value = value > 0? value:-value;
+        vel_bit = 0;
+        while(((int32_t)value>>vel_bit)>0) {
+            vel_bit++;
+        }
+        vel_bit += 4;
+        // fraction bit for accel
+        max_accel = atof(max_accel_str[n]);
+        value = (1.0/(max_accel*pos_scale*dt*dt)); // accurate 1
+        value = value > 0? value:-value;
+        accel_bit = 0;
+        while(((int32_t)value>>accel_bit)>0) {
+            accel_bit++;
+        }
+        accel_bit+=4;
+        // fraction bit for accel_recip
+        value = ((max_accel*pos_scale*dt*dt))/1; // accurate 1
+        value = value > 0? value:-value;
+        accel_recip_bit = 0;
+        while(((int32_t)value>>accel_recip_bit)>0) {
+            accel_recip_bit++;
+        }
+        accel_recip_bit += 4;
+
+        param_bit = 0;
+        param_bit = param_bit > bitn? param_bit:bitn;//max(param_bit, bitn);
+        param_bit = param_bit > vel_bit? param_bit:vel_bit;//max(param_bit, vel_bit);
+        param_bit = param_bit > accel_bit? param_bit:accel_bit;//max(param_bit, accel_bit);
+        param_bit = param_bit > accel_recip_bit? param_bit:accel_recip_bit;//max(param_bit, accel_recip_bit);
+
+        vel_bit = param_bit;
+        accel_bit = param_bit;
+        accel_recip_bit = param_bit;
+        fprintf(stderr,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
+
+        /* config fraction bit of pulse command */
         immediate_data = bitn;
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -729,16 +769,8 @@ int rtapi_app_main(void)
                     sizeof(uint16_t), data);
         wou_flush(&w_param);
 
-        max_vel = atof(max_vel_str[n]);
-
-        /* config fraction bit of velocity */
-        value = (1.0/(max_vel*pos_scale*dt));
-        value = value > 0? value:-value;
-        bitn = 0;
-        while(((int32_t)value>>bitn)>0) {
-            bitn++;
-        }
-        immediate_data = bitn;
+        /* config fraction bit of param */
+        immediate_data = param_bit;
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -746,7 +778,7 @@ int rtapi_app_main(void)
                     sizeof(uint16_t), data);
             wou_flush(&w_param);
         }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_VELOCITY_FRACT_BIT) |PACK_MOT_PARAM_ID(n);
+        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(PARAM_FRACT_BIT) |PACK_MOT_PARAM_ID(n);
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
@@ -754,13 +786,12 @@ int rtapi_app_main(void)
 
         /* config velocity */
         immediate_data = (uint32_t)((max_vel*pos_scale*
-                                        dt)*(1 << bitn));
+                                        dt)*(1 << vel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         fprintf(stderr," max_vel= %f*%f*%f*(2^%d) = (%d) ",
-                max_vel, pos_scale, dt, bitn, immediate_data);
+                max_vel, pos_scale, dt, vel_bit, immediate_data);
         assert(immediate_data>0);
-
 
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -775,15 +806,9 @@ int rtapi_app_main(void)
                     sizeof(uint16_t), data);
         wou_flush(&w_param);
 
-        /* config fraction bit of max acceleration */
-        max_accel = atof(max_accel_str[n]);
-        value = (1.0/(max_accel*pos_scale*dt*dt)); // accurate 1
-        value = value > 0? value:-value;
-        bitn = 0;
-        while(((int32_t)value>>bitn)>0) {
-            bitn++;
-        }
-        immediate_data = bitn;
+/*         config fraction bit of max acceleration
+
+        immediate_data = accel_bit;
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -795,15 +820,15 @@ int rtapi_app_main(void)
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-        wou_flush(&w_param);
+        wou_flush(&w_param);*/
 
         /* config acceleration */
         immediate_data = (uint32_t)(max_accel*pos_scale*dt*
-                                        dt*(1 << bitn));
+                                        dt*(1 << accel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         fprintf(stderr,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
-                 max_accel, pos_scale, dt, bitn, immediate_data);
+                 max_accel, pos_scale, dt, accel_bit, immediate_data);
 
         assert(immediate_data>0);
 
@@ -821,15 +846,10 @@ int rtapi_app_main(void)
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
 
+/*
+         config fraction bit of max acceleration recip
 
-        /* config fraction bit of max acceleration recip */
-        value = ((max_accel*pos_scale*dt*dt))/1; // accurate 1
-        value = value > 0? value:-value;
-        bitn = 0;
-        while(((int32_t)value>>bitn)>0) {
-            bitn++;
-        }
-        immediate_data = bitn;
+        immediate_data = accel_recip_bit;
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -842,13 +862,14 @@ int rtapi_app_main(void)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
         wou_flush(&w_param);
+*/
 
         /* config acceleration recip */
         immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
-                                        dt))*(1 << bitn));
+                                        dt))*(1 << accel_recip_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         fprintf(stderr,"(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
-                max_accel, pos_scale, dt, bitn, immediate_data);
+                max_accel, pos_scale, dt, accel_recip_bit, immediate_data);
         assert(immediate_data>0);
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
