@@ -307,7 +307,8 @@ typedef struct {
     uint8_t     prev_out;
     uint16_t    prev_in;
     // Analog I/O: 32bit
-    hal_s32_t   *a_in[1];       /* pin: analog input */
+//    hal_s32_t   *a_in[1];       /* pin: analog input */
+    hal_float_t *a_in[1];
 } gpio_t;
 
 typedef struct {
@@ -442,7 +443,7 @@ static void fetchmail(const uint8_t *buf_head)
         din[0] = *p;
         // ADC_SPI (  filtered value)
         p += 1;   
-        *(gpio->a_in[0]) = *p;
+        *(gpio->a_in[0]) = (((double)*p)/20.0);
 
 #if (MBOX_LOG)
         fprintf (mbox_fp, "%10d  ", bp_tick);
@@ -1708,7 +1709,7 @@ static int export_gpio(gpio_t * addr)
     
     // export Analog IN
     for (i = 0; i < 1; i++) {
-        retval = hal_pin_s32_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
+        retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
                                   "wou.gpio.a_in.%02d", i);
         if (retval != 0) {
             return retval;
