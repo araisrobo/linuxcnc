@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -332,9 +332,9 @@ typedef struct {
     // velocity control
     hal_float_t *requested_vel;
     hal_float_t *current_vel;
-    int32_t fp_original_requested_vel;
-    int32_t fp_requested_vel;
-    int32_t fp_current_vel;
+    double fp_original_requested_vel;
+    double fp_requested_vel;
+    double fp_current_vel;
     int32_t vel_sync;
 } machine_control_t;
 
@@ -1070,7 +1070,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     int32_t immediate_data = 0;
-    int32_t fp_req_vel, fp_cur_vel, fp_diff;
+    double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -1161,8 +1161,8 @@ static void update_freq(void *arg, long period)
                     sizeof(uint16_t), data);
 
             machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
-            machine_control->fp_original_requested_vel = (uint32_t)((*machine_control->requested_vel));
-            fprintf(stderr,"original_requested_vel(%d)\n", machine_control->fp_original_requested_vel);
+            machine_control->fp_original_requested_vel = (*machine_control->requested_vel);
+            fprintf(stderr,"original_requested_vel(%f)\n", machine_control->fp_original_requested_vel);
         }
         *(machine_control->position_compensation_en_trigger) = 0;
     }
@@ -1625,8 +1625,8 @@ static void update_freq(void *arg, long period)
     }
     // send velocity status
     if(machine_control->position_compensation_en_flag == 1) {
-        fp_req_vel = (uint32_t)((machine_control->fp_original_requested_vel));
-        fp_cur_vel = (uint32_t)((*machine_control->current_vel));
+        fp_req_vel = ((machine_control->fp_original_requested_vel));
+        fp_cur_vel = ((*machine_control->current_vel));
         if (fp_req_vel != machine_control->fp_requested_vel) {
             // forward requested velocity
             machine_control->fp_requested_vel = fp_req_vel;
@@ -1640,26 +1640,26 @@ static void update_freq(void *arg, long period)
         }
         fp_diff = fp_cur_vel - machine_control->fp_original_requested_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)/5)) &&   //  120 mm/min
+        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.9)) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
             if(machine_control->fp_original_requested_vel == machine_control->fp_requested_vel) {
                 machine_control->vel_sync = 1;
-                sync_cmd = (SYNC_VEL | (fp_cur_vel << 1)) | 0x0001;
+                sync_cmd = (SYNC_VEL | (((int32_t)fp_cur_vel) << 1)) | 0x0001;
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
-                fprintf(stderr,"vel(%d) synced with original_vel(%d) requested(%d)\n",
+                fprintf(stderr,"vel(%f) synced with original_vel(%f) requested(%f)\n",
                         machine_control->fp_current_vel,
                         machine_control->fp_original_requested_vel,
                         machine_control->fp_requested_vel);
             } else {
                 fprintf(stderr,"vel synced but not original vel requested\n");
             }
-        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)/5))){
+        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)*0.9))){
             machine_control->vel_sync = 0;
-            sync_cmd = (SYNC_VEL|(fp_cur_vel << 1)) & 0xFFFE;
+            sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                    sizeof(uint16_t), data);
