@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 1
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -455,10 +455,16 @@ static void fetchmail(const uint8_t *buf_head)
                     );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d 0x%04X \n",
+        fprintf (mbox_fp, "%10d 0x%04X ",
                 (int32_t)(*(gpio->a_in[0]) * 20), din[0]);
        /* fprintf(mbox_fp, "vel_cmd(%d) bp_to_match(%d) vel_err(%d) accel_recip_fract(%d) vel(%d) accel(%d) accel_recip(%d)\n",
                 *(p+1), *(p+2), *(p+3), *(p+4), *(p+5), *(p+6), *(p+7));*/
+        /*motion_content.data[i++] = thc.offset;
+        motion_content.data[i++] =motion_content.velocity_sync;
+        motion_content.data[i++] =motion_content.current_vel;
+        motion_content.data[i++] =motion_content.compensation_control_en;*/
+        fprintf(mbox_fp, "%d %d %d %d \n",*(p+1), *(p+2), *(p+3), *(p+4));
+
 
 #endif
         break;
@@ -1619,7 +1625,7 @@ static void update_freq(void *arg, long period)
     }
     // send velocity status
     if(machine_control->position_compensation_en_flag == 1) {
-        fp_req_vel = (uint32_t)((*machine_control->requested_vel));
+        fp_req_vel = (uint32_t)((machine_control->fp_original_requested_vel));
         fp_cur_vel = (uint32_t)((*machine_control->current_vel));
         if (fp_req_vel != machine_control->fp_requested_vel) {
             // forward requested velocity
@@ -1632,9 +1638,9 @@ static void update_freq(void *arg, long period)
                    sizeof(uint16_t), data);
            machine_control->vel_sync = 0;
         }
-        fp_diff = fp_cur_vel - fp_req_vel;
+        fp_diff = fp_cur_vel - machine_control->fp_original_requested_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) < 2) &&   //  120 mm/min
+        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)/5)) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
@@ -1651,7 +1657,7 @@ static void update_freq(void *arg, long period)
             } else {
                 fprintf(stderr,"vel synced but not original vel requested\n");
             }
-        } else if(machine_control->vel_sync == 1 && (fp_diff > 0)){
+        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)/5))){
             machine_control->vel_sync = 0;
             sync_cmd = (SYNC_VEL|(fp_cur_vel << 1)) & 0xFFFE;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
