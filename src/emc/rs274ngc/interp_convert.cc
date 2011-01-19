@@ -2983,7 +2983,8 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
           NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE);*/
 
       CHKS(((round_to_int(block->q_number)) < 0), _("negative timeout value: Q"));
-      CHKS((round_to_int(block->l_number) < 4) || (round_to_int(block->l_number > 7)),
+      CHKS(((round_to_int(block->l_number) < 4) && (round_to_int(block->l_number) > 0))
+              || (round_to_int(block->l_number > 7)),
               _("illeagal wait type value: L"));
       // missing P  (or invalid = negative)
       CHKS( ((block->p_flag == ON) && (round_to_int(block->p_number) < 0)) ||

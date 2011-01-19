@@ -456,7 +456,7 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
         fprintf (mbox_fp, "%10d 0x%04X \n",
-                *(gpio->a_in[0]), din[0]);
+                (int32_t)(*(gpio->a_in[0]) * 20), din[0]);
        /* fprintf(mbox_fp, "vel_cmd(%d) bp_to_match(%d) vel_err(%d) accel_recip_fract(%d) vel(%d) accel(%d) accel_recip(%d)\n",
                 *(p+1), *(p+2), *(p+3), *(p+4), *(p+5), *(p+6), *(p+7));*/
 
@@ -470,9 +470,9 @@ static void fetchmail(const uint8_t *buf_head)
         bp_tick = *p;
         p += 1;
 #if (MBOX_LOG)
-        if(*p < 100) {
+//        if(*p < 100) {
             fprintf(mbox_fp, "# error occure with code(%d) bp_tick(%d)\n",*p, bp_tick);
-        }
+//        }
 //        fprintf(mbox_fp, "# error occure with code(%d)\n",bp_tick);
 #endif
         break;
@@ -1171,7 +1171,7 @@ static void update_freq(void *arg, long period)
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
         //immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
         // transmit immediate data
-        fprintf(stderr,"set risc timeout(%u)\n",immediate_data);
+        fprintf(stderr,"set risc timeout(%u) type (%d)\n",immediate_data, *(machine_control->wait_type));
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1634,7 +1634,7 @@ static void update_freq(void *arg, long period)
         }
         fp_diff = fp_cur_vel - fp_req_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) == 0) &&   //  120 mm/min
+        if (((fp_diff) < 2) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
