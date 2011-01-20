@@ -153,6 +153,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
+#define MBOX_DEBUG_VARS     9       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -409,7 +410,10 @@ static void fetchmail(const uint8_t *buf_head)
 
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
+
 #if (MBOX_LOG)
+    char        dmsg[1024];
+    int         dsize;
 
     p = (uint32_t *) (buf_head + 4);   
     bp_tick = *p;
@@ -444,18 +448,25 @@ static void fetchmail(const uint8_t *buf_head)
         *(gpio->a_in[0]) = *p;
 
 #if (MBOX_LOG)
-        fprintf (mbox_fp, "%10d  ", bp_tick);
+        dsize = sprintf (dmsg, "%10d  ", bp_tick);
+        // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            fprintf (mbox_fp, "%10d  %10d  ",
-                    *(stepgen->pulse_pos), 
-                    *(stepgen->enc_pos)
-                    );
+            dsize += sprintf (dmsg + dsize, "%10d  %10d  ",
+                              *(stepgen->pulse_pos), 
+                              *(stepgen->enc_pos)
+                             );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d 0x%04X \n",
-                *(gpio->a_in[0]), din[0]);
-
+        dsize += sprintf (dmsg + dsize, "%10d 0x%04X ",
+                          *(gpio->a_in[0]), din[0]);
+        // number of debug words: to match "send_joint_status() at common.c
+        for (i=0; i<MBOX_DEBUG_VARS; i++) {
+            p += 1;   
+            dsize += sprintf (dmsg + dsize, "%10d ", *p);
+        }
+        assert (dsize < 1023);
+        fprintf (mbox_fp, "%s\n", dmsg);
 #endif
         break;
     case MT_ERROR_CODE:
