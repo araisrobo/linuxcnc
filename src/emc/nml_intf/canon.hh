@@ -481,8 +481,7 @@ extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_poin
 extern void NURBS_FEED_3D (
               int lineno, 
               const std::vector<CONTROL_POINT>  & nurbs_control_points, 
-              const std::vector<double> & nurbs_knot_vector, 
-              const std::vector<uofl_block_t> & uofl,
+              const std::vector<double> & nurbs_knot_vector,
               unsigned int order,double length,uint32_t axis_mask
             );
 /* Move at the feed rate along an approximation of a NURBS with a variable number

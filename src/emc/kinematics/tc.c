@@ -214,160 +214,131 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
     } else {
         int s, tmp1,i;
-        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, *NL, LR, F, l;
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, F, D;
+        double       curve_accel;
 #if(TRACE != 0)
         double delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
 #endif
         N = tc->nurbs_block.N;
-        NL = tc->nurbs_block.NL;
+//        NL = tc->nurbs_block.NL;
         assert(tc->motion_type == TC_NURBS);
 
-        l = progress / tc->target;
+        u = progress / tc->target;
+        if (u<1) {
 
-        if (l<1) {
-            if(tc->nurbs_block.nr_of_uofl_ctrl_pts) {
-                s = nurbs_findspan(tc->nurbs_block.nr_of_uofl_ctrl_pts-1, tc->nurbs_block.uofl_order - 1,
-                                    l, tc->nurbs_block.uofl_knots_ptr);
+            s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
+                                u, tc->nurbs_block.knots_ptr);  //return span index of u_i
+            nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
+                           // output: N:basis functions
+            // refer to bspeval.cc::line(70) of octave
+            // refer to opennurbs_evaluate_nurbs.cpp::line(985) of openNurbs
+            // refer to ON_NurbsCurve::Evaluate() for ...
+            // refer to opennurbs_knot.cpp::ON_NurbsSpanIndex()
+            // http://www.rhino3d.com/nurbs.htm (What is NURBS?)
+            //    Some modelers that use older algorithms for NURBS
+            //    evaluation require two extra knot values for a total of
+            //    degree+N+1 knots. When Rhino is exporting and importing
+            //    NURBS geometry, it automatically adds and removes these
+            //    two superfluous knots as the situation requires.
+            tmp1 = s - tc->nurbs_block.order + 1;
+            assert(tmp1 >= 0);
+            assert(tmp1 < tc->nurbs_block.nr_of_ctrl_pts);
 
-                nurbs_basisfun(s,l,tc->nurbs_block.uofl_order-1,tc->nurbs_block.uofl_knots_ptr,NL);
-                tmp1 = s - tc->nurbs_block.uofl_order +1;
-                LR = 0.0;
-                for(i=0;i<=tc->nurbs_block.uofl_order-1;i++){
-                    LR += NL[i]*tc->nurbs_block.uofl_weights[tmp1+i];
-                }
-                u = 0.0;
-                for (i=0; i<=tc->nurbs_block.uofl_order -1; i++) {
-                        u += NL[i]*tc->nurbs_block.uofl_ctrl_pts_ptr[tmp1+i];
-                }
-                u = u/LR;
-            } else {
-                u = l;
+            R = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
+
+                R += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].R;
             }
-            if (u<1) {
 
-                s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
-                                    u, tc->nurbs_block.knots_ptr);  //return span index of u_i
-                nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
-                               // output: N:basis functions
-                // refer to bspeval.cc::line(70) of octave
-                // refer to opennurbs_evaluate_nurbs.cpp::line(985) of openNurbs
-                // refer to ON_NurbsCurve::Evaluate() for ...
-                // refer to opennurbs_knot.cpp::ON_NurbsSpanIndex()
-                // http://www.rhino3d.com/nurbs.htm (What is NURBS?)
-                //    Some modelers that use older algorithms for NURBS
-                //    evaluation require two extra knot values for a total of
-                //    degree+N+1 knots. When Rhino is exporting and importing
-                //    NURBS geometry, it automatically adds and removes these
-                //    two superfluous knots as the situation requires.
-                tmp1 = s - tc->nurbs_block.order + 1;
-                assert(tmp1 >= 0);
-                assert(tmp1 < tc->nurbs_block.nr_of_ctrl_pts);
+            X = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
 
-                R = 0.0;
-                for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
+            }
+            X = X/R;
+            xyz.tran.x = X;
 
-                    R += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].R;
+            Y = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Y;
+            }
+            Y = Y/R;
+            xyz.tran.y = Y;
+
+            Z = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Z;
+            }
+            Z = Z/R;
+            xyz.tran.z = Z;
+
+            A = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    A += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].A;
+            }
+            A = A/R;
+            abc.tran.x = A;
+
+            B = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    B += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].B;
+            }
+            B = B/R;
+            abc.tran.y = B;
+
+            C = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    C += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].C;
+            }
+            C = C/R;
+            abc.tran.z = C;
+
+            U = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    U += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].U;
+            }
+            U = U/R;
+            uvw.tran.x = U;
+
+            V = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    V += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].V;
+            }
+            V = V/R;
+            uvw.tran.y = V;
+
+            W = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    W += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].W;
+            }
+            W = W/R;
+            uvw.tran.z = W;
+
+            F = 0.0;
+            F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
+            tc->reqvel = F;
+
+            D = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    D += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].D;
+            }
+            D = D/R;
+
+            // compute allowed feed
+            if(!of_endpoint) {
+                curve_accel = (tc->currentvel * tc->currentvel)/D;
+                if(curve_accel > tc->maxaccel) {
+                    // modify req_vel
+//                    fprintf(stderr,"prev_req_vel(%f) ", tc->reqvel);
+                    tc->reqvel = pmSqrt((tc->maxaccel * D));
+//                    fprintf(stderr,"new_reqvel(%f)\n",tc->reqvel);
                 }
+            }
+            /*if(!of_endpoint) {
+                fprintf(stderr,"prog(%f) req_vel(%f) curvature(%f) cur_vel(%f) u(%f) Y(%f)\n",
+                        tc->progress, tc->reqvel ,D, tc->currentvel, u, Y);
+            }*/
 
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_X) {
-                    X = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
-
-                    }
-                    X = X/R;
-                    xyz.tran.x = X;
-//                } else {
-                //    xyz.tran.x = pos.tran.x;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_Y) {
-                    Y = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Y;
-                    }
-                    Y = Y/R;
-                    xyz.tran.y = Y;
-//                } else {
-                 //   xyz.tran.y = pos.tran.y;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_Z) {
-                    Z = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Z;
-                    }
-                    Z = Z/R;
-                    xyz.tran.z = Z;
-//                } else {
-                 //   xyz.tran.z = pos.tran.z;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_A) {
-                    A = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            A += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].A;
-                    }
-                    A = A/R;
-                    abc.tran.x = A;
-//                } else {
-                //    abc.tran.x = pos.a;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_B) {
-                    B = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            B += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].B;
-                    }
-                    B = B/R;
-                    abc.tran.y = B;
-//                } else {
-                 //   abc.tran.y = pos.b;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_C) {
-                    C = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            C += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].C;
-                    }
-                    C = C/R;
-                    abc.tran.z = C;
-//                } else {
-                 //   abc.tran.z = pos.c;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_U) {
-                    U = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            U += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].U;
-                    }
-                    U = U/R;
-                    uvw.tran.x = U;
-//                } else {
-                 //   uvw.tran.x = pos.u;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_V) {
-                    V = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            V += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].V;
-                    }
-                    V = V/R;
-                    uvw.tran.y = V;
-//                } else {
-                //    uvw.tran.y = pos.v;
-//                }
-//                if (tc->nurbs_block.axis_mask & AXIS_MASK_W) {
-                    W = 0.0;
-                    for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                            W += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].W;
-                    }
-                    W = W/R;
-                    uvw.tran.z = W;
-//                } else {
-                //    uvw.tran.z = pos.w;
-//                }
-
-                F = 0.0;
-                F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
-                /*fprintf(stderr, "nr_of_ctrl_pts(%d) span(%d) F(%f) \n",
-                        tc->nurbs_block.nr_of_ctrl_pts ,tmp1, F);*/
-                // XXX: It is not good idea to use nurbs to compute a feedrate for NURBS
-
-                tc->reqvel = F;
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {
                     last_l = 0;
@@ -405,7 +376,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     _dt+=1;
                 }
 #endif // (TRACE != 0)
-            }
+
         }else {
             xyz.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].X;
             xyz.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].Y;
@@ -615,21 +586,10 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 
         if(tcq->queue[i].motion_type == TC_NURBS) {
             //fprintf(stderr,"Remove TCNURBS PARAM\n");
-//            DP("n(%d) ctrl_pts_ptr(%p) knots_ptr(%p) N(%p) uofl_ctrl_pts_ptr(%p)  uofl_knots_ptr(%p) uofl_weights(%p) \n",
-//                   n,
-//                   tcq->queue[i].nurbs_block.ctrl_pts_ptr,
-//                   tcq->queue[i].nurbs_block.knots_ptr,
-//                   tcq->queue[i].nurbs_block.N,
-//                   tcq->queue[i].nurbs_block.uofl_ctrl_pts_ptr,
-//                   tcq->queue[i].nurbs_block.uofl_knots_ptr,
-//                   tcq->queue[i].nurbs_block.uofl_weights);
             free(tcq->queue[i].nurbs_block.knots_ptr);
             free(tcq->queue[i].nurbs_block.ctrl_pts_ptr);
             free(tcq->queue[i].nurbs_block.N);
-            free(tcq->queue[i].nurbs_block.NL);
-            free(tcq->queue[i].nurbs_block.uofl_ctrl_pts_ptr);
-            free(tcq->queue[i].nurbs_block.uofl_knots_ptr);
-            free(tcq->queue[i].nurbs_block.uofl_weights);
+
         }
     }
     /* update start ptr and reset allFull flag and len */

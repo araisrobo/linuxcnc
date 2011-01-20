@@ -126,13 +126,11 @@ int Interp::comp_set_programmed(setup_pointer settings, double x, double y, doub
 static unsigned int nurbs_order = 0;
 static std::vector < CONTROL_POINT > nurbs_control_points;
 static std::vector < double >nurbs_knot_vector;
-static std::vector < uofl_block_t> uofl_vector;
 int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block of RS274 instructions
 			  setup_pointer settings)	//!< pointer to machine settings
 {
     double end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end;
     CONTROL_POINT CP;
-    uofl_block_t uofl_param;
     static uint32_t axis_mask = 0;
     if (mode == G_5_2) {
 	CHKS((((block->x_flag) && !(block->y_flag))
@@ -203,7 +201,7 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 		 ("Cannot make a NURBS with 0 feedrate"));
 	}
 
-	CHKS(!(((block->k_flag)||(block->d_flag))), ("You must specify Knots(K) or (D)"));
+	CHKS(!(((block->k_flag))), ("You must specify Knots(K)"));
 
 	// Find NURBS control point dimention mask
 	if (axis_mask == 0) {
@@ -243,20 +241,15 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 
 	}
 	// I: NURBS Curve Length
-
 	if (block->i_flag == ON) {
-	 /*     printf("%s: (%s:%d): nurbs curve length %f\n",
-	       __FILE__, __FUNCTION__, __LINE__, block->i_number);*/
 	    CHKS(block->i_number <= 0.0,
 		 ("Must specify NURBS curve length"));
-
 	} else {
 	    if (block->p_flag == ON) {
 		CHKS(1 == 0,
 		     "Must specify NURBS curve length at 1st Control Point");
 	    }
 	}
-
 	// obtain CONTROL_POINT
 	CHP(find_ends(block, settings, &CP.X, &CP.Y, &CP.Z, &CP.A, &CP.B,
 		      &CP.C, &CP.U, &CP.V, &CP.W));
@@ -265,53 +258,21 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 	    CHKS((block->r_number < 0),
 		 ("Must specify positive weight R for every Control Point"));
 	    CP.R = block->r_number;
-            // convert from 3D(W=1) to 4D(,where 'x = X*Weight')
-            /*  This part moved to NURBS_FEED_3D()
-                CP.X *= CP.R;
-                CP.Y *= CP.R;
-                CP.Z *= CP.R;
-                CP.A *= CP.R;
-                CP.B *= CP.R;
-                CP.C *= CP.R;
-                CP.U *= CP.R;
-                CP.V *= CP.R;
-                CP.W *= CP.R;*/
             CP.F = block->f_number;
-//            CP.F *= CP.R;
+            // D: Curvature
+            if (block->d_flag == ON) {
+                CP.D = block->d_number_float;
+            } else {
+                CHKS((1), ("Must specify curvature D for each control point."));
+            }
 	    nurbs_control_points.push_back(CP);
 	}
-
 	// K: Knot
 	if (block->k_flag == ON) {
 	    CHKS((block->k_number >1 || block->k_number < 0),
 	            ("Knot value in Knot vector must between 0 and 1"));
 	    nurbs_knot_vector.push_back(block->k_number);
 	}
-	//      D: knots for U(L)
-	if (block->d_flag == ON) {
-	    CHKS((block->d_number_float >1 || block->d_number_float < 0),
-	                        ("U(L) knot value in knot vector must between 0 and 1"));
-	    uofl_param.uofl_knot_flag = ON;
-	    uofl_param.uofl_knot = block->d_number_float;
-	}
-        //      J: Control point of U(L)
-	if (block->j_flag == ON) {
-	    uofl_param.uofl_ctrl_pt = block->j_number;
-	    uofl_param.uofl_ctrl_pt_flag = ON;
-	}
-        //      E: Weight of U(L)
-	if (block->e_flag == ON) {
-	    uofl_param.uofl_weight_flag = ON;
-	    uofl_param.uofl_weight = block->e_number;
-	}
-	if( block->e_flag == ON || block->j_flag == ON || block->d_flag == ON) {
-	    uofl_vector.push_back(uofl_param);
-	}
-        //      L: Order of U(L)
-	// L: TODO-eric: specifiy U(L) order
-	// check reference:   CHKS((!nurbs_control_points.empty()),
-        //                        ("Must specify NURBS curve order at 1st Control Point"));
-	//
 	settings->motion_mode = mode;
     } else if (mode == G_5_3) {	// End of NURBS
 	if (settings->motion_mode == G_5_2) {
@@ -361,12 +322,11 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
 		nurbs_control_points[nurbs_control_points.size() - 1].W / weight;
 
 	    NURBS_FEED_3D(block->line_number, nurbs_control_points,
-			  nurbs_knot_vector, uofl_vector, nurbs_order,
+			  nurbs_knot_vector, nurbs_order,
 			  block->i_number, axis_mask);
 	    //reset parameters
 	    nurbs_control_points.clear();
 	    nurbs_knot_vector.clear();
-	    uofl_vector.clear();
 	    settings->motion_mode = -1;
 	    axis_mask = 0;
 	} else {
@@ -3019,9 +2979,13 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       //Q-word = timeout
       // it is an error if:
       // L-word not 0, and timeout <= 0
-      CHKS(((block->q_number <= 0) && (block->l_flag == ON) && (round_to_int(block->l_number) > 0)),
-          NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE);
+      /*CHKS(((block->q_number <= 0) && (block->l_flag == ON) && (round_to_int(block->l_number) > 0)),
+          NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE);*/
 
+      CHKS(((round_to_int(block->q_number)) < 0), _("negative timeout value: Q"));
+      CHKS(((round_to_int(block->l_number) < 4) && (round_to_int(block->l_number) > 0))
+              || (round_to_int(block->l_number > 7)),
+              _("illeagal wait type value: L"));
       // missing P  (or invalid = negative)
       CHKS( ((block->p_flag == ON) && (round_to_int(block->p_number) < 0)) ||
            ((block->p_flag == OFF)) ,

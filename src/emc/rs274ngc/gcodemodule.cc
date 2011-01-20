@@ -164,7 +164,6 @@ void NURBS_FEED_3D (
     int line_number, 
     const std::vector<CONTROL_POINT> & c, // nurbs_control_points
     const std::vector<double> & k,  // nurbs_knot_vector 
-    const std::vector<uofl_block_t> &uofl,
     unsigned int order,double length, uint32_t axis_mask )
 {
     double u = 0.0;
