@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 1
 #if (MBOX_LOG)
 static FILE *mbox_fp;
 #endif
@@ -206,7 +206,7 @@ RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
 int num_sync_out = 8;
 RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 
-static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
+
 /*RTAPI_MP_ARRAY_INT(pulse_fraction_bit, MAX_CHAN,
                    "Pulse command fraction bits for up to 8 channels");*/
 
@@ -234,6 +234,8 @@ RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
                       "home use index flag for up to 8 channels");
 
 static int home_use_index[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
+static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
+static int param_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
@@ -593,7 +595,7 @@ int rtapi_app_main(void)
         // enable ADC_SPI with LOOP mode
         //MCP3204: // ADC_SPI_CMD: 0x10: { (1)START_BIT,
         //MCP3204: //                      (0)Differential mode,
-        //MCP3204: //                      (0)D2 ... dont care,
+        //MCP3204: //               param_fraction_bit       (0)D2 ... dont care,
         //MCP3204: //                      (0)D1 ... Ch0 = IN+,
         //MCP3204: //                      (0)D0 ... CH1 = IN-   }
         //MCP3204: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
@@ -755,7 +757,7 @@ int rtapi_app_main(void)
         param_bit = param_bit > vel_bit? param_bit:vel_bit;//max(param_bit, vel_bit);
         param_bit = param_bit > accel_bit? param_bit:accel_bit;//max(param_bit, accel_bit);
         param_bit = param_bit > accel_recip_bit? param_bit:accel_recip_bit;//max(param_bit, accel_recip_bit);
-
+        param_fraction_bit[n] = param_bit;
         vel_bit = param_bit;
         accel_bit = param_bit;
         accel_recip_bit = param_bit;
@@ -927,7 +929,7 @@ int rtapi_app_main(void)
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
     pos_scale = atof(pos_scale_str[2]);
-    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << pulse_fraction_bit[n]));
+    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[n]));
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     for(j=0; j<sizeof(uint32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1640,7 +1642,7 @@ static void update_freq(void *arg, long period)
         }
         fp_diff = fp_cur_vel - machine_control->fp_original_requested_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.9)) &&   //  120 mm/min
+        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.1)) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
@@ -1657,7 +1659,7 @@ static void update_freq(void *arg, long period)
             } else {
                 fprintf(stderr,"vel synced but not original vel requested\n");
             }
-        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)*0.9))){
+        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)*0.1))){
             machine_control->vel_sync = 0;
             sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
