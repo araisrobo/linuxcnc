@@ -198,9 +198,9 @@ int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
 
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
 		   "current limit for up to 8 channel of stepping drivers");
+
 int num_sync_in = 16;
 RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
 int num_sync_out = 8;
@@ -212,6 +212,28 @@ static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
 
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
+
+#define NUM_PID_PARAMS  8
+const char **pid_str[MAX_CHAN];
+const char *j0_pid_str[NUM_PID_PARAMS] = 
+        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[0]");
+
+const char *j1_pid_str[NUM_PID_PARAMS] = 
+        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[1]");
+
+const char *j2_pid_str[NUM_PID_PARAMS] = 
+        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[2]");
+
+const char *j3_pid_str[NUM_PID_PARAMS] = 
+        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[3]");
 
 const char *max_vel_str[MAX_CHAN] =
     { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
@@ -485,6 +507,30 @@ static void fetchmail(const uint8_t *buf_head)
     }
 
 }
+       
+static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
+{
+    uint16_t    sync_cmd;
+    uint8_t     buf[MAX_DSIZE];
+    int         j;
+    
+    for(j=0; j<sizeof(int32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+        // wou_flush(&w_param);
+    }
+
+    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(addr) | PACK_MOT_PARAM_ID(joint);
+    memcpy(buf, &sync_cmd, sizeof(uint16_t));
+    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+            sizeof(uint16_t), buf);
+    wou_flush(&w_param);
+
+    return;
+}
+
 
 
 /***********************************************************************
@@ -493,7 +539,7 @@ static void fetchmail(const uint8_t *buf_head)
 
 int rtapi_app_main(void)
 {
-    int n, retval, j;
+    int n, retval, i, j;
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
@@ -501,6 +547,11 @@ int rtapi_app_main(void)
     char str[50];
     double max_vel, max_accel, pos_scale, thc_vel, value;
     int32_t bitn, vel_bit, accel_bit, accel_recip_bit, param_bit;
+    int msg;
+    
+    msg = rtapi_get_msg_level();
+    rtapi_set_msg_level(RTAPI_MSG_ALL);
+
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
@@ -699,9 +750,20 @@ int rtapi_app_main(void)
         dt = (double) servo_period_ns * 0.000000001;
         recip_dt = 1.0 / dt;
     }
+    
+    pid_str[0] = j0_pid_str;
+    pid_str[1] = j1_pid_str;
+    pid_str[2] = j2_pid_str;
+    pid_str[3] = j3_pid_str;
+    // pid_str[4] = j4_pid_str;
+    // pid_str[5] = j5_pid_str;
+    // pid_str[6] = j6_pid_str;
+    // pid_str[7] = j7_pid_str;
 
     /* configure motion parameters for risc*/
     for(n=0; n<num_chan; n++) {
+        // const char **pid_str;
+
         /* compute fraction bits */
         // compute proper fraction bit for command
         // compute fraction bit for velocity
@@ -786,8 +848,7 @@ int rtapi_app_main(void)
         wou_flush(&w_param);
 
         /* config velocity */
-        immediate_data = (uint32_t)((max_vel*pos_scale*
-                                        dt)*(1 << vel_bit));
+        immediate_data = (uint32_t)((max_vel*pos_scale*dt)*(1 << vel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         fprintf(stderr," max_vel= %f*%f*%f*(2^%d) = (%d) ",
@@ -915,7 +976,21 @@ int rtapi_app_main(void)
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
 
-
+        
+        // test valid PID parameter for joint[n]
+        if (pid_str[n][0] != NULL) {
+            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID=", n);
+            for (i=0; i < NUM_PID_PARAMS; i++) {
+                rtapi_print_msg(RTAPI_MSG_INFO, "%s", pid_str[n][i]);
+                value = atof(pid_str[n][i]);
+                immediate_data = (int32_t) (value * (1 << pulse_fraction_bit[n]));
+                // PID params starts from DEAD_BAND
+                // write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
+                write_mot_param (n, (DEAD_BAND + i), immediate_data);
+            }
+            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
+            /* the fraction bits of PID PARAMS are identical to pulse command */
+        }
     }
 
     /* to send position compensation velocity  of Z*/
@@ -1009,6 +1084,9 @@ int rtapi_app_main(void)
     rtapi_print_msg(RTAPI_MSG_INFO,
 		    "STEPGEN: installed %d step pulse generators\n",
 		    num_chan);
+
+/*   restore saved message level*/
+    rtapi_set_msg_level(msg);
 
     hal_ready(comp_id);
     return 0;
@@ -1333,8 +1411,8 @@ static void update_freq(void *arg, long period)
 
                     normal_move_flag[n] = 0;
                 }
-                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
-                (*stepgen->pos_cmd) = *(stepgen->pos_fb);  // TODO: verify it
+                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
+                (*stepgen->pos_cmd) = *(stepgen->pos_fb);
             } else if(*stepgen->home_state == HOME_START) {
                 normal_move_flag[n] = 1;
             }
@@ -1362,12 +1440,8 @@ static void update_freq(void *arg, long period)
 
 	    if (stepgen->prev_home_state == HOME_IDLE) {
                 /**
-                 * STEPPER: TODO set to ONE to load SWITCH_POS and INDEX_POS with
-                 * PULSE_POS(stepper) or ENC_POS(servo) at beginning of
-                 * homing (HOME_START state)
-                 * 
-                 * SERVO: set to ONE to load PULSE_POS, SWITCH_POS, and
-                 * INDEX_POS with ENC_POS(servo) at beginning of homing
+                 * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
+                 * INDEX_POS with ENC_POS at beginning of homing
                  * (HOME_START state)
                  *
 		 * reset to ZERO one cycle after setting this register
