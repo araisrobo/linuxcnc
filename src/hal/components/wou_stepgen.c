@@ -206,10 +206,6 @@ RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
 int num_sync_out = 8;
 RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 
-static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
-/*RTAPI_MP_ARRAY_INT(pulse_fraction_bit, MAX_CHAN,
-                   "Pulse command fraction bits for up to 8 channels");*/
-
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
@@ -405,6 +401,8 @@ static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
+static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };   /* fract bit for pulse cmd */
+static int param_fract_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };      /* fract bit for parameters */
 //static int remove_thc_effect = THC_INIT;
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
@@ -812,10 +810,11 @@ int rtapi_app_main(void)
         param_bit = param_bit > accel_bit? param_bit:accel_bit;//max(param_bit, accel_bit);
         param_bit = param_bit > accel_recip_bit? param_bit:accel_recip_bit;//max(param_bit, accel_recip_bit);
 
+        param_fract_bit[n] = param_bit;
         vel_bit = param_bit;
         accel_bit = param_bit;
         accel_recip_bit = param_bit;
-        fprintf(stderr,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
+        rtapi_print_msg(RTAPI_MSG_ERR,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
 
         /* config fraction bit of pulse command */
         immediate_data = bitn;
@@ -851,8 +850,8 @@ int rtapi_app_main(void)
         immediate_data = (uint32_t)((max_vel*pos_scale*dt)*(1 << vel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
-        fprintf(stderr," max_vel= %f*%f*%f*(2^%d) = (%d) ",
-                max_vel, pos_scale, dt, vel_bit, immediate_data);
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                " max_vel= %f*%f*%f*(2^%d) = (%d) ", max_vel, pos_scale, dt, vel_bit, immediate_data);
         assert(immediate_data>0);
 
         for(j=0; j<sizeof(uint32_t); j++) {
@@ -889,7 +888,7 @@ int rtapi_app_main(void)
                                         dt*(1 << accel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
-        fprintf(stderr,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
+        rtapi_print_msg(RTAPI_MSG_ERR,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
                  max_accel, pos_scale, dt, accel_bit, immediate_data);
 
         assert(immediate_data>0);
@@ -930,7 +929,7 @@ int rtapi_app_main(void)
         immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
                                         dt))*(1 << accel_recip_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        fprintf(stderr,"(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
+        rtapi_print_msg(RTAPI_MSG_ERR, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
                 max_accel, pos_scale, dt, accel_recip_bit, immediate_data);
         assert(immediate_data>0);
         for(j=0; j<sizeof(uint32_t); j++) {
@@ -955,9 +954,9 @@ int rtapi_app_main(void)
 
         if((strcmp(str,"YES") == 0)) {
             home_use_index[n] = 1;
-            fprintf(stderr,"use_index = yes\n");
+            rtapi_print_msg(RTAPI_MSG_ERR, "use_index = yes\n");
         } else {
-            fprintf(stderr,"use_index = no\n");
+            rtapi_print_msg(RTAPI_MSG_ERR, "use_index = no\n");
             home_use_index[n] = 0;
         }
 
@@ -983,7 +982,7 @@ int rtapi_app_main(void)
             for (i=0; i < NUM_PID_PARAMS; i++) {
                 rtapi_print_msg(RTAPI_MSG_INFO, "%s", pid_str[n][i]);
                 value = atof(pid_str[n][i]);
-                immediate_data = (int32_t) (value * (1 << pulse_fraction_bit[n]));
+                immediate_data = (int32_t) (value * (1 << param_fract_bit[n]));
                 // PID params starts from DEAD_BAND
                 // write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
                 write_mot_param (n, (DEAD_BAND + i), immediate_data);
