@@ -151,8 +151,9 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 1
 #if (MBOX_LOG)
+#define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -252,6 +253,8 @@ RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
                       "home use index flag for up to 8 channels");
 
 static int home_use_index[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
+static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
+static int param_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
 
 static const char *board = "7i43u";
 static const char wou_id = 0;
@@ -350,9 +353,9 @@ typedef struct {
     // velocity control
     hal_float_t *requested_vel;
     hal_float_t *current_vel;
-    int32_t fp_original_requested_vel;
-    int32_t fp_requested_vel;
-    int32_t fp_current_vel;
+    double fp_original_requested_vel;
+    double fp_requested_vel;
+    double fp_current_vel;
     int32_t vel_sync;
 } machine_control_t;
 
@@ -401,9 +404,7 @@ static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* recprocal of period, avoids divides */
-static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };   /* fract bit for pulse cmd */
-static int param_fract_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };      /* fract bit for parameters */
-//static int remove_thc_effect = THC_INIT;
+
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
@@ -431,7 +432,10 @@ static void fetchmail(const uint8_t *buf_head)
 
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
+
 #if (MBOX_LOG)
+    char        dmsg[1024];
+    int         dsize;
 
     p = (uint32_t *) (buf_head + 4);   
     bp_tick = *p;
@@ -466,20 +470,25 @@ static void fetchmail(const uint8_t *buf_head)
         *(gpio->a_in[0]) = (((double)*p)/20.0);
 
 #if (MBOX_LOG)
-        fprintf (mbox_fp, "%10d  ", bp_tick);
+        dsize = sprintf (dmsg, "%10d  ", bp_tick);
+        // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            fprintf (mbox_fp, "%10d  %10d  ",
-                    *(stepgen->pulse_pos), 
-                    *(stepgen->enc_pos)
-                    );
+            dsize += sprintf (dmsg + dsize, "%10d  %10d  ",
+                              *(stepgen->pulse_pos), 
+                              *(stepgen->enc_pos)
+                             );
             stepgen += 1;   // point to next joint
         }
-        fprintf (mbox_fp, "%10d 0x%04X \n",
-                *(gpio->a_in[0]), din[0]);
-       /* fprintf(mbox_fp, "vel_cmd(%d) bp_to_match(%d) vel_err(%d) accel_recip_fract(%d) vel(%d) accel(%d) accel_recip(%d)\n",
-                *(p+1), *(p+2), *(p+3), *(p+4), *(p+5), *(p+6), *(p+7));*/
-
+        dsize += sprintf (dmsg + dsize, "%10d 0x%04X ",
+                          (int32_t)(*(gpio->a_in[0])*20), din[0]);
+        // number of debug words: to match "send_joint_status() at common.c
+        for (i=0; i<MBOX_DEBUG_VARS; i++) {
+            p += 1;   
+            dsize += sprintf (dmsg + dsize, "%10d ", *p);
+        }
+        assert (dsize < 1023);
+        fprintf (mbox_fp, "%s\n", dmsg);
 #endif
         break;
     case MT_ERROR_CODE:
@@ -490,9 +499,9 @@ static void fetchmail(const uint8_t *buf_head)
         bp_tick = *p;
         p += 1;
 #if (MBOX_LOG)
-        if(*p < 100) {
+//        if(*p < 100) {
             fprintf(mbox_fp, "# error occure with code(%d) bp_tick(%d)\n",*p, bp_tick);
-        }
+//        }
 //        fprintf(mbox_fp, "# error occure with code(%d)\n",bp_tick);
 #endif
         break;
@@ -636,7 +645,7 @@ int rtapi_app_main(void)
         // enable ADC_SPI with LOOP mode
         //MCP3204: // ADC_SPI_CMD: 0x10: { (1)START_BIT,
         //MCP3204: //                      (0)Differential mode,
-        //MCP3204: //                      (0)D2 ... dont care,
+        //MCP3204: //               param_fraction_bit       (0)D2 ... dont care,
         //MCP3204: //                      (0)D1 ... Ch0 = IN+,
         //MCP3204: //                      (0)D0 ... CH1 = IN-   }
         //MCP3204: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
@@ -809,8 +818,7 @@ int rtapi_app_main(void)
         param_bit = param_bit > vel_bit? param_bit:vel_bit;//max(param_bit, vel_bit);
         param_bit = param_bit > accel_bit? param_bit:accel_bit;//max(param_bit, accel_bit);
         param_bit = param_bit > accel_recip_bit? param_bit:accel_recip_bit;//max(param_bit, accel_recip_bit);
-
-        param_fract_bit[n] = param_bit;
+        param_fraction_bit[n] = param_bit;
         vel_bit = param_bit;
         accel_bit = param_bit;
         accel_recip_bit = param_bit;
@@ -867,22 +875,6 @@ int rtapi_app_main(void)
                     sizeof(uint16_t), data);
         wou_flush(&w_param);
 
-/*         config fraction bit of max acceleration
-
-        immediate_data = accel_bit;
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_FRACT_BIT) |PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        wou_flush(&w_param);*/
-
         /* config acceleration */
         immediate_data = (uint32_t)(max_accel*pos_scale*dt*
                                         dt*(1 << accel_bit));
@@ -906,24 +898,6 @@ int rtapi_app_main(void)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
         wou_flush(&w_param);
-
-/*
-         config fraction bit of max acceleration recip
-
-        immediate_data = accel_recip_bit;
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_RECIP_FRACT_BIT) |PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        wou_flush(&w_param);
-*/
 
         /* config acceleration recip */
         immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
@@ -982,7 +956,7 @@ int rtapi_app_main(void)
             for (i=0; i < NUM_PID_PARAMS; i++) {
                 rtapi_print_msg(RTAPI_MSG_INFO, "%s", pid_str[n][i]);
                 value = atof(pid_str[n][i]);
-                immediate_data = (int32_t) (value * (1 << param_fract_bit[n]));
+                immediate_data = (int32_t) (value * (1 << param_fraction_bit[n]));
                 // PID params starts from DEAD_BAND
                 // write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
                 write_mot_param (n, (DEAD_BAND + i), immediate_data);
@@ -995,7 +969,7 @@ int rtapi_app_main(void)
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
     pos_scale = atof(pos_scale_str[2]);
-    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << pulse_fraction_bit[n]));
+    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[n]));
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     for(j=0; j<sizeof(uint32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1141,7 +1115,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     int32_t immediate_data = 0;
-    int32_t fp_req_vel, fp_cur_vel, fp_diff;
+    double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -1232,8 +1206,8 @@ static void update_freq(void *arg, long period)
                     sizeof(uint16_t), data);
 
             machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
-            machine_control->fp_original_requested_vel = (uint32_t)((*machine_control->requested_vel));
-            fprintf(stderr,"original_requested_vel(%d)\n", machine_control->fp_original_requested_vel);
+            machine_control->fp_original_requested_vel = (*machine_control->requested_vel);
+            fprintf(stderr,"original_requested_vel(%f)\n", machine_control->fp_original_requested_vel);
         }
         *(machine_control->position_compensation_en_trigger) = 0;
     }
@@ -1248,7 +1222,7 @@ static void update_freq(void *arg, long period)
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
         //immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
         // transmit immediate data
-        fprintf(stderr,"set risc timeout(%u)\n",immediate_data);
+        fprintf(stderr,"set risc timeout(%u) type (%d)\n",immediate_data, *(machine_control->wait_type));
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1650,8 +1624,6 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
-
-//            fprintf(stderr,"j(%d) pos_cmd(%f) ", n, *(stepgen->pos_cmd));
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
                 fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) \n",n ,(*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
@@ -1692,8 +1664,8 @@ static void update_freq(void *arg, long period)
     }
     // send velocity status
     if(machine_control->position_compensation_en_flag == 1) {
-        fp_req_vel = (uint32_t)((*machine_control->requested_vel));
-        fp_cur_vel = (uint32_t)((*machine_control->current_vel));
+        fp_req_vel = ((machine_control->fp_original_requested_vel));
+        fp_cur_vel = ((*machine_control->current_vel));
         if (fp_req_vel != machine_control->fp_requested_vel) {
             // forward requested velocity
             machine_control->fp_requested_vel = fp_req_vel;
@@ -1705,28 +1677,28 @@ static void update_freq(void *arg, long period)
                    sizeof(uint16_t), data);
            machine_control->vel_sync = 0;
         }
-        fp_diff = fp_cur_vel - fp_req_vel;
+        fp_diff = fp_cur_vel - machine_control->fp_original_requested_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) == 0) &&   //  120 mm/min
+        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.1)) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
             if(machine_control->fp_original_requested_vel == machine_control->fp_requested_vel) {
                 machine_control->vel_sync = 1;
-                sync_cmd = (SYNC_VEL | (fp_cur_vel << 1)) | 0x0001;
+                sync_cmd = (SYNC_VEL | (((int32_t)fp_cur_vel) << 1)) | 0x0001;
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
-                fprintf(stderr,"vel(%d) synced with original_vel(%d) requested(%d)\n",
+                fprintf(stderr,"vel(%f) synced with original_vel(%f) requested(%f)\n",
                         machine_control->fp_current_vel,
                         machine_control->fp_original_requested_vel,
                         machine_control->fp_requested_vel);
             } else {
                 fprintf(stderr,"vel synced but not original vel requested\n");
             }
-        } else if(machine_control->vel_sync == 1 && (fp_diff > 0)){
+        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)*0.1))){
             machine_control->vel_sync = 0;
-            sync_cmd = (SYNC_VEL|(fp_cur_vel << 1)) & 0xFFFE;
+            sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                    sizeof(uint16_t), data);
