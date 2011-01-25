@@ -153,7 +153,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 1
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     5       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -210,25 +210,25 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  8
+#define NUM_PID_PARAMS  15
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] = 
-        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] = 
-        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] = 
-        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] = 
-        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
@@ -287,7 +287,7 @@ typedef struct {
     hal_u32_t step_len;		/* parameter: step pulse length */
     hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
     hal_u32_t dir_setup;	/* param: direction setup time */
-    int step_type;		/* stepping type - see list above */
+    int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
     /* stuff that is not accessed by makepulses */
@@ -546,11 +546,10 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 
 int rtapi_app_main(void)
 {
-    int n, retval, i, j;
+    int n, retval, j;
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    uint16_t sync_cmd;
     char str[50];
     double max_vel, max_accel, pos_scale, thc_vel, value;
     int32_t bitn, vel_bit, accel_bit, accel_recip_bit, param_bit;
@@ -822,103 +821,44 @@ int rtapi_app_main(void)
         vel_bit = param_bit;
         accel_bit = param_bit;
         accel_recip_bit = param_bit;
-        rtapi_print_msg(RTAPI_MSG_ERR,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
+        rtapi_print_msg(RTAPI_MSG_DBG,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
 
         /* config fraction bit of pulse command */
         immediate_data = bitn;
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(CMD_FRACT_BIT) |PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        wou_flush(&w_param);
+        write_mot_param (n, (CMD_FRACT_BIT), immediate_data);
 
         /* config fraction bit of param */
         immediate_data = param_bit;
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(PARAM_FRACT_BIT) |PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        wou_flush(&w_param);
-
+        write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
         /* config velocity */
         immediate_data = (uint32_t)((max_vel*pos_scale*dt)*(1 << vel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
-        rtapi_print_msg(RTAPI_MSG_ERR,
+        rtapi_print_msg(RTAPI_MSG_DBG,
                 " max_vel= %f*%f*%f*(2^%d) = (%d) ", max_vel, pos_scale, dt, vel_bit, immediate_data);
         assert(immediate_data>0);
-
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_VELOCITY) | PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        wou_flush(&w_param);
+        write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
         /* config acceleration */
         immediate_data = (uint32_t)(max_accel*pos_scale*dt*
                                         dt*(1 << accel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
-        rtapi_print_msg(RTAPI_MSG_ERR,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
+        rtapi_print_msg(RTAPI_MSG_DBG,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
                  max_accel, pos_scale, dt, accel_bit, immediate_data);
 
         assert(immediate_data>0);
-
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL) | PACK_MOT_PARAM_ID(n);
-
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        wou_flush(&w_param);
+        write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
         immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
                                         dt))*(1 << accel_recip_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        rtapi_print_msg(RTAPI_MSG_ERR, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
+        rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
                 max_accel, pos_scale, dt, accel_recip_bit, immediate_data);
         assert(immediate_data>0);
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MAX_ACCEL_RECIP) | PACK_MOT_PARAM_ID(n);
 
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        wou_flush(&w_param);
+        write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
 
         /* config move type */
         for(j = 0; home_use_index_str[j]; j++) {
@@ -928,41 +868,104 @@ int rtapi_app_main(void)
 
         if((strcmp(str,"YES") == 0)) {
             home_use_index[n] = 1;
-            rtapi_print_msg(RTAPI_MSG_ERR, "use_index = yes\n");
+            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = yes\n");
         } else {
-            rtapi_print_msg(RTAPI_MSG_ERR, "use_index = no\n");
+            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = no\n");
             home_use_index[n] = 0;
         }
 
         // set move type as normal by default
         immediate_data = NORMAL_MOVE;
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-            wou_flush(&w_param);
-        }
-        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MOTION_TYPE) | PACK_MOT_PARAM_ID(n);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        wou_flush(&w_param);
-
+        write_mot_param (n, (MOTION_TYPE), immediate_data);
         
         // test valid PID parameter for joint[n]
         if (pid_str[n][0] != NULL) {
-            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID=", n);
-            for (i=0; i < NUM_PID_PARAMS; i++) {
-                rtapi_print_msg(RTAPI_MSG_INFO, "%s", pid_str[n][i]);
+            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
+            /*
+                for (i=0; i < NUM_PID_PARAMS; i++) {
+
                 value = atof(pid_str[n][i]);
-                immediate_data = (int32_t) (value * (1 << param_fraction_bit[n]));
+                immediate_data = (int32_t) (value);
                 // PID params starts from DEAD_BAND
                 // write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
                 write_mot_param (n, (DEAD_BAND + i), immediate_data);
-            }
+                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)",i, pid_str[n][i], immediate_data);
+            }*/
+            //TODO: create excel to calculate those parameters
+            value = abs(atof(pid_str[n][DEAD_BAND-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " DEAD_BAND=%d", immediate_data);
+            // PID params starts from DEAD_BAND
+            write_mot_param (n, (DEAD_BAND), immediate_data);
+
+            value = atof(pid_str[n][P_GAIN-DEAD_BAND]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " P_GAIN=%d", immediate_data);
+            write_mot_param (n, (P_GAIN), immediate_data);
+
+            value = atof(pid_str[n][I_GAIN-DEAD_BAND]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " I_GAIN=%d", immediate_data);
+            write_mot_param (n, (I_GAIN), immediate_data);
+
+            value = atof(pid_str[n][D_GAIN-DEAD_BAND]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " D_GAIN=%d", immediate_data);
+            write_mot_param (n, (D_GAIN), immediate_data);
+
+            value = atof(pid_str[n][FF0-DEAD_BAND]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " FF0=%d", immediate_data);
+            write_mot_param (n, (FF0), immediate_data);
+
+            value = atof(pid_str[n][FF1-DEAD_BAND]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " FF1=%d", immediate_data);
+            write_mot_param (n, (FF1), immediate_data);
+
+            value = atof(pid_str[n][FF2-DEAD_BAND]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " FF2=%d", immediate_data);
+            write_mot_param (n, (FF2), immediate_data);
+
+            value = (atof(pid_str[n][BIAS-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " BIAS=%d", immediate_data);
+            write_mot_param (n, (BIAS), immediate_data);
+            value = (atof(pid_str[n][MAXERROR-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR=%d", immediate_data);
+            write_mot_param (n, (MAXERROR), immediate_data);
+
+            value = (atof(pid_str[n][MAXERROR_I-DEAD_BAND])*pos_scale/dt)*param_fraction_bit[n];
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR_I=%d", immediate_data);
+            write_mot_param (n, (MAXERROR_I), immediate_data);
+
+            value = (atof(pid_str[n][MAXERROR_D-DEAD_BAND])*pos_scale*dt*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR_D=%d", immediate_data);
+            write_mot_param (n, (MAXERROR_D), immediate_data);
+
+            value = (atof(pid_str[n][MAXCMD_D-DEAD_BAND])*pos_scale*dt*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " MAXCMD_D=%d", immediate_data);
+            write_mot_param (n, (MAXCMD_D), immediate_data);
+
+            value = (atof(pid_str[n][MAXCMD_DD-DEAD_BAND])*pos_scale*dt*dt*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " MAXCMD_DD=%d", immediate_data);
+            write_mot_param (n, (MAXCMD_DD), immediate_data);
+
+           /* value = (atof(pid_str[n][MAXOUTPUT-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
+            immediate_data = (int32_t) (value);
+            rtapi_print_msg(RTAPI_MSG_INFO, " MAXOUTPUT=%d\n", immediate_data);
+            write_mot_param (n, (MAXOUTPUT), immediate_data);*/
+
+            value = 0;
+            immediate_data = (int32_t) (value);
+            write_mot_param (n, (ENABLE), immediate_data);
             rtapi_print_msg(RTAPI_MSG_INFO, "\n");
-            /* the fraction bits of PID PARAMS are identical to pulse command */
         }
     }
 
@@ -971,20 +974,12 @@ int rtapi_app_main(void)
     pos_scale = atof(pos_scale_str[2]);
     immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[n]));
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-    for(j=0; j<sizeof(uint32_t); j++) {
-        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-               sizeof(uint16_t), data);
-    }
+    write_mot_param (2, (COMP_VEL), immediate_data);
+
+    // SVO-ON
+    data[0] = 2;
+    wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
     wou_flush(&w_param);
-    /* apply THC to Z */
-    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(COMP_VEL) | PACK_MOT_PARAM_ID(2);
-    memcpy(data, &sync_cmd, sizeof(uint16_t));
-    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-           sizeof(uint16_t), data);
-
-
     /* have good config info, connect to the HAL */
     comp_id = hal_init("wou");
     if (comp_id < 0) {
@@ -1507,9 +1502,13 @@ static void update_freq(void *arg, long period)
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         if (*stepgen->enable) {
-            data[0] = 2/*3*/;   // SVO-ON, WATCHDOG-ON
+            /*data[0] = 23;   // SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-            wou_flush(&w_param);
+            wou_flush(&w_param);*/
+            for(i=0; i<num_chan; i++) {
+                write_mot_param (i, (ENABLE), 1);
+            }
+
         } else {
             data[0] = 0; // RESET GPIO_OUT
             wou_cmd (&w_param, WB_WR_CMD,
@@ -1517,11 +1516,15 @@ static void update_freq(void *arg, long period)
                      (uint8_t) 1, data);
 // obsolete:  data[0] = 0;	// RISC OFF
 // obsolete:  wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
-            data[0] = 0;        // SVO-OFF
+            /*data[0] = 0;        // SVO-OFF
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-            wou_flush(&w_param);
+            wou_flush(&w_param);*/
+            for(i=0; i<num_chan; i++) {
+                write_mot_param (i, (ENABLE), 0);
+            }
 
         }
+
     }
     
     i = 0;
@@ -1581,6 +1584,16 @@ static void update_freq(void *arg, long period)
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
             wou_flush(&w_param);
+            wou_pos_cmd = 0;
+            sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
+            memcpy(data + n * sizeof(uint16_t), &sync_cmd,
+                   sizeof(uint16_t));
+            if (n == (num_chan - 1)) {
+                // send to WOU when all axes commands are generated
+                wou_cmd(&w_param,
+                        WB_WR_CMD,
+                        (JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
+            }
 	    continue;
 	}
 
@@ -1624,6 +1637,7 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
+
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
                 fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) \n",n ,(*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
