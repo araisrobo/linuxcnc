@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 #define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
