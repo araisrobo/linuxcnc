@@ -414,7 +414,7 @@ static void fetchmail(const uint8_t *buf_head)
 
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
-
+    int32_t    feedback;
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -449,7 +449,8 @@ static void fetchmail(const uint8_t *buf_head)
         din[0] = *p;
         // ADC_SPI (  filtered value)
         p += 1;   
-        *(gpio->a_in[0]) = (((double)*p)/20.0);
+        feedback = *p;
+        *(gpio->a_in[0]) = (((double)feedback)/20.0);
 
 #if (MBOX_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);
@@ -463,7 +464,7 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
         dsize += sprintf (dmsg + dsize, "%10d 0x%04X ",
-                          *(gpio->a_in[0]), din[0]);
+                          (feedback), din[0]);
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
             p += 1;   
@@ -932,7 +933,7 @@ int rtapi_app_main(void)
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
     pos_scale = atof(pos_scale_str[2]);
-    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[n]));
+    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[2]));
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     for(j=0; j<sizeof(uint32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -940,6 +941,8 @@ int rtapi_app_main(void)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                sizeof(uint16_t), data);
     }
+    fprintf(stderr," thc_vel(%f) pos_scale(%f) thc_vel(%d) \n",thc_vel, pos_scale,
+                    immediate_data);
     wou_flush(&w_param);
     /* apply THC to Z */
     sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(COMP_VEL) | PACK_MOT_PARAM_ID(2);
@@ -1645,7 +1648,7 @@ static void update_freq(void *arg, long period)
         }
         fp_diff = fp_cur_vel - machine_control->fp_original_requested_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.1)) &&   //  120 mm/min
+        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.03)) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
@@ -1662,7 +1665,8 @@ static void update_freq(void *arg, long period)
             } else {
                 fprintf(stderr,"vel synced but not original vel requested\n");
             }
-        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)*0.1))){
+        } else if(machine_control->vel_sync == 1 && (fp_diff >
+                            ((machine_control->fp_original_requested_vel)*0.03))){
             machine_control->vel_sync = 0;
             sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
