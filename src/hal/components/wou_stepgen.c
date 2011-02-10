@@ -210,25 +210,25 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  15
+#define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
@@ -546,7 +546,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 
 int rtapi_app_main(void)
 {
-    int n, retval, j;
+    int n, retval, j, i;
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
@@ -784,7 +784,6 @@ int rtapi_app_main(void)
         }
         pulse_fraction_bit[n] = bitn;  // cmd fraction bit never modified
 
-
         // fraction bit for vel
         max_vel = atof(max_vel_str[n]);
         value = (1.0/(max_vel*pos_scale*dt));
@@ -793,7 +792,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>vel_bit)>0) {
             vel_bit++;
         }
-        vel_bit += 4;
+        vel_bit += 4;   //  more accurate: 1/2^4
         // fraction bit for accel
         max_accel = atof(max_accel_str[n]);
         value = (1.0/(max_accel*pos_scale*dt*dt)); // accurate 1
@@ -802,7 +801,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>accel_bit)>0) {
             accel_bit++;
         }
-        accel_bit+=4;
+        accel_bit+=4;   //  more accurate: 1/2^4
         // fraction bit for accel_recip
         value = ((max_accel*pos_scale*dt*dt))/1; // accurate 1
         value = value > 0? value:-value;
@@ -810,7 +809,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>accel_recip_bit)>0) {
             accel_recip_bit++;
         }
-        accel_recip_bit += 4;
+        accel_recip_bit += 4;   //  more accurate: 1/2^4
 
         param_bit = 0;
         param_bit = param_bit > bitn? param_bit:bitn;//max(param_bit, bitn);
@@ -881,86 +880,21 @@ int rtapi_app_main(void)
         // test valid PID parameter for joint[n]
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
-            /*
-                for (i=0; i < NUM_PID_PARAMS; i++) {
-
+            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
+            for (i=0; i < (FF2-P_GAIN+1); i++) {
+                // all gain varies from 0(0%) to 65535(100%)
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value);
-                // PID params starts from DEAD_BAND
-                // write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
-                write_mot_param (n, (DEAD_BAND + i), immediate_data);
-                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)",i, pid_str[n][i], immediate_data);
-            }*/
-            //TODO: create excel to calculate those parameters
-            value = abs(atof(pid_str[n][DEAD_BAND-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " DEAD_BAND=%d", immediate_data);
-            // PID params starts from DEAD_BAND
-            write_mot_param (n, (DEAD_BAND), immediate_data);
-
-            value = atof(pid_str[n][P_GAIN-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " P_GAIN=%d", immediate_data);
-            write_mot_param (n, (P_GAIN), immediate_data);
-
-            value = atof(pid_str[n][I_GAIN-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " I_GAIN=%d", immediate_data);
-            write_mot_param (n, (I_GAIN), immediate_data);
-
-            value = atof(pid_str[n][D_GAIN-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " D_GAIN=%d", immediate_data);
-            write_mot_param (n, (D_GAIN), immediate_data);
-
-            value = atof(pid_str[n][FF0-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " FF0=%d", immediate_data);
-            write_mot_param (n, (FF0), immediate_data);
-
-            value = atof(pid_str[n][FF1-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " FF1=%d", immediate_data);
-            write_mot_param (n, (FF1), immediate_data);
-
-            value = atof(pid_str[n][FF2-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " FF2=%d", immediate_data);
-            write_mot_param (n, (FF2), immediate_data);
-
-            value = (atof(pid_str[n][BIAS-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " BIAS=%d", immediate_data);
-            write_mot_param (n, (BIAS), immediate_data);
-            value = (atof(pid_str[n][MAXERROR-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR=%d", immediate_data);
-            write_mot_param (n, (MAXERROR), immediate_data);
-
-            value = (atof(pid_str[n][MAXERROR_I-DEAD_BAND])*pos_scale/dt)*param_fraction_bit[n];
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR_I=%d", immediate_data);
-            write_mot_param (n, (MAXERROR_I), immediate_data);
-
-            value = (atof(pid_str[n][MAXERROR_D-DEAD_BAND])*pos_scale*dt*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR_D=%d", immediate_data);
-            write_mot_param (n, (MAXERROR_D), immediate_data);
-
-            value = (atof(pid_str[n][MAXCMD_D-DEAD_BAND])*pos_scale*dt*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXCMD_D=%d", immediate_data);
-            write_mot_param (n, (MAXCMD_D), immediate_data);
-
-            value = (atof(pid_str[n][MAXCMD_DD-DEAD_BAND])*pos_scale*dt*dt*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXCMD_DD=%d", immediate_data);
-            write_mot_param (n, (MAXCMD_DD), immediate_data);
-
-           /* value = (atof(pid_str[n][MAXOUTPUT-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXOUTPUT=%d\n", immediate_data);
-            write_mot_param (n, (MAXOUTPUT), immediate_data);*/
+                write_mot_param (n, (P_GAIN + i), immediate_data);
+                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+            }
+            for (; i < (MAXOUTPUT-P_GAIN+1); i++) {
+                // parameter use parameter fraction, parameter unit: pulse
+                value = atof(pid_str[n][i]);
+                immediate_data = (int32_t) (value) * (1 << param_fraction_bit[n]);
+                write_mot_param (n, (P_GAIN + i), immediate_data);
+                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+            }
 
             value = 0;
             immediate_data = (int32_t) (value);
@@ -1282,6 +1216,7 @@ static void update_freq(void *arg, long period)
     r_load_pos = 0;
     r_switch_en = 0;
     r_index_en = prev_r_index_en;
+    //TODO: implement index homing both emc2 and risc
     for (n = 0; n < num_chan; n++) {
 	if (*stepgen->home_state != HOME_IDLE) {
 	    static hal_s32_t prev_switch_pos;
@@ -1298,7 +1233,7 @@ static void update_freq(void *arg, long period)
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
 	    if(prev_switch_pos != switch_pos_tmp) {
-                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
+//                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
                 prev_switch_pos = switch_pos_tmp;
 	    }
 
@@ -1376,16 +1311,16 @@ static void update_freq(void *arg, long period)
                             sizeof(uint16_t), data);
                     wou_flush(&w_param);
 
-
                     normal_move_flag[n] = 0;
                 }
+
                 (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
                 (*stepgen->pos_cmd) = *(stepgen->pos_fb);
+                /*fprintf(stderr,"j(%d) stepgen->prev_pos_cmd(%f) pos_cmd(%f) \n", n, stepgen->prev_pos_cmd,
+                        *stepgen->pos_cmd);*/
             } else if(*stepgen->home_state == HOME_START) {
                 normal_move_flag[n] = 1;
             }
-
-
 
 	    /* check if we should wait for Motor Index Toggle */
 	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
@@ -1397,13 +1332,14 @@ static void update_freq(void *arg, long period)
 		    // reset r_index_en by SW
 		    r_index_en &= (~(1 << n));	// reset index_en[n]
 		    *(stepgen->index_enable) = 0;
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
-		                                    n, r_index_en, prev_r_index_en);
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n", 
-		                                    n, *(stepgen->index_pos), index_pos_tmp);
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n", 
-		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
+//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
+//		                                    n, r_index_en, prev_r_index_en);
+//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
+//		                                    n, *(stepgen->index_pos), index_pos_tmp);
+//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
+//		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
 		}
+//		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
 	    }
 
 	    if (stepgen->prev_home_state == HOME_IDLE) {
@@ -1419,9 +1355,7 @@ static void update_freq(void *arg, long period)
                     /* accumulator gets a half step offset, so it will step half
                        way between integer positions, not at the integer positions */
                     stepgen->rawcount = *(stepgen->enc_pos);
-//                    stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF) + (1L << (PICKOFF-1));
-                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip
-                                                /** (1.0/(1L << PICKOFF))*/;
+//                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
                 }
                 fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
@@ -1514,8 +1448,6 @@ static void update_freq(void *arg, long period)
             wou_cmd (&w_param, WB_WR_CMD,
                      (uint16_t) (GPIO_BASE | GPIO_OUT),
                      (uint8_t) 1, data);
-// obsolete:  data[0] = 0;	// RISC OFF
-// obsolete:  wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
             /*data[0] = 0;        // SVO-OFF
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
             wou_flush(&w_param);*/
@@ -1540,12 +1472,14 @@ static void update_freq(void *arg, long period)
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
             
+	    /* update pos fb*/
+	    *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+
             /* to prevent position drift while toggeling "PWR-ON" switch */
-            (stepgen->prev_pos_cmd) = (double) (*stepgen->enc_pos) * stepgen->scale_recip;
-            // less accurate: (stepgen->prev_pos_cmd) = ((double) stepgen->rawcount) * stepgen->scale_recip;
-	    *(stepgen->pos_fb) = (stepgen->prev_pos_cmd);
+	    (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
+
 	    stepgen->vel_fb = 0;
-            
+
             r_load_pos = 0;
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
                 r_load_pos |= (1 << n);
@@ -1564,7 +1498,6 @@ static void update_freq(void *arg, long period)
                         n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
-
 //SERVO:            (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
 //SERVO:            if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
 //SERVO:                r_load_pos |= (1 << n);
@@ -1578,8 +1511,6 @@ static void update_freq(void *arg, long period)
 //SERVO:                //         n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
 //SERVO:            }
 	    
-	    /* and skip to next one */
-	    stepgen++;
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
@@ -1594,6 +1525,8 @@ static void update_freq(void *arg, long period)
                         WB_WR_CMD,
                         (JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
             }
+            /* and skip to next one */
+            stepgen++;
 	    continue;
 	}
 
@@ -1639,11 +1572,11 @@ static void update_freq(void *arg, long period)
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
 
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
-                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) \n",n ,(*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
+                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d)\n",n ,
+                        (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
-//            if(n==3) fprintf(stderr,"\n");
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
