@@ -151,9 +151,9 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     5       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     0       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -312,11 +312,14 @@ typedef struct {
 
     hal_s32_t *home_state;	/* pin: home_state from homing.c */
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-
     double vel_fb;
     double prev_pos_cmd;	/* prev pos_cmd: previous position command */
     double sum_err_0;
     double sum_err_1;
+    // pid info
+    hal_float_t *pid_cmd;
+    hal_float_t *cmd_error;       /* cmd error */
+    hal_float_t *pid_output;      /* pid output */
 } stepgen_t;
 
 typedef struct {
@@ -357,6 +360,7 @@ typedef struct {
     double fp_requested_vel;
     double fp_current_vel;
     int32_t vel_sync;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -429,7 +433,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-
+    double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
 
@@ -454,12 +458,21 @@ static void fetchmail(const uint8_t *buf_head)
 
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
+            pos_scale = fabs(atof(pos_scale_str[i]));
             // PULSE_POS
             p += 1;         
             *(stepgen->pulse_pos) = *p;
             // ENC_POS
             p += 1;         
             *(stepgen->enc_pos) = *p;
+            // pid output
+            p +=1;
+            *(stepgen->pid_cmd) = ((int32_t)*p)/pos_scale;
+            // cmd error
+            p += 1;
+            *(stepgen->cmd_error) = ((int32_t)*p)/pos_scale;
+
+            *(stepgen->pid_output) = (*(stepgen->pulse_pos))/pos_scale;
             stepgen += 1;   // point to next joint
         }
         // digital inpout
@@ -474,9 +487,12 @@ static void fetchmail(const uint8_t *buf_head)
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            dsize += sprintf (dmsg + dsize, "%10d  %10d  ",
+            pos_scale = atof(pos_scale_str[i]);
+            dsize += sprintf (dmsg + dsize, "%10d  %10d %10f %10f  ",
                               *(stepgen->pulse_pos), 
-                              *(stepgen->enc_pos)
+                              *(stepgen->enc_pos),
+                              *(stepgen->pid_output),
+                              *(stepgen->cmd_error)
                              );
             stepgen += 1;   // point to next joint
         }
@@ -1830,6 +1846,24 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 				"wou.stepgen.%d.steplen", num);
     if (retval != 0) {
 	return retval;
+    }
+    /* export parameter for pid error term */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_error), comp_id,
+                              "wou.stepgen.%d.pid.error", num);
+    if (retval != 0) {
+        return retval;
+    }
+    /* export parameter for pid output in risc */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_output), comp_id,
+                              "wou.stepgen.%d.pid.output", num);
+    if (retval != 0) {
+        return retval;
+    }
+    /* export parameter for cmd in risc*/
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_cmd), comp_id,
+                              "wou.stepgen.%d.pid.cmd", num);
+    if (retval != 0) {
+        return retval;
     }
     if (step_type < 2) {
 	/* step/dir and up/down use 'stepspace' */
