@@ -467,12 +467,12 @@ static void fetchmail(const uint8_t *buf_head)
             *(stepgen->enc_pos) = *p;
             // pid output
             p +=1;
-            *(stepgen->pid_cmd) = ((int32_t)*p)/pos_scale;
+            *(stepgen->pid_output) = ((int32_t)*p)/pos_scale;
             // cmd error
             p += 1;
             *(stepgen->cmd_error) = ((int32_t)*p)/pos_scale;
 
-            *(stepgen->pid_output) = (*(stepgen->pulse_pos))/pos_scale;
+            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))/pos_scale;
             stepgen += 1;   // point to next joint
         }
         // digital inpout
