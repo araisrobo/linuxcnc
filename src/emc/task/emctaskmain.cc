@@ -1766,6 +1766,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    ((EMC_TRAJ_PROBE *) cmd)->vel,
             ((EMC_TRAJ_PROBE *) cmd)->ini_maxvel,  
 	    ((EMC_TRAJ_PROBE *) cmd)->acc,
+	    ((EMC_TRAJ_PROBE*) cmd)->ini_maxjerk,
             ((EMC_TRAJ_PROBE *) cmd)->probe_type);
 	break;
 

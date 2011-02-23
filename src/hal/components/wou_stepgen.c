@@ -151,9 +151,9 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 1
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     0       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     3       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -210,25 +210,25 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  14
+#define NUM_PID_PARAMS  17
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
@@ -360,7 +360,12 @@ typedef struct {
     double fp_requested_vel;
     double fp_current_vel;
     int32_t vel_sync;
-
+    /* probe */
+    hal_bit_t *probe_trigger;
+    hal_u32_t *probe_type;
+    hal_bit_t *probe_input;
+    uint8_t prev_probe_input;
+    int8_t probe_state;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -481,6 +486,14 @@ static void fetchmail(const uint8_t *buf_head)
         // ADC_SPI (  filtered value)
         p += 1;   
         *(gpio->a_in[0]) = (((double)*p)/20.0);
+        // probe state
+        p += 1;
+        machine_control->probe_state = *p;
+        if(machine_control->probe_state == 5) {
+            *machine_control->probe_input = 1;
+        } else {
+            *machine_control->probe_input = 0;
+        }
 
 #if (MBOX_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);
@@ -496,8 +509,9 @@ static void fetchmail(const uint8_t *buf_head)
                              );
             stepgen += 1;   // point to next joint
         }
-        dsize += sprintf (dmsg + dsize, "%10d 0x%04X ",
-                          (int32_t)(*(gpio->a_in[0])*20), din[0]);
+        dsize += sprintf (dmsg + dsize, "%10d 0x%04X %10d",
+                          (int32_t)(*(gpio->a_in[0])*20), din[0],
+                          machine_control->probe_state);
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
             p += 1;   
@@ -904,7 +918,7 @@ int rtapi_app_main(void)
                 write_mot_param (n, (P_GAIN + i), immediate_data);
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
-            for (; i < (MAXOUTPUT-P_GAIN+1); i++) {
+            for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
                 // parameter use parameter fraction, parameter unit: pulse
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value) * (1 << param_fraction_bit[n]);
@@ -1035,7 +1049,7 @@ static double force_precision(double d)
 static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
-    int n, i;
+    int n, i, enable;
 //    double new_vel;
 
 //    double ff_vel;
@@ -1214,6 +1228,32 @@ static void update_freq(void *arg, long period)
         machine_control->prev_out = sync_io_data;
     }
     /* end: process motion synchronized output */
+
+    /* begin: probe */
+    if(*machine_control->probe_trigger != 0 ) {
+
+        *machine_control->probe_trigger = 0;
+        sync_cmd = SYNC_PROBE | ((uint16_t)*machine_control->probe_type);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        wou_flush(&w_param);
+        fprintf(stderr,"probe_trigger(%d) \n",*machine_control->probe_type);
+
+    }
+    if((machine_control->prev_probe_input != *machine_control->probe_input) &&
+            machine_control->prev_probe_input) {
+        /* disable probe motion in risc */
+        sync_cmd = SYNC_PROBE;
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        wou_flush(&w_param);
+
+    }
+    machine_control->prev_probe_input = *machine_control->probe_input;
+    /* end: probe */
+
     /* point at stepgen data */
     stepgen = arg;
 
@@ -1477,10 +1517,10 @@ static void update_freq(void *arg, long period)
     
     i = 0;
     stepgen = arg;
+    enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_chan; n++) {
-        
 	/* test for disabled stepgen */
-	if (*stepgen->enable == 0) {
+	if (enable == 0) {
 	    /* AXIS not PWR-ON */
 	    /* keep updating parameters for better performance */
 	    stepgen->scale_recip = 1.0 / stepgen->pos_scale;
@@ -1514,20 +1554,8 @@ static void update_freq(void *arg, long period)
                         n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
-//SERVO:            (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
-//SERVO:            if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
-//SERVO:                r_load_pos |= (1 << n);
-//SERVO:                /* accumulator gets a half step offset, so it will step half
-//SERVO:                   way between integer positions, not at the integer positions */
-//SERVO:                stepgen->accum = *(stepgen->enc_pos) + (1L << (PICKOFF-1));
-//SERVO:                stepgen->rawcount = *(stepgen->enc_pos);
-//SERVO:                wou_cmd(&w_param,
-//SERVO:                        WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-//SERVO:                // fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
-//SERVO:                //         n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-//SERVO:            }
-	    
 
+//            fprintf(stderr,"i(%d) n(%d)\n", i, n);
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
             wou_flush(&w_param);
@@ -1546,7 +1574,7 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
 
-	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+	*(stepgen->pos_fb) = *stepgen->pos_cmd;//(*stepgen->enc_pos) * stepgen->scale_recip;
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
@@ -2064,8 +2092,6 @@ static int export_machine_control(machine_control_t * machine_control)
             return retval;
     }
     *(machine_control->position_compensation_ref) = 0;
-
-
     retval =
             hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
                                 "wou.requested-vel");
@@ -2080,21 +2106,38 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-
     /* for plasma control */
 
-    retval =
-                hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
                                 "wou.thc_enable");
-        if (retval != 0) {
-            return retval;
-        }retval =
-                hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
-                                "wou.plasma_enable");
-        if (retval != 0) {
-            return retval;
-        }
+    if (retval != 0) {
+        return retval;
+    }retval =
+            hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
+                            "wou.plasma_enable");
+    if (retval != 0) {
+        return retval;
+    }
 
+    /* for probe */
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_trigger), comp_id,
+                         "wou.probe.trigger");
+    *(machine_control->probe_trigger) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->probe_type), comp_id,
+                             "wou.probe.type");
+    *(machine_control->probe_type) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_input), comp_id,
+                             "wou.probe.input");
+    *(machine_control->probe_input) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
 
     machine_control->num_sync_in = num_sync_in;
     machine_control->num_sync_out = num_sync_out;
