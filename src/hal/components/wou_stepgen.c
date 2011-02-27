@@ -285,8 +285,8 @@ typedef struct {
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
-    hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
-    hal_u32_t dir_setup;	/* param: direction setup time */
+    //obsolete: hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
+    //obsolete: hal_u32_t dir_setup;	/* param: direction setup time */
     int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
@@ -1907,29 +1907,29 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	    return retval;
 	}
     }
-    if (step_type == 0) {
-	/* step/dir is the only one that uses dirsetup and dirhold */
-	retval = hal_param_u32_newf(HAL_RW, &(addr->dir_setup),
-				    comp_id, "wou.stepgen.%d.dirsetup",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-	retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
-				    comp_id, "wou.stepgen.%d.dirhold",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-    } else {
-	/* the others use dirdelay */
-	retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
-				    comp_id, "wou.stepgen.%d.dirdelay",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-    }
+    //obsolete: if (step_type == 0) {
+    //obsolete:     /* step/dir is the only one that uses dirsetup and dirhold */
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_setup),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.dirsetup",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.dirhold",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete: } else {
+    //obsolete:     /* the others use dirdelay */
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.dirdelay",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete: }
     /* export output pins */
     if (step_type == 0) {
 	/* step and direction */
@@ -1987,13 +1987,13 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     } else {
 	addr->step_space = 0;
     }
-    if (step_type == 0) {
-	addr->dir_hold_dly = 1;
-	addr->dir_setup = 1;
-    } else {
-	addr->dir_hold_dly = 1;
-	addr->dir_setup = 0;
-    }
+    //obsolete: if (step_type == 0) {
+    //obsolete:     addr->dir_hold_dly = 1;
+    //obsolete:     addr->dir_setup = 1;
+    //obsolete: } else {
+    //obsolete:     addr->dir_hold_dly = 1;
+    //obsolete:     addr->dir_setup = 0;
+    //obsolete: }
     /* init the step generator core to zero output */
 //    addr->cur_pos = 0.0;
     /* accumulator gets a half step offset, so it will step half
