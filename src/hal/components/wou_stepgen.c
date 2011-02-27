@@ -1604,8 +1604,9 @@ static void update_freq(void *arg, long period)
 
 	// maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
 	{
-	    double min_ns_per_step =
-		stepgen->step_len + stepgen->dir_hold_dly;
+	    //obsolete:     double min_ns_per_step =
+	    //obsolete: 	stepgen->step_len + stepgen->dir_hold_dly;
+	    double min_ns_per_step = stepgen->step_len;
 	    double max_steps_per_s = 1.0e9 / min_ns_per_step;
 
 	    physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
