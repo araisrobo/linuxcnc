@@ -1202,7 +1202,7 @@ void STRAIGHT_PROBE(int line_number,
     probeMsg.probe_type = probe_type;
 
     probeMsg.pos = to_ext_pose(x,y,z,a,b,c,u,v,w);
-
+    probeMsg.ini_maxjerk = TO_EXT_LEN(getStraightJerk(x, y, z, a, b, c, u, v, w));
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
         interp_list.append(probeMsg);

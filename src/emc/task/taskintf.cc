@@ -1330,7 +1330,8 @@ int emcTrajClearProbeTrippedFlag()
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double acc, unsigned char probe_type)
+int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk,
+        unsigned char probe_type)
 {
     CATCH_NAN(isnan(pos.tran.x) || isnan(pos.tran.y) || isnan(pos.tran.z) ||
         isnan(pos.a) || isnan(pos.b) || isnan(pos.c) ||
@@ -1344,7 +1345,7 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.probe_type = probe_type;
-
+    emcmotCommand.ini_maxjerk = ini_maxjerk;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

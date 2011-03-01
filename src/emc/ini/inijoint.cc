@@ -100,15 +100,7 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
     try {
         // set joint type
         jointType = EMC_LINEAR;	// default
-        //jointIniFile->Find(&jointType, "TYPE", jointString);
-
-        res = jointIniFile->Find(&jointType, "TYPE", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need TYPE in ini file"), jointString);
-            assert(0);
-        }
-
-
+        jointIniFile->Find(&jointType, "TYPE", jointString);
         if (0 != emcJointSetType(joint, jointType)) {
             return -1;
         }
@@ -125,141 +117,59 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
 
         // set backlash
         backlash = 0;	                // default
-       // jointIniFile->Find(&backlash, "BACKLASH", jointString);
-
-        res = jointIniFile->Find(&backlash, "BACKLASH", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need BACKLASH in ini file"), jointString);
-            assert(0);
-        }
-
-
+        jointIniFile->Find(&backlash, "BACKLASH", jointString);
         if (0 != emcJointSetBacklash(joint, backlash)) {
             return -1;
         }
 
         // set min position limit
         limit = -1e99;	                // default
-       // jointIniFile->Find(&limit, "MIN_LIMIT", jointString);
-
-        res = jointIniFile->Find(&limit, "MIN_LIMIT", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MIN_LIMIT in ini file"), jointString);
-            assert(0);
-        }
-
+        jointIniFile->Find(&limit, "MIN_LIMIT", jointString);
         if (0 != emcJointSetMinPositionLimit(joint, limit)) {
              return -1;
         }
 
         // set max position limit
         limit = 1e99;	                // default
-        //jointIniFile->Find(&limit, "MAX_LIMIT", jointString);
-        res = jointIniFile->Find(&limit, "MAX_LIMIT", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MAX_LIMIT in ini file"), jointString);
-            assert(0);
-        }
-
+        jointIniFile->Find(&limit, "MAX_LIMIT", jointString);
         if (0 != emcJointSetMaxPositionLimit(joint, limit)) {
             return -1;
         }
 
         // set following error limit (at max speed)
         ferror = 1;	                // default
-        //jointIniFile->Find(&ferror, "FERROR", jointString);
-        res = jointIniFile->Find(&ferror, "FERROR", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need FERROR in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&ferror, "FERROR", jointString);
         if (0 != emcJointSetFerror(joint, ferror)) {
              return -1;
         }
 
         // do MIN_FERROR, if it's there. If not, use value of maxFerror above
-        //jointIniFile->Find(&ferror, "MIN_FERROR", jointString);
-        res = jointIniFile->Find(&ferror, "MIN_FERROR", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MIN_FERROR in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&ferror, "MIN_FERROR", jointString);
         if (0 != emcJointSetMinFerror(joint, ferror)) {
             return -1;
         }
 
         // set homing paramsters (total of 6)
         home = 0;	                // default
-        //jointIniFile->Find(&home, "HOME", jointString);
-        res = jointIniFile->Find(&home, "HOME", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&home, "HOME", jointString);
         offset = 0;	                // default
-        //jointIniFile->Find(&offset, "HOME_OFFSET", jointString);
-        res = jointIniFile->Find(&offset, "HOME_OFFSET", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME_OFFSET in ini file"), jointString);
-            assert(0);
-        }
-
+        jointIniFile->Find(&offset, "HOME_OFFSET", jointString);
         search_vel = 0;	                // default
-        //jointIniFile->Find(&search_vel, "HOME_SEARCH_VEL", jointString);
-        res = jointIniFile->Find(&search_vel, "HOME_SEARCH_VEL", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME_SEARCH_VEL in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&search_vel, "HOME_SEARCH_VEL", jointString); 
         latch_vel = 0;	                // default
-        //jointIniFile->Find(&latch_vel, "HOME_LATCH_VEL", jointString);
-        res = jointIniFile->Find(&latch_vel, "HOME_LATCH_VEL", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME_LATCH_VEL in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&latch_vel, "HOME_LATCH_VEL", jointString); 
         home_vel = -1;	                // default (rapid)
-        //jointIniFile->Find(&home_vel, "HOME_VEL", jointString);
-        res = jointIniFile->Find(&home_vel, "HOME_VEL", jointString);
-//        if ( res != 0 ) {
-//            emcOperatorError(0, _("%s need HOME_VEL in ini file"), jointString);
-//            assert(0);
-//        }
+        jointIniFile->Find(&home_vel, "HOME_VEL", jointString);
         is_shared = false;	        // default
-       // jointIniFile->Find(&is_shared, "HOME_IS_SHARED", jointString);
-        res = jointIniFile->Find(&is_shared, "HOME_IS_SHARED", jointString);
-//        if ( res != 0 ) {
-//            emcOperatorError(0, _("%s need HOME_IS_SHARED in ini file"), jointString);
-//            assert(0);
-//        }
+        jointIniFile->Find(&is_shared, "HOME_IS_SHARED", jointString);
         use_index = false;	        // default
-       // jointIniFile->Find(&use_index, "HOME_USE_INDEX", jointString);
-        res = jointIniFile->Find(&use_index, "HOME_USE_INDEX", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME_USE_INDEX in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&use_index, "HOME_USE_INDEX", jointString);
         ignore_limits = false;	        // default
-       // jointIniFile->Find(&ignore_limits, "HOME_IGNORE_LIMITS", jointString);
-        res = jointIniFile->Find(&ignore_limits, "HOME_IGNORE_LIMITS", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME_IGNORE_LIMITS in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&ignore_limits, "HOME_IGNORE_LIMITS", jointString);
         sequence = -1;	                // default
-        //jointIniFile->Find(&sequence, "HOME_SEQUENCE", jointString);
-        res = jointIniFile->Find(&sequence, "HOME_SEQUENCE", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need HOME_SEQUENCE in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&sequence, "HOME_SEQUENCE", jointString);
         volatile_home = 0;	        // default
-        //jointIniFile->Find(&volatile_home, "VOLATILE_HOME", jointString);
-        res = jointIniFile->Find(&volatile_home, "VOLATILE_HOME", jointString);
-//        if ( res != 0 ) {
-//            emcOperatorError(0, _("%s need VOLATILE_HOME in ini file"), jointString);
-//            assert(0);
-//        }
+        jointIniFile->Find(&volatile_home, "VOLATILE_HOME", jointString);
         // issue NML message to set all params
         if (0 != emcJointSetHomingParams(joint, home, offset, home_vel, search_vel,
                                         latch_vel, (int)use_index, (int)ignore_limits,
@@ -269,24 +179,13 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
 
         // set maximum velocity
         maxVelocity = DEFAULT_JOINT_MAX_VELOCITY;
-       // jointIniFile->Find(&maxVelocity, "MAX_VELOCITY", jointString);
-        res = jointIniFile->Find(&maxVelocity, "MAX_VELOCITY", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MAX_VELOCITY in ini file"), jointString);
-            assert(0);
-        }
+        jointIniFile->Find(&maxVelocity, "MAX_VELOCITY", jointString);
         if (0 != emcJointSetMaxVelocity(joint, maxVelocity)) {
             return -1;
         }
 
         maxAcceleration = DEFAULT_JOINT_MAX_ACCELERATION;
-        //jointIniFile->Find(&maxAcceleration, "MAX_ACCELERATION", jointString);
-        res = jointIniFile->Find(&maxAcceleration, "MAX_ACCELERATION", jointString);
-        if ( res != 0 ) {
-            emcOperatorError(0, _("%s need MAX_ACCELERATION in ini file"), jointString);
-            assert(0);
-        }
-
+        jointIniFile->Find(&maxAcceleration, "MAX_ACCELERATION", jointString);
         if (0 != emcJointSetMaxAcceleration(joint, maxAcceleration)) {
             return -1;
         }

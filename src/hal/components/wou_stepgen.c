@@ -153,7 +153,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     5       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     3       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -210,25 +210,25 @@ RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  15
+#define NUM_PID_PARAMS  17
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] = 
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
@@ -312,11 +312,14 @@ typedef struct {
 
     hal_s32_t *home_state;	/* pin: home_state from homing.c */
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-
     double vel_fb;
     double prev_pos_cmd;	/* prev pos_cmd: previous position command */
     double sum_err_0;
     double sum_err_1;
+    // pid info
+    hal_float_t *pid_cmd;
+    hal_float_t *cmd_error;       /* cmd error */
+    hal_float_t *pid_output;      /* pid output */
 } stepgen_t;
 
 typedef struct {
@@ -357,6 +360,12 @@ typedef struct {
     double fp_requested_vel;
     double fp_current_vel;
     int32_t vel_sync;
+    /* probe */
+    hal_bit_t *probe_trigger;
+    hal_u32_t *probe_type;
+    hal_bit_t *probe_input;
+    uint8_t prev_probe_input;
+    int8_t probe_state;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -429,10 +438,9 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[1];
-
+    double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
-    int32_t    feedback;
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -454,12 +462,21 @@ static void fetchmail(const uint8_t *buf_head)
 
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
+            pos_scale = fabs(atof(pos_scale_str[i]));
             // PULSE_POS
             p += 1;         
             *(stepgen->pulse_pos) = *p;
             // ENC_POS
             p += 1;         
             *(stepgen->enc_pos) = *p;
+            // pid output
+            p +=1;
+            *(stepgen->pid_output) = ((int32_t)*p)/pos_scale;
+            // cmd error
+            p += 1;
+            *(stepgen->cmd_error) = ((int32_t)*p)/pos_scale;
+
+            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))/pos_scale;
             stepgen += 1;   // point to next joint
         }
         // digital inpout
@@ -467,22 +484,33 @@ static void fetchmail(const uint8_t *buf_head)
         din[0] = *p;
         // ADC_SPI (  filtered value)
         p += 1;   
-        feedback = *p;
-        *(gpio->a_in[0]) = (((double)feedback)/20.0);
+        *(gpio->a_in[0]) = (((double)*p)/20.0);
+        // probe state
+        p += 1;
+        machine_control->probe_state = *p;
+        if(machine_control->probe_state == 5) {
+            *machine_control->probe_input = 1;
+        } else {
+            *machine_control->probe_input = 0;
+        }
 
 #if (MBOX_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            dsize += sprintf (dmsg + dsize, "%10d  %10d  ",
+            pos_scale = atof(pos_scale_str[i]);
+            dsize += sprintf (dmsg + dsize, "%10d  %10d %10f %10f  ",
                               *(stepgen->pulse_pos), 
-                              *(stepgen->enc_pos)
+                              *(stepgen->enc_pos),
+                              *(stepgen->pid_output),
+                              *(stepgen->cmd_error)
                              );
             stepgen += 1;   // point to next joint
         }
-        dsize += sprintf (dmsg + dsize, "%10d 0x%04X ",
-                          (feedback), din[0]);
+        dsize += sprintf (dmsg + dsize, "%10d 0x%04X %10d",
+                          (int32_t)(*(gpio->a_in[0])*20), din[0],
+                          machine_control->probe_state);
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
             p += 1;   
@@ -547,7 +575,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 
 int rtapi_app_main(void)
 {
-    int n, retval, j;
+    int n, retval, j, i;
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
@@ -785,7 +813,6 @@ int rtapi_app_main(void)
         }
         pulse_fraction_bit[n] = bitn;  // cmd fraction bit never modified
 
-
         // fraction bit for vel
         max_vel = atof(max_vel_str[n]);
         value = (1.0/(max_vel*pos_scale*dt));
@@ -794,7 +821,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>vel_bit)>0) {
             vel_bit++;
         }
-        vel_bit += 4;
+        vel_bit += 4;   //  more accurate: 1/2^4
         // fraction bit for accel
         max_accel = atof(max_accel_str[n]);
         value = (1.0/(max_accel*pos_scale*dt*dt)); // accurate 1
@@ -803,7 +830,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>accel_bit)>0) {
             accel_bit++;
         }
-        accel_bit+=4;
+        accel_bit+=4;   //  more accurate: 1/2^4
         // fraction bit for accel_recip
         value = ((max_accel*pos_scale*dt*dt))/1; // accurate 1
         value = value > 0? value:-value;
@@ -811,7 +838,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>accel_recip_bit)>0) {
             accel_recip_bit++;
         }
-        accel_recip_bit += 4;
+        accel_recip_bit += 4;   //  more accurate: 1/2^4
 
         param_bit = 0;
         param_bit = param_bit > bitn? param_bit:bitn;//max(param_bit, bitn);
@@ -882,86 +909,21 @@ int rtapi_app_main(void)
         // test valid PID parameter for joint[n]
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
-            /*
-                for (i=0; i < NUM_PID_PARAMS; i++) {
-
+            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
+            for (i=0; i < (FF2-P_GAIN+1); i++) {
+                // all gain varies from 0(0%) to 65535(100%)
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value);
-                // PID params starts from DEAD_BAND
-                // write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
-                write_mot_param (n, (DEAD_BAND + i), immediate_data);
-                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)",i, pid_str[n][i], immediate_data);
-            }*/
-            //TODO: create excel to calculate those parameters
-            value = abs(atof(pid_str[n][DEAD_BAND-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " DEAD_BAND=%d", immediate_data);
-            // PID params starts from DEAD_BAND
-            write_mot_param (n, (DEAD_BAND), immediate_data);
-
-            value = atof(pid_str[n][P_GAIN-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " P_GAIN=%d", immediate_data);
-            write_mot_param (n, (P_GAIN), immediate_data);
-
-            value = atof(pid_str[n][I_GAIN-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " I_GAIN=%d", immediate_data);
-            write_mot_param (n, (I_GAIN), immediate_data);
-
-            value = atof(pid_str[n][D_GAIN-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " D_GAIN=%d", immediate_data);
-            write_mot_param (n, (D_GAIN), immediate_data);
-
-            value = atof(pid_str[n][FF0-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " FF0=%d", immediate_data);
-            write_mot_param (n, (FF0), immediate_data);
-
-            value = atof(pid_str[n][FF1-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " FF1=%d", immediate_data);
-            write_mot_param (n, (FF1), immediate_data);
-
-            value = atof(pid_str[n][FF2-DEAD_BAND]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " FF2=%d", immediate_data);
-            write_mot_param (n, (FF2), immediate_data);
-
-            value = (atof(pid_str[n][BIAS-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " BIAS=%d", immediate_data);
-            write_mot_param (n, (BIAS), immediate_data);
-            value = (atof(pid_str[n][MAXERROR-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR=%d", immediate_data);
-            write_mot_param (n, (MAXERROR), immediate_data);
-
-            value = (atof(pid_str[n][MAXERROR_I-DEAD_BAND])*pos_scale/dt)*param_fraction_bit[n];
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR_I=%d", immediate_data);
-            write_mot_param (n, (MAXERROR_I), immediate_data);
-
-            value = (atof(pid_str[n][MAXERROR_D-DEAD_BAND])*pos_scale*dt*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXERROR_D=%d", immediate_data);
-            write_mot_param (n, (MAXERROR_D), immediate_data);
-
-            value = (atof(pid_str[n][MAXCMD_D-DEAD_BAND])*pos_scale*dt*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXCMD_D=%d", immediate_data);
-            write_mot_param (n, (MAXCMD_D), immediate_data);
-
-            value = (atof(pid_str[n][MAXCMD_DD-DEAD_BAND])*pos_scale*dt*dt*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXCMD_DD=%d", immediate_data);
-            write_mot_param (n, (MAXCMD_DD), immediate_data);
-
-           /* value = (atof(pid_str[n][MAXOUTPUT-DEAD_BAND])*pos_scale*param_fraction_bit[n]);
-            immediate_data = (int32_t) (value);
-            rtapi_print_msg(RTAPI_MSG_INFO, " MAXOUTPUT=%d\n", immediate_data);
-            write_mot_param (n, (MAXOUTPUT), immediate_data);*/
+                write_mot_param (n, (P_GAIN + i), immediate_data);
+                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+            }
+            for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
+                // parameter use parameter fraction, parameter unit: pulse
+                value = atof(pid_str[n][i]);
+                immediate_data = (int32_t) (value) * (1 << param_fraction_bit[n]);
+                write_mot_param (n, (P_GAIN + i), immediate_data);
+                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+            }
 
             value = 0;
             immediate_data = (int32_t) (value);
@@ -1086,7 +1048,7 @@ static double force_precision(double d)
 static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
-    int n, i;
+    int n, i, enable;
 //    double new_vel;
 
 //    double ff_vel;
@@ -1265,6 +1227,32 @@ static void update_freq(void *arg, long period)
         machine_control->prev_out = sync_io_data;
     }
     /* end: process motion synchronized output */
+
+    /* begin: probe */
+    if(*machine_control->probe_trigger != 0 ) {
+
+        *machine_control->probe_trigger = 0;
+        sync_cmd = SYNC_PROBE | ((uint16_t)*machine_control->probe_type);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        wou_flush(&w_param);
+        fprintf(stderr,"probe_trigger(%d) \n",*machine_control->probe_type);
+
+    }
+    if((machine_control->prev_probe_input != *machine_control->probe_input) &&
+            machine_control->prev_probe_input) {
+        /* disable probe motion in risc */
+        sync_cmd = SYNC_PROBE;
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        wou_flush(&w_param);
+
+    }
+    machine_control->prev_probe_input = *machine_control->probe_input;
+    /* end: probe */
+
     /* point at stepgen data */
     stepgen = arg;
 
@@ -1283,6 +1271,7 @@ static void update_freq(void *arg, long period)
     r_load_pos = 0;
     r_switch_en = 0;
     r_index_en = prev_r_index_en;
+    //TODO: implement index homing both emc2 and risc
     for (n = 0; n < num_chan; n++) {
 	if (*stepgen->home_state != HOME_IDLE) {
 	    static hal_s32_t prev_switch_pos;
@@ -1299,7 +1288,7 @@ static void update_freq(void *arg, long period)
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
 	    if(prev_switch_pos != switch_pos_tmp) {
-                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
+//                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
                 prev_switch_pos = switch_pos_tmp;
 	    }
 
@@ -1377,16 +1366,16 @@ static void update_freq(void *arg, long period)
                             sizeof(uint16_t), data);
                     wou_flush(&w_param);
 
-
                     normal_move_flag[n] = 0;
                 }
+
                 (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
                 (*stepgen->pos_cmd) = *(stepgen->pos_fb);
+                /*fprintf(stderr,"j(%d) stepgen->prev_pos_cmd(%f) pos_cmd(%f) \n", n, stepgen->prev_pos_cmd,
+                        *stepgen->pos_cmd);*/
             } else if(*stepgen->home_state == HOME_START) {
                 normal_move_flag[n] = 1;
             }
-
-
 
 	    /* check if we should wait for Motor Index Toggle */
 	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
@@ -1398,13 +1387,14 @@ static void update_freq(void *arg, long period)
 		    // reset r_index_en by SW
 		    r_index_en &= (~(1 << n));	// reset index_en[n]
 		    *(stepgen->index_enable) = 0;
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n", 
-		                                    n, r_index_en, prev_r_index_en);
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n", 
-		                                    n, *(stepgen->index_pos), index_pos_tmp);
-		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n", 
-		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
+//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
+//		                                    n, r_index_en, prev_r_index_en);
+//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
+//		                                    n, *(stepgen->index_pos), index_pos_tmp);
+//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
+//		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
 		}
+//		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
 	    }
 
 	    if (stepgen->prev_home_state == HOME_IDLE) {
@@ -1420,9 +1410,7 @@ static void update_freq(void *arg, long period)
                     /* accumulator gets a half step offset, so it will step half
                        way between integer positions, not at the integer positions */
                     stepgen->rawcount = *(stepgen->enc_pos);
-//                    stepgen->accum = (((int64_t)stepgen->rawcount) << PICKOFF) + (1L << (PICKOFF-1));
-                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip
-                                                /** (1.0/(1L << PICKOFF))*/;
+//                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
                 }
                 fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
@@ -1515,8 +1503,6 @@ static void update_freq(void *arg, long period)
             wou_cmd (&w_param, WB_WR_CMD,
                      (uint16_t) (GPIO_BASE | GPIO_OUT),
                      (uint8_t) 1, data);
-// obsolete:  data[0] = 0;	// RISC OFF
-// obsolete:  wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
             /*data[0] = 0;        // SVO-OFF
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
             wou_flush(&w_param);*/
@@ -1530,10 +1516,10 @@ static void update_freq(void *arg, long period)
     
     i = 0;
     stepgen = arg;
+    enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_chan; n++) {
-        
 	/* test for disabled stepgen */
-	if (*stepgen->enable == 0) {
+	if (enable == 0) {
 	    /* AXIS not PWR-ON */
 	    /* keep updating parameters for better performance */
 	    stepgen->scale_recip = 1.0 / stepgen->pos_scale;
@@ -1541,12 +1527,14 @@ static void update_freq(void *arg, long period)
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
             
+	    /* update pos fb*/
+	    *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+
             /* to prevent position drift while toggeling "PWR-ON" switch */
-            (stepgen->prev_pos_cmd) = (double) (*stepgen->enc_pos) * stepgen->scale_recip;
-            // less accurate: (stepgen->prev_pos_cmd) = ((double) stepgen->rawcount) * stepgen->scale_recip;
-	    *(stepgen->pos_fb) = (stepgen->prev_pos_cmd);
+	    (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
+
 	    stepgen->vel_fb = 0;
-            
+
             r_load_pos = 0;
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
                 r_load_pos |= (1 << n);
@@ -1566,22 +1554,7 @@ static void update_freq(void *arg, long period)
             }
 
 
-//SERVO:            (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
-//SERVO:            if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
-//SERVO:                r_load_pos |= (1 << n);
-//SERVO:                /* accumulator gets a half step offset, so it will step half
-//SERVO:                   way between integer positions, not at the integer positions */
-//SERVO:                stepgen->accum = *(stepgen->enc_pos) + (1L << (PICKOFF-1));
-//SERVO:                stepgen->rawcount = *(stepgen->enc_pos);
-//SERVO:                wou_cmd(&w_param,
-//SERVO:                        WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-//SERVO:                // fprintf(stderr, "j[%d] accum(%lld) enc_pos(%d) pulse_pos(%d)\n", 
-//SERVO:                //         n, stepgen->accum, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-//SERVO:            }
-	    
-	    /* and skip to next one */
-	    stepgen++;
-
+//            fprintf(stderr,"i(%d) n(%d)\n", i, n);
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
             wou_flush(&w_param);
@@ -1595,6 +1568,8 @@ static void update_freq(void *arg, long period)
                         WB_WR_CMD,
                         (JCMD_BASE | JCMD_SYNC_CMD), 2 * num_chan, data);
             }
+            /* and skip to next one */
+            stepgen++;
 	    continue;
 	}
 
@@ -1641,11 +1616,11 @@ static void update_freq(void *arg, long period)
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
 
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
-                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) \n",n ,(*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
+                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d)\n",n ,
+                        (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
-//            if(n==3) fprintf(stderr,"\n");
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
@@ -1901,6 +1876,24 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     if (retval != 0) {
 	return retval;
     }
+    /* export parameter for pid error term */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_error), comp_id,
+                              "wou.stepgen.%d.pid.error", num);
+    if (retval != 0) {
+        return retval;
+    }
+    /* export parameter for pid output in risc */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_output), comp_id,
+                              "wou.stepgen.%d.pid.output", num);
+    if (retval != 0) {
+        return retval;
+    }
+    /* export parameter for cmd in risc*/
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_cmd), comp_id,
+                              "wou.stepgen.%d.pid.cmd", num);
+    if (retval != 0) {
+        return retval;
+    }
     if (step_type < 2) {
 	/* step/dir and up/down use 'stepspace' */
 	retval = hal_param_u32_newf(HAL_RW, &(addr->step_space),
@@ -2100,8 +2093,6 @@ static int export_machine_control(machine_control_t * machine_control)
             return retval;
     }
     *(machine_control->position_compensation_ref) = 0;
-
-
     retval =
             hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
                                 "wou.requested-vel");
@@ -2116,21 +2107,38 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-
     /* for plasma control */
 
-    retval =
-                hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
                                 "wou.thc_enable");
-        if (retval != 0) {
-            return retval;
-        }retval =
-                hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
-                                "wou.plasma_enable");
-        if (retval != 0) {
-            return retval;
-        }
+    if (retval != 0) {
+        return retval;
+    }retval =
+            hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
+                            "wou.plasma_enable");
+    if (retval != 0) {
+        return retval;
+    }
 
+    /* for probe */
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_trigger), comp_id,
+                         "wou.probe.trigger");
+    *(machine_control->probe_trigger) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->probe_type), comp_id,
+                             "wou.probe.type");
+    *(machine_control->probe_type) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_input), comp_id,
+                             "wou.probe.input");
+    *(machine_control->probe_input) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
 
     machine_control->num_sync_in = num_sync_in;
     machine_control->num_sync_out = num_sync_out;
