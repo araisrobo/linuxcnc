@@ -509,8 +509,8 @@ static void fetchmail(const uint8_t *buf_head)
                              );
             stepgen += 1;   // point to next joint
         }
-        dsize += sprintf (dmsg + dsize, "%10d 0x%04X %10d",
-                          (int32_t)(*(gpio->a_in[0])*20), din[0],
+        dsize += sprintf (dmsg + dsize, "0x%04X %10d  %10d",
+                          din[0], (int32_t)(*(gpio->a_in[0])*20),
                           machine_control->probe_state);
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
@@ -1298,14 +1298,12 @@ static void update_freq(void *arg, long period)
 		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
 		(*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
 		(*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
+		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT) ||
+		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
 		if (stepgen->prev_home_state != *stepgen->home_state) {
 		    // set r_switch_en to locate SWITCH_POS
 		    // r_switch_en is reset by HW 
 		    r_switch_en |= (1 << n);
-
-		   /* fprintf(stderr,"j[%d] wait state(%d)\n",
-		                                n,  *stepgen->home_state);*/
 
 		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
                         immediate_data = SEARCH_HOME_HIGH;
@@ -1314,38 +1312,14 @@ static void update_freq(void *arg, long period)
                     } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
                         immediate_data = SEARCH_HOME_LOW;
                     } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
-                        if(home_use_index[n] == 1) {
-                            immediate_data = SWITCH_INDEX_HOME_MOVE;
-                        } else {
-                            immediate_data = SEARCH_HOME_HIGH;
-                        }
+                        immediate_data = SEARCH_HOME_HIGH;
                     } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
-                        if(home_use_index[n] == 1) {
-                            immediate_data = SWITCH_INDEX_HOME_MOVE;
-                        } else {
-                            immediate_data = SEARCH_HOME_LOW;
-                        }
+                        immediate_data = SEARCH_HOME_LOW;
                     } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
-
-
-                            immediate_data = INDEX_HOME_MOVE;
-                    }
-
-                    if (stepgen->prev_home_state != *stepgen->home_state) {
-                        for(j=0; j<sizeof(uint32_t); j++) {
-                            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                            memcpy(data, &sync_cmd, sizeof(uint16_t));
-                            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                    sizeof(uint16_t), data);
-                            wou_flush(&w_param);
-                        }
-                        sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MOTION_TYPE) | PACK_MOT_PARAM_ID(n);
-                        memcpy(data, &sync_cmd, sizeof(uint16_t));
-                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-                        wou_flush(&w_param);
+                        immediate_data = SEARCH_INDEX;
 
                     }
+                    write_mot_param (n, (MOTION_TYPE), immediate_data);
 
 		}
 
@@ -1353,27 +1327,12 @@ static void update_freq(void *arg, long period)
 	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
                 if(normal_move_flag[n] == 1) {
                     immediate_data = NORMAL_MOVE;
-
-                    for(j=0; j<sizeof(uint32_t); j++) {
-                        sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-                        memcpy(data, &sync_cmd, sizeof(uint16_t));
-                        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                                sizeof(uint16_t), data);
-                        wou_flush(&w_param);
-                    }
-                    sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(MOTION_TYPE) | PACK_MOT_PARAM_ID(n);
-                    memcpy(data, &sync_cmd, sizeof(uint16_t));
-                    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                            sizeof(uint16_t), data);
-                    wou_flush(&w_param);
-
+                    write_mot_param (n, (MOTION_TYPE), immediate_data);
                     normal_move_flag[n] = 0;
                 }
 
                 (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
                 (*stepgen->pos_cmd) = *(stepgen->pos_fb);
-                /*fprintf(stderr,"j(%d) stepgen->prev_pos_cmd(%f) pos_cmd(%f) \n", n, stepgen->prev_pos_cmd,
-                        *stepgen->pos_cmd);*/
             } else if(*stepgen->home_state == HOME_START) {
                 normal_move_flag[n] = 1;
             }
