@@ -263,7 +263,8 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
             if (block->d_flag == ON) {
                 CP.D = block->d_number_float;
             } else {
-                CHKS((1), ("Must specify curvature D for each control point."));
+                /*CHKS((1), ("Must specify curvature D for each control point."));*/
+                CP.D = -1;  // indicate D is maximum
             }
 	    nurbs_control_points.push_back(CP);
 	}

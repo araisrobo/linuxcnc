@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 #define MBOX_DEBUG_VARS     3       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
@@ -285,8 +285,8 @@ typedef struct {
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
-    hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
-    hal_u32_t dir_setup;	/* param: direction setup time */
+    //obsolete: hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
+    //obsolete: hal_u32_t dir_setup;	/* param: direction setup time */
     int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
@@ -441,7 +441,6 @@ static void fetchmail(const uint8_t *buf_head)
     double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;
-
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -936,7 +935,7 @@ int rtapi_app_main(void)
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
     pos_scale = atof(pos_scale_str[2]);
-    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[n]));
+    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[2]));
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     write_mot_param (2, (COMP_VEL), immediate_data);
 
@@ -1540,8 +1539,9 @@ static void update_freq(void *arg, long period)
 
 	// maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
 	{
-	    double min_ns_per_step =
-		stepgen->step_len + stepgen->dir_hold_dly;
+	    //obsolete:     double min_ns_per_step =
+	    //obsolete: 	stepgen->step_len + stepgen->dir_hold_dly;
+	    double min_ns_per_step = stepgen->step_len;
 	    double max_steps_per_s = 1.0e9 / min_ns_per_step;
 
 	    physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
@@ -1629,7 +1629,7 @@ static void update_freq(void *arg, long period)
         }
         fp_diff = fp_cur_vel - machine_control->fp_original_requested_vel;
         fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.1)) &&   //  120 mm/min
+        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.03)) &&   //  120 mm/min
                 (fp_cur_vel != machine_control->fp_current_vel) &&
                 (machine_control->vel_sync == 0)) {
             // forward current velocity
@@ -1646,7 +1646,8 @@ static void update_freq(void *arg, long period)
             } else {
                 fprintf(stderr,"vel synced but not original vel requested\n");
             }
-        } else if(machine_control->vel_sync == 1 && (fp_diff > ((machine_control->fp_original_requested_vel)*0.1))){
+        } else if(machine_control->vel_sync == 1 && (fp_diff >
+                            ((machine_control->fp_original_requested_vel)*0.03))){
             machine_control->vel_sync = 0;
             sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1861,29 +1862,29 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	    return retval;
 	}
     }
-    if (step_type == 0) {
-	/* step/dir is the only one that uses dirsetup and dirhold */
-	retval = hal_param_u32_newf(HAL_RW, &(addr->dir_setup),
-				    comp_id, "wou.stepgen.%d.dirsetup",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-	retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
-				    comp_id, "wou.stepgen.%d.dirhold",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-    } else {
-	/* the others use dirdelay */
-	retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
-				    comp_id, "wou.stepgen.%d.dirdelay",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-    }
+    //obsolete: if (step_type == 0) {
+    //obsolete:     /* step/dir is the only one that uses dirsetup and dirhold */
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_setup),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.dirsetup",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.dirhold",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete: } else {
+    //obsolete:     /* the others use dirdelay */
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_hold_dly),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.dirdelay",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete: }
     /* export output pins */
     if (step_type == 0) {
 	/* step and direction */
@@ -1941,13 +1942,13 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     } else {
 	addr->step_space = 0;
     }
-    if (step_type == 0) {
-	addr->dir_hold_dly = 1;
-	addr->dir_setup = 1;
-    } else {
-	addr->dir_hold_dly = 1;
-	addr->dir_setup = 0;
-    }
+    //obsolete: if (step_type == 0) {
+    //obsolete:     addr->dir_hold_dly = 1;
+    //obsolete:     addr->dir_setup = 1;
+    //obsolete: } else {
+    //obsolete:     addr->dir_hold_dly = 1;
+    //obsolete:     addr->dir_setup = 0;
+    //obsolete: }
     /* init the step generator core to zero output */
 //    addr->cur_pos = 0.0;
     /* accumulator gets a half step offset, so it will step half
