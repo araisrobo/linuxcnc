@@ -777,11 +777,19 @@ void do_homing(void)
                          (joint->index_pos - joint->motor_offset);
 		/* this moves the internal position but does not affect the
 		   motor position */
-		joint->pos_cmd += offset;
-		joint->pos_fb += offset;
-		joint->free_tp.curr_pos += offset;
-		joint->motor_offset -= offset;
-                
+// patched by ysli
+//		joint->pos_cmd += offset;
+//		joint->pos_fb += offset;
+//		joint->free_tp.curr_pos += offset;
+//		joint->motor_offset -= offset;
+
+                /* this moves the internal position but does not affect the
+                   motor position */
+                joint->pos_fb += offset;
+                joint->pos_cmd = joint->pos_fb;
+                joint->free_tp.curr_pos = joint->pos_fb;
+                joint->motor_offset -= offset;
+
                 // DEBUG ysli:
 		rtapi_print (
                   _("HOME_SET_INDEX_POSITION_1: j[%d] offset(%f) index_pos(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"), 
