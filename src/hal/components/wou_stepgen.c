@@ -1138,7 +1138,7 @@ static void update_freq(void *arg, long period)
 	                                r_index_lock, prev_r_index_lock);
 	prev_r_index_lock = r_index_lock;
     }
-    // process GPIO.OUT
+/*    // process GPIO.OUT
     data[0] = 0;
     for (i = 0; i < gpio->num_out; i++) {
 	data[0] |= ((*(gpio->out[i]) & 1) << i);
@@ -1148,8 +1148,8 @@ static void update_freq(void *arg, long period)
 	// issue a WOU_WRITE while got new GPIO.OUT value
 	// check if plasma enabled
 
-	/* M63 M62 not actually control this block , add just for in-case*/
-	if((data[0] & PLASMA_ON_BIT) /* plasma on bit */) {
+	 M63 M62 not actually control this block , add just for in-case
+	if((data[0] & PLASMA_ON_BIT)  plasma on bit ) {
 	    if(*(machine_control->plasma_enable)) {
 	        wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
                 wou_flush(&w_param);
@@ -1159,7 +1159,7 @@ static void update_freq(void *arg, long period)
 	    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
 	    wou_flush(&w_param);
 	}
-    }
+    }*/
 
     /* begin: process position compensation enable */
     if((*(machine_control->position_compensation_en_trigger) != 0)) {
@@ -1228,6 +1228,12 @@ static void update_freq(void *arg, long period)
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
                 fprintf(stderr,"plasma_switch(%d)\n",
                         *(machine_control->sync_out[i]));
+                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
+                memcpy(data, &sync_cmd, sizeof(uint16_t));
+                wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
+            } else {
+                fprintf(stderr,"normal gpio(%d) switched(%d)\n",
+                        i,*(machine_control->sync_out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
@@ -2094,6 +2100,8 @@ static int export_machine_control(machine_control_t * machine_control)
                             "wou.plasma_enable");
     if (retval != 0) {
         return retval;
+    } else {
+        *machine_control->plasma_enable = 1;
     }
 
     /* for probe */
