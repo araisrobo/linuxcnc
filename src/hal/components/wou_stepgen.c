@@ -1574,7 +1574,7 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
 
-	*(stepgen->pos_fb) = *stepgen->pos_cmd;//(*stepgen->enc_pos) * stepgen->scale_recip;
+	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
