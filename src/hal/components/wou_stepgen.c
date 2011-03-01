@@ -482,6 +482,21 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
+        din[0] &= 0xFFFFFFFE;
+        if (memcmp
+            (&(gpio->prev_in),
+                    &din[0], 2)) {
+            // update prev_in from WOU_REGISTER
+            memcpy(&(gpio->prev_in),
+                   &din[0], 2);
+             rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
+            for (i = 0; i < gpio->num_in; i++) {
+                *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
+            }
+        }
+        memcpy(&gpio->prev_in,
+                &din[0], 2);
+
         // ADC_SPI (  filtered value)
         p += 1;   
         *(gpio->a_in[0]) = (((double)*p)/20.0);
@@ -1098,6 +1113,7 @@ static void update_freq(void *arg, long period)
     wou_update(&w_param);
 
     // copy GPIO.IN ports if it differs from previous value
+/*
 
     if (memcmp
         (&(gpio->prev_in),
@@ -1112,6 +1128,7 @@ static void update_freq(void *arg, long period)
     }
     memcpy(&gpio->prev_in,
            wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
+*/
 
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock,
