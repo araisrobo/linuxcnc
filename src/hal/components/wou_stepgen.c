@@ -324,12 +324,9 @@ typedef struct {
 
 typedef struct {
     // Digital I/O: 16in 8out
-    hal_bit_t   *in[64];
-    hal_bit_t   *out[64];
+/*    hal_bit_t   *in[64];
     int         num_in;
-    int         num_out;
-    uint32_t     prev_out;
-    uint32_t    prev_in;
+    uint32_t    prev_in;*/
     // Analog I/O: 32bit
 //    hal_s32_t   *a_in[1];       /* pin: analog input */
     hal_float_t *a_in[1];
@@ -341,6 +338,9 @@ typedef struct {
     //TODO: replace plasma enable with output enable for each pin.
     hal_bit_t *plasma_enable;
     /* sync input pins (input to motmod) */
+    hal_bit_t   *in[64];
+//    int         num_in; // use num_sync_in
+    uint32_t    prev_in;
     hal_bit_t *sync_in_trigger;
     hal_u32_t *sync_in;		//
     hal_u32_t *wait_type;
@@ -485,17 +485,17 @@ static void fetchmail(const uint8_t *buf_head)
         din[0] = *p;
         din[0] &= 0xFFFFFFFE;
         if (memcmp
-            (&(gpio->prev_in),
+            (&(machine_control->prev_in),
                     &din[0], 2)) {
             // update prev_in from WOU_REGISTER
-            memcpy(&(gpio->prev_in),
+            memcpy(&(machine_control->prev_in),
                    &din[0], 2);
-             rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
-            for (i = 0; i < gpio->num_in; i++) {
-                *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
+             rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", machine_control->prev_in);
+            for (i = 0; i < machine_control->num_sync_in; i++) {
+                *(machine_control->in[i]) = ((machine_control->prev_in) >> i) & 0x01;
             }
         }
-        memcpy(&gpio->prev_in,
+        memcpy(&machine_control->prev_in,
                 &din[0], 2);
 
         // ADC_SPI (  filtered value)
@@ -1710,7 +1710,7 @@ static int export_gpio(gpio_t * addr)
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
-    // export Digital IN
+ /*   // export Digital IN
     for (i = 0; i < 16; i++) {
 	retval = hal_pin_bit_newf(HAL_OUT, &(addr->in[i]), comp_id,
 				  "wou.gpio.in.%02d", i);
@@ -1719,17 +1719,7 @@ static int export_gpio(gpio_t * addr)
 	}
 	*(addr->in[i]) = 0;
     }
-
-/*    // export Digital OUT
-    for (i = 0; i < 8; i++) {
-	retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id,
-				  "wou.gpio.out.%02d", i);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->out[i]) = 0;
-    }
-    */
+*/
     // export Analog IN
     for (i = 0; i < 1; i++) {
         retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
@@ -1741,13 +1731,11 @@ static int export_gpio(gpio_t * addr)
     }
 
     /* set default parameter values */
-    addr->num_in = 16;
-    addr->num_out = 8;
-    addr->prev_out = 0;
-    addr->prev_in = 1;
-    // gpio.in[0] is SVO-ALM, which is low active;
-    // set "prev_in[0]" as 1 also
-    *(addr->in[0]) = 1;
+//    addr->num_in = 16;
+//    addr->prev_in = 1;
+// gpio.in[0] is SVO-ALM, which is low active;
+// set "prev_in[0]" as 1 also
+//    *(addr->in[0]) = 1;
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);
@@ -2019,6 +2007,18 @@ static int export_machine_control(machine_control_t * machine_control)
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
+    machine_control->num_sync_in = num_sync_in;
+    machine_control->num_sync_out = num_sync_out;
+
+    // export input status pin
+     for (i = 0; i < machine_control->num_sync_in; i++) {
+         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
+                                   "wou.gpio.in.%02d", i);
+         if (retval != 0) {
+             return retval;
+         }
+         *(machine_control->in[i]) = 0;
+     }
 
     retval =
 	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
@@ -2128,23 +2128,16 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    machine_control->num_sync_in = num_sync_in;
-    machine_control->num_sync_out = num_sync_out;
+//    machine_control->num_sync_in = num_sync_in;
+//    machine_control->num_sync_out = num_sync_out;
     machine_control->prev_out = 0;
 
     machine_control->fp_current_vel = 0;
     machine_control->fp_requested_vel = 0;
 
     machine_control->position_compensation_en_flag = 0;
-/*
-  *(machine_control->)
-  for (i = 0; i < 9; i++) {
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id,
-                              "wou.gpio.out.%02d", i);
-    if (retval != 0) {return retval;}
-    *(addr->out[i]) = 0;
-  }
-*/
+
+
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
