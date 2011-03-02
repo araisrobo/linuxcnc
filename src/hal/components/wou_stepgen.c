@@ -1482,7 +1482,6 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 1);
             }
-            *(machine_control->sync_out[0]) = 1;
         } else {
             data[0] = 0; // RESET GPIO_OUT
             wou_cmd (&w_param, WB_WR_CMD,
@@ -1494,8 +1493,6 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 0);
             }
-            *(machine_control->sync_out[0]) = 0;
-
         }
 
     }
