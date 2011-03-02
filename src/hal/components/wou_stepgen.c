@@ -1,14 +1,14 @@
 /********************************************************************
 * Description:  wou_stepgen.c
-*               This file, 'wou_stepgen.c', is a HAL component that 
+*               This file, 'wou_stepgen.c', is a HAL component that
 *               It was based on stepgen.c by John Kasunich.
 *
 * Author: Yi-Shin Li
 * License: GPL Version 2
-*    
+*
 * Copyright (c) 2009-2010 All rights reserved.
 *
-* Last change: 
+* Last change:
 ********************************************************************/
 /** This file, 'wou_stepgen.c', is a HAL component that provides software
     based step pulse generation.  The maximum step rate will depend
@@ -37,7 +37,7 @@
 	insmod stepgen step_type=0,0,1,2  ctrl_type=p,p,v,p
 
     will install four step generators, two using stepping type 0,
-    one using type 1, and one using type 2.  The first two and 
+    one using type 1, and one using type 2.  The first two and
     the last one will be running in position mode, and the third
     one will be running in velocity mode.
 
@@ -202,9 +202,9 @@ int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
 		   "current limit for up to 8 channel of stepping drivers");
 
-int num_sync_in = 16;
+int num_sync_in = 64;
 RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
-int num_sync_out = 8;
+int num_sync_out = 64;
 RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
 
 const char *thc_velocity = "1.0"; // 1mm/s
@@ -212,22 +212,22 @@ RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
 #define NUM_PID_PARAMS  17
 const char **pid_str[MAX_CHAN];
-const char *j0_pid_str[NUM_PID_PARAMS] = 
+const char *j0_pid_str[NUM_PID_PARAMS] =
         { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
-const char *j1_pid_str[NUM_PID_PARAMS] = 
+const char *j1_pid_str[NUM_PID_PARAMS] =
         { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
-const char *j2_pid_str[NUM_PID_PARAMS] = 
+const char *j2_pid_str[NUM_PID_PARAMS] =
         { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
-const char *j3_pid_str[NUM_PID_PARAMS] = 
+const char *j3_pid_str[NUM_PID_PARAMS] =
         { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
@@ -324,12 +324,12 @@ typedef struct {
 
 typedef struct {
     // Digital I/O: 16in 8out
-    hal_bit_t   *in[16];
-    hal_bit_t   *out[8];
+    hal_bit_t   *in[64];
+    hal_bit_t   *out[64];
     int         num_in;
     int         num_out;
-    uint8_t     prev_out;
-    uint16_t    prev_in;
+    uint32_t     prev_out;
+    uint32_t    prev_in;
     // Analog I/O: 32bit
 //    hal_s32_t   *a_in[1];       /* pin: analog input */
     hal_float_t *a_in[1];
@@ -338,6 +338,7 @@ typedef struct {
 typedef struct {
     /* plasma control */
     hal_bit_t *thc_enbable;
+    //TODO: replace plasma enable with output enable for each pin.
     hal_bit_t *plasma_enable;
     /* sync input pins (input to motmod) */
     hal_bit_t *sync_in_trigger;
@@ -445,7 +446,7 @@ static void fetchmail(const uint8_t *buf_head)
     char        dmsg[1024];
     int         dsize;
 
-    p = (uint32_t *) (buf_head + 4);   
+    p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
 #endif
 
@@ -464,10 +465,10 @@ static void fetchmail(const uint8_t *buf_head)
         for (i=0; i<num_chan; i++) {
             pos_scale = fabs(atof(pos_scale_str[i]));
             // PULSE_POS
-            p += 1;         
+            p += 1;
             *(stepgen->pulse_pos) = *p;
             // ENC_POS
-            p += 1;         
+            p += 1;
             *(stepgen->enc_pos) = *p;
             // pid output
             p +=1;
@@ -498,7 +499,7 @@ static void fetchmail(const uint8_t *buf_head)
                 &din[0], 2);
 
         // ADC_SPI (  filtered value)
-        p += 1;   
+        p += 1;
         *(gpio->a_in[0]) = (((double)*p)/20.0);
         // probe state
         p += 1;
@@ -516,7 +517,7 @@ static void fetchmail(const uint8_t *buf_head)
         for (i=0; i<num_chan; i++) {
             pos_scale = atof(pos_scale_str[i]);
             dsize += sprintf (dmsg + dsize, "%10d  %10d %10f %10f  ",
-                              *(stepgen->pulse_pos), 
+                              *(stepgen->pulse_pos),
                               *(stepgen->enc_pos),
                               *(stepgen->pid_output),
                               *(stepgen->cmd_error)
@@ -528,7 +529,7 @@ static void fetchmail(const uint8_t *buf_head)
                           machine_control->probe_state);
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
-            p += 1;   
+            p += 1;
             dsize += sprintf (dmsg + dsize, "%10d ", *p);
         }
         assert (dsize < 1023);
@@ -558,13 +559,13 @@ static void fetchmail(const uint8_t *buf_head)
     }
 
 }
-       
+
 static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 {
     uint16_t    sync_cmd;
     uint8_t     buf[MAX_DSIZE];
     int         j;
-    
+
     for(j=0; j<sizeof(int32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
@@ -598,7 +599,7 @@ int rtapi_app_main(void)
     double max_vel, max_accel, pos_scale, thc_vel, value;
     int32_t bitn, vel_bit, accel_bit, accel_recip_bit, param_bit;
     int msg;
-    
+
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
@@ -607,7 +608,7 @@ int rtapi_app_main(void)
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
     DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s\n",
-         "1.dt", 
+         "1.dt",
          "3.prev_pos_cmd[0]", "4.pos_fb[0]",
          "6.home[0]",
          "8.prev_pos_cmd[1]", "9.pos_fb[1]",
@@ -617,7 +618,7 @@ int rtapi_app_main(void)
          "18.prev_pos_cmd[3]", "19.pos_fb[3]",
          "21.home[3]");
 #endif
-    
+
     pending_cnt = 0;
 
     /* test for bitfile string: bits */
@@ -655,8 +656,8 @@ int rtapi_app_main(void)
 
     if(pulse_type != -1) {
         data[0] = pulse_type;
-        wou_cmd (&w_param, WB_WR_CMD, 
-                (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE), 
+        wou_cmd (&w_param, WB_WR_CMD,
+                (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
                 (uint8_t) 1, data);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
@@ -666,25 +667,25 @@ int rtapi_app_main(void)
 
     if(enc_type != -1) {
         data[0] = enc_type;
-        wou_cmd (&w_param, WB_WR_CMD, 
-                (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE), 
+        wou_cmd (&w_param, WB_WR_CMD,
+                (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE),
                 (uint8_t) 1, data);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
                         "WOU: ERROR: no encoder type: enc_type\n");
         return -1;
     }
-    
+
     if (1 == adc_spi_en) {
         rtapi_print_msg(RTAPI_MSG_INFO,
                         "WOU: enable ADC_SPI\n");
         //MCP3204: // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
         //MCP3204: data[0] = 19; 
         data[0] = 17;   // MCP3202
-        wou_cmd (&w_param, WB_WR_CMD, 
-                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR), 
+        wou_cmd (&w_param, WB_WR_CMD,
+                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR),
                  (uint8_t) 1, data);
-        
+
         // enable ADC_SPI with LOOP mode
         //MCP3204: // ADC_SPI_CMD: 0x10: { (1)START_BIT,
         //MCP3204: //                      (0)Differential mode,
@@ -693,7 +694,7 @@ int rtapi_app_main(void)
         //MCP3204: //                      (0)D0 ... CH1 = IN-   }
         //MCP3204: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
         //MCP3204:           | (ADC_SPI_CMD_MASK & 0x10);
-        
+
         // MCP3202: 
         // ADC_SPI_CMD: 0x04: { (1)START_BIT,
         //                      (0)Differential mode,
@@ -701,8 +702,8 @@ int rtapi_app_main(void)
         //                                CH1 = IN-   }
         data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
                   | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
-        wou_cmd (&w_param, WB_WR_CMD, 
-                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL), 
+        wou_cmd (&w_param, WB_WR_CMD,
+                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL),
                  (uint8_t) 1, data);
     }
 
@@ -744,7 +745,7 @@ int rtapi_app_main(void)
 	data[0] = (uint8_t) gpio_leds_sel;
 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
     }
-    
+
     /* test for stepping motor current limit: step_cur */
     num_chan = 0;
     for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
@@ -762,7 +763,7 @@ int rtapi_app_main(void)
 	wou_cmd(&w_param,
 		WB_WR_CMD, (SSIF_BASE | SSIF_MAX_PWM), num_chan, data);
     }
-    
+
     wou_flush(&w_param);
 
     num_chan = 0;
@@ -800,7 +801,7 @@ int rtapi_app_main(void)
         dt = (double) servo_period_ns * 0.000000001;
         recip_dt = 1.0 / dt;
     }
-    
+
     pid_str[0] = j0_pid_str;
     pid_str[1] = j1_pid_str;
     pid_str[2] = j2_pid_str;
@@ -920,7 +921,7 @@ int rtapi_app_main(void)
         // set move type as normal by default
         immediate_data = NORMAL_MOVE;
         write_mot_param (n, (MOTION_TYPE), immediate_data);
-        
+
         // test valid PID parameter for joint[n]
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
@@ -1134,7 +1135,7 @@ static void update_freq(void *arg, long period)
     memcpy(&r_index_lock,
 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
     if (r_index_lock != prev_r_index_lock) {
-	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n", 
+	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n",
 	                                r_index_lock, prev_r_index_lock);
 	prev_r_index_lock = r_index_lock;
     }
@@ -1206,7 +1207,7 @@ static void update_freq(void *arg, long period)
         }
         sync_cmd = SYNC_ST;
         memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), 
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
         // end: setup sync timeout
         // begin: trigger sync in and wait timeout 
@@ -1226,13 +1227,15 @@ static void update_freq(void *arg, long period)
         if(((machine_control->prev_out >> i) & 0x01) !=
                 ((*(machine_control->sync_out[i]) & 1))) {
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
-                fprintf(stderr,"plasma_switch(%d)\n",
-                        *(machine_control->sync_out[i]));
+//                fprintf(stderr,"plasma_switch(%d)\n",
+//                        *(machine_control->sync_out[i]));
+                fprintf(stderr,"gpio_%2d => (%d)\n",
+                                        i,*(machine_control->sync_out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             } else {
-                fprintf(stderr,"normal gpio(%d) switched(%d)\n",
+                fprintf(stderr,"gpio_%02d => (%d)\n",
                         i,*(machine_control->sync_out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1288,7 +1291,7 @@ static void update_freq(void *arg, long period)
 
     // num_chan: 4, calculated from step_type;
     /* loop thru generators */
-    
+
     // DP("before checking home_state...\n");
 
     r_load_pos = 0;
@@ -1307,7 +1310,7 @@ static void update_freq(void *arg, long period)
 	    memcpy((void *) &index_pos_tmp,
 		   wou_reg_ptr(&w_param,
 			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-            
+
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
 	    if(prev_switch_pos != switch_pos_tmp) {
@@ -1324,7 +1327,7 @@ static void update_freq(void *arg, long period)
 		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
 		if (stepgen->prev_home_state != *stepgen->home_state) {
 		    // set r_switch_en to locate SWITCH_POS
-		    // r_switch_en is reset by HW 
+		    // r_switch_en is reset by HW
 		    r_switch_en |= (1 << n);
 
 		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
@@ -1405,7 +1408,7 @@ static void update_freq(void *arg, long period)
 
     /* check if we should update SWITCH/INDEX positions for HOMING */
     if (r_load_pos != 0) {
-	// issue a WOU_WRITE 
+	// issue a WOU_WRITE
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
 	fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
@@ -1414,7 +1417,7 @@ static void update_freq(void *arg, long period)
 
     /* check if we should enable HOME Switch Detection */
     if (r_switch_en != 0) {
-	// issue a WOU_WRITE 
+	// issue a WOU_WRITE
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_SWITCH_EN, 1, &r_switch_en);
 	// fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
@@ -1423,24 +1426,24 @@ static void update_freq(void *arg, long period)
 
     /* check if we should enable MOTOR Index Detection */
     if (r_index_en != prev_r_index_en) {
-	// issue a WOU_WRITE 
+	// issue a WOU_WRITE
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_INDEX_EN, 1, &r_index_en);
 	fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
 	wou_flush(&w_param);
 	prev_r_index_en = r_index_en;
     }
-    
+
     pending_cnt += 1;
     if (pending_cnt == JNT_PER_WOF) {
         pending_cnt = 0;
 
         // send WB_RD_CMD to read registers back
-        wou_cmd (&w_param,
+/*        wou_cmd (&w_param,
                  WB_RD_CMD,
                  (GPIO_BASE | GPIO_IN),
                  2,
-                 data);
+                 data);*/
 
         wou_cmd (&w_param,
                 WB_RD_CMD,
@@ -1479,7 +1482,7 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 1);
             }
-
+            *(machine_control->sync_out[0]) = 1;
         } else {
             data[0] = 0; // RESET GPIO_OUT
             wou_cmd (&w_param, WB_WR_CMD,
@@ -1491,11 +1494,12 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 0);
             }
+            *(machine_control->sync_out[0]) = 0;
 
         }
 
     }
-    
+
     i = 0;
     stepgen = arg;
     enable = *stepgen->enable;            // take enable status of first joint
@@ -1508,7 +1512,7 @@ static void update_freq(void *arg, long period)
 
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
-            
+
 	    /* update pos fb*/
 	    *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 
@@ -1597,7 +1601,7 @@ static void update_freq(void *arg, long period)
             wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
 
-            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) { 
+            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
                 fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d)\n",n ,
                         (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
@@ -1705,7 +1709,7 @@ static int export_gpio(gpio_t * addr)
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
-    
+
     // export Digital IN
     for (i = 0; i < 16; i++) {
 	retval = hal_pin_bit_newf(HAL_OUT, &(addr->in[i]), comp_id,
@@ -1716,7 +1720,7 @@ static int export_gpio(gpio_t * addr)
 	*(addr->in[i]) = 0;
     }
 
-    // export Digital OUT
+/*    // export Digital OUT
     for (i = 0; i < 8; i++) {
 	retval = hal_pin_bit_newf(HAL_IN, &(addr->out[i]), comp_id,
 				  "wou.gpio.out.%02d", i);
@@ -1725,7 +1729,7 @@ static int export_gpio(gpio_t * addr)
 	}
 	*(addr->out[i]) = 0;
     }
-    
+    */
     // export Analog IN
     for (i = 0; i < 1; i++) {
         retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
@@ -1744,7 +1748,7 @@ static int export_gpio(gpio_t * addr)
     // gpio.in[0] is SVO-ALM, which is low active;
     // set "prev_in[0]" as 1 also
     *(addr->in[0]) = 1;
-    
+
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
