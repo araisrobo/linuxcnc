@@ -1374,8 +1374,8 @@ setup_widget_accel $_tabs_mdi.historyl [_ History:]
 
 # MDI-history listbox
 listbox $_tabs_mdi.history \
-    -width 25 \
-    -height 5 \
+    -width 40 \
+    -height 8 \
     -exportselection 0 \
     -selectmode extended \
     -relief flat \
@@ -1411,7 +1411,7 @@ label $_tabs_mdi.gcodel
 setup_widget_accel $_tabs_mdi.gcodel [_ "Active G-Codes:"]
 
 text $_tabs_mdi.gcodes \
-	-height 1 \
+	-height 2 \
 	-width 20 \
 	-wrap word
 
@@ -1549,7 +1549,7 @@ frame ${pane_bottom}.t \
 text ${pane_bottom}.t.text \
 	-borderwidth 0 \
 	-exportselection 0 \
-	-height 2 \
+	-height 9 \
 	-highlightthickness 0 \
 	-relief flat \
 	-takefocus 0 \
