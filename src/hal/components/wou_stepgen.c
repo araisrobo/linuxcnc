@@ -329,6 +329,12 @@ typedef struct {
 } gpio_t;
 
 typedef struct {
+    // Analog input: 0~4.096VDC, up to 16 channel
+    hal_s32_t *in[16];
+    // TODO: may add *out[] here
+} analog_t;
+
+typedef struct {
     /* plasma control */
     hal_bit_t *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
@@ -370,6 +376,7 @@ typedef struct {
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
 static gpio_t *gpio;
+static analog_t *analog;
 static machine_control_t *machine_control;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
@@ -420,6 +427,7 @@ static double recip_dt;		/* recprocal of period, avoids divides */
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode);
 static int export_gpio(gpio_t * addr);
+static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
 
@@ -497,6 +505,7 @@ static void fetchmail(const uint8_t *buf_head)
         // ADC_SPI (  filtered value)
         p += 1;
         *(gpio->a_in[0]) = (((double)*p)/20.0);
+        *(analog->in[0]) = *p;
         // probe state
         p += 1;
         machine_control->probe_state = *p;
@@ -523,6 +532,7 @@ static void fetchmail(const uint8_t *buf_head)
         dsize += sprintf (dmsg + dsize, "0x%04X %10d  %10d",
                           din[0], (int32_t)(*(gpio->a_in[0])*20),
                           machine_control->probe_state);
+        dsize += sprintf (dmsg + dsize, "  %10d", *(analog->in[0]));
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
             p += 1;
@@ -675,29 +685,31 @@ int rtapi_app_main(void)
     if (1 == adc_spi_en) {
         rtapi_print_msg(RTAPI_MSG_INFO,
                         "WOU: enable ADC_SPI\n");
-        //MCP3204: // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
-        //MCP3204: data[0] = 19; 
-        data[0] = 17;   // MCP3202
+        // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
+        data[0] = 19; 
+        //MCP3202: // MCP3202: set ADC_SPI_SCK_NR to generate 17 SPI_SCK pulses
+        //MCP3202: data[0] = 17;   // MCP3202
         wou_cmd (&w_param, WB_WR_CMD,
                  (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR),
                  (uint8_t) 1, data);
 
         // enable ADC_SPI with LOOP mode
-        //MCP3204: // ADC_SPI_CMD: 0x10: { (1)START_BIT,
-        //MCP3204: //                      (0)Differential mode,
-        //MCP3204: //               param_fraction_bit       (0)D2 ... dont care,
-        //MCP3204: //                      (0)D1 ... Ch0 = IN+,
-        //MCP3204: //                      (0)D0 ... CH1 = IN-   }
-        //MCP3204: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-        //MCP3204:           | (ADC_SPI_CMD_MASK & 0x10);
-
-        // MCP3202: 
-        // ADC_SPI_CMD: 0x04: { (1)START_BIT,
+        
+        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
         //                      (0)Differential mode,
-        //                      (0)SIGN   Ch0 = IN+,
-        //                                CH1 = IN-   }
+        //               param_fraction_bit       (0)D2 ... dont care,
+        //                      (0)D1 ... Ch0 = IN+,
+        //                      (0)D0 ... CH1 = IN-   }
         data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-                  | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
+                  | (ADC_SPI_CMD_MASK & 0x10);
+
+        //MCP3202: // MCP3202: 
+        //MCP3202: // ADC_SPI_CMD: 0x04: { (1)START_BIT,
+        //MCP3202: //                      (0)Differential mode,
+        //MCP3202: //                      (0)SIGN   Ch0 = IN+,
+        //MCP3202: //                                CH1 = IN-   }
+        //MCP3202: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
+        //MCP3202:           | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
         wou_cmd (&w_param, WB_WR_CMD,
                  (uint16_t) (SPI_BASE | ADC_SPI_CTRL),
                  (uint8_t) 1, data);
@@ -971,6 +983,7 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
+    
     gpio = hal_malloc(sizeof(gpio_t));
     if (gpio == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -978,6 +991,15 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
+    
+    analog = hal_malloc(sizeof(analog_t));
+    if (analog == 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"ANALOG: ERROR: hal_malloc() failed\n");
+	hal_exit(comp_id);
+	return -1;
+    }
+    
     machine_control = hal_malloc(sizeof(machine_control_t));
     if (machine_control == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -999,6 +1021,7 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
+
     retval = export_gpio(gpio);	// 16-in, 8-out
     if (retval != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1006,7 +1029,16 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-/* put export machine_control below */
+
+    retval = export_analog(analog);	// up to 16-ch-adc-in
+    if (retval != 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"ANALOG: ERROR: analog var export failed\n");
+	hal_exit(comp_id);
+	return -1;
+    }
+
+    /* put export machine_control below */
     // static int export_m_control (m_control_t *m_control)
     retval = export_machine_control(machine_control);
     if (retval != 0) {
@@ -1704,11 +1736,49 @@ static int export_gpio(gpio_t * addr)
         }
 	*(addr->a_in[i]) = 0;
     }
+<<<<<<< HEAD
+=======
+    
+    /* set default parameter values */
+//    addr->num_in = 16;
+//    addr->prev_in = 1;
+// gpio.in[0] is SVO-ALM, which is low active;
+// set "prev_in[0]" as 1 also
+//    *(addr->in[0]) = 1;
+>>>>>>> 0f0254b1b625712b42c62f7364596517b320b364
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
 } // export_gpio ()
+
+static int export_analog(analog_t * addr)
+{
+    int i, retval, msg;
+
+    /* This function exports a lot of stuff, which results in a lot of
+       logging if msg_level is at INFO or ALL. So we save the current value
+       of msg_level and restore it later.  If you actually need to log this
+       function's actions, change the second line below */
+    msg = rtapi_get_msg_level();
+    // rtapi_set_msg_level(RTAPI_MSG_WARN);
+    rtapi_set_msg_level(RTAPI_MSG_ALL);
+
+    // export Analog IN
+    for (i = 0; i < 16; i++) {
+        retval = hal_pin_float_newf(HAL_OUT, &(addr->in[i]), comp_id,
+                                  "wou.analog.in.%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+	*(addr->in[i]) = 0;
+    }
+    
+    /* restore saved message level */
+    rtapi_set_msg_level(msg);
+    return 0;
+} // export_analog ()
+
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode)
