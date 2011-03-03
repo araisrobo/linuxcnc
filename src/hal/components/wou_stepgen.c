@@ -151,9 +151,9 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0
+#define MBOX_LOG 1
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     3       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -1485,6 +1485,7 @@ static void update_freq(void *arg, long period)
         //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
         //  [bit-1]: SSIF_EN, servo/stepper interface enable
         //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+        fprintf(stderr,"enable changed(%d)\n", *stepgen->enable);
         if (*stepgen->enable) {
             /*data[0] = 23;   // SVO-ON, WATCHDOG-ON
             wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
@@ -1492,6 +1493,7 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 1);
             }
+
         } else {
             data[0] = 0; // RESET GPIO_OUT
             wou_cmd (&w_param, WB_WR_CMD,
@@ -1736,16 +1738,6 @@ static int export_gpio(gpio_t * addr)
         }
 	*(addr->a_in[i]) = 0;
     }
-<<<<<<< HEAD
-=======
-    
-    /* set default parameter values */
-//    addr->num_in = 16;
-//    addr->prev_in = 1;
-// gpio.in[0] is SVO-ALM, which is low active;
-// set "prev_in[0]" as 1 also
-//    *(addr->in[0]) = 1;
->>>>>>> 0f0254b1b625712b42c62f7364596517b320b364
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);
@@ -1766,7 +1758,7 @@ static int export_analog(analog_t * addr)
 
     // export Analog IN
     for (i = 0; i < 16; i++) {
-        retval = hal_pin_float_newf(HAL_OUT, &(addr->in[i]), comp_id,
+        retval = hal_pin_s32_newf(HAL_OUT, &(addr->in[i]), comp_id,
                                   "wou.analog.in.%02d", i);
         if (retval != 0) {
             return retval;
