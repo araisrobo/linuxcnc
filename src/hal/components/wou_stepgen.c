@@ -324,11 +324,7 @@ typedef struct {
 
 typedef struct {
     // Digital I/O: 16in 8out
-/*    hal_bit_t   *in[64];
-    int         num_in;
-    uint32_t    prev_in;*/
     // Analog I/O: 32bit
-//    hal_s32_t   *a_in[1];       /* pin: analog input */
     hal_float_t *a_in[1];
 } gpio_t;
 
@@ -340,7 +336,9 @@ typedef struct {
     /* sync input pins (input to motmod) */
     hal_bit_t   *in[64];
 //    int         num_in; // use num_sync_in
-    uint32_t    prev_in;
+    uint32_t    prev_in0;
+    uint32_t    prev_in1;
+
     hal_bit_t *sync_in_trigger;
     hal_u32_t *sync_in;		//
     hal_u32_t *wait_type;
@@ -483,20 +481,18 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
-        din[0] &= 0xFFFFFFFE;
-        if (memcmp
-            (&(machine_control->prev_in),
-                    &din[0], 2)) {
-            // update prev_in from WOU_REGISTER
-            memcpy(&(machine_control->prev_in),
-                   &din[0], 2);
-             rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", machine_control->prev_in);
-            for (i = 0; i < machine_control->num_sync_in; i++) {
-                *(machine_control->in[i]) = ((machine_control->prev_in) >> i) & 0x01;
+        din[0] &= gpio_mask_in0;
+
+        // update gpio_in[31:0]
+        // compare if there's any GPIO.DIN bit got toggled
+        if (memcmp (&(machine_control->prev_in0), &din[0], sizeof(uint32_t))) {
+            // avoid for-loop to save CPU cycles
+            memcpy(&(machine_control->prev_in0), &din[0], sizeof(uint32_t));
+            for (i = 0; i < 32; i++) {
+                *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
             }
         }
-        memcpy(&machine_control->prev_in,
-                &din[0], 2);
+        // TODO: update gpio_in[63:32]
 
         // ADC_SPI (  filtered value)
         p += 1;
@@ -1113,24 +1109,6 @@ static void update_freq(void *arg, long period)
 //    DP("before wou_update()\n");
     wou_update(&w_param);
 
-    // copy GPIO.IN ports if it differs from previous value
-/*
-
-    if (memcmp
-        (&(gpio->prev_in),
-         wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2)) {
-        // update prev_in from WOU_REGISTER
-        memcpy(&(gpio->prev_in),
-               wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
-         rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: switch_in(0x%04X)\n", gpio->prev_in);
-        for (i = 0; i < gpio->num_in; i++) {
-            *(gpio->in[i]) = ((gpio->prev_in) >> i) & 0x01;
-        }
-    }
-    memcpy(&gpio->prev_in,
-           wou_reg_ptr(&w_param, GPIO_BASE + GPIO_IN), 2);
-*/
-
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock,
 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
@@ -1726,13 +1704,6 @@ static int export_gpio(gpio_t * addr)
         }
 	*(addr->a_in[i]) = 0;
     }
-
-    /* set default parameter values */
-//    addr->num_in = 16;
-//    addr->prev_in = 1;
-// gpio.in[0] is SVO-ALM, which is low active;
-// set "prev_in[0]" as 1 also
-//    *(addr->in[0]) = 1;
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);
