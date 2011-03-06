@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 1
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 #define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
@@ -194,6 +194,12 @@ RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
 
 int gpio_mask_in1 = -1;
 RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
+
+int gpio_alm_out0 = -1;
+RTAPI_MP_INT(gpio_alm_out0, "WOU Register Value for GPIO_ALM_OUT0");
+
+int gpio_alm_out1 = -1;
+RTAPI_MP_INT(gpio_alm_out1, "WOU Register Value for GPIO_ALM_OUT1");
 
 int gpio_leds_sel = -1;
 RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
@@ -721,7 +727,7 @@ int rtapi_app_main(void)
 //obsolete:     /* test for GPIO_MASK_IN0: gpio_mask_in0 */
 //obsolete:     if ((gpio_mask_in0 == -1)) {
 //obsolete: 	rtapi_print_msg(RTAPI_MSG_ERR,
-//obsolete: 			"WOU: ERall_value_fraction_bitROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
+//obsolete: 			"WOU: ERROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
 //obsolete: 	return -1;
 //obsolete:     } else {
 //obsolete: 	// un-mask HOME-SWITCH inputs (bits_i[5:2])
@@ -740,6 +746,24 @@ int rtapi_app_main(void)
 //obsolete:	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN1, 1, data);
 //obsolete:    }
 
+    if (gpio_alm_out0 != -1) {
+       data[0] = (uint8_t) gpio_alm_out0;
+       wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT0, 1, data);
+       wou_flush(&w_param);
+    }
+    
+    if (gpio_alm_out1 != -1) {
+       data[0] = (uint8_t) gpio_alm_out1;
+       wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT1, 1, data);
+       wou_flush(&w_param);
+    }
+    
+    fprintf(stderr, "(wou_stepgen.c)TODO: add gpio_alm_out0/1 to co2.hal\n");
+    data[0] = (uint8_t) 0x82;
+    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT0, 1, data);
+    data[0] = (uint8_t) 0x0F;
+    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT1, 1, data);
+    wou_flush(&w_param);
 
     /* test for GPIO_LEDS_SEL: gpio_leds_sel */
     if ((gpio_leds_sel == -1)) {
