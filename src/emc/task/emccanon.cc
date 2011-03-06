@@ -1478,7 +1478,7 @@ void NURBS_FEED_3D (
          assert(canon.angular_move);
          // radius of axis-a is calculated from y=0, z=0
          // TODO: this is for hg plasma
-         double linear_vel_a, linear_accel_a, linear_jerk_a, y, z, r, angular_v, angular_a, angular_j;
+/*         double linear_vel_a, linear_accel_a, linear_jerk_a, y, z, r, angular_v, angular_a, angular_j;
          y = nurbs_control_points[i].Y;
          z = nurbs_control_points[i].Z;
          r = sqrt(y*y+z*z);
@@ -1488,6 +1488,8 @@ void NURBS_FEED_3D (
          linear_vel_a = angular_v/360.0*2*M_PI*r;
          linear_accel_a = angular_a/360.0*2*M_PI*r;
          linear_jerk_a = angular_j/360.0*2*M_PI*r;
+*/
+
          nurbsMoveMsg.ini_maxvel = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(0)):huge,
                                                 dy > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(1)):huge,
                                                 dz > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(2)):huge);
@@ -1498,7 +1500,7 @@ void NURBS_FEED_3D (
                                               dw > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(8)):huge));
 
          nurbsMoveMsg.ini_maxvel = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxvel,
-                                        da > 0? FROM_EXT_LEN(linear_vel_a/*emcAxisGetMaxVelocity(3)*/):huge,
+                                        da > 0? FROM_EXT_LEN(/*linear_vel_a*/emcAxisGetMaxVelocity(3)):huge,
                                         db > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(4)):huge,
                                         dc > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(5)):huge));
 
@@ -1514,7 +1516,7 @@ void NURBS_FEED_3D (
 
 
          nurbsMoveMsg.ini_maxacc = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxacc,
-                                       da > 0? FROM_EXT_LEN(linear_accel_a/*emcAxisGetMaxAcceleration(3)*/):huge,
+                                       da > 0? FROM_EXT_LEN(/*linear_accel_a*/emcAxisGetMaxAcceleration(3)):huge,
                                        db > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(4)):huge,
                                        dc > 0? FROM_EXT_LEN(emcAxisGetMaxAcceleration(5)):huge));
 
@@ -1527,7 +1529,7 @@ void NURBS_FEED_3D (
                                                     dv > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(7)):huge,
                                                     dw > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(8)):huge));
          nurbsMoveMsg.ini_maxjerk = TO_EXT_LEN(MIN4(nurbsMoveMsg.ini_maxjerk,
-                                         da > 0?FROM_EXT_LEN(linear_jerk_a/*emcAxisGetMaxJerk(3)*/):huge,
+                                         da > 0?FROM_EXT_LEN(/*linear_jerk_a*/emcAxisGetMaxJerk(3)):huge,
                                          db > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(4)):huge,
                                          dc > 0?FROM_EXT_LEN(emcAxisGetMaxJerk(5)):huge));
 
