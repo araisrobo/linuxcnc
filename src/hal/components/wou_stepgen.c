@@ -489,6 +489,7 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
+        //DEBUG: fprintf (stderr, "DIN: 0x%08X\n", din[0]);
         din[0] &= gpio_mask_in0;
 
         // update gpio_in[31:0]
@@ -655,9 +656,6 @@ int rtapi_app_main(void)
 #endif
         // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
-        data[0] = 1;        // RISC ON
-        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
-
     }
 
     if(pulse_type != -1) {
@@ -720,27 +718,27 @@ int rtapi_app_main(void)
     data[0] = 0x0F;
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
 
-    /* test for GPIO_MASK_IN0: gpio_mask_in0 */
-    if ((gpio_mask_in0 == -1)) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"WOU: ERall_value_fraction_bitROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
-	return -1;
-    } else {
-	// un-mask HOME-SWITCH inputs (bits_i[5:2])
-	data[0] = (uint8_t) gpio_mask_in0;
-	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN0, 1, data);
-    }
+//obsolete:     /* test for GPIO_MASK_IN0: gpio_mask_in0 */
+//obsolete:     if ((gpio_mask_in0 == -1)) {
+//obsolete: 	rtapi_print_msg(RTAPI_MSG_ERR,
+//obsolete: 			"WOU: ERall_value_fraction_bitROR: no value for GPIO_MASK_IN0: gpio_mask_in0\n");
+//obsolete: 	return -1;
+//obsolete:     } else {
+//obsolete: 	// un-mask HOME-SWITCH inputs (bits_i[5:2])
+//obsolete: 	data[0] = (uint8_t) gpio_mask_in0;
+//obsolete: 	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN0, 1, data);
+//obsolete:     }
 
-    /* test for GPIO_MASK_IN1: gpio_mask_in1 */
-    if ((gpio_mask_in1 == -1)) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"WOU: ERROR: no value for GPIO_MASK_IN1: gpio_mask_in1\n");
-	return -1;
-    } else {
-	// un-mask HOME-SWITCH inputs (bits_i[5:2])
-	data[0] = (uint8_t) gpio_mask_in1;
-	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN1, 1, data);
-    }
+//obsolete:    /* test for GPIO_MASK_IN1: gpio_mask_in1 */
+//obsolete:    if ((gpio_mask_in1 == -1)) {
+//obsolete:	rtapi_print_msg(RTAPI_MSG_ERR,
+//obsolete:			"WOU: ERROR: no value for GPIO_MASK_IN1: gpio_mask_in1\n");
+//obsolete:	return -1;
+//obsolete:    } else {
+//obsolete:	// un-mask HOME-SWITCH inputs (bits_i[5:2])
+//obsolete:	data[0] = (uint8_t) gpio_mask_in1;
+//obsolete:	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN1, 1, data);
+//obsolete:    }
 
 
     /* test for GPIO_LEDS_SEL: gpio_leds_sel */
@@ -963,9 +961,17 @@ int rtapi_app_main(void)
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     write_mot_param (2, (COMP_VEL), immediate_data);
 
-    // SVO-ON
+    // JCMD_CTRL: 
+    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+    //  [bit-1]: SSIF_EN, servo/stepper interface enable
+    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+    // TODO: RTL: remove SSIF_EN (always enable SSIF)
+    // SSIF_EN = 1
     data[0] = 2;
     wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
+    // RISC ON
+    data[0] = 1;        
+    wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
     wou_flush(&w_param);
     /* have good config info, connect to the HAL */
     comp_id = hal_init("wou");
@@ -974,6 +980,7 @@ int rtapi_app_main(void)
 			"STEPGEN: ERROR: hal_init() failed\n");
 	return -1;
     }
+
 
     /* allocate shared memory for counter data */
     stepgen_array = hal_malloc(num_chan * sizeof(stepgen_t));
@@ -1481,15 +1488,8 @@ static void update_freq(void *arg, long period)
     stepgen = arg;
     if (*stepgen->enable != stepgen->prev_enable) {
         stepgen->prev_enable = *stepgen->enable;
-        // JCMD_CTRL: 
-        //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-        //  [bit-1]: SSIF_EN, servo/stepper interface enable
-        //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
         fprintf(stderr,"enable changed(%d)\n", *stepgen->enable);
         if (*stepgen->enable) {
-            /*data[0] = 23;   // SVO-ON, WATCHDOG-ON
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-            wou_flush(&w_param);*/
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 1);
             }
