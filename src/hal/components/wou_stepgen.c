@@ -457,6 +457,7 @@ static void fetchmail(const uint8_t *buf_head)
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
+    static      prev_din0;
 
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
@@ -495,7 +496,6 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
-        //DEBUG: fprintf (stderr, "DIN: 0x%08X\n", din[0]);
         din[0] &= gpio_mask_in0;
 
         // update gpio_in[31:0]
@@ -523,6 +523,10 @@ static void fetchmail(const uint8_t *buf_head)
         }
 
 #if (MBOX_LOG)
+        if (din[0] != prev_din0) {
+            prev_din0 = din[0];
+            fprintf (stderr, "DIN: 0x%08X\n", din[0]);
+        }
         dsize = sprintf (dmsg, "%10d  ", bp_tick);
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -758,13 +762,6 @@ int rtapi_app_main(void)
        wou_flush(&w_param);
     }
     
-    fprintf(stderr, "(wou_stepgen.c)TODO: add gpio_alm_out0/1 to co2.hal\n");
-    data[0] = (uint8_t) 0x82;
-    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT0, 1, data);
-    data[0] = (uint8_t) 0x0F;
-    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT1, 1, data);
-    wou_flush(&w_param);
-
     /* test for GPIO_LEDS_SEL: gpio_leds_sel */
     if ((gpio_leds_sel == -1)) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
