@@ -15,8 +15,8 @@ void user_mainloop(void) {
     FOR_ALL_INSTS() {
        if (in != 0) {
          printf("in\n");
-         system("ogg123  KDE-Im-Error-On-Connection.ogg");
-         usleep(2000000);
+         system("ogg123 -q KDE-Im-Error-On-Connection.ogg");
+         usleep(1000000);
        }
     }
    }
