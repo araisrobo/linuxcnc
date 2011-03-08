@@ -10,14 +10,13 @@ license "GPL";
 #include <stdio.h>
 
 void user_mainloop(void) {
-   while(1){
-    usleep(1000);
-    FOR_ALL_INSTS() {
-       if (in != 0) {
-         printf("in\n");
-         system("ogg123 -q KDE-Im-Error-On-Connection.ogg");
-         usleep(1000000);
-       }
+    while(1){
+        usleep(1000);
+        FOR_ALL_INSTS() {
+            if (in != 0) {
+                system("ogg123 -q KDE-Im-Error-On-Connection.ogg");
+                usleep(500000);
+            }
+        }
     }
-   }
 }
