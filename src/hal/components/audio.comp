@@ -1,0 +1,23 @@
+component audio;
+option userspace;
+
+pin in bit in;
+pin in bit enable;
+license "GPL";
+;;
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+
+void user_mainloop(void) {
+   while(1){
+    usleep(1000);
+    FOR_ALL_INSTS() {
+       if (in != 1) {
+         printf("in\n");
+         system("ogg123  KDE-Im-Error-On-Connection.ogg");
+         usleep(2000000);
+       }
+    }
+   }
+}
