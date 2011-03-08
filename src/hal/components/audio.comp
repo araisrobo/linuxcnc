@@ -2,7 +2,6 @@ component audio;
 option userspace;
 
 pin in bit in;
-pin in bit enable;
 license "GPL";
 ;;
 #include <stdlib.h>
@@ -11,11 +10,10 @@ license "GPL";
 
 void user_mainloop(void) {
     while(1){
-        usleep(1000);
+        usleep(25000);
         FOR_ALL_INSTS() {
             if (in != 0) {
                 system("ogg123 -q KDE-Im-Error-On-Connection.ogg");
-                usleep(500000);
             }
         }
     }
