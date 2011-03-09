@@ -151,7 +151,7 @@ static FILE *dptrace;
 #endif
 
 // to disable MAILBOX dump: #define MBOX_LOG 0
-#define MBOX_LOG 0 
+#define MBOX_LOG 0
 #if (MBOX_LOG)
 #define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
@@ -306,11 +306,13 @@ typedef struct {
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
-    hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
-
+    double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
+    double vel_cmd;	/* pin: velocity command (pos units/sec) */
+    double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
+    double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
-//    hal_float_t cur_pos;	/* current position (position units) */
+
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
@@ -319,7 +321,7 @@ typedef struct {
     hal_s32_t *home_state;	/* pin: home_state from homing.c */
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
     double vel_fb;
-    double prev_pos_cmd;	/* prev pos_cmd: previous position command */
+
     double sum_err_0;
     double sum_err_1;
     // pid info
@@ -457,7 +459,7 @@ static void fetchmail(const uint8_t *buf_head)
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
-    static      prev_din0;
+    static      uint32_t prev_din0;
 
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
@@ -480,9 +482,10 @@ static void fetchmail(const uint8_t *buf_head)
             // PULSE_POS
             p += 1;
             *(stepgen->pulse_pos) = *p;
-            // ENC_POS
+            // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
+
             // pid output
             p +=1;
             *(stepgen->pid_output) = ((int32_t)*p)/pos_scale;
@@ -534,7 +537,7 @@ static void fetchmail(const uint8_t *buf_head)
             pos_scale = atof(pos_scale_str[i]);
             dsize += sprintf (dmsg + dsize, "%10d  %10d %10f %10f  ",
                               *(stepgen->pulse_pos),
-                              *(stepgen->enc_pos),
+                              *(stepgen->enc_counter),
                               *(stepgen->pid_output),
                               *(stepgen->cmd_error)
                              );
@@ -1121,11 +1124,6 @@ static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
     int n, i, enable;
-//    double new_vel;
-
-//    double ff_vel;
-//    double velocity_cmd;
-
     double physical_maxvel;	// max vel supported by current step timings & position-scale
     double maxvel;		// actual max vel to use this time
 
@@ -1162,10 +1160,6 @@ static void update_freq(void *arg, long period)
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
-    // print out tx/rx data rate every second
-    // wou_status(&w_param);
-
-    // /* check and update WOU Registers */
 //    DP("before wou_update()\n");
     wou_update(&w_param);
 
@@ -1177,28 +1171,6 @@ static void update_freq(void *arg, long period)
 	                                r_index_lock, prev_r_index_lock);
 	prev_r_index_lock = r_index_lock;
     }
-/*    // process GPIO.OUT
-    data[0] = 0;
-    for (i = 0; i < gpio->num_out; i++) {
-	data[0] |= ((*(gpio->out[i]) & 1) << i);
-    }
-    if (data[0] != gpio->prev_out) {
-	gpio->prev_out = data[0];
-	// issue a WOU_WRITE while got new GPIO.OUT value
-	// check if plasma enabled
-
-	 M63 M62 not actually control this block , add just for in-case
-	if((data[0] & PLASMA_ON_BIT)  plasma on bit ) {
-	    if(*(machine_control->plasma_enable)) {
-	        wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
-                wou_flush(&w_param);
-	    }
-	} else {
-
-	    wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_OUT, 1, data);
-	    wou_flush(&w_param);
-	}
-    }*/
 
     /* begin: process position compensation enable */
     if((*(machine_control->position_compensation_en_trigger) != 0)) {
@@ -1264,6 +1236,7 @@ static void update_freq(void *arg, long period)
     for (i = 0; i < machine_control->num_sync_out; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
                 ((*(machine_control->sync_out[i]) & 1))) {
+            //TODO: replace plasma-on with general purpose enable bit
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
 //                fprintf(stderr,"plasma_switch(%d)\n",
 //                        *(machine_control->sync_out[i]));
@@ -1286,8 +1259,7 @@ static void update_freq(void *arg, long period)
        // write a wou frame for sync input into command FIFO
     }
 
-
-    if (j > 0) {
+    if (j > 0) {        //
         machine_control->prev_out = sync_io_data;
     }
     /* end: process motion synchronized output */
@@ -1335,13 +1307,14 @@ static void update_freq(void *arg, long period)
     r_load_pos = 0;
     r_switch_en = 0;
     r_index_en = prev_r_index_en;
-    //TODO: implement index homing both emc2 and risc
+    /* begin: homing logic */
     for (n = 0; n < num_chan; n++) {
 	if (*stepgen->home_state != HOME_IDLE) {
 	    static hal_s32_t prev_switch_pos;
 	    hal_s32_t switch_pos_tmp;
 	    hal_s32_t index_pos_tmp;
 	    /* update home switch and motor index position while homing */
+	    //TODO: to get switch pos and index pos from risc
 	    memcpy((void *) &switch_pos_tmp,
 		   wou_reg_ptr(&w_param,
 			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
@@ -1423,7 +1396,7 @@ static void update_freq(void *arg, long period)
 	    if (stepgen->prev_home_state == HOME_IDLE) {
                 /**
                  * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
-                 * INDEX_POS with ENC_POS at beginning of homing
+                 * INDEX_POS with enc_counter at beginning of homing
                  * (HOME_START state)
                  *
 		 * reset to ZERO one cycle after setting this register
@@ -1435,7 +1408,7 @@ static void update_freq(void *arg, long period)
                     stepgen->rawcount = *(stepgen->enc_pos);
 //                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
                 }
-                fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
+                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
 	    }
 	}
@@ -1443,7 +1416,7 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
-
+    /* enc: homing logic */
     /* check if we should update SWITCH/INDEX positions for HOMING */
     if (r_load_pos != 0) {
 	// issue a WOU_WRITE
@@ -1477,12 +1450,9 @@ static void update_freq(void *arg, long period)
         pending_cnt = 0;
 
         // send WB_RD_CMD to read registers back
-/*        wou_cmd (&w_param,
-                 WB_RD_CMD,
-                 (GPIO_BASE | GPIO_IN),
-                 2,
-                 data);*/
-
+        /* TODO: replace switch pos and index pos with mailbox siwtch pos and index pos.
+         *       Also clean index lock in risc.
+        */
         wou_cmd (&w_param,
                 WB_RD_CMD,
                 (SSIF_BASE | SSIF_INDEX_LOCK),
@@ -1544,7 +1514,8 @@ static void update_freq(void *arg, long period)
 	    stepgen->freq = 0;
 
 	    /* update pos fb*/
-	    *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+	    // fetchmail will update enc_pos
+	    //*(stepgen->pos_fb) = (*stepgen->enc_counter) * stepgen->scale_recip;
 
             /* to prevent position drift while toggeling "PWR-ON" switch */
 	    (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
@@ -1560,17 +1531,15 @@ static void update_freq(void *arg, long period)
                  * positions.
                  **/
                 stepgen->rawcount = *(stepgen->enc_pos);
-                /* load SWITCH, INDEX, and PULSE positions with ENC_POS */
+                /* load SWITCH, INDEX, and PULSE positions with enc_counter */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-                fprintf(stderr, "j[%d] enc_pos(%d) pulse_pos(%d)\n",
+                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
                 fprintf(stderr, "j[%d] prev_pos_cmd(%f) pos_cmd(%f) rawcount(%lld)\n",
                         n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
-
-//            fprintf(stderr,"i(%d) n(%d)\n", i, n);
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
             wou_flush(&w_param);
@@ -1588,16 +1557,15 @@ static void update_freq(void *arg, long period)
             stepgen++;
 	    continue;
 	}
-
-	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+	//TODO: link pos_fb from hal file
+	 *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
 
 	// maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
 	{
-	    //obsolete:     double min_ns_per_step =
-	    //obsolete: 	stepgen->step_len + stepgen->dir_hold_dly;
+	    /* step_len is for electron characteristic: pulse duration. */
 	    double min_ns_per_step = stepgen->step_len;
 	    double max_steps_per_s = 1.0e9 / min_ns_per_step;
 
@@ -1628,12 +1596,29 @@ static void update_freq(void *arg, long period)
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
 	if (stepgen->pos_mode) {
-            wou_pos_cmd = (int32_t)(((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) *
+	    /* begin: velocity and acceleration check */
+	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+	    if (stepgen->vel_cmd > maxvel) {
+	        stepgen->vel_cmd = maxvel;
+	    } else if(stepgen->vel_cmd < -maxvel){
+	        stepgen->vel_cmd = maxvel;
+	    }
+	    stepgen->accel_cmd = stepgen->vel_cmd - stepgen->prev_vel_cmd;
+	    if (stepgen->accel_cmd > stepgen->maxaccel) {
+	        stepgen->accel_cmd = stepgen->maxaccel;
+	    } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
+	        stepgen->accel_cmd = -(stepgen->maxaccel);
+	    }
+	    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd;
+
+	    /* end: velocity and acceleration check */
+
+            wou_pos_cmd = (int32_t)(((stepgen->vel_cmd * dt)) *
                                                 ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
 
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
-                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d)\n",n ,
-                        (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state);
+                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",n ,
+                        (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state, stepgen->vel_cmd);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
@@ -1641,6 +1626,7 @@ static void update_freq(void *arg, long period)
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
             (stepgen->prev_pos_cmd) += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
+            stepgen->prev_vel_cmd = stepgen->vel_cmd;
             if (wou_pos_cmd >= 0) {
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
             } else {
@@ -1850,8 +1836,9 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	retval = hal_pin_float_newf(HAL_IN, &(addr->pos_cmd), comp_id,
 				    "wou.stepgen.%d.position-cmd", num);
     } else {
-	retval = hal_pin_float_newf(HAL_IN, &(addr->vel_cmd), comp_id,
-				    "wou.stepgen.%d.velocity-cmd", num);
+        assert(0);
+	/*retval = hal_pin_float_newf(HAL_IN, &(addr->vel_cmd), comp_id,
+				    "wou.stepgen.%d.velocity-cmd", num);*/
     }
     if (retval != 0) {
 	return retval;
@@ -2040,7 +2027,8 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     if (pos_mode) {
 	*(addr->pos_cmd) = 0.0;
     } else {
-	*(addr->vel_cmd) = 0.0;
+        assert(0);
+	/**(addr->vel_cmd) = 0.0;*/
     }
     *(addr->home_state) = HOME_IDLE;
     addr->prev_home_state = HOME_IDLE;
