@@ -268,6 +268,7 @@ static wou_param_t w_param;
 static int pending_cnt;
 static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
 
+
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 
 
@@ -379,6 +380,10 @@ typedef struct {
     hal_bit_t *probe_input;
     uint8_t prev_probe_input;
     int8_t probe_state;
+    /* spindle */
+    hal_bit_t *spindle_enable;
+    hal_float_t *spindle_vel_cmd;
+    hal_float_t *spindle_vel_fb;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1637,8 +1642,50 @@ static void update_freq(void *arg, long period)
                    sizeof(uint16_t));
 
 	} else {
-            // do not support velocity mode yet
-            assert(0);
+             /* velocity command for spindle */
+	    if(*machine_control->spindle_enable)
+	        stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
+	    else
+	        stepgen->vel_cmd=  0;
+//	    fprintf(stderr,"velcmd(%f) spindle_vel_cmd(%f)\n", stepgen->vel_cmd, *machine_control->spindle_vel_cmd);
+            if (stepgen->vel_cmd > maxvel) {
+                stepgen->vel_cmd = maxvel;
+            } else if(stepgen->vel_cmd < -maxvel){
+                stepgen->vel_cmd = maxvel;
+            }
+            stepgen->accel_cmd = stepgen->vel_cmd - stepgen->prev_vel_cmd;
+            if (stepgen->accel_cmd > stepgen->maxaccel) {
+                stepgen->accel_cmd = stepgen->maxaccel;
+            } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
+                stepgen->accel_cmd = -(stepgen->maxaccel);
+            }
+            stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd;
+
+            /* end: velocity and acceleration check */
+
+            wou_pos_cmd = (int32_t)(((stepgen->vel_cmd * dt)) *
+                                                ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
+
+            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
+                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",n ,
+                        (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state, stepgen->vel_cmd);
+                fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
+                assert(0);
+            }
+            // SYNC_JNT: opcode for SYNC_JNT command
+            // DIR_P: Direction, (positive(1), negative(0))
+            // POS_MASK: relative position mask
+            (stepgen->prev_pos_cmd) += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
+            stepgen->prev_vel_cmd = stepgen->vel_cmd;
+            if (wou_pos_cmd >= 0) {
+                sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
+            } else {
+                wou_pos_cmd *= -1;
+                sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
+            }
+            memcpy(data + n * sizeof(uint16_t), &sync_cmd,
+                   sizeof(uint16_t));
+
              /*end of velocity mode*/
         }
 
@@ -1832,14 +1879,9 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	return retval;
     }
     /* export pin for command */
-    if (pos_mode) {
-	retval = hal_pin_float_newf(HAL_IN, &(addr->pos_cmd), comp_id,
+    retval = hal_pin_float_newf(HAL_IN, &(addr->pos_cmd), comp_id,
 				    "wou.stepgen.%d.position-cmd", num);
-    } else {
-        assert(0);
-	/*retval = hal_pin_float_newf(HAL_IN, &(addr->vel_cmd), comp_id,
-				    "wou.stepgen.%d.velocity-cmd", num);*/
-    }
+
     if (retval != 0) {
 	return retval;
     }
@@ -2024,12 +2066,10 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     *(addr->pos_fb) = 0.0;
     *(addr->switch_pos) = 0.0;
     *(addr->index_pos) = 0.0;
-    if (pos_mode) {
-	*(addr->pos_cmd) = 0.0;
-    } else {
-        assert(0);
-	/**(addr->vel_cmd) = 0.0;*/
-    }
+    *(addr->pos_cmd) = 0.0;
+    (addr->vel_cmd) = 0.0;
+    (addr->prev_vel_cmd) = 0.0;
+    (addr->accel_cmd) = 0.0;
     *(addr->home_state) = HOME_IDLE;
     addr->prev_home_state = HOME_IDLE;
 
@@ -2167,10 +2207,28 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-//    machine_control->num_sync_in = num_sync_in;
-//    machine_control->num_sync_out = num_sync_out;
-    machine_control->prev_out = 0;
+    /* for spindle */
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_enable), comp_id,
+                             "wou.spindle.enable");
+    *(machine_control->spindle_enable) = 0;
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->spindle_vel_cmd), comp_id,
+                                 "wou.spindle.vel_cmd");
+    *(machine_control->spindle_vel_cmd) = 0;
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_vel_fb), comp_id,
+                                     "wou.spindle.vel_cmd_fb");
+    *(machine_control->spindle_vel_cmd) = 0;
+    if (retval != 0) {
+        return retval;
+    }
 
+
+    machine_control->prev_out = 0;
     machine_control->fp_current_vel = 0;
     machine_control->fp_requested_vel = 0;
 
