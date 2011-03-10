@@ -95,4 +95,5 @@ hal/components/conv_u32_s32.comp: hal/components/conv.comp.in hal/components/mkc
 
 ../bin/audio: hal/components/audio.comp
 	../bin/comp --install $<
-userspace: ../bin/audio
+TARGETS += ../bin/audio
+# userspace: ../bin/audio
