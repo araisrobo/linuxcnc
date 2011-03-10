@@ -1326,7 +1326,7 @@ static void update_freq(void *arg, long period)
     r_index_en = prev_r_index_en;
     /* begin: homing logic */
     for (n = 0; n < num_chan; n++) {
-	if (*stepgen->home_state != HOME_IDLE) {
+	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
 	    static hal_s32_t prev_switch_pos;
 	    hal_s32_t switch_pos_tmp;
 	    hal_s32_t index_pos_tmp;
