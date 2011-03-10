@@ -308,7 +308,7 @@ typedef struct {
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
-    double vel_cmd;	/* pin: velocity command (pos units/sec) */
+    double vel_cmd;	        /* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
@@ -490,7 +490,6 @@ static void fetchmail(const uint8_t *buf_head)
             // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
-
             // pid output
             p +=1;
             *(stepgen->pid_output) = ((int32_t)*p)/pos_scale;
@@ -505,6 +504,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         din[0] = *p;
         din[0] &= gpio_mask_in0;
+
 
         // update gpio_in[31:0]
         // compare if there's any GPIO.DIN bit got toggled
@@ -529,6 +529,18 @@ static void fetchmail(const uint8_t *buf_head)
         } else {
             *machine_control->probe_input = 0;
         }
+        // spindle velocity
+        p += 1;
+        *machine_control->spindle_vel_fb = (hal_float_t)((int32_t)*p);
+        stepgen = stepgen_array;
+        for (i=0; i<num_chan; i++) {
+            if(stepgen->pos_mode == 0) {
+                pos_scale = fabs(atof(pos_scale_str[i]));
+                break;
+            }
+            stepgen += 1;
+        }
+        *machine_control->spindle_vel_fb =  ((*machine_control->spindle_vel_fb/pos_scale)/360.0)*recip_dt;
 
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
@@ -542,7 +554,7 @@ static void fetchmail(const uint8_t *buf_head)
             pos_scale = atof(pos_scale_str[i]);
             dsize += sprintf (dmsg + dsize, "%10d  %10d %10f %10f  ",
                               *(stepgen->pulse_pos),
-                              *(stepgen->enc_counter),
+                              *(stepgen->enc_pos),
                               *(stepgen->pid_output),
                               *(stepgen->cmd_error)
                              );
@@ -1600,9 +1612,20 @@ static void update_freq(void *arg, long period)
 
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
+
 	if (stepgen->pos_mode) {
-	    /* begin: velocity and acceleration check */
+	    /* position command mode */
 	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+	} else {
+	 /* velocity command for spindle */
+            if(*machine_control->spindle_enable)
+                stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
+            else
+                stepgen->vel_cmd=  0;
+	}
+	{
+	    /* begin: velocity and acceleration check */
+
 	    if (stepgen->vel_cmd > maxvel) {
 	        stepgen->vel_cmd = maxvel;
 	    } else if(stepgen->vel_cmd < -maxvel){
@@ -1641,53 +1664,7 @@ static void update_freq(void *arg, long period)
             memcpy(data + n * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
 
-	} else {
-             /* velocity command for spindle */
-	    if(*machine_control->spindle_enable)
-	        stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
-	    else
-	        stepgen->vel_cmd=  0;
-//	    fprintf(stderr,"velcmd(%f) spindle_vel_cmd(%f)\n", stepgen->vel_cmd, *machine_control->spindle_vel_cmd);
-            if (stepgen->vel_cmd > maxvel) {
-                stepgen->vel_cmd = maxvel;
-            } else if(stepgen->vel_cmd < -maxvel){
-                stepgen->vel_cmd = maxvel;
-            }
-            stepgen->accel_cmd = stepgen->vel_cmd - stepgen->prev_vel_cmd;
-            if (stepgen->accel_cmd > stepgen->maxaccel) {
-                stepgen->accel_cmd = stepgen->maxaccel;
-            } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
-                stepgen->accel_cmd = -(stepgen->maxaccel);
-            }
-            stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd;
-
-            /* end: velocity and acceleration check */
-
-            wou_pos_cmd = (int32_t)(((stepgen->vel_cmd * dt)) *
-                                                ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
-
-            if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
-                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",n ,
-                        (*stepgen->pos_cmd), (stepgen->prev_pos_cmd), *stepgen->home_state, stepgen->vel_cmd);
-                fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
-                assert(0);
-            }
-            // SYNC_JNT: opcode for SYNC_JNT command
-            // DIR_P: Direction, (positive(1), negative(0))
-            // POS_MASK: relative position mask
-            (stepgen->prev_pos_cmd) += (double) ((wou_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
-            stepgen->prev_vel_cmd = stepgen->vel_cmd;
-            if (wou_pos_cmd >= 0) {
-                sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
-            } else {
-                wou_pos_cmd *= -1;
-                sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
-            }
-            memcpy(data + n * sizeof(uint16_t), &sync_cmd,
-                   sizeof(uint16_t));
-
-             /*end of velocity mode*/
-        }
+	}
 
         if (n == (num_chan - 1)) {
             // send to WOU when all axes commands are generated
@@ -1906,6 +1883,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     if (retval != 0) {
 	return retval;
     }
+
     /* export param for scaled velocity (frequency in Hz) */
     retval = hal_param_float_newf(HAL_RO, &(addr->freq), comp_id,
 				  "wou.stepgen.%d.frequency", num);
