@@ -208,10 +208,10 @@ int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
 		   "current limit for up to 8 channel of stepping drivers");
 
-int num_sync_in = 64;
-RTAPI_MP_INT(num_sync_in, "Number of WOU HAL PINs for sync input");
-int num_sync_out = 64;
-RTAPI_MP_INT(num_sync_out, "Number of WOU HAL PINs for sync output");
+int num_gpio_in = 64;
+RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
+int num_gpio_out = 64;
+RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
@@ -298,7 +298,7 @@ typedef struct {
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
     /* stuff that is not accessed by makepulses */
-    int pos_mode;		/* 1 = position mode, 0 = velocity mode */
+    int pos_mode;		/* 1 = position mode, 0 = spindle mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
@@ -358,10 +358,10 @@ typedef struct {
     hal_u32_t *sync_in;		//
     hal_u32_t *wait_type;
     hal_float_t *timeout;
-    int num_sync_in;
+    int num_gpio_in;
     /* sync output pins (output from motmod) */
-    hal_bit_t *sync_out[64];
-    int num_sync_out;
+    hal_bit_t *out[64];
+    int num_gpio_out;
     uint64_t prev_out;		//ON or OFF
     hal_bit_t *position_compensation_en_trigger;
     hal_bit_t *position_compensation_en;
@@ -384,6 +384,14 @@ typedef struct {
     hal_bit_t *spindle_enable;
     hal_float_t *spindle_vel_cmd;
     hal_float_t *spindle_vel_fb;
+    hal_bit_t *spindle_index_enable;
+    int32_t    index_hold_count;
+    hal_bit_t *spindle_at_speed;
+    hal_float_t *spindle_revs;
+    double  prev_spindle_revs;
+    int32_t prev_spindle_pos; // in pulse count
+    int32_t spindle_pos;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -499,6 +507,30 @@ static void fetchmail(const uint8_t *buf_head)
 
             *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))/pos_scale;
             stepgen += 1;   // point to next joint
+
+            // update spindle status if necessary
+            if (stepgen->pos_mode == 0) {
+                if (*machine_control->spindle_enable && *machine_control->spindle_at_speed) {
+                    machine_control->spindle_pos = *(stepgen->enc_pos);
+                    *machine_control->spindle_revs += ((double)(machine_control->spindle_pos -
+                            machine_control->prev_spindle_pos))/(pos_scale*360.0);
+
+                    machine_control->prev_spindle_pos = machine_control->spindle_pos;
+                    if (floor(*machine_control->spindle_revs) - floor(machine_control->prev_spindle_revs) ) {
+                        *machine_control->spindle_index_enable = 1;
+                        machine_control->index_hold_count = 0;
+                    } else {
+                        machine_control->index_hold_count++;
+                        if(machine_control->index_hold_count > 2) {
+                            *machine_control->spindle_index_enable = 0;
+                        }
+                    }
+                    machine_control->prev_spindle_revs = *machine_control->spindle_revs;
+                } else {
+                    machine_control->prev_spindle_revs = 0.0;
+                    *machine_control->spindle_revs = 0.0;
+                }
+            }
         }
         // digital inpout
         p += 1;
@@ -1224,7 +1256,7 @@ static void update_freq(void *arg, long period)
     /* begin: process motion synchronized input */
     if (*(machine_control->sync_in_trigger) != 0) {
         assert(*(machine_control->sync_in) >= 0);
-        assert(*(machine_control->sync_in) < num_sync_in);
+        assert(*(machine_control->sync_in) < num_gpio_in);
 
        // begin: setup sync timeout
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
@@ -1255,29 +1287,29 @@ static void update_freq(void *arg, long period)
     /* begin: process motion synchronized output */
     sync_io_data = 0;
     j = 0;
-    for (i = 0; i < machine_control->num_sync_out; i++) {
+    for (i = 0; i < machine_control->num_gpio_out; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
-                ((*(machine_control->sync_out[i]) & 1))) {
+                ((*(machine_control->out[i]) & 1))) {
             //TODO: replace plasma-on with general purpose enable bit
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
 //                fprintf(stderr,"plasma_switch(%d)\n",
 //                        *(machine_control->sync_out[i]));
                 fprintf(stderr,"gpio_%2d => (%d)\n",
-                                        i,*(machine_control->sync_out[i]));
-                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
+                                        i,*(machine_control->out[i]));
+                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             } else {
                 fprintf(stderr,"gpio_%02d => (%d)\n",
-                        i,*(machine_control->sync_out[i]));
-                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->sync_out[i]));
+                        i,*(machine_control->out[i]));
+                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
             j ++;
         }
 
-	sync_io_data |= ((*(machine_control->sync_out[i]) & 1) << i);
+	sync_io_data |= ((*(machine_control->out[i]) & 1) << i);
        // write a wou frame for sync input into command FIFO
     }
 
@@ -2069,11 +2101,11 @@ static int export_machine_control(machine_control_t * machine_control)
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
-    machine_control->num_sync_in = num_sync_in;
-    machine_control->num_sync_out = num_sync_out;
+    machine_control->num_gpio_in = num_gpio_in;
+    machine_control->num_gpio_out = num_gpio_out;
 
     // export input status pin
-     for (i = 0; i < machine_control->num_sync_in; i++) {
+     for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
                                    "wou.gpio.in.%02d", i);
          if (retval != 0) {
@@ -2109,14 +2141,14 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->timeout) = 0.0;
 
-    for (i = 0; i < num_sync_out; i++) {
+    for (i = 0; i < num_gpio_out; i++) {
 	retval =
-	    hal_pin_bit_newf(HAL_IN, &(machine_control->sync_out[i]), comp_id,
-			     "wou.sync.out.%02d", i);
+	    hal_pin_bit_newf(HAL_IN, &(machine_control->out[i]), comp_id,
+			     "wou.gpio.out.%02d", i);
 	if (retval != 0) {
 	    return retval;
 	}
-	*(machine_control->sync_out[i]) = 0;
+	*(machine_control->out[i]) = 0;
     }
 
     retval =
@@ -2210,11 +2242,36 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
+    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_revs), comp_id,
+                                     "wou.spindle.spindle-revs");
+    *(machine_control->spindle_revs) = 0;
+    if (retval != 0) {
+        return retval;
+    }
+
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->spindle_index_enable), comp_id,
+                                    "wou.spindle.index-enable");
+    *(machine_control->spindle_index_enable) = 0;
+    if (retval != 0) {
+        return retval;
+    }
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_at_speed), comp_id,
+                                       "wou.spindle.at-speed");
+    *(machine_control->spindle_at_speed) = 0;
+    if (retval != 0) {
+       return retval;
+    }
+
     machine_control->prev_out = 0;
     machine_control->fp_current_vel = 0;
     machine_control->fp_requested_vel = 0;
 
     machine_control->position_compensation_en_flag = 0;
+
+    machine_control->spindle_pos = 0;
+    machine_control->prev_spindle_pos = 0;
+    machine_control->prev_spindle_revs = 0;
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
