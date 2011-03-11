@@ -723,13 +723,18 @@ int rtapi_app_main(void)
 
         // enable ADC_SPI with LOOP mode
         
+        // MCP3204: (p.19 of adc_mcp3204.pdf)
         // ADC_SPI_CMD: 0x10: { (1)START_BIT,
         //                      (0)Differential mode,
-        //               param_fraction_bit       (0)D2 ... dont care,
+        //                      (0)D2 ... dont care,
         //                      (0)D1 ... Ch0 = IN+,
         //                      (0)D0 ... CH1 = IN-   }
+        // ADC_SPI_CMD: 0x18: { (1)START_BIT,
+        //                      (1)single-end mode,
+        //                      (0)D2 ... dont care,
+        //                      (00){D1,D0} ... CH0 }
         data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-                  | (ADC_SPI_CMD_MASK & 0x10);
+                  | (ADC_SPI_CMD_MASK & 0x18);
 
         //MCP3202: // MCP3202: 
         //MCP3202: // ADC_SPI_CMD: 0x04: { (1)START_BIT,
@@ -2205,14 +2210,11 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-
     machine_control->prev_out = 0;
     machine_control->fp_current_vel = 0;
     machine_control->fp_requested_vel = 0;
 
     machine_control->position_compensation_en_flag = 0;
-
-
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
