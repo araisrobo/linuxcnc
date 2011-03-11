@@ -298,7 +298,7 @@ typedef struct {
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
     /* stuff that is not accessed by makepulses */
-    int pos_mode;		/* 1 = position mode, 0 = velocity mode */
+    int pos_mode;		/* 1 = position mode, 0 = spindle mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
@@ -385,7 +385,13 @@ typedef struct {
     hal_float_t *spindle_vel_cmd;
     hal_float_t *spindle_vel_fb;
     hal_bit_t *spindle_index_enable;
+    int32_t    index_hold_count;
+    hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
+    double  prev_spindle_revs;
+    int32_t prev_spindle_pos; // in pulse count
+    int32_t spindle_pos;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -501,6 +507,30 @@ static void fetchmail(const uint8_t *buf_head)
 
             *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))/pos_scale;
             stepgen += 1;   // point to next joint
+
+            // update spindle status if necessary
+            if (stepgen->pos_mode == 0) {
+                if (*machine_control->spindle_enable && *machine_control->spindle_at_speed) {
+                    machine_control->spindle_pos = *(stepgen->enc_pos);
+                    *machine_control->spindle_revs += ((double)(machine_control->spindle_pos -
+                            machine_control->prev_spindle_pos))/(pos_scale*360.0);
+
+                    machine_control->prev_spindle_pos = machine_control->spindle_pos;
+                    if (floor(*machine_control->spindle_revs) - floor(machine_control->prev_spindle_revs) ) {
+                        *machine_control->spindle_index_enable = 1;
+                        machine_control->index_hold_count = 0;
+                    } else {
+                        machine_control->index_hold_count++;
+                        if(machine_control->index_hold_count > 2) {
+                            *machine_control->spindle_index_enable = 0;
+                        }
+                    }
+                    machine_control->prev_spindle_revs = *machine_control->spindle_revs;
+                } else {
+                    machine_control->prev_spindle_revs = 0.0;
+                    *machine_control->spindle_revs = 0.0;
+                }
+            }
         }
         // digital inpout
         p += 1;
@@ -2208,16 +2238,24 @@ static int export_machine_control(machine_control_t * machine_control)
     }
 
     retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_revs), comp_id,
-                                     "wou.spindle.spindle_revs");
+                                     "wou.spindle.spindle-revs");
     *(machine_control->spindle_revs) = 0;
     if (retval != 0) {
         return retval;
     }
 
     retval = hal_pin_bit_newf(HAL_IO, &(machine_control->spindle_index_enable), comp_id,
-                                    "wou.spindle.index_enable");
+                                    "wou.spindle.index-enable");
+    *(machine_control->spindle_index_enable) = 0;
     if (retval != 0) {
         return retval;
+    }
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_at_speed), comp_id,
+                                       "wou.spindle.at-speed");
+    *(machine_control->spindle_at_speed) = 0;
+    if (retval != 0) {
+       return retval;
     }
 
     machine_control->prev_out = 0;
@@ -2226,7 +2264,9 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->position_compensation_en_flag = 0;
 
-
+    machine_control->spindle_pos = 0;
+    machine_control->prev_spindle_pos = 0;
+    machine_control->prev_spindle_revs = 0;
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
