@@ -385,12 +385,11 @@ typedef struct {
     hal_float_t *spindle_vel_cmd;
     hal_float_t *spindle_vel_fb;
     hal_bit_t *spindle_index_enable;
-    int32_t    index_hold_count;
+    // int32_t    index_hold_count;
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
-    double  prev_spindle_revs;
-    int32_t prev_spindle_pos; // in pulse count
-    int32_t spindle_pos;
+    double  last_spindle_index_pos;
+    double  prev_spindle_irevs; // calculate index position
 
 } machine_control_t;
 
@@ -506,32 +505,72 @@ static void fetchmail(const uint8_t *buf_head)
             *(stepgen->cmd_error) = ((int32_t)*p)/pos_scale;
 
             *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))/pos_scale;
-            stepgen += 1;   // point to next joint
 
             // update spindle status if necessary
             if (stepgen->pos_mode == 0) {
-                if (*machine_control->spindle_enable && *machine_control->spindle_at_speed) {
-                    machine_control->spindle_pos = *(stepgen->enc_pos);
-                    *machine_control->spindle_revs += ((double)(machine_control->spindle_pos -
-                            machine_control->prev_spindle_pos))/(pos_scale*360.0);
+                // if (*machine_control->spindle_enable) {
+                    double delta;
+                    double spindle_pos;
+                    double spindle_irevs;
 
-                    machine_control->prev_spindle_pos = machine_control->spindle_pos;
-                    if (floor(*machine_control->spindle_revs) - floor(machine_control->prev_spindle_revs) ) {
-                        *machine_control->spindle_index_enable = 1;
-                        machine_control->index_hold_count = 0;
-                    } else {
-                        machine_control->index_hold_count++;
-                        if(machine_control->index_hold_count > 2) {
+                    spindle_pos = (double) *(stepgen->enc_pos) / (pos_scale*360.0);
+                    // machine_control->spindle_pos = (uint32_t) *(stepgen->enc_pos);
+                    // *machine_control->spindle_revs = 
+                    //     ((double)(*(stepgen->enc_pos) -
+                    //               machine_control->prev_spindle_index_pos)) / (pos_scale*360.0);
+                    spindle_irevs = 
+                        (fmod((double) *(stepgen->enc_pos), (pos_scale*360.0)) / (pos_scale*360.0));
+                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
+                    machine_control->prev_spindle_irevs = spindle_irevs;
+
+                    // TODO: let FPGA update the "last_spindle_index_pos"
+                    //       and clear "spindle_index_enable"
+                    if (*machine_control->spindle_index_enable == 1) {
+                        if (delta < -0.5) { // TODO: implement index-enable on FPGA
+                            // ex.: 0.9 -> 0.1 (forward)
+                            machine_control->last_spindle_index_pos = floor(spindle_pos);
                             *machine_control->spindle_index_enable = 0;
+                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
+                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
+                        } else if (delta > 0.5) {
+                            // ex.: 0.1 -> 0.9 (backward)
+                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
+                            *machine_control->spindle_index_enable = 0;
+                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
+                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
                         }
                     }
-                    machine_control->prev_spindle_revs = *machine_control->spindle_revs;
-                } else {
-                    machine_control->prev_spindle_revs = 0.0;
-                    *machine_control->spindle_revs = 0.0;
-                }
+
+                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
+
+                    //obsolete: if (fabs(*machine_control->spindle_revs) >= 1.0) {
+                    //obsolete:     // hit index
+                    //obsolete:     // fprintf (stderr, "DEBUG: counts_per_rev: %f\n", (pos_scale*360.0));
+                    //obsolete:     *machine_control->spindle_index_enable = 1;
+                    //obsolete:     machine_control->prev_spindle_index_pos 
+                    //obsolete:         = floor(*(stepgen->enc_pos) / (pos_scale*360.0)) * (pos_scale*360.0);
+                    //obsolete:     // machine_control->index_hold_count ++;
+                    //obsolete:     // if (machine_control->index_hold_count > 2) {
+                    //obsolete:     //     *machine_control->spindle_index_enable = 0;
+                    //obsolete:     //     *machine_control->spindle_revs = 0.0;
+                    //obsolete:     //     machine_control->index_hold_count = 0; 
+                    //obsolete:     //     machine_control->prev_spindle_index_pos 
+                    //obsolete:     //         = floor(*(stepgen->enc_pos) / (pos_scale*360.0)) * (pos_scale*360.0);
+                    //obsolete:     // }
+                    //obsolete:     // fprintf (stderr, "DEBUG: spindle_revs: %f\n", *machine_control->spindle_revs);
+                    //obsolete: } 
+                // } else {
+                //     *machine_control->spindle_index_enable = 0;
+                //     *machine_control->spindle_revs = 0.0;
+                //     machine_control->index_hold_count = 0; 
+                //     machine_control->prev_spindle_index_pos 
+                //         = floor(*(stepgen->enc_pos) / (pos_scale*360.0)) * (pos_scale*360.0);
+                // }
             }
+            
+            stepgen += 1;   // point to next joint
         }
+
         // digital inpout
         p += 1;
         din[0] = *p;
@@ -553,6 +592,10 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         *(gpio->a_in[0]) = (((double)*p)/20.0);
         *(analog->in[0]) = *p;
+        p += 1; *(analog->in[1]) = *p;
+        p += 1; *(analog->in[2]) = *p;
+        p += 1; *(analog->in[3]) = *p;
+
         // probe state
         p += 1;
         machine_control->probe_state = *p;
@@ -1654,11 +1697,11 @@ static void update_freq(void *arg, long period)
 	    /* position command mode */
 	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 	} else {
-	 /* velocity command for spindle */
+	    /* velocity command for spindle */
             if(*machine_control->spindle_enable)
                 stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
             else
-                stepgen->vel_cmd=  0;
+                stepgen->vel_cmd = 0;
 	}
 	{
 	    /* begin: velocity and acceleration check */
@@ -2269,9 +2312,8 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->position_compensation_en_flag = 0;
 
-    machine_control->spindle_pos = 0;
-    machine_control->prev_spindle_pos = 0;
-    machine_control->prev_spindle_revs = 0;
+    machine_control->last_spindle_index_pos = 0;
+    machine_control->prev_spindle_irevs = 0;
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
