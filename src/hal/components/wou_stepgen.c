@@ -954,7 +954,7 @@ int rtapi_app_main(void)
         pos_scale = atof(pos_scale_str[n]);
         value = (pos_scale);
         value = value > 0? value:-value;
-        value = (1/value)/0.0001;
+        value = (1/value)/0.001;
         bitn = 0;
         while(((int32_t)value>>bitn)>0) {
             bitn++;
