@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.03.15) lucid; urgency=low
+
+  * Improve spindle velocity control quality by feed-forward its position
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 15 Mar 2011 06:53:27 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.03.13) lucid; urgency=low
 
   * Bug fix for G33
