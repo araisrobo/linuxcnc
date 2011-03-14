@@ -389,6 +389,7 @@ typedef struct {
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
     double  last_spindle_index_pos;
+    double  prev_spindle_pos;
     double  prev_spindle_irevs; // calculate index position
 
 } machine_control_t;
@@ -542,6 +543,9 @@ static void fetchmail(const uint8_t *buf_head)
                     }
 
                     *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
+                    *machine_control->spindle_vel_fb = (spindle_pos - machine_control->prev_spindle_pos)*recip_dt;
+                    machine_control->prev_spindle_pos = spindle_pos;
+
 
                     //obsolete: if (fabs(*machine_control->spindle_revs) >= 1.0) {
                     //obsolete:     // hit index
@@ -606,16 +610,16 @@ static void fetchmail(const uint8_t *buf_head)
         }
         // spindle velocity
         p += 1;
-        *machine_control->spindle_vel_fb = (hal_float_t)((int32_t)*p);
-        stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
-            if(stepgen->pos_mode == 0) {
-                pos_scale = fabs(atof(pos_scale_str[i]));
-                break;
-            }
-            stepgen += 1;
-        }
-        *machine_control->spindle_vel_fb =  ((*machine_control->spindle_vel_fb/pos_scale)/360.0)*recip_dt;
+//not-accurate:        *machine_control->spindle_vel_fb = (hal_float_t)((int32_t)*p);
+//not-accurate:        stepgen = stepgen_array;
+//not-accurate:        for (i=0; i<num_chan; i++) {
+//not-accurate:            if(stepgen->pos_mode == 0) {
+//not-accurate:                pos_scale = fabs(atof(pos_scale_str[i]));
+//not-accurate:                break;
+//not-accurate:            }
+//not-accurate:            stepgen += 1;
+//not-accurate:        }
+//not-accurate:        *machine_control->spindle_vel_fb =  ((*machine_control->spindle_vel_fb/pos_scale)/360.0)*recip_dt;
 
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
@@ -2314,6 +2318,7 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->last_spindle_index_pos = 0;
     machine_control->prev_spindle_irevs = 0;
+    machine_control->prev_spindle_pos = 0;
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);

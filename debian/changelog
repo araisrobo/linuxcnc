@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.03.13) lucid; urgency=low
+
+  * Bug fix for G33
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Sun, 13 Mar 2011 21:20:12 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.03.06) lucid; urgency=low
 
   * add SPI DIO
