@@ -389,6 +389,7 @@ typedef struct {
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
     double  last_spindle_index_pos;
+    int32_t spindle_enc_count;
     double  prev_spindle_pos;
     double  prev_spindle_irevs; // calculate index position
 
@@ -510,68 +511,11 @@ static void fetchmail(const uint8_t *buf_head)
             // update spindle status if necessary
             if (stepgen->pos_mode == 0) {
                 // if (*machine_control->spindle_enable) {
-                    double delta;
                     double spindle_pos;
-                    double spindle_irevs;
-
                     spindle_pos = (double) *(stepgen->enc_pos) / (pos_scale*360.0);
-                    // machine_control->spindle_pos = (uint32_t) *(stepgen->enc_pos);
-                    // *machine_control->spindle_revs = 
-                    //     ((double)(*(stepgen->enc_pos) -
-                    //               machine_control->prev_spindle_index_pos)) / (pos_scale*360.0);
-                    spindle_irevs = 
-                        (fmod((double) *(stepgen->enc_pos), (pos_scale*360.0)) / (pos_scale*360.0));
-                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
-                    machine_control->prev_spindle_irevs = spindle_irevs;
-
-                    // TODO: let FPGA update the "last_spindle_index_pos"
-                    //       and clear "spindle_index_enable"
-                    if (*machine_control->spindle_index_enable == 1) {
-                        if (delta < -0.5) { // TODO: implement index-enable on FPGA
-                            // ex.: 0.9 -> 0.1 (forward)
-                            machine_control->last_spindle_index_pos = floor(spindle_pos);
-                            *machine_control->spindle_index_enable = 0;
-                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
-                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
-                        } else if (delta > 0.5) {
-                            // ex.: 0.1 -> 0.9 (backward)
-                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
-                            *machine_control->spindle_index_enable = 0;
-                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
-                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
-                        }
-                    }
-
-                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
                     *machine_control->spindle_vel_fb = (spindle_pos - machine_control->prev_spindle_pos)*recip_dt;
                     machine_control->prev_spindle_pos = spindle_pos;
-
-
-                    //obsolete: if (fabs(*machine_control->spindle_revs) >= 1.0) {
-                    //obsolete:     // hit index
-                    //obsolete:     // fprintf (stderr, "DEBUG: counts_per_rev: %f\n", (pos_scale*360.0));
-                    //obsolete:     *machine_control->spindle_index_enable = 1;
-                    //obsolete:     machine_control->prev_spindle_index_pos 
-                    //obsolete:         = floor(*(stepgen->enc_pos) / (pos_scale*360.0)) * (pos_scale*360.0);
-                    //obsolete:     // machine_control->index_hold_count ++;
-                    //obsolete:     // if (machine_control->index_hold_count > 2) {
-                    //obsolete:     //     *machine_control->spindle_index_enable = 0;
-                    //obsolete:     //     *machine_control->spindle_revs = 0.0;
-                    //obsolete:     //     machine_control->index_hold_count = 0; 
-                    //obsolete:     //     machine_control->prev_spindle_index_pos 
-                    //obsolete:     //         = floor(*(stepgen->enc_pos) / (pos_scale*360.0)) * (pos_scale*360.0);
-                    //obsolete:     // }
-                    //obsolete:     // fprintf (stderr, "DEBUG: spindle_revs: %f\n", *machine_control->spindle_revs);
-                    //obsolete: } 
-                // } else {
-                //     *machine_control->spindle_index_enable = 0;
-                //     *machine_control->spindle_revs = 0.0;
-                //     machine_control->index_hold_count = 0; 
-                //     machine_control->prev_spindle_index_pos 
-                //         = floor(*(stepgen->enc_pos) / (pos_scale*360.0)) * (pos_scale*360.0);
-                // }
             }
-            
             stepgen += 1;   // point to next joint
         }
 
@@ -723,16 +667,17 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
-    DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s\n",
+    DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s %15s\n",
          "1.dt",
-         "3.prev_pos_cmd[0]", "4.pos_fb[0]",
-         "6.home[0]",
-         "8.prev_pos_cmd[1]", "9.pos_fb[1]",
-         "11.home[1]",
-         "13.prev_pos_cmd[2]", "14.pos_fb[2]",
-         "16.home[2]",
-         "18.prev_pos_cmd[3]", "19.pos_fb[3]",
-         "21.home[3]");
+         "2.prev_pos_cmd[0]", "3.pos_fb[0]",
+         "4.home[0]",
+         "5.prev_pos_cmd[1]", "6.pos_fb[1]",
+         "7.home[1]",
+         "8.prev_pos_cmd[2]", "9.pos_fb[2]",
+         "10.home[2]",
+         "11.prev_pos_cmd[3]", "12.pos_fb[3]",
+         "13.home[3]",
+         "14.spindle_revs");
 #endif
 
     pending_cnt = 0;
@@ -953,7 +898,7 @@ int rtapi_app_main(void)
         pos_scale = atof(pos_scale_str[n]);
         value = (pos_scale);
         value = value > 0? value:-value;
-        value = (1/value)/0.0001;
+        value = (1/value)/0.001;
         bitn = 0;
         while(((int32_t)value>>bitn)>0) {
             bitn++;
@@ -1747,6 +1692,43 @@ static void update_freq(void *arg, long period)
             }
             memcpy(data + n * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
+            if (stepgen->pos_mode == 0) {
+
+                    double delta;
+                    double spindle_pos;
+                    double spindle_irevs;
+                    double pos_scale;
+                    pos_scale = stepgen->pos_scale;
+                    machine_control->spindle_enc_count += wou_pos_cmd;
+
+                    spindle_pos = (double) (machine_control->spindle_enc_count) / (pos_scale*360.0);
+
+                    spindle_irevs =
+                        (fmod((double) (machine_control->spindle_enc_count), (pos_scale*360.0)) / (pos_scale*360.0));
+                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
+                    machine_control->prev_spindle_irevs = spindle_irevs;
+
+                    // TODO: let FPGA update the "last_spindle_index_pos"
+                    //       and clear "spindle_index_enable"
+                    if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
+
+                        if (delta < -0.5) { // TODO: implement index-enable on FPGA
+                            // ex.: 0.9 -> 0.1 (forward)
+                            machine_control->last_spindle_index_pos = floor(spindle_pos);
+                            *machine_control->spindle_index_enable = 0;
+                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
+                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
+                        } else if (delta > 0.5) {
+                            // ex.: 0.1 -> 0.9 (backward)
+                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
+                            *machine_control->spindle_index_enable = 0;
+                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
+                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
+                        }
+                    }
+
+                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
+            }
 
 	}
 
@@ -1763,6 +1745,7 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
+    DPS("%15.7f", *machine_control->spindle_revs);
     // send velocity status
     if(machine_control->position_compensation_en_flag == 1) {
         fp_req_vel = ((machine_control->fp_original_requested_vel));

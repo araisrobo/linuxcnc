@@ -1743,8 +1743,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         s10 = 0; s2_10 = 0; s4_10 = 0; s5_10 = 0; s6_10 = 0; reach_target = 0;
 #endif
     }
-    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-            _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->target, tc->distance_to_go, tc->tolerance);
+    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+            _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->target, tc->distance_to_go, tc->tolerance,
+            (double)emcmotStatus->spindle_is_atspeed, (double) emcmotStatus->spindle_index_enable,
+            emcmotStatus->spindleRevs);
 #if (TRACE!=0)
     _dt += 1;
 #endif
