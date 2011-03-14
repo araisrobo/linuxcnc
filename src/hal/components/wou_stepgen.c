@@ -723,16 +723,17 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
-    DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s\n",
+    DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s %15s\n",
          "1.dt",
-         "3.prev_pos_cmd[0]", "4.pos_fb[0]",
-         "6.home[0]",
-         "8.prev_pos_cmd[1]", "9.pos_fb[1]",
-         "11.home[1]",
-         "13.prev_pos_cmd[2]", "14.pos_fb[2]",
-         "16.home[2]",
-         "18.prev_pos_cmd[3]", "19.pos_fb[3]",
-         "21.home[3]");
+         "2.prev_pos_cmd[0]", "3.pos_fb[0]",
+         "4.home[0]",
+         "5.prev_pos_cmd[1]", "6.pos_fb[1]",
+         "7.home[1]",
+         "8.prev_pos_cmd[2]", "9.pos_fb[2]",
+         "10.home[2]",
+         "11.prev_pos_cmd[3]", "12.pos_fb[3]",
+         "13.home[3]",
+         "14.spindle_revs");
 #endif
 
     pending_cnt = 0;
@@ -1763,6 +1764,7 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
+    DPS("%15.7f", *machine_control->spindle_revs);
     // send velocity status
     if(machine_control->position_compensation_en_flag == 1) {
         fp_req_vel = ((machine_control->fp_original_requested_vel));
