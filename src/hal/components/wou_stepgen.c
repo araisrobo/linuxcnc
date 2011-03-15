@@ -153,7 +153,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     4       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     3       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -588,7 +588,7 @@ static void fetchmail(const uint8_t *buf_head)
             *machine_control->probe_input = 0;
         }
         // spindle velocity
-        p += 1;
+        //p += 1;
 //not-accurate:        *machine_control->spindle_vel_fb = (hal_float_t)((int32_t)*p);
 //not-accurate:        stepgen = stepgen_array;
 //not-accurate:        for (i=0; i<num_chan; i++) {
@@ -1693,7 +1693,7 @@ static void update_freq(void *arg, long period)
 	    if (stepgen->vel_cmd > maxvel) {
 	        stepgen->vel_cmd = maxvel;
 	    } else if(stepgen->vel_cmd < -maxvel){
-	        stepgen->vel_cmd = maxvel;
+	        stepgen->vel_cmd = -maxvel;
 	    }
 	    stepgen->accel_cmd = stepgen->vel_cmd - stepgen->prev_vel_cmd;
 	    if (stepgen->accel_cmd > stepgen->maxaccel) {
@@ -1705,8 +1705,7 @@ static void update_freq(void *arg, long period)
 
 	    /* end: velocity and acceleration check */
 
-            wou_pos_cmd = (int32_t)(((stepgen->vel_cmd * dt)) *
-                                                ((stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]));
+            wou_pos_cmd = (int32_t)(stepgen->vel_cmd * dt *(stepgen->pos_scale)) *( 1 << pulse_fraction_bit[n]);
 
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
                 fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",n ,
