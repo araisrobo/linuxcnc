@@ -516,41 +516,6 @@ static void fetchmail(const uint8_t *buf_head)
                     *machine_control->spindle_vel_fb = (spindle_pos - machine_control->prev_spindle_pos)*recip_dt;
                     machine_control->prev_spindle_pos = spindle_pos;
             }
-//            if (stepgen->pos_mode == 0) {
-//                // if (*machine_control->spindle_enable) {
-//                    double delta;
-//                    double spindle_pos;
-//                    double spindle_irevs;
-//
-//                    spindle_pos = (double) *(stepgen->enc_pos) / (pos_scale*360.0);
-//
-//                    spindle_irevs =
-//                        (fmod((double) *(stepgen->enc_pos), (pos_scale*360.0)) / (pos_scale*360.0));
-//                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
-//                    machine_control->prev_spindle_irevs = spindle_irevs;
-//
-//                    // TODO: let FPGA update the "last_spindle_index_pos"
-//                    //       and clear "spindle_index_enable"
-//                    if (*machine_control->spindle_index_enable == 1) {
-//                        if (delta < -0.5) { // TODO: implement index-enable on FPGA
-//                            // ex.: 0.9 -> 0.1 (forward)
-//                            machine_control->last_spindle_index_pos = floor(spindle_pos);
-//                            *machine_control->spindle_index_enable = 0;
-//                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
-//                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
-//                        } else if (delta > 0.5) {
-//                            // ex.: 0.1 -> 0.9 (backward)
-//                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
-//                            *machine_control->spindle_index_enable = 0;
-//                            // fprintf (stderr, "DEBUG: got spindle_index_enable request\n");
-//                            // fprintf (stderr, "DEBUG: spindle: delta(%f)\n", delta);
-//                        }
-//                    }
-//
-//                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
-//                    *machine_control->spindle_vel_fb = (spindle_pos - machine_control->prev_spindle_pos)*recip_dt;
-//                    machine_control->prev_spindle_pos = spindle_pos;
-//            }
             stepgen += 1;   // point to next joint
         }
 
