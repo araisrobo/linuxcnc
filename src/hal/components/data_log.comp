@@ -4,32 +4,17 @@ pin in bit enable;
 pin in s32 data-s32-#[16];
 pin in float data-float-#[16];
 pin in bit data-gpio-#[16];
-param rw s32 print_format-#[48]=0;
+param rw s32 print-format-#[48]=0;
 variable int s32_num;
 variable int float_num;
 variable int gpio_num;
+variable int print_len;
 license "GPL";
 ;;
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 // s = s32, f = float, b = gpio
-const char  *print_format[16] = { "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb",
-                                  "fffffffb"};
 
 
 void user_mainloop(void) {
@@ -51,46 +36,48 @@ void user_mainloop(void) {
         usleep(timeout);
         i = 0;
         FOR_ALL_INSTS() {
+
             if (enable) {
+                
+                
                 if(prev_enable[i]==0) {
                     sprintf(str, "data_log_%01d.cvs",i);
                     hfile[i] = fopen(str, "w");
-                    fprintf(stderr,"open file\n");
+                    fprintf(stderr,"open file %d\n", print_len);
                 }
                 s_index = 0;
                 f_index = 0;
                 b_index = 0;
-
-                c = (char*)print_format[i];
-                str_len=strlen(print_format[i]);
-                for(j=0; j<str_len; j++) {
-                    switch(*c) {
-                    case 's':
-                    case 'S':
+                print_len = 0;
+                while(print_format(print_len)) print_len += 1;
+                
+                for(j=0; j<print_len; j++) {
+                    switch(print_format(j)) {
+                    case 1:
                       if(s_index < s32_num) { 
                           fprintf(hfile[i],"%d ", data_s32(s_index));
                           s_index++;
                       }
                       break;
-                    case 'f':
-                    case 'F':
+                    case 2:
                       if (f_index < float_num) {
                           fprintf(hfile[i], "%.7f ", data_float(f_index));
                           f_index++;
                       }
                       break;
-                    case 'b':
-                    case 'B':
+                    case 3:
                       if (b_index < gpio_num) {
                           fprintf(hfile[i], "%1d ", data_gpio(b_index));
                           b_index++;
                       }
                       break;
                     }
-                    if(j+1<str_len) {
+                    if(j+1<print_len) {
                         fprintf(hfile[i],",");
                     } else {
-                        fprintf(hfile[i],"\r\n");
+                        if(print_len > 0) {
+                            fprintf(hfile[i],"\r\n");
+                        }
                     }
                     c++;
                 }
