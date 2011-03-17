@@ -292,8 +292,6 @@ typedef struct {
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
-    //obsolete: hal_u32_t dir_hold_dly;	/* param: direction hold time or delay */
-    //obsolete: hal_u32_t dir_setup;	/* param: direction setup time */
     int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
@@ -301,6 +299,7 @@ typedef struct {
     int pos_mode;		/* 1 = position mode, 0 = spindle mode */
     hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
+    int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
@@ -313,6 +312,7 @@ typedef struct {
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
+    hal_float_t *vel_fb;
 
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
@@ -321,7 +321,6 @@ typedef struct {
 
     hal_s32_t *home_state;	/* pin: home_state from homing.c */
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-    double vel_fb;
 
     double sum_err_0;
     double sum_err_1;
@@ -469,30 +468,31 @@ static void fetchmail(const uint8_t *buf_head)
     uint32_t    *p, din[1];
     double      pos_scale;
     stepgen_t   *stepgen;
-    uint32_t    bp_tick;
+    static uint32_t bp_tick = 0;    // served as previous-bp-tick
+    uint32_t    bp_delta;
+
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
     static      uint32_t prev_din0;
-
-    p = (uint32_t *) (buf_head + 4);
-    bp_tick = *p;
 #endif
 
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
     switch(mail_tag)
     {
-    //if (mail_tag == 0x0001) {
     case MT_MOTION_STATUS:
 
         /* for PLASMA with ADC_SPI */
 
         // BP_TICK
         p = (uint32_t *) (buf_head + 4);
+        bp_delta = *p - bp_tick;    // bp_tick is previous-bp-tick
+        bp_tick = *p;
 
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            pos_scale = fabs(atof(pos_scale_str[i]));
+            // pos_scale = fabs(atof(pos_scale_str[i]));
+            pos_scale = stepgen->pos_scale;
             // PULSE_POS
             p += 1;
             *(stepgen->pulse_pos) = *p;
@@ -510,11 +510,10 @@ static void fetchmail(const uint8_t *buf_head)
 
             // update spindle status if necessary
             if (stepgen->pos_mode == 0) {
-                // if (*machine_control->spindle_enable) {
-                    double spindle_pos;
-                    spindle_pos = (double) *(stepgen->enc_pos) / (pos_scale*360.0);
-                    *machine_control->spindle_vel_fb = (spindle_pos - machine_control->prev_spindle_pos)*recip_dt;
-                    machine_control->prev_spindle_pos = spindle_pos;
+                double spindle_pos;
+                spindle_pos = (double) *(stepgen->enc_pos) / (pos_scale * 360.0);
+                *machine_control->spindle_vel_fb = ((spindle_pos - machine_control->prev_spindle_pos) / bp_delta)*recip_dt;
+                machine_control->prev_spindle_pos = spindle_pos;
             }
             stepgen += 1;   // point to next joint
         }
@@ -543,6 +542,8 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[1]) = *p;
         p += 1; *(analog->in[2]) = *p;
         p += 1; *(analog->in[3]) = *p;
+        p += 1; *(analog->in[4]) = *p;
+        p += 1; *(analog->in[5]) = *p;
 
         // probe state
         p += 1;
@@ -1603,8 +1604,7 @@ static void update_freq(void *arg, long period)
             stepgen++;
 	    continue;
 	}
-	//TODO: link pos_fb from hal file
-	 *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
@@ -1707,11 +1707,10 @@ static void update_freq(void *arg, long period)
                     delta = spindle_irevs - machine_control->prev_spindle_irevs;
                     machine_control->prev_spindle_irevs = spindle_irevs;
 
-                    // TODO: let FPGA update the "last_spindle_index_pos"
-                    //       and clear "spindle_index_enable"
+                    // TODO: let TRAJ-PLANNER judge the index/revolution */
                     if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
 
-                        if (delta < -0.5) { // TODO: implement index-enable on FPGA
+                        if (delta < -0.5) {
                             // ex.: 0.9 -> 0.1 (forward)
                             machine_control->last_spindle_index_pos = floor(spindle_pos);
                             *machine_control->spindle_index_enable = 0;
@@ -2024,48 +2023,48 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     //obsolete:         return retval;
     //obsolete:     }
     //obsolete: }
-    /* export output pins */
-    if (step_type == 0) {
-	/* step and direction */
-	retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[STEP_PIN]),
-				  comp_id, "wou.stepgen.%d.step", num);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->phase[STEP_PIN]) = 0;
-	retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[DIR_PIN]),
-				  comp_id, "wou.stepgen.%d.dir", num);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->phase[DIR_PIN]) = 0;
-    } else if (step_type == 1) {
-	/* up and down */
-	retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[UP_PIN]),
-				  comp_id, "wou.stepgen.%d.up", num);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->phase[UP_PIN]) = 0;
-	retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[DOWN_PIN]),
-				  comp_id, "wou.stepgen.%d.down", num);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->phase[DOWN_PIN]) = 0;
-    } else {
-	/* stepping types 2 and higher use a varying number of phase pins */
-	addr->num_phases = num_phases_lut[step_type - 2];
-	for (n = 0; n < addr->num_phases; n++) {
-	    retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[n]),
-				      comp_id, "wou.stepgen.%d.phase-%c",
-				      num, n + 'A');
-	    if (retval != 0) {
-		return retval;
-	    }
-	    *(addr->phase[n]) = 0;
-	}
-    }
+    //obsolete: /* export output pins */
+    //obsolete: if (step_type == 0) {
+    //obsolete:     /* step and direction */
+    //obsolete:     retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[STEP_PIN]),
+    //obsolete:     			  comp_id, "wou.stepgen.%d.step", num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete:     *(addr->phase[STEP_PIN]) = 0;
+    //obsolete:     retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[DIR_PIN]),
+    //obsolete:     			  comp_id, "wou.stepgen.%d.dir", num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete:     *(addr->phase[DIR_PIN]) = 0;
+    //obsolete: } else if (step_type == 1) {
+    //obsolete:     /* up and down */
+    //obsolete:     retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[UP_PIN]),
+    //obsolete:     			  comp_id, "wou.stepgen.%d.up", num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete:     *(addr->phase[UP_PIN]) = 0;
+    //obsolete:     retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[DOWN_PIN]),
+    //obsolete:     			  comp_id, "wou.stepgen.%d.down", num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete:     *(addr->phase[DOWN_PIN]) = 0;
+    //obsolete: } else {
+    //obsolete:     /* stepping types 2 and higher use a varying number of phase pins */
+    //obsolete:     addr->num_phases = num_phases_lut[step_type - 2];
+    //obsolete:     for (n = 0; n < addr->num_phases; n++) {
+    //obsolete:         retval = hal_pin_bit_newf(HAL_OUT, &(addr->phase[n]),
+    //obsolete:     			      comp_id, "wou.stepgen.%d.phase-%c",
+    //obsolete:     			      num, n + 'A');
+    //obsolete:         if (retval != 0) {
+    //obsolete:     	return retval;
+    //obsolete:         }
+    //obsolete:         *(addr->phase[n]) = 0;
+    //obsolete:     }
+    //obsolete: }
     /* set default parameter values */
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
@@ -2106,6 +2105,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
     *(addr->pulse_pos) = 0;
+    addr->prev_enc_pos = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     *(addr->switch_pos) = 0.0;
