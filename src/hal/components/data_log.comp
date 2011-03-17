@@ -18,6 +18,7 @@ license "GPL";
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 
 void user_mainloop(void) {
     int32_t i, j, s_index, f_index, b_index, str_len, prev_enable[16]; 
@@ -26,6 +27,9 @@ void user_mainloop(void) {
     struct tm *tmp;
     time_t t;
     FILE *hfile[16];
+    struct timeval start, last;
+    long seconds, useconds;
+    double mtime;
     i=0;
     FOR_ALL_INSTS() {
       s32_num = 16;
@@ -43,20 +47,26 @@ void user_mainloop(void) {
                 usleep(timeout*1000);
             }
             if (enable) {
-                
-                
                 if(prev_enable[i]==0) {
                     sprintf(str, "data_log_%01d_%02d.csv", i, log_count);
                     log_count+=1;
                     hfile[i] = fopen(str, "w");
+                    gettimeofday(&start, NULL);
                 }
                 s_index = 0;
                 f_index = 0;
                 b_index = 0;
                 print_len = 0;
                 while(print_format(print_len)) print_len += 1;
-                
+                if(print_len>0) {
+                    gettimeofday(&last, NULL);
+                    seconds  = last.tv_sec  - start.tv_sec;
+                    useconds = last.tv_usec - start.tv_usec;
+                    mtime = (double) ((seconds) + useconds*0.000001);
+                    fprintf(hfile[i], "%5.3f ", mtime);
+                }
                 for(j=0; j<print_len; j++) {
+                    
                     switch(print_format(j)) {
                     case 1:
                       if(s_index < s32_num) { 
