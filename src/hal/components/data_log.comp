@@ -10,6 +10,7 @@ variable int s32_num;
 variable int float_num;
 variable int gpio_num;
 variable int print_len;
+variable int log_count;
 license "GPL";
 ;;
 #include <stdlib.h>
@@ -28,7 +29,8 @@ void user_mainloop(void) {
       s32_num = 16;
       float_num = 16;
       gpio_num  = 16;
-      sprintf(str, "data_log_%01d.cvs",i);
+      log_count = 0;
+      sprintf(str, "data_log_%01d_%02d.csv",i, log_count);
       hfile[i] = fopen(str, "w");
       i++;
     }
@@ -42,9 +44,9 @@ void user_mainloop(void) {
                 
                 
                 if(prev_enable[i]==0) {
-                    sprintf(str, "data_log_%01d.cvs",i);
+                    sprintf(str, "data_log_%01d_%02d.csv", i, log_count);
+                    log_count+=1;
                     hfile[i] = fopen(str, "w");
-                    fprintf(stderr,"open data_log_%01d.cvs\n", i);
                 }
                 s_index = 0;
                 f_index = 0;
@@ -82,13 +84,11 @@ void user_mainloop(void) {
                     }
                     c++;
                 }
-                fprintf(hfile[i], "\n");
                 fflush(hfile[i]);
                 prev_enable[i] = 1;
             } else {
                 if(prev_enable[i] == 1) {
                     fclose(hfile[i]);
-                    fprintf(stderr,"close data_log_%01d.cvs\n", i);
                 }
               prev_enable[i] = 0; 
 
