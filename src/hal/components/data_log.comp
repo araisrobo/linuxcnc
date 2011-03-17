@@ -1,12 +1,16 @@
 component data_log;
 option userspace;
-pin in bit enable;
+pin in bit enable1;
+pin in bit enable2;
 pin in s32 data-s32-#[16];
 pin in float data-float-#[16];
 pin in bit data-gpio-#[16];
+param rw bit enable;
 param rw bit prev-gpio-#[16];
 param rw s32 print-format-#[48]=0;
 param rw s32 timeout;
+param rw float average-work-time=0;
+param rw float over-all-work-time=0;
 variable int s32_num;
 variable int float_num;
 variable int gpio_num;
@@ -46,6 +50,7 @@ void user_mainloop(void) {
             if (i==0) {
                 usleep(timeout*1000);
             }
+            enable = enable1 && enable2;
             if (enable) {
                 if(prev_enable[i]==0) {
                     log_name = fopen("/tmp/data_log.tmp", "r");
@@ -106,7 +111,7 @@ void user_mainloop(void) {
                               tmp = localtime(&t);
                               strftime(str, sizeof(str), "%Y/%m/%d %H:%M:%S",tmp);
                               fprintf(hfile[i], "%s", str);     
-                              fprintf(stderr, "%s\n", str);
+                              //fprintf(stderr, "%s\n", str);
                           } else {
                               fprintf(hfile[i], "0");
                           }
@@ -124,11 +129,15 @@ void user_mainloop(void) {
                 fflush(hfile[i]);
                 prev_enable[i] = 1;
             } else {
-                if(prev_enable[i] == 1) {
-                    fclose(hfile[i]);
+                if(enable2==false) {
+                    if(prev_enable[i] == 1) {
+                        fclose(hfile[i]);
+                        over_all_work_time += mtime;
+                        average_work_time = over_all_work_time / log_count; 
+                    }
                 }
-              prev_enable[i] = 0; 
-
+                prev_enable[i] = 0; 
+                    
             }
             i++;
 
