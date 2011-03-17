@@ -4,6 +4,7 @@ pin in bit enable;
 pin in s32 data-s32-#[16];
 pin in float data-float-#[16];
 pin in bit data-gpio-#[16];
+param rw bit prev-gpio-#[16];
 param rw s32 print-format-#[48]=0;
 param rw s32 timeout;
 variable int s32_num;
@@ -16,13 +17,14 @@ license "GPL";
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-// s = s32, f = float, b = gpio
-
+#include <time.h>
 
 void user_mainloop(void) {
     int32_t i, j, s_index, f_index, b_index, str_len, prev_enable[16]; 
     char str[256];
     char *c;
+    struct tm *tmp;
+    time_t t;
     FILE *hfile[16];
     i=0;
     FOR_ALL_INSTS() {
@@ -71,9 +73,23 @@ void user_mainloop(void) {
                     case 3:
                       if (b_index < gpio_num) {
                           fprintf(hfile[i], "%1d ", data_gpio(b_index));
+                          prev_gpio(b_index) = data_gpio(b_index);
                           b_index++;
                       }
                       break;
+                    case 4: // for io toggle
+                      if (b_index < gpio_num) {
+                          if (prev_gpio(b_index) != data_gpio(b_index)) {
+                              t = time(NULL);
+                              tmp = localtime(&t);
+                              strftime(str, sizeof(str), "%Y/%m/%d %H:%M:%S",tmp);
+                              fprintf(hfile[i], "%s", str);     
+                              fprintf(stderr, "%s\n", str);
+                          } else {
+                              fprintf(hfile[i], "0");
+                          }
+                          prev_gpio(b_index) = data_gpio(b_index);
+                      }
                     }
                     if(j+1<print_len) {
                         fprintf(hfile[i],",");
