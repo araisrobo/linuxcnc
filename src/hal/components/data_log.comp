@@ -57,6 +57,7 @@ void user_mainloop(void) {
                 if (prev_work_enable[i] == 0) {
                     log_count+=1;
                     gettimeofday(&start, NULL);
+                    last_mtime = 0;
                 }
                 gettimeofday(&last, NULL);
                 seconds  = last.tv_sec  - start.tv_sec;
@@ -72,6 +73,7 @@ void user_mainloop(void) {
                    average_work_time = overall_work_time / log_count;
                 }
                 prev_work_enable[i] = 0;
+
             }   
 
             if (enable) {
