@@ -5,6 +5,7 @@ pin in bit work_enable;
 pin in s32 data-s32-#[16];
 pin in float data-float-#[16];
 pin in bit data-gpio-#[16];
+pin out float work_time=0;
 pin out float average_work_time=0;
 pin out float overall_work_time=0;
 param rw bit enable;
@@ -58,6 +59,7 @@ void user_mainloop(void) {
                     log_count+=1;
                     gettimeofday(&start, NULL);
                     last_mtime = 0;
+                    work_time = 0;
                 }
                 gettimeofday(&last, NULL);
                 seconds  = last.tv_sec  - start.tv_sec;
@@ -65,6 +67,8 @@ void user_mainloop(void) {
                 mtime = (double) ((seconds) + useconds*0.000001);
                 time_diff = mtime - last_mtime;
                 last_mtime = mtime;
+               
+                work_time += time_diff;
                 overall_work_time += time_diff;
                 prev_work_enable[i] = 1;
             } else {
@@ -84,13 +88,17 @@ void user_mainloop(void) {
                         getdelim(&line, &n, '.', log_name);
                         sprintf(str, "%scsv", line);
                         fprintf(stderr,"file name: %s\n", str);
+                         hfile[i] = fopen(str, "w");
+                        while(getline(&line, &n, log_name)!=-1) {
+                            fprintf(hfile[i],"%s",line);
+                        }
+                        fclose(log_name);
+                        log_name = NULL;
                     } else { // use default file name
                         sprintf(str, "data_log_%01d_%02d.csv", i, log_count);
+                        hfile[i] = fopen(str, "w");
                     }
-                    fclose(log_name);
-                    log_name = NULL;
                     
-                    hfile[i] = fopen(str, "w");
                     
                 }
                 s_index = 0;
@@ -103,7 +111,7 @@ void user_mainloop(void) {
                 //     seconds  = last.tv_sec  - start.tv_sec;
                 //     useconds = last.tv_usec - start.tv_usec;
                 //     mtime = (double) ((seconds) + useconds*0.000001);
-                    fprintf(hfile[i], "%5.3f ", mtime);
+                    fprintf(hfile[i], " , %5.3f,", mtime);
                 }
                 for(j=0; j<print_len; j++) {
                     
