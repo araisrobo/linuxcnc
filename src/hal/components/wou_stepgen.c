@@ -1581,10 +1581,10 @@ static void update_freq(void *arg, long period)
                 /* load SWITCH, INDEX, and PULSE positions with enc_counter */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
-                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-                fprintf(stderr, "j[%d] prev_pos_cmd(%f) pos_cmd(%f) rawcount(%lld)\n",
-                        n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
+//                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
+//                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+//                fprintf(stderr, "j[%d] prev_pos_cmd(%f) pos_cmd(%f) rawcount(%lld)\n",
+//                        n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
