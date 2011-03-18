@@ -1,9 +1,14 @@
 component data_log;
 option userspace;
-pin in bit enable;
+pin in bit log_enable;
+pin in bit work_enable;
 pin in s32 data-s32-#[16];
 pin in float data-float-#[16];
 pin in bit data-gpio-#[16];
+pin out float work_time=0;
+pin out float average_work_time=0;
+pin out float overall_work_time=0;
+param rw bit enable;
 param rw bit prev-gpio-#[16];
 param rw s32 print-format-#[48]=0;
 param rw s32 timeout;
@@ -21,7 +26,8 @@ license "GPL";
 #include <sys/time.h>
 
 void user_mainloop(void) {
-    int32_t i, j, s_index, f_index, b_index, str_len, prev_enable[16], n; 
+    int32_t i, j, s_index, f_index, b_index, str_len, prev_enable[16],
+            prev_work_enable[16], n; 
     char str[256];
     char *line;
     struct tm *tmp;
@@ -29,7 +35,7 @@ void user_mainloop(void) {
     FILE *hfile[16], *log_name;
     struct timeval start, last;
     long seconds, useconds;
-    double mtime;
+    double mtime = 0, last_mtime = 0, time_diff = 0;
     i=0;
     FOR_ALL_INSTS() {
       s32_num = 16;
@@ -46,6 +52,34 @@ void user_mainloop(void) {
             if (i==0) {
                 usleep(timeout*1000);
             }
+            enable = log_enable && work_enable;
+
+            if (work_enable) {
+                if (prev_work_enable[i] == 0) {
+                    log_count+=1;
+                    gettimeofday(&start, NULL);
+                    last_mtime = 0;
+                    work_time = 0;
+                }
+                gettimeofday(&last, NULL);
+                seconds  = last.tv_sec  - start.tv_sec;
+                useconds = last.tv_usec - start.tv_usec;
+                mtime = (double) ((seconds) + useconds*0.000001);
+                time_diff = mtime - last_mtime;
+                last_mtime = mtime;
+               
+                work_time += time_diff;
+                overall_work_time += time_diff;
+                prev_work_enable[i] = 1;
+            } else {
+                if (prev_work_enable[i] == 1) {
+                   // overall_work_time += mtime;                         
+                   average_work_time = overall_work_time / log_count;
+                }
+                prev_work_enable[i] = 0;
+
+            }   
+
             if (enable) {
                 if(prev_enable[i]==0) {
                     log_name = fopen("/tmp/data_log.tmp", "r");
@@ -54,16 +88,18 @@ void user_mainloop(void) {
                         getdelim(&line, &n, '.', log_name);
                         sprintf(str, "%scsv", line);
                         fprintf(stderr,"file name: %s\n", str);
+                         hfile[i] = fopen(str, "w");
+                        while(getline(&line, &n, log_name)!=-1) {
+                            fprintf(hfile[i],"%s",line);
+                        }
+                        fclose(log_name);
+                        log_name = NULL;
                     } else { // use default file name
                         sprintf(str, "data_log_%01d_%02d.csv", i, log_count);
+                        hfile[i] = fopen(str, "w");
                     }
-                    fclose(log_name);
-                    log_name = NULL;
                     
-                    log_count+=1;
-                    hfile[i] = fopen(str, "w");
                     
-                    gettimeofday(&start, NULL);
                 }
                 s_index = 0;
                 f_index = 0;
@@ -71,11 +107,11 @@ void user_mainloop(void) {
                 print_len = 0;
                 while(print_format(print_len)) print_len += 1;
                 if(print_len>0) {
-                    gettimeofday(&last, NULL);
-                    seconds  = last.tv_sec  - start.tv_sec;
-                    useconds = last.tv_usec - start.tv_usec;
-                    mtime = (double) ((seconds) + useconds*0.000001);
-                    fprintf(hfile[i], "%5.3f ", mtime);
+                //     gettimeofday(&last, NULL);
+                //     seconds  = last.tv_sec  - start.tv_sec;
+                //     useconds = last.tv_usec - start.tv_usec;
+                //     mtime = (double) ((seconds) + useconds*0.000001);
+                    fprintf(hfile[i], " , %5.3f,", mtime);
                 }
                 for(j=0; j<print_len; j++) {
                     
@@ -106,7 +142,7 @@ void user_mainloop(void) {
                               tmp = localtime(&t);
                               strftime(str, sizeof(str), "%Y/%m/%d %H:%M:%S",tmp);
                               fprintf(hfile[i], "%s", str);     
-                              fprintf(stderr, "%s\n", str);
+                              //fprintf(stderr, "%s\n", str);
                           } else {
                               fprintf(hfile[i], "0");
                           }
@@ -126,9 +162,10 @@ void user_mainloop(void) {
             } else {
                 if(prev_enable[i] == 1) {
                     fclose(hfile[i]);
+                    // over_all_work_time += mtime;
+                    // average_work_time = over_all_work_time / log_count; 
                 }
-              prev_enable[i] = 0; 
-
+                prev_enable[i] = 0; 
             }
             i++;
 
