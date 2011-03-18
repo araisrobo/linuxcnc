@@ -151,6 +151,7 @@ typedef struct {
     hal_float_t *spindle_speed_out;	/* spindle speed output */
     hal_float_t *spindle_speed_out_rps;	/* spindle speed output */
     hal_float_t *spindle_speed_in;	/* spindle speed measured */
+    hal_float_t *spindle_css;           /* output surface when CSS mode */
     
     // FIXME - debug only, remove later
     hal_float_t traj_pos_out;	/* RPA: traj internals, for debugging */
