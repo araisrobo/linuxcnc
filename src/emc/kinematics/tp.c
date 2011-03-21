@@ -27,14 +27,14 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
-#define VELOCITY_EPSTHON 1e-1
+#define VELOCITY_EPSTHON 1e-3
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
@@ -1187,7 +1187,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if (tc->on_feed_change == 0) {
                 if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel
-                        - tc->ori_reqvel > VELOCITY_EPSTHON)) {
+                        - tc->ori_reqvel > VELOCITY_EPSTHON) ||
+                        (tc->reqvel - tc->currentvel > VELOCITY_EPSTHON)
+                        ) {
                     // speed up
                     tc->accel_state = ACCEL_S8;
                     tc->prev_state = ACCEL_S3;
@@ -1195,7 +1197,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     EXIT_STATE(s3);
                     break;
                 } else if ((tc->feed_override < tc->ori_feed_override)
-                        || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)) {
+                        || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)||
+                        (tc->reqvel - tc->currentvel < -VELOCITY_EPSTHON)) {
                     // speed down
                     tc->accel_state = ACCEL_S9;
                     tc->prev_state = ACCEL_S3;
@@ -1204,6 +1207,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     break;
                 }
             }
+
             break;
             assert(newvel >= 0);
         case ACCEL_S4:
@@ -1743,10 +1747,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
         s10 = 0; s2_10 = 0; s4_10 = 0; s5_10 = 0; s6_10 = 0; reach_target = 0;
 #endif
     }
-    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-            _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->target, tc->distance_to_go, tc->tolerance,
-            (double)emcmotStatus->spindle_is_atspeed, (double) emcmotStatus->spindle_index_enable,
-            emcmotStatus->spindleRevs);
+    DPS("%11u%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+            _dt, newaccel, newvel, tc->currentvel, tc->progress, tc->target, tc->distance_to_go, tc->tolerance);
 #if (TRACE!=0)
     _dt += 1;
 #endif
@@ -2064,6 +2066,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         double oldrevs = revs;
 
         if (tc->velocity_mode) {
+            fprintf(stderr, "tp.c: velcoity_mode for spindle synchronized not confirmed yet.\n");
+            assert(0);
             pos_error = fabs(emcmotStatus->spindleSpeedIn) * tc->uu_per_rev;
             if (nexttc)
                 pos_error -= nexttc->progress; /* ?? */
@@ -2075,13 +2079,17 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             double spindle_vel, target_vel;
             if (tc->motion_type == TC_RIGIDTAP && (tc->coords.rigidtap.state
                     == RETRACTION || tc->coords.rigidtap.state
-                    == FINAL_REVERSAL))
+                    == FINAL_REVERSAL)) {
                 revs = tc->coords.rigidtap.spindlerevs_at_reversal
                         - emcmotStatus->spindleRevs;
-            else
+                fprintf(stderr, "tp.c motion_type TC_RIGIDTAP with RETRACTION or FINAL_REVERSAL not confirmed yet.\n");
+                assert(0);
+            } else
                 revs = emcmotStatus->spindleRevs;
 
             pos_error = (revs - spindleoffset) * tc->uu_per_rev - tc->progress;
+            /*fprintf(stderr,"pos_error(%f) progress(%f) revs(%f) spindleoffset(%f)\n",
+                    pos_error, tc->progress, revs, spindleoffset);*/
             if (nexttc)
                 pos_error -= nexttc->progress;
 
@@ -2089,11 +2097,18 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 // ysli: TODO: study tc->sync_accel
                 // detect when velocities match, and move the target accordingly.
                 // acceleration will abruptly stop and we will be on our new target.
+
+                // sync_accel: use max reqvel to match the actual req_vel sync with spindle.
+                //             when reach the req vel.
+
+                // spindleoffset: record the spindle offset before reach the reqested vel.
                 spindle_vel = revs / (tc->cycle_time * tc->sync_accel++);
                 target_vel = spindle_vel * tc->uu_per_rev;
                 if (tc->currentvel >= target_vel) {
                     // move target so as to drive pos_error to 0 next cycle
+                    // fprintf(stderr, "tp.c: leave sync_accel sync_accel(%d) ", tc->sync_accel);
                     spindleoffset = revs - tc->progress / tc->uu_per_rev;
+                    // fprintf(stderr, "spindleoffset(%f) revs(%f) progress(%f)\n", spindleoffset, revs, tc->progress);
                     tc->sync_accel = 0;
                     tc->reqvel = target_vel;
                 } else {
@@ -2103,13 +2118,18 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             } else {
                 // we have synced the beginning of the move as best we can -
                 // track position (minimize pos_error).
+
+                // we have to consider the pos_error (exceedness).
                 double errorvel;
                 spindle_vel = (revs - oldrevs) / tc->cycle_time;
+//                fprintf(stderr, "revs(%f) oldrevs(%f) progress(%f) uu_per_rev(%f)\n",revs, oldrevs, tc->progress, tc->uu_per_rev);
                 target_vel = spindle_vel * tc->uu_per_rev;
                 errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
                 if (pos_error < 0)
                     errorvel = -errorvel;
-                tc->reqvel = target_vel + errorvel;
+//                fprintf(stderr, "spindle_vel(%f) pos_error(%f) error_vel(%f) reqvel(%f) cur_vel(%f)\n",
+//                        spindle_vel, pos_error, errorvel, tc->reqvel, tc->currentvel);
+                tc->reqvel = target_vel /*+ errorvel*/;
             }
             tc->feed_override = 1.0;
         }
