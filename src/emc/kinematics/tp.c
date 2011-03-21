@@ -2130,8 +2130,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 // FIX: errorvel makes tc->reqvel always evaluated that
                 //      current progress exceed expected.
                 errorvel = 2 * pmSqrt(fabs(pos_error/tc->cycle_time)) * tc->cycle_time;
-                fprintf(stderr, "errorvel(%f) \n", errorvel);
-                // errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
+                // fprintf(stderr, "errorvel(%f) \n", errorvel);
+                // old: errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
                 if (pos_error < 0)
                     errorvel = -errorvel;
                 tc->reqvel = target_vel + errorvel;
