@@ -826,14 +826,14 @@ s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
 
 #define ENTER_STATE(s) {\
                          if(s == 0) { \
-                            fprintf(stderr,"%s(bgn):vel(%.3f)accel(%.3f)jerk(%.3f)dtg(%.3f)prog(%.3f)reqvel(%.1f)\n",#s,\
+                            fprintf(stderr,"%s(bgn):vel(%.4f)accel(%.3f)jerk(%.3f)dtg(%.3f)prog(%.3f)reqvel(%.4f)\n",#s,\
                                     tc->currentvel,tc->cur_accel,tc->rt_jerk,tc->target-tc->progress,tc->progress, tc->reqvel);\
                             s = 1;\
                          }\
                      }
 #define EXIT_STATE(s) {\
                         if(s == 1) { \
-                            fprintf(stderr,"%s(end):vel(%.3f)accel(%.3f)jerk(%.3f)dtg(%.3f)prog(%.3f)reqvel(%.1f)\n",#s,\
+                            fprintf(stderr,"%s(end):vel(%.4f)accel(%.3f)jerk(%.3f)dtg(%.3f)prog(%.3f)reqvel(%.4f)\n",#s,\
                                     tc->currentvel,tc->cur_accel,tc->rt_jerk,tc->target-tc->progress,tc->progress, tc->reqvel);\
                            s = 0;\
                         }\
@@ -2098,21 +2098,17 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 pos_error -= nexttc->progress;
 
             if (tc->sync_accel) {
-                // ysli: TODO: study tc->sync_accel
-                // detect when velocities match, and move the target accordingly.
-                // acceleration will abruptly stop and we will be on our new target.
-
-                // sync_accel: use max reqvel to match the actual req_vel sync with spindle.
-                //             when reach the req vel.
-
-                // spindleoffset: record the spindle offset before reach the reqested vel.
+                // NOTE(eric):
+                //      detect when velocities match, and move the target accordingly.
+                //      acceleration will abruptly stop and we will be on our new target.
+                //      sync_accel: use max reqvel to match the actual req_vel sync with spindle.
+                //                     when reach the req vel.
+                //      spindleoffset: record the spindle offset before reach the reqested vel.
                 spindle_vel = revs / (tc->cycle_time * tc->sync_accel++);
                 target_vel = spindle_vel * tc->uu_per_rev;
                 if (tc->currentvel >= target_vel) {
-                    // move target so as to drive pos_error to 0 next cycle
-                    // fprintf(stderr, "tp.c: leave sync_accel sync_accel(%d) ", tc->sync_accel);
+                    // move target so as to drive pos_error to 0 next cycle;
                     spindleoffset = revs - tc->progress / tc->uu_per_rev;
-                    // fprintf(stderr, "spindleoffset(%f) revs(%f) progress(%f)\n", spindleoffset, revs, tc->progress);
                     tc->sync_accel = 0;
                     tc->reqvel = target_vel;
                 } else {
@@ -2128,11 +2124,14 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 spindle_vel = (revs - oldrevs) / tc->cycle_time;
                 target_vel = spindle_vel * tc->uu_per_rev;
                 // assume pos_error could be matched in a cycle.
-                // d = 1/2*a*t^2
-                // get acceleration a = sqrt(pos_error * 2/t)
+                // d = 1/2*(1/2*a*t^2)
+                // get acceleration a = sqrt(2*pos_error * 2/t) = 2*sqrt(pos_error/t)
                 // the velocity modular would be v = a*t
-                errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
-                //errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
+                // FIX: errorvel makes tc->reqvel always evaluated that
+                //      current progress exceed expected.
+                errorvel = 2 * pmSqrt(fabs(pos_error/tc->cycle_time)) * tc->cycle_time;
+                fprintf(stderr, "errorvel(%f) \n", errorvel);
+                // errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
                 if (pos_error < 0)
                     errorvel = -errorvel;
                 tc->reqvel = target_vel + errorvel;
