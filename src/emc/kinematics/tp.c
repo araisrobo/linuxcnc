@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -1062,6 +1062,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     break;
                 }
             }
+            tc->ori_reqvel = tc->reqvel;
             assert(newvel >= 0);
             break;
         case ACCEL_S2:
@@ -1158,6 +1159,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     break;
                 }
             }
+            tc->ori_reqvel = tc->reqvel;
             assert(newvel >= 0);
             break;
         case ACCEL_S3:
@@ -1207,7 +1209,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     break;
                 }
             }
-
+            tc->ori_reqvel = tc->reqvel;
             break;
             assert(newvel >= 0);
         case ACCEL_S4:
@@ -1292,6 +1294,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s4);
                 break;
             }
+            tc->ori_reqvel = tc->reqvel;
             assert(newvel >= 0);
             break;
         case ACCEL_S5:
@@ -1363,7 +1366,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s5);
                 break;
             }
-
+            tc->ori_reqvel = tc->reqvel;
             assert(newvel >= 0);
             break;
         case ACCEL_S6:
@@ -1421,6 +1424,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 tc->rt_jerk = 0;
                 tc->cur_accel = 0;
                 immediate_state = 1;
+                tc->ori_reqvel = tc->reqvel;
                 EXIT_STATE(s6);
                 break;
             }
@@ -2122,14 +2126,16 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 // we have to consider the pos_error (exceedness).
                 double errorvel;
                 spindle_vel = (revs - oldrevs) / tc->cycle_time;
-//                fprintf(stderr, "revs(%f) oldrevs(%f) progress(%f) uu_per_rev(%f)\n",revs, oldrevs, tc->progress, tc->uu_per_rev);
                 target_vel = spindle_vel * tc->uu_per_rev;
-                errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
+                // assume pos_error could be matched in a cycle.
+                // d = 1/2*a*t^2
+                // get acceleration a = sqrt(pos_error * 2/t)
+                // the velocity modular would be v = a*t
+                errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
+                //errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
                 if (pos_error < 0)
                     errorvel = -errorvel;
-//                fprintf(stderr, "spindle_vel(%f) pos_error(%f) error_vel(%f) reqvel(%f) cur_vel(%f)\n",
-//                        spindle_vel, pos_error, errorvel, tc->reqvel, tc->currentvel);
-                tc->reqvel = target_vel /*+ errorvel*/;
+                tc->reqvel = target_vel + errorvel;
             }
             tc->feed_override = 1.0;
         }
