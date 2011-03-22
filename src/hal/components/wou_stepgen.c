@@ -515,10 +515,6 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
 
-//?        // MPG 
-//?        p += 1;
-//?        *(machine_control->mpg_count) = *p;
-
         // digital inpout
         p += 1;
         din[0] = *p;
@@ -557,7 +553,12 @@ static void fetchmail(const uint8_t *buf_head)
         // MPG
         p += 1;
         *(machine_control->mpg_count) = *p;
-        // fprintf (stderr, "MPG: 0x%08X\n", *(machine_control->mpg_count));
+        // the MPG on my hand is 1-click for a full-AB-phase-wave.
+        // therefore the mpg_count will increase by 4.
+        // divide it by 4 for smooth jogging.
+        // otherwise, there will be 4 units of motions for every MPG click.
+        *(machine_control->mpg_count) >>= 2;
+        //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
 
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
