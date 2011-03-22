@@ -1015,6 +1015,7 @@ static void handle_jogwheels(void)
 	if (pos < joint->min_jog_limit) {
 	    continue;
 	}
+
 	/* The default is to move exactly as far as the wheel commands,
 	   even if that move takes much longer than the wheel movement
 	   that commanded it.  Some folks prefer that the move stop as
@@ -1058,7 +1059,7 @@ static void get_pos_cmds(long period)
     emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
     double old_pos_cmd, new_pos_cmd, new_vel_cmd;
-    double vel_lim;
+    // double vel_lim;
     /* used in teleop mode to compute the max accell requested */
     int onlimit = 0;
     int joint_limit[EMCMOT_MAX_JOINTS][2];
