@@ -396,7 +396,9 @@ typedef struct {
     double  last_spindle_index_pos;
     int32_t spindle_enc_count;          // predicted spindle-encoder count
     double  prev_spindle_irevs;         // to calculate index position
-//obsolete:    double  prev_spindle_pos;
+    
+    /* MPG */
+    hal_s32_t *mpg_count;
 
 } machine_control_t;
 
@@ -510,17 +512,12 @@ static void fetchmail(const uint8_t *buf_head)
             // cmd error
             p += 1;
             *(stepgen->cmd_error) = ((int32_t)*p);
-
-//obsolete:            // update spindle status if necessary
-//obsolete:            if (stepgen->pos_mode == 0) {
-//obsolete:                double spindle_pos;
-//obsolete:                spindle_pos = (double) *(stepgen->enc_pos) / (pos_scale * 360.0);
-//obsolete:                *machine_control->spindle_vel_fb = ((spindle_pos - machine_control->prev_spindle_pos) / bp_delta)*recip_dt;
-//obsolete:                machine_control->prev_spindle_pos = spindle_pos;
-//obsolete:            }
-
             stepgen += 1;   // point to next joint
         }
+
+//?        // MPG 
+//?        p += 1;
+//?        *(machine_control->mpg_count) = *p;
 
         // digital inpout
         p += 1;
@@ -556,6 +553,11 @@ static void fetchmail(const uint8_t *buf_head)
         } else {
             *machine_control->probe_input = 0;
         }
+        
+        // MPG
+        p += 1;
+        *(machine_control->mpg_count) = *p;
+        // fprintf (stderr, "MPG: 0x%08X\n", *(machine_control->mpg_count));
 
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
@@ -1027,6 +1029,7 @@ int rtapi_app_main(void)
     //  [bit-1]: SSIF_EN, servo/stepper interface enable
     //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
     // TODO: RTL: remove SSIF_EN (always enable SSIF)
+    // FIXME: WORKAROUND: always enable SSIF_EN by SW
     // SSIF_EN = 1
     data[0] = 2;
     wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
@@ -1527,9 +1530,6 @@ static void update_freq(void *arg, long period)
             wou_cmd (&w_param, WB_WR_CMD,
                      (uint16_t) (GPIO_BASE | GPIO_OUT),
                      (uint8_t) 1, data);
-            /*data[0] = 0;        // SVO-OFF
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-            wou_flush(&w_param);*/
             for(i=0; i<num_chan; i++) {
                 write_mot_param (i, (ENABLE), 0);
             }
@@ -2299,12 +2299,14 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
     retval = hal_pin_u32_newf(HAL_IO, &(machine_control->probe_type), comp_id,
                              "wou.probe.type");
     *(machine_control->probe_type) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
+
     retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_input), comp_id,
                              "wou.probe.input");
     *(machine_control->probe_input) = 0;    // pin index must not beyond index
@@ -2334,24 +2336,31 @@ static int export_machine_control(machine_control_t * machine_control)
 
     retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_revs), comp_id,
                                      "wou.spindle.spindle-revs");
-    *(machine_control->spindle_revs) = 0;
     if (retval != 0) {
         return retval;
     }
+    *(machine_control->spindle_revs) = 0;
 
     retval = hal_pin_bit_newf(HAL_IO, &(machine_control->spindle_index_enable), comp_id,
                                     "wou.spindle.index-enable");
-    *(machine_control->spindle_index_enable) = 0;
     if (retval != 0) {
         return retval;
     }
+    *(machine_control->spindle_index_enable) = 0;
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_at_speed), comp_id,
                                        "wou.spindle.at-speed");
-    *(machine_control->spindle_at_speed) = 0;
     if (retval != 0) {
        return retval;
     }
+    *(machine_control->spindle_at_speed) = 0;
+    
+    retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
+                             "wou.mpg_count");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->mpg_count) = 0;
 
     machine_control->prev_out = 0;
     machine_control->fp_current_vel = 0;
