@@ -201,8 +201,8 @@ RTAPI_MP_INT(gpio_alm_out0, "WOU Register Value for GPIO_ALM_OUT0");
 int gpio_alm_out1 = -1;
 RTAPI_MP_INT(gpio_alm_out1, "WOU Register Value for GPIO_ALM_OUT1");
 
-int gpio_leds_sel = -1;
-RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
+//obsolete: int gpio_leds_sel = -1;
+//obsolete: RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
 
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
@@ -805,16 +805,16 @@ int rtapi_app_main(void)
        wou_flush(&w_param);
     }
     
-    /* test for GPIO_LEDS_SEL: gpio_leds_sel */
-    if ((gpio_leds_sel == -1)) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"WOU: ERROR: no value for GPIO_LEDS_SEL: gpio_leds_sel\n");
-	return -1;
-    } else {
-	// select signals for LEDs
-	data[0] = (uint8_t) gpio_leds_sel;
-	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
-    }
+//obsolete:    /* test for GPIO_LEDS_SEL: gpio_leds_sel */
+//obsolete:    if ((gpio_leds_sel == -1)) {
+//obsolete:	rtapi_print_msg(RTAPI_MSG_ERR,
+//obsolete:			"WOU: ERROR: no value for GPIO_LEDS_SEL: gpio_leds_sel\n");
+//obsolete:	return -1;
+//obsolete:    } else {
+//obsolete:	// select signals for LEDs
+//obsolete:	data[0] = (uint8_t) gpio_leds_sel;
+//obsolete:	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
+//obsolete:    }
 
     /* test for stepping motor current limit: step_cur */
     num_chan = 0;
