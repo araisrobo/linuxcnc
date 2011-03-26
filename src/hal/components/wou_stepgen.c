@@ -183,17 +183,17 @@ RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 int enc_type = -1;
 RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
-int adc_spi_en = 0;
-RTAPI_MP_INT(adc_spi_en, "Analog to Digital Converter Enable Signal");
+//obsolete: int adc_spi_en = 0;
+//obsolete: RTAPI_MP_INT(adc_spi_en, "Analog to Digital Converter Enable Signal");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
-int gpio_mask_in0 = -1;
-RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
-
-int gpio_mask_in1 = -1;
-RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
+//obsolete: int gpio_mask_in0 = -1;
+//obsolete: RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
+//obsolete: 
+//obsolete: int gpio_mask_in1 = -1;
+//obsolete: RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
 
 int gpio_alm_out0 = -1;
 RTAPI_MP_INT(gpio_alm_out0, "WOU Register Value for GPIO_ALM_OUT0");
@@ -518,7 +518,7 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
-        din[0] &= gpio_mask_in0;
+        //obsolete: din[0] &= gpio_mask_in0;
 
         // update gpio_in[31:0]
         // compare if there's any GPIO.DIN bit got toggled
@@ -728,43 +728,43 @@ int rtapi_app_main(void)
         return -1;
     }
 
-    if (1 == adc_spi_en) {
-        rtapi_print_msg(RTAPI_MSG_INFO,
-                        "WOU: enable ADC_SPI\n");
-        // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
-        data[0] = 19; 
-        //MCP3202: // MCP3202: set ADC_SPI_SCK_NR to generate 17 SPI_SCK pulses
-        //MCP3202: data[0] = 17;   // MCP3202
-        wou_cmd (&w_param, WB_WR_CMD,
-                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR),
-                 (uint8_t) 1, data);
-
-        // enable ADC_SPI with LOOP mode
-        
-        // MCP3204: (p.19 of adc_mcp3204.pdf)
-        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
-        //                      (0)Differential mode,
-        //                      (0)D2 ... dont care,
-        //                      (0)D1 ... Ch0 = IN+,
-        //                      (0)D0 ... CH1 = IN-   }
-        // ADC_SPI_CMD: 0x18: { (1)START_BIT,
-        //                      (1)single-end mode,
-        //                      (0)D2 ... dont care,
-        //                      (00){D1,D0} ... CH0 }
-        data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-                  | (ADC_SPI_CMD_MASK & 0x18);
-
-        //MCP3202: // MCP3202: 
-        //MCP3202: // ADC_SPI_CMD: 0x04: { (1)START_BIT,
-        //MCP3202: //                      (0)Differential mode,
-        //MCP3202: //                      (0)SIGN   Ch0 = IN+,
-        //MCP3202: //                                CH1 = IN-   }
-        //MCP3202: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-        //MCP3202:           | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
-        wou_cmd (&w_param, WB_WR_CMD,
-                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL),
-                 (uint8_t) 1, data);
-    }
+//obsolete:    if (1 == adc_spi_en) {
+//obsolete:        rtapi_print_msg(RTAPI_MSG_INFO,
+//obsolete:                        "WOU: enable ADC_SPI\n");
+//obsolete:        // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
+//obsolete:        data[0] = 19; 
+//obsolete:        //MCP3202: // MCP3202: set ADC_SPI_SCK_NR to generate 17 SPI_SCK pulses
+//obsolete:        //MCP3202: data[0] = 17;   // MCP3202
+//obsolete:        wou_cmd (&w_param, WB_WR_CMD,
+//obsolete:                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR),
+//obsolete:                 (uint8_t) 1, data);
+//obsolete:
+//obsolete:        // enable ADC_SPI with LOOP mode
+//obsolete:        
+//obsolete:        // MCP3204: (p.19 of adc_mcp3204.pdf)
+//obsolete:        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
+//obsolete:        //                      (0)Differential mode,
+//obsolete:        //                      (0)D2 ... dont care,
+//obsolete:        //                      (0)D1 ... Ch0 = IN+,
+//obsolete:        //                      (0)D0 ... CH1 = IN-   }
+//obsolete:        // ADC_SPI_CMD: 0x18: { (1)START_BIT,
+//obsolete:        //                      (1)single-end mode,
+//obsolete:        //                      (0)D2 ... dont care,
+//obsolete:        //                      (00){D1,D0} ... CH0 }
+//obsolete:        data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
+//obsolete:                  | (ADC_SPI_CMD_MASK & 0x18);
+//obsolete:
+//obsolete:        //MCP3202: // MCP3202: 
+//obsolete:        //MCP3202: // ADC_SPI_CMD: 0x04: { (1)START_BIT,
+//obsolete:        //MCP3202: //                      (0)Differential mode,
+//obsolete:        //MCP3202: //                      (0)SIGN   Ch0 = IN+,
+//obsolete:        //MCP3202: //                                CH1 = IN-   }
+//obsolete:        //MCP3202: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
+//obsolete:        //MCP3202:           | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
+//obsolete:        wou_cmd (&w_param, WB_WR_CMD,
+//obsolete:                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL),
+//obsolete:                 (uint8_t) 1, data);
+//obsolete:    }
 
     /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
     // issue a WOU_WRITE 
