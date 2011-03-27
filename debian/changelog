@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.03.28) lucid; urgency=low
+
+  * clear SSIF_RST_POS after resetting position registers
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 28 Mar 2011 06:33:29 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.03.23) lucid; urgency=low
 
   * Support MPG Count readback from WOU_STEPGEN
