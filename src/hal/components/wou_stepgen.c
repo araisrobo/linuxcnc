@@ -770,6 +770,11 @@ int rtapi_app_main(void)
     // issue a WOU_WRITE 
     data[0] = 0x0F;
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
+    wou_flush(&w_param);
+    
+    data[0] = 0x00;
+    wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
+    wou_flush(&w_param);
 
 //obsolete:     /* test for GPIO_MASK_IN0: gpio_mask_in0 */
 //obsolete:     if ((gpio_mask_in0 == -1)) {
