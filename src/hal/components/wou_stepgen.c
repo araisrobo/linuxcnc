@@ -238,6 +238,12 @@ const char *j3_pid_str[NUM_PID_PARAMS] =
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
+const char *gantry_str[NUM_PID_PARAMS]=
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+RTAPI_MP_ARRAY_STRING(gantry_str, NUM_PID_PARAMS,
+                      "gantry parameters");
+
+
 const char *max_vel_str[MAX_CHAN] =
     { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
 RTAPI_MP_ARRAY_STRING(max_vel_str, MAX_CHAN,
@@ -1021,6 +1027,31 @@ int rtapi_app_main(void)
             write_mot_param (n, (ENABLE), immediate_data);
             rtapi_print_msg(RTAPI_MSG_INFO, "\n");
         }
+
+     }
+    // for gantry parameter
+    if(gantry_str[0] != NULL) {
+        rtapi_print_msg(RTAPI_MSG_INFO, "GANTRY: ");
+        rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
+        for (i=0; i < (FF2-P_GAIN+1); i++) {
+            // all gain varies from 0(0%) to 65535(100%)
+            value = atof(gantry_str[i]);
+            immediate_data = (int32_t) (value);
+            write_mot_param (4, (P_GAIN + i), immediate_data);
+            rtapi_print_msg(RTAPI_MSG_INFO, "gantry(%d) = %s (%d)\n", i, gantry_str[i], immediate_data);
+        }
+        for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
+                        // parameter use parameter fraction, parameter unit: pulse
+            value = atof(gantry_str[i]);
+            immediate_data = (int32_t) (value) * (1 << param_fraction_bit[1]);
+            write_mot_param (4, (P_GAIN + i), immediate_data);
+            rtapi_print_msg(RTAPI_MSG_INFO, "gantgry(%d) = %s (%d)\n",i , gantry_str[i], immediate_data);
+        }
+
+        value = 0;
+        immediate_data = (int32_t) (value);
+        write_mot_param (4, (ENABLE), immediate_data);
+        rtapi_print_msg(RTAPI_MSG_INFO, "\n");
     }
 
     /* to send position compensation velocity  of Z*/
@@ -1731,6 +1762,12 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
+//            if(n==1) {
+//                fprintf(stderr,"j(%d) wou_pos_cmd(%d) pos_scale(%f)", n, wou_pos_cmd, stepgen->pos_scale);
+//            }
+//            if(n==3) {
+//                fprintf(stderr,"j(%d) wou_pos_cmd(%d) pos_scale(%f)\n", n, wou_pos_cmd, stepgen->pos_scale);
+//            }
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
