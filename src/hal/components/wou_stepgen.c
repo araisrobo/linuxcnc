@@ -331,7 +331,7 @@ typedef struct {
 
     double sum_err_0;
     double sum_err_1;
-    // pid info
+    /* pid info */
     hal_float_t *pid_cmd;
     hal_float_t *cmd_error;       /* cmd error */
     hal_float_t *pid_output;      /* pid output */
@@ -504,20 +504,19 @@ static void fetchmail(const uint8_t *buf_head)
 
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
-            // obsolete: pos_scale = stepgen->pos_scale;
             // PULSE_POS
             p += 1;
             *(stepgen->pulse_pos) = *p;
-            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos));
+            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
             // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
             // pid output
             p +=1;
-            *(stepgen->pid_output) = ((int32_t)*p);
+            *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
             // cmd error
             p += 1;
-            *(stepgen->cmd_error) = ((int32_t)*p);
+            *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
             stepgen += 1;   // point to next joint
         }
 
