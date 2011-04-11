@@ -153,7 +153,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     3       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     0       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -1614,7 +1614,14 @@ static void update_freq(void *arg, long period)
 
             /* to prevent position drift while toggeling "PWR-ON" switch */
 	    (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
-            
+
+	    /* clear vel status when enable = 0 */
+	    stepgen->prev_pos_fb = *stepgen->pos_fb;
+	    stepgen->vel_cmd = 0;
+	    stepgen->prev_vel_cmd = 0;
+	    *(stepgen->vel_fb) = 0;
+
+
             r_load_pos = 0;
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
                 r_load_pos |= (1 << n);
