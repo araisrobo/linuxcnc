@@ -1,0 +1,21 @@
+net pulse_cmd_j0  =>  pyvcp.pulse_pos_j0
+net pulse_cmd_j1  =>  pyvcp.pulse_pos_j1
+net pulse_cmd_j2  =>  pyvcp.pulse_pos_j2
+net pulse_cmd_j3  =>  pyvcp.pulse_pos_j3
+
+net enc_pos_j0    =>  pyvcp.enc_pos_j0
+net enc_pos_j1    =>  pyvcp.enc_pos_j1
+net enc_pos_j2    =>  pyvcp.enc_pos_j2
+net enc_pos_j3    =>  pyvcp.enc_pos_j3
+
+net X_ferror      => pyvcp.joint.0.ferror
+net Y_ferror      => pyvcp.joint.1.ferror
+net Z_ferror      => pyvcp.joint.2.ferror
+net A_ferror      => pyvcp.joint.3.ferror
+
+# net alarm         =>  pyvcp.alarm
+# net servo_ready   =>  pyvcp.servo_ready
+net home_j0       =>  pyvcp.home_j0
+net home_j1       =>  pyvcp.home_j1
+net home_j2       =>  pyvcp.home_j2
+net home_j3       =>  pyvcp.home_j3
