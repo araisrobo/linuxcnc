@@ -32,6 +32,10 @@ void user_mainloop(void) {
     char *line;
     struct tm *tmp;
     time_t t;
+    time_t rawtime;
+    struct tm * timeinfo;
+    char buffer[80];
+
     FILE *hfile[16], *log_name;
     struct timeval start, last;
     long seconds, useconds;
@@ -85,8 +89,11 @@ void user_mainloop(void) {
                     log_name = fopen("/tmp/data_log.tmp", "r");
 
                     if (log_name != NULL) {
-                        getdelim(&line, &n, '.', log_name);
-                        sprintf(str, "%scsv", line);
+                        time ( &rawtime );
+                        timeinfo = localtime ( &rawtime );
+                        strftime (buffer,80,"%Y_%m_%d_%H_%M_%S",timeinfo);
+                        getdelim(&line, &n, '_', log_name);
+                        sprintf(str, "%s%s.csv", line, buffer);
                         fprintf(stderr,"file name: %s\n", str);
                          hfile[i] = fopen(str, "w");
                         while(getline(&line, &n, log_name)!=-1) {
