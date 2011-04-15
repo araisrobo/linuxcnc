@@ -62,7 +62,7 @@
 
     There are five timing parameters which control the output waveform.
     No step type uses all five, and only those which will be used are
-    exported to HAL.  The values of these parameters are in nano-seconds,
+    exported to HAL.  The values of these parameters are in nano-secondindex_enables,
     so no recalculation is needed when changing thread periods.  In
     the timing diagrams that follow, they are identfied by the
     following numbers:
@@ -153,7 +153,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     0       // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     1       // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -320,7 +320,8 @@ typedef struct {
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
-
+    hal_bit_t *ctrl_type_switch;/* switch between vel ctrl and pos ctrl (valid for vel ctrl only) */
+    int32_t    prev_ctrl_type_switch;
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
@@ -1620,7 +1621,7 @@ static void update_freq(void *arg, long period)
 	    stepgen->vel_cmd = 0;
 	    stepgen->prev_vel_cmd = 0;
 	    *(stepgen->vel_fb) = 0;
-
+	    *(stepgen->ctrl_type_switch) = 0;
 
             r_load_pos = 0;
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
@@ -1702,7 +1703,18 @@ static void update_freq(void *arg, long period)
 	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 	} else {
 	    /* velocity command mode */
-            stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
+	        stepgen->prev_vel_cmd = 0;
+	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+	        // do more thing if necessary.
+	    }
+	    if (*stepgen->ctrl_type_switch == 0) {
+                stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+
+	    } else {
+	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+	    }
+	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
 //obsolete:            if(*machine_control->spindle_enable)
 //obsolete:                stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
 //obsolete:            else
@@ -2109,6 +2121,14 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	    return retval;
 	}
     }
+
+    /* export pin for control type switch (for vel control only) */
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->ctrl_type_switch), comp_id,
+                              "wou.stepgen.%d.ctrl_type_switch", num);
+    if (retval != 0) {
+        return retval;
+    }
+
     //obsolete: if (step_type == 0) {
     //obsolete:     /* step/dir is the only one that uses dirsetup and dirhold */
     //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->dir_setup),
@@ -2226,7 +2246,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     (addr->accel_cmd) = 0.0;
     *(addr->home_state) = HOME_IDLE;
     addr->prev_home_state = HOME_IDLE;
-
+    *(addr->ctrl_type_switch) = 0;
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
