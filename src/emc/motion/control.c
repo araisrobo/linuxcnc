@@ -30,6 +30,7 @@
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
+#define PI                      3.141592653589
 
 /* kinematics flags */
 KINEMATICS_FORWARD_FLAGS fflags = 0;
@@ -1750,7 +1751,9 @@ static void output_to_hal(void)
 	*(emcmot_hal_data->spindle_speed_out_rps) = speed/60.;
 	/* calculate css and exprot to hal pin */
 	// TODO: confirm rad or diam mode??
-	*(emcmot_hal_data->spindle_css) = *(emcmot_hal_data->spindle_speed_out_rps) * denom * 0.5;
+	*(emcmot_hal_data->spindle_css) = *(emcmot_hal_data->spindle_speed_out_rps) * denom * 2 * PI;
+	/*fprintf(stderr," css_factor(%f) spindle_speed_out(%f) denom(%f) cs(%f) \n",emcmotStatus->spindle.css_factor,  speed,
+	        denom, emcmotStatus->spindle.css_factor*2*PI/60);*/
     } else {
 	*(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
 	*(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;
