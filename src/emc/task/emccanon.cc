@@ -2732,8 +2732,11 @@ void SET_SPINDLE_SPEED(double r)
     flush_segments();
 
     if(canon.css_maximum) {
-	if(canon.lengthUnits == CANON_UNITS_INCHES) 
-	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed;
+	if(canon.lengthUnits == CANON_UNITS_INCHES)
+	    // fix: numerator was wrong
+	    //      factor = cs * 60 / 2pi
+	    //      factor = css / 2pi
+	    canon.css_numerator = 1 / (2 * M_PI) * canon.spindleSpeed;
 	else
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed;
 	emc_spindle_speed_msg.speed = canon.css_maximum;
