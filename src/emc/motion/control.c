@@ -497,12 +497,16 @@ static void process_inputs(void)
 	    joint->ferror_limit = joint->min_ferror;
 	}
 	/* update following error flag */
+
+#ifndef MOTION_OVER_USB
 	if (abs_ferror > joint->ferror_limit) {
 	    SET_JOINT_FERROR_FLAG(joint, 1);
 	} else {
 	    SET_JOINT_FERROR_FLAG(joint, 0);
 	}
-
+#else
+	SET_JOINT_FERROR_FLAG(joint, *(joint_data->usb_ferror_flag));
+#endif
 	/* read limit switches */
 	if (*(joint_data->pos_lim_sw)) {
 	    SET_JOINT_PHL_FLAG(joint, 1);

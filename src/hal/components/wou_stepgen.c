@@ -216,30 +216,30 @@ RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  17
+#define NUM_PID_PARAMS  16
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
 const char *gantry_str[NUM_PID_PARAMS]=
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(gantry_str, NUM_PID_PARAMS,
                       "gantry parameters");
 
@@ -258,6 +258,11 @@ const char *pos_scale_str[MAX_CHAN] =
     { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
 RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
                       "pos scale value for up to 8 channels");
+
+const char *ferror_str[MAX_CHAN] =
+    { "0", "0", "0", "0", "0", "0", "0", "0" };
+RTAPI_MP_ARRAY_STRING(ferror_str, MAX_CHAN,
+                      "max following error value for up to 8 channels");
 
 const char *home_use_index_str[MAX_CHAN] =
     { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
@@ -321,6 +326,7 @@ typedef struct {
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
     hal_bit_t *ctrl_type_switch;/* switch between vel ctrl and pos ctrl (valid for vel ctrl only) */
+    hal_bit_t *ferror_flag;     /* following error flag from risc */
     int32_t    prev_ctrl_type_switch;
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
@@ -484,7 +490,7 @@ static void fetchmail(const uint8_t *buf_head)
     // obsolete: double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
-
+    uint32_t    ferror_flag;
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -565,6 +571,15 @@ static void fetchmail(const uint8_t *buf_head)
         // otherwise, there will be 4 units of motions for every MPG click.
         *(machine_control->mpg_count) >>= 2;
         //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
+
+        // FERROR FLAG
+        p += 1;
+        ferror_flag = *p;
+        stepgen = stepgen_array;
+        for (i=0; i<num_chan; i++) {
+            *stepgen->ferror_flag = ferror_flag & (1 << i);
+            stepgen += 1;   // point to next joint
+        }
 
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
@@ -656,7 +671,7 @@ int rtapi_app_main(void)
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
     char str[50];
-    double max_vel, max_accel, pos_scale, thc_vel, value;
+    double max_vel, max_accel, pos_scale, thc_vel, value, max_following_error;
     int32_t bitn, vel_bit, accel_bit, accel_recip_bit, param_bit;
     int msg;
 
@@ -985,6 +1000,15 @@ int rtapi_app_main(void)
 
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
 
+        /* config max following error */
+        max_following_error = atof(ferror_str[n]);
+        immediate_data = (uint32_t)(ceil(max_following_error * pos_scale) * (1 << param_bit));
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+
+        rtapi_print_msg(RTAPI_MSG_DBG, "(max ferror) = (%d) (%d) ",
+                       ((uint32_t) (immediate_data/pos_scale) >> param_bit),(immediate_data >> param_bit));
+        write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
+
         /* config move type */
         for(j = 0; home_use_index_str[j]; j++) {
             str[j] = toupper(home_use_index_str[n][j]);
@@ -1006,7 +1030,7 @@ int rtapi_app_main(void)
         // test valid PID parameter for joint[n]
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
-            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
+            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO 14:PE 15:PB\n");
             for (i=0; i < (FF2-P_GAIN+1); i++) {
                 // all gain varies from 0(0%) to 65535(100%)
                 value = atof(pid_str[n][i]);
@@ -1014,7 +1038,7 @@ int rtapi_app_main(void)
                 write_mot_param (n, (P_GAIN + i), immediate_data);
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
-            for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
+            for (; i < (PROBE_BACK_OFF-P_GAIN); i++) {
                 // parameter use parameter fraction, parameter unit: pulse
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value) * (1 << param_fraction_bit[n]);
@@ -1030,29 +1054,29 @@ int rtapi_app_main(void)
 
      }
     // for gantry parameter
-    if(gantry_str[0] != NULL) {
-        rtapi_print_msg(RTAPI_MSG_INFO, "GANTRY: ");
-        rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
-        for (i=0; i < (FF2-P_GAIN+1); i++) {
-            // all gain varies from 0(0%) to 65535(100%)
-            value = atof(gantry_str[i]);
-            immediate_data = (int32_t) (value);
-            write_mot_param (4, (P_GAIN + i), immediate_data);
-            rtapi_print_msg(RTAPI_MSG_INFO, "gantry(%d) = %s (%d)\n", i, gantry_str[i], immediate_data);
-        }
-        for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
-                        // parameter use parameter fraction, parameter unit: pulse
-            value = atof(gantry_str[i]);
-            immediate_data = (int32_t) (value) * (1 << param_fraction_bit[1]);
-            write_mot_param (4, (P_GAIN + i), immediate_data);
-            rtapi_print_msg(RTAPI_MSG_INFO, "gantgry(%d) = %s (%d)\n",i , gantry_str[i], immediate_data);
-        }
-
-        value = 0;
-        immediate_data = (int32_t) (value);
-        write_mot_param (4, (ENABLE), immediate_data);
-        rtapi_print_msg(RTAPI_MSG_INFO, "\n");
-    }
+//    if(gantry_str[0] != NULL) {
+//        rtapi_print_msg(RTAPI_MSG_INFO, "GANTRY: ");
+//        rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
+//        for (i=0; i < (FF2-P_GAIN+1); i++) {
+//            // all gain varies from 0(0%) to 65535(100%)
+//            value = atof(gantry_str[i]);
+//            immediate_data = (int32_t) (value);
+//            write_mot_param (4, (P_GAIN + i), immediate_data);
+//            rtapi_print_msg(RTAPI_MSG_INFO, "gantry(%d) = %s (%d)\n", i, gantry_str[i], immediate_data);
+//        }
+//        for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
+//                        // parameter use parameter fraction, parameter unit: pulse
+//            value = atof(gantry_str[i]);
+//            immediate_data = (int32_t) (value) * (1 << param_fraction_bit[1]);
+//            write_mot_param (4, (P_GAIN + i), immediate_data);
+//            rtapi_print_msg(RTAPI_MSG_INFO, "gantgry(%d) = %s (%d)\n",i , gantry_str[i], immediate_data);
+//        }
+//
+//        value = 0;
+//        immediate_data = (int32_t) (value);
+//        write_mot_param (4, (ENABLE), immediate_data);
+//        rtapi_print_msg(RTAPI_MSG_INFO, "\n");
+//    }
 
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
@@ -2124,7 +2148,14 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 
     /* export pin for control type switch (for vel control only) */
     retval = hal_pin_bit_newf(HAL_IN, &(addr->ctrl_type_switch), comp_id,
-                              "wou.stepgen.%d.ctrl_type_switch", num);
+                              "wou.stepgen.%d.ctrl-type-switch", num);
+    if (retval != 0) {
+        return retval;
+    }
+
+    /* export pin for following error */
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->ferror_flag), comp_id,
+                              "wou.stepgen.%d.ferror-flag", num);
     if (retval != 0) {
         return retval;
     }
