@@ -971,7 +971,7 @@ int rtapi_app_main(void)
         immediate_data = param_bit;
         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
         /* config velocity */
-        immediate_data = (uint32_t)((max_vel*pos_scale*dt)*(1 << vel_bit));
+        immediate_data = (uint32_t)(ceil(max_vel*pos_scale*dt)*(1 << vel_bit));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         rtapi_print_msg(RTAPI_MSG_DBG,
@@ -980,8 +980,8 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
         /* config acceleration */
-        immediate_data = (uint32_t)(max_accel*pos_scale*dt*
-                                        dt*(1 << accel_bit));
+        immediate_data = (uint32_t)(ceil((max_accel*pos_scale*dt*
+                                        dt)*(1 << accel_bit)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         rtapi_print_msg(RTAPI_MSG_DBG,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
@@ -991,8 +991,8 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
-        immediate_data = (uint32_t)((1/(max_accel*pos_scale*dt*
-                                        dt))*(1 << accel_recip_bit));
+        immediate_data = (uint32_t)(ceil((1/(max_accel*pos_scale*dt*
+                                        dt))*(1 << accel_recip_bit)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
                 max_accel, pos_scale, dt, accel_recip_bit, immediate_data);
@@ -1002,7 +1002,7 @@ int rtapi_app_main(void)
 
         /* config max following error */
         max_following_error = atof(ferror_str[n]);
-        immediate_data = (uint32_t)(ceil(max_following_error * pos_scale) * (1 << param_bit));
+        immediate_data = (uint32_t)(ceil((max_following_error * pos_scale) * (1 << param_bit)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
 
         rtapi_print_msg(RTAPI_MSG_DBG, "(max ferror) = (%d) (%d) ",
