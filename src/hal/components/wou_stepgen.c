@@ -918,7 +918,7 @@ int rtapi_app_main(void)
         pos_scale = atof(pos_scale_str[n]);
         value = (pos_scale);
         value = value > 0? value:-value;
-        value = (1/value)/0.001;
+        value = (1/value)/0.00001;
         bitn = 0;
         while(((int32_t)value>>bitn)>0) {
             bitn++;
@@ -933,7 +933,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>vel_bit)>0) {
             vel_bit++;
         }
-        vel_bit += 4;   //  more accurate: 1/2^4
+//        vel_bit += 4;   //  more accurate: 1/2^4
         // fraction bit for accel
         max_accel = atof(max_accel_str[n]);
         value = (1.0/(max_accel*pos_scale*dt*dt)); // accurate 1
@@ -942,7 +942,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>accel_bit)>0) {
             accel_bit++;
         }
-        accel_bit+=4;   //  more accurate: 1/2^4
+//        accel_bit+=4;   //  more accurate: 1/2^4
         // fraction bit for accel_recip
         value = ((max_accel*pos_scale*dt*dt))/1; // accurate 1
         value = value > 0? value:-value;
@@ -950,7 +950,7 @@ int rtapi_app_main(void)
         while(((int32_t)value>>accel_recip_bit)>0) {
             accel_recip_bit++;
         }
-        accel_recip_bit += 4;   //  more accurate: 1/2^4
+//        accel_recip_bit += 4;   //  more accurate: 1/2^4
 
         param_bit = 0;
         param_bit = param_bit > bitn? param_bit:bitn;//max(param_bit, bitn);
@@ -964,6 +964,8 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_DBG,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
 
         /* config fraction bit of pulse command */
+        // TODO: parambit & bitn from ini
+        bitn = param_bit;
         immediate_data = bitn;
         write_mot_param (n, (CMD_FRACT_BIT), immediate_data);
 
