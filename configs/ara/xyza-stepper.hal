@@ -1,3 +1,5 @@
+loadusr audio
+
 # core HAL config file for simulation - 4 joint
 
 # load RT modules
@@ -53,8 +55,8 @@ net J3home-state joint.3.home-state => wou.stepgen.3.home-state
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
 # net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
-net alarm => not.0.in
-net estop not.0.out => iocontrol.0.emc-enable-in
+# to CL: net alarm => not.0.in
+# to CL: net estop not.0.out => iocontrol.0.emc-enable-in
 
 # create signals for tool loading loopback
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
@@ -105,11 +107,11 @@ net sync_in_index        =>  wou.sync.in.index
 net sync_in_wait_type    =>  wou.sync.in.wait_type
 net sync_in_timeout  => wou.sync.in.timeout
 
-net alarm         <=  wou.gpio.in.00
-net alarm         =>  joint.0.amp-fault-in
-net alarm         =>  joint.1.amp-fault-in
-net alarm         =>  joint.2.amp-fault-in
-net alarm         =>  joint.3.amp-fault-in
+# to CL: net alarm         <=  wou.gpio.in.00
+# to CL: net alarm         =>  joint.0.amp-fault-in
+# to CL: net alarm         =>  joint.1.amp-fault-in
+# to CL: net alarm         =>  joint.2.amp-fault-in
+# to CL: net alarm         =>  joint.3.amp-fault-in
 # net servo_ready   <=  wou.gpio.in.01
 
 

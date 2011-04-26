@@ -1,0 +1,30 @@
+# This configuration uses classicladder for machine logic
+# (load the realtime portion)
+# these classicladder parameters need to be optimized after ladder completion
+loadrt classicladder_rt numRungs=20 numBits=20 numWords=4 numTimers=5 numMonostables=2 numPhysInputs=20 numPhysOutputs=20 numArithmExpr=4 numSections=4
+# We kick ladder into a thread at the slower servo rate rather than base rate
+addf classicladder.0.refresh        servo-thread 1
+
+# invoke the user part of CL to silently load the program
+# later we will need to add the clp file mentioned below
+# to the ini file so that we do not need to hardcode it here.
+loadusr -w classicladder --nogui stepper_cl.clp
+
+# estop signals
+# signal is the internal or gui estop command from EMC
+net gui-estop     classicladder.0.in-00   <= iocontrol.0.user-enable-out 
+# this bit is an external estop button from GPIO
+# net ext-estop     classicladder.0.in-01   <= wou.gpio.in.00 => audio.0.in0
+net ext-estop     classicladder.0.in-01   <= wou.gpio.in.00
+# one-shot on timer when signal above goes high.
+net estop-strobe  classicladder.0.in-02   <= iocontrol.0.user-request-enable 
+# This bit signal is comand to estop from CL to EMC
+net estop-all-ok  classicladder.0.out-00  => iocontrol.0.emc-enable-in 
+
+# CL inputs
+net machine_is_on classicladder.0.in-03   <= halui.machine.is-on
+
+# CL outputs
+net dout_0        classicladder.0.out-01  # SVO-ON
+net dout_1        classicladder.0.out-02  # AXIS_Z.BREAK_N
+
