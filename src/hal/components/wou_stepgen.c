@@ -143,7 +143,7 @@
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
 #define FRACTION_BITS 15
-#define FRACTION_MASK 0x0000FFFF  
+#define FRACTION_MASK 0x0000FFFF
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include "dptrace.h"
@@ -155,7 +155,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     1      // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     6      // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -344,6 +344,8 @@ typedef struct {
     hal_float_t *pid_cmd;
     hal_float_t *cmd_error;       /* cmd error */
     hal_float_t *pid_output;      /* pid output */
+    /* motion type be set */
+    int32_t motion_type;          /* motion type wrote to risc */
 } stepgen_t;
 
 typedef struct {
@@ -967,9 +969,9 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_DBG,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
 
         /* config fraction bit of pulse command */
-        bitn = param_bit;
-        immediate_data = bitn;
-        write_mot_param (n, (CMD_FRACT_BIT), immediate_data);
+//        bitn = param_bit;
+//        immediate_data = bitn;
+//        write_mot_param (n, (CMD_FRACT_BIT), immediate_data);
 
         /* config fraction bit of param */
         immediate_data = param_bit;
@@ -1233,7 +1235,7 @@ static void update_freq(void *arg, long period)
     int n, i, enable;
     double physical_maxvel;	// max vel supported by current step timings & position-scale
     double maxvel;		// actual max vel to use this time
-
+    int32_t wou_cmd_accum;
     uint16_t sync_cmd;
     int wou_pos_cmd, integer_pos_cmd;
     int j;
@@ -1814,7 +1816,7 @@ static void update_freq(void *arg, long period)
             integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
 
             /* extract integer part of command */
-            wou_pos_cmd = integer_pos_cmd >> pulse_fraction_bit[n];
+            wou_pos_cmd = abs(integer_pos_cmd) >> pulse_fraction_bit[n];
             
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
                 fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",n ,
@@ -1826,23 +1828,33 @@ static void update_freq(void *arg, long period)
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
             
-            if (wou_pos_cmd >= 0) {
+            if (integer_pos_cmd >= 0) {
+//                if(n==0) counter += wou_pos_cmd << pulse_fraction_bit[0];
+                wou_cmd_accum = wou_pos_cmd << pulse_fraction_bit[n];
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
             } else {
-                wou_pos_cmd *= -1;
+//                wou_pos_cmd *= -1;
+//                if(n==0) counter -= wou_pos_cmd << pulse_fraction_bit[0];
+                wou_cmd_accum = -(wou_pos_cmd << pulse_fraction_bit[n]);
                 sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
             }
             memcpy(data + 2*n * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
             
-            wou_pos_cmd = integer_pos_cmd & FRACTION_MASK; 
+            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
+
+            if (integer_pos_cmd >= 0) {
+                wou_cmd_accum += wou_pos_cmd;
+            } else {
+                wou_cmd_accum -= wou_pos_cmd;
+            }
 
             /* packing fraction part */
             sync_cmd = (uint16_t) wou_pos_cmd;
             memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
 
-            (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
+            (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
             stepgen->prev_vel_cmd = stepgen->vel_cmd;
 
             if (stepgen->pos_mode == 0) {
