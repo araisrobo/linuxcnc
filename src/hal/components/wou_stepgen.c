@@ -266,15 +266,12 @@ const char *ferror_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(ferror_str, MAX_CHAN,
                       "max following error value for up to 8 channels");
 
-const char *home_use_index_str[MAX_CHAN] =
-    { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
-RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
-                      "home use index flag for up to 8 channels");
+//const char *home_use_index_str[MAX_CHAN] =
+//    { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
+//RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
+//                      "home use index flag for up to 8 channels");
 
-static int home_use_index[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
-static int pulse_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
-static int param_fraction_bit[MAX_CHAN] = { 7, 7, 7, 7, 7, 7, 7, 7 };
-
+//static int home_use_index[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
 static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
@@ -676,7 +673,6 @@ int rtapi_app_main(void)
     int32_t immediate_data;
     char str[50];
     double max_vel, max_accel, pos_scale, thc_vel, value, max_following_error;
-    int32_t bitn, vel_bit, accel_bit, accel_recip_bit, param_bit;
     int msg;
 
     msg = rtapi_get_msg_level();
@@ -920,88 +916,37 @@ int rtapi_app_main(void)
         // compute fraction bit for velocity
         // accurate 0.0001 mm
         pos_scale = atof(pos_scale_str[n]);
-
-
-// bitn fix at FRACTION_BITS bits:         value = (pos_scale);
-// bitn fix at FRACTION_BITS bits:         value = value > 0? value:-value;
-// bitn fix at FRACTION_BITS bits:         value = (1/value)/0.00001;
-// bitn fix at FRACTION_BITS bits:         bitn = 0;
-// bitn fix at FRACTION_BITS bits:         while(((int32_t)value>>bitn)>0) {
-// bitn fix at FRACTION_BITS bits:             bitn++;
-// bitn fix at FRACTION_BITS bits:         }
-        bitn = FRACTION_BITS;
-        pulse_fraction_bit[n] = bitn;  // cmd fraction bit never modified
-
-// param fraction bit fix at FRACTION_BITS bits:         // fraction bit for vel
         max_vel = atof(max_vel_str[n]);
-// param fraction bit fix at FRACTION_BITS bits:         value = (1.0/(max_vel*pos_scale*dt));
-// param fraction bit fix at FRACTION_BITS bits:         value = value > 0? value:-value;
-// param fraction bit fix at FRACTION_BITS bits:         vel_bit = 0;
-// param fraction bit fix at FRACTION_BITS bits:         while(((int32_t)value>>vel_bit)>0) {
-// param fraction bit fix at FRACTION_BITS bits:             vel_bit++;
-// param fraction bit fix at FRACTION_BITS bits:         }
-// param fraction bit fix at FRACTION_BITS bits:         // fraction bit for accel
         max_accel = atof(max_accel_str[n]);
-// param fraction bit fix at FRACTION_BITS bits:         value = (1.0/(max_accel*pos_scale*dt*dt)); // accurate 1
-// param fraction bit fix at FRACTION_BITS bits:         value = value > 0? value:-value;
-// param fraction bit fix at FRACTION_BITS bits:         accel_bit = 0;
-// param fraction bit fix at FRACTION_BITS bits:         while(((int32_t)value>>accel_bit)>0) {
-// param fraction bit fix at FRACTION_BITS bits:             accel_bit++;
-// param fraction bit fix at FRACTION_BITS bits:         }
-// param fraction bit fix at FRACTION_BITS bits:         // fraction bit for accel_recip
-// param fraction bit fix at FRACTION_BITS bits:         value = ((max_accel*pos_scale*dt*dt))/1; // accurate 1
-// param fraction bit fix at FRACTION_BITS bits:         value = value > 0? value:-value;
-// param fraction bit fix at FRACTION_BITS bits:         accel_recip_bit = 0;
-// param fraction bit fix at FRACTION_BITS bits:         while(((int32_t)value>>accel_recip_bit)>0) {
-// param fraction bit fix at FRACTION_BITS bits:             accel_recip_bit++;
-// param fraction bit fix at FRACTION_BITS bits:         }
-// param fraction bit fix at FRACTION_BITS bits:         param_bit = 0;
-// param fraction bit fix at FRACTION_BITS bits:         param_bit = param_bit > bitn? param_bit:bitn;//max(param_bit, bitn);
-// param fraction bit fix at FRACTION_BITS bits:         param_bit = param_bit > vel_bit? param_bit:vel_bit;//max(param_bit, vel_bit);
-// param fraction bit fix at FRACTION_BITS bits:         param_bit = param_bit > accel_bit? param_bit:accel_bit;//max(param_bit, accel_bit);
-// param fraction bit fix at FRACTION_BITS bits:         param_bit = param_bit > accel_recip_bit? param_bit:accel_recip_bit;//max(param_bit, accel_recip_bit);
-        param_bit = FRACTION_BITS; 
-
-        param_fraction_bit[n] = param_bit;
-        vel_bit = param_bit;
-        accel_bit = param_bit;
-        accel_recip_bit = param_bit;
-        rtapi_print_msg(RTAPI_MSG_DBG,"cmd_fract(%d) param_fract(%d)", bitn, param_bit);
-
-        /* config fraction bit of pulse command */
-//        bitn = param_bit;
-//        immediate_data = bitn;
-//        write_mot_param (n, (CMD_FRACT_BIT), immediate_data);
-
         /* config fraction bit of param */
-        immediate_data = param_bit;
+        immediate_data = FRACTION_BITS;
         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
         /* config velocity */
-        immediate_data = (uint32_t)(ceil(max_vel*pos_scale*dt)*(1 << vel_bit));
+        immediate_data = (uint32_t)(ceil(max_vel*pos_scale*dt)*(1 << FRACTION_BITS));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         rtapi_print_msg(RTAPI_MSG_DBG,
-                " max_vel= %f*%f*%f*(2^%d) = (%d) ", max_vel, pos_scale, dt, vel_bit, immediate_data);
+                " max_vel= %f*%f*%f*(2^%d) = (%d) ", max_vel, pos_scale, dt, FRACTION_BITS, immediate_data);
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
         /* config acceleration */
         immediate_data = (uint32_t)(ceil((max_accel*pos_scale*dt*
-                                        dt)*(1 << accel_bit)));
+                                        dt)*(1 << FRACTION_BITS)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         rtapi_print_msg(RTAPI_MSG_DBG,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
-                 max_accel, pos_scale, dt, accel_bit, immediate_data);
+                 max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
 
         assert(immediate_data>0);
         write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
         immediate_data = (uint32_t)(ceil((1/(max_accel*pos_scale*dt*
-                                        dt))*(1 << accel_recip_bit)));
+                                        dt))*(1 << FRACTION_BITS)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
-                max_accel, pos_scale, dt, accel_recip_bit, immediate_data);
+                max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
         assert(immediate_data>0);
 
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
@@ -1018,18 +963,18 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
 
         /* config move type */
-        for(j = 0; home_use_index_str[j]; j++) {
-            str[j] = toupper(home_use_index_str[n][j]);
-        }
-        str[j] = '\0';
-
-        if((strcmp(str,"YES") == 0)) {
-            home_use_index[n] = 1;
-            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = yes\n");
-        } else {
-            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = no\n");
-            home_use_index[n] = 0;
-        }
+//        for(j = 0; home_use_index_str[j]; j++) {
+//            str[j] = toupper(home_use_index_str[n][j]);
+//        }
+//        str[j] = '\0';
+//
+//        if((strcmp(str,"YES") == 0)) {
+//            home_use_index[n] = 1;
+//            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = yes\n");
+//        } else {
+//            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = no\n");
+//            home_use_index[n] = 0;
+//        }
 
         // set move type as normal by default
         immediate_data = NORMAL_MOVE;
@@ -1049,7 +994,7 @@ int rtapi_app_main(void)
             for (; i < (PROBE_BACK_OFF-P_GAIN); i++) {
                 // parameter use parameter fraction, parameter unit: pulse
                 value = atof(pid_str[n][i]);
-                immediate_data = (int32_t) (value) * (1 << param_fraction_bit[n]);
+                immediate_data = (int32_t) (value) * (1 << FRACTION_BITS);
                 write_mot_param (n, (P_GAIN + i), immediate_data);
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
@@ -1089,7 +1034,7 @@ int rtapi_app_main(void)
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
     pos_scale = atof(pos_scale_str[2]);
-    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << param_fraction_bit[2]));
+    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << FRACTION_BITS));
     immediate_data = immediate_data > 0? immediate_data:-immediate_data;
     write_mot_param (2, (COMP_VEL), immediate_data);
 
@@ -1813,10 +1758,10 @@ static void update_freq(void *arg, long period)
 
 	    /* end: velocity and acceleration check */
             //wou_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
-            integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
+            integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
 
             /* extract integer part of command */
-            wou_pos_cmd = abs(integer_pos_cmd) >> pulse_fraction_bit[n];
+            wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
             
             if(wou_pos_cmd > 8192 || wou_pos_cmd < -8192) {
                 fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",n ,
@@ -1830,12 +1775,12 @@ static void update_freq(void *arg, long period)
             
             if (integer_pos_cmd >= 0) {
 //                if(n==0) counter += wou_pos_cmd << pulse_fraction_bit[0];
-                wou_cmd_accum = wou_pos_cmd << pulse_fraction_bit[n];
+                wou_cmd_accum = wou_pos_cmd << FRACTION_BITS;
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
             } else {
 //                wou_pos_cmd *= -1;
 //                if(n==0) counter -= wou_pos_cmd << pulse_fraction_bit[0];
-                wou_cmd_accum = -(wou_pos_cmd << pulse_fraction_bit[n]);
+                wou_cmd_accum = -(wou_pos_cmd << FRACTION_BITS);
                 sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
             }
             memcpy(data + 2*n * sizeof(uint16_t), &sync_cmd,
@@ -1854,7 +1799,7 @@ static void update_freq(void *arg, long period)
             memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
                    sizeof(uint16_t));
 
-            (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<pulse_fraction_bit[n]));
+            (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
             stepgen->prev_vel_cmd = stepgen->vel_cmd;
 
             if (stepgen->pos_mode == 0) {
