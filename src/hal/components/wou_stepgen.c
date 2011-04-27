@@ -155,7 +155,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     6      // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     4      // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -922,7 +922,7 @@ int rtapi_app_main(void)
         immediate_data = FRACTION_BITS;
         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
         /* config velocity */
-        immediate_data = (uint32_t)(ceil(max_vel*pos_scale*dt)*(1 << FRACTION_BITS));
+        immediate_data = (uint32_t)((max_vel*pos_scale*dt)*(1 << FRACTION_BITS));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         rtapi_print_msg(RTAPI_MSG_DBG,
@@ -931,7 +931,7 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
         /* config acceleration */
-        immediate_data = (uint32_t)(ceil((max_accel*pos_scale*dt*
+        immediate_data = (uint32_t)(((max_accel*pos_scale*dt*
                                         dt)*(1 << FRACTION_BITS)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
@@ -942,7 +942,7 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
-        immediate_data = (uint32_t)(ceil((1/(max_accel*pos_scale*dt*
+        immediate_data = (uint32_t)(((1/(max_accel*pos_scale*dt*
                                         dt))*(1 << FRACTION_BITS)));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
