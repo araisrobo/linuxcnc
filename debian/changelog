@@ -1,3 +1,15 @@
+emc2 (1:2.4.0-nurbs-2011.04.27) lucid; urgency=low
+
+  * Update fixed porint calculation for JOINT-CMD
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 27 Apr 2011 18:08:37 +0800
+ 
+emc2 (1:2.4.0-nurbs-2011.04.22) lucid; urgency=low
+
+  * Update settings for stepper machines in configs/ara/
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 22 Apr 2011 09:34:10 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.04.19) lucid; urgency=low
 
   * BUGFIX for CSS calculation
