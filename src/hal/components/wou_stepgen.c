@@ -155,7 +155,7 @@ static FILE *dptrace;
 // to disable MAILBOX dump: #define MBOX_LOG 0
 #define MBOX_LOG 0
 #if (MBOX_LOG)
-#define MBOX_DEBUG_VARS     4      // extra MBOX VARS for debugging
+#define MBOX_DEBUG_VARS     0      // extra MBOX VARS for debugging
 static FILE *mbox_fp;
 #endif
 
@@ -667,11 +667,10 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 
 int rtapi_app_main(void)
 {
-    int n, retval, j, i;
+    int n, retval, i;
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    char str[50];
     double max_vel, max_accel, pos_scale, thc_vel, value, max_following_error;
     int msg;
 
@@ -1178,8 +1177,8 @@ static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
     int n, i, enable;
-    double physical_maxvel;	// max vel supported by current step timings & position-scale
-    double maxvel;		// actual max vel to use this time
+    double physical_maxvel;	// max vel supported by current step timings & position-scal
+
     int32_t wou_cmd_accum;
     uint16_t sync_cmd;
     int wou_pos_cmd, integer_pos_cmd;
@@ -1810,7 +1809,7 @@ static void update_freq(void *arg, long period)
                     double spindle_irevs;
                     double pos_scale;
                     pos_scale = stepgen->pos_scale;
-                    machine_control->spindle_enc_count += wou_pos_cmd;
+                    machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
 
                     spindle_pos = (double) (machine_control->spindle_enc_count) / pos_scale;
 
