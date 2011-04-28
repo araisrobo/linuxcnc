@@ -1722,29 +1722,29 @@ static void update_freq(void *arg, long period)
 //TODO:MBOX:                                stepgen->accel_cmd
 //TODO:MBOX:                               );
 //TODO:MBOX:            }
-
-	    maxvel = stepgen->maxvel;   /* unit/s */
-	    if (stepgen->vel_cmd > maxvel) {
-	        stepgen->vel_cmd = maxvel;
-	    } else if(stepgen->vel_cmd < -maxvel){
-	        stepgen->vel_cmd = -maxvel;
-	    }
-	    stepgen->accel_cmd = (stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
-//TODO:MBOX:            if (n == (num_chan - 1)) {
-//TODO:MBOX:                rtapi_print_msg(RTAPI_MSG_WARN,
-//TODO:MBOX:                                "WOU:B: j[%d] prev_vel_cmd(%f) accel_cmd(%f)\n",
-//TODO:MBOX:                                n,
-//TODO:MBOX:                                stepgen->prev_vel_cmd,
-//TODO:MBOX:                                stepgen->accel_cmd
-//TODO:MBOX:                               );
-//TODO:MBOX:            }
-	    if (stepgen->accel_cmd > stepgen->maxaccel) {
-	        stepgen->accel_cmd = stepgen->maxaccel;
-	        stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-	    } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
-	        stepgen->accel_cmd = -(stepgen->maxaccel);
-	        stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-	    }
+//
+//	    maxvel = stepgen->maxvel;   /* unit/s */
+//	    if (stepgen->vel_cmd > maxvel) {
+//	        stepgen->vel_cmd = maxvel;
+//	    } else if(stepgen->vel_cmd < -maxvel){
+//	        stepgen->vel_cmd = -maxvel;
+//	    }
+//	    stepgen->accel_cmd = (stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
+////TODO:MBOX:            if (n == (num_chan - 1)) {
+////TODO:MBOX:                rtapi_print_msg(RTAPI_MSG_WARN,
+////TODO:MBOX:                                "WOU:B: j[%d] prev_vel_cmd(%f) accel_cmd(%f)\n",
+////TODO:MBOX:                                n,
+////TODO:MBOX:                                stepgen->prev_vel_cmd,
+////TODO:MBOX:                                stepgen->accel_cmd
+////TODO:MBOX:                               );
+////TODO:MBOX:            }
+//	    if (stepgen->accel_cmd > stepgen->maxaccel) {
+//	        stepgen->accel_cmd = stepgen->maxaccel;
+//	        stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+//	    } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
+//	        stepgen->accel_cmd = -(stepgen->maxaccel);
+//	        stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+//	    }
 	    // stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd;
             
 //TODO:MBOX:            if (n == (num_chan - 1)) {
