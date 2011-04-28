@@ -1809,7 +1809,7 @@ static void update_freq(void *arg, long period)
                     double spindle_irevs;
                     double pos_scale;
                     pos_scale = stepgen->pos_scale;
-                    machine_control->spindle_enc_count += wou_pos_cmd;
+                    machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
 
                     spindle_pos = (double) (machine_control->spindle_enc_count) / pos_scale;
 
