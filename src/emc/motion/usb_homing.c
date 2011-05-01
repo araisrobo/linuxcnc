@@ -613,25 +613,25 @@ void do_homing(void)
 		break;
 
 	    case HOME_SET_SWITCH_POSITION:
-		/* This state is called when the machine has determined the
-		   switch position as accurately as possible.  It sets the
-		   current joint position to 'home_offset', which is the
-		   location of the home switch in joint coordinates. */
-		/* is the joint still moving? */
-		if (joint->free_tp.active) {
-                    /* prevent updating free_tp.curr_pos while previous
-                     * motion is not finished yet */
-		    /* yes, reset delay, wait until joint stops */
-		    joint->home_pause_timer = 0;
-		    break;
-		}
-		/* add this to wait USB to update its registers */
-                /* has delay timed out? */
-		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
-		    /* no, update timer and wait some more */
-		    joint->home_pause_timer++;
-		    break;
-		}
+//done_by_risc:		/* This state is called when the machine has determined the
+//done_by_risc:		   switch position as accurately as possible.  It sets the
+//done_by_risc:		   current joint position to 'home_offset', which is the
+//done_by_risc:		   location of the home switch in joint coordinates. */
+//done_by_risc:		/* is the joint still moving? */
+//done_by_risc:		if (joint->free_tp.active) {
+//done_by_risc:                    /* prevent updating free_tp.curr_pos while previous
+//done_by_risc:                     * motion is not finished yet */
+//done_by_risc:		    /* yes, reset delay, wait until joint stops */
+//done_by_risc:		    joint->home_pause_timer = 0;
+//done_by_risc:		    break;
+//done_by_risc:		}
+//done_by_risc:		/* add this to wait USB to update its registers */
+//done_by_risc:                /* has delay timed out? */
+//done_by_risc:		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
+//done_by_risc:		    /* no, update timer and wait some more */
+//done_by_risc:		    joint->home_pause_timer++;
+//done_by_risc:		    break;
+//done_by_risc:		}
 		/* set the current position to 'home_offset' */
 		//orig: offset = joint->home_offset - joint->pos_fb;
 		offset = joint->home_offset - 
