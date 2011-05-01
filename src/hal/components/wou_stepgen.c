@@ -681,17 +681,14 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
-    DPS("#%10s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s  %15s%15s%7s %15s\n",
-         "1.dt",
-         "2.prev_pos_cmd[0]", "3.pos_fb[0]",
-         "4.home[0]",
-         "5.prev_pos_cmd[1]", "6.pos_fb[1]",
-         "7.home[1]",
-         "8.prev_pos_cmd[2]", "9.pos_fb[2]",
-         "10.home[2]",
-         "11.prev_pos_cmd[3]", "12.pos_fb[3]",
-         "13.home[3]",
-         "14.spindle_revs");
+    DPS("#%10s  %15s%15s%3s  %15s%15s%3s  %15s%15s%3s  %15s%15s%3s  %15s\n",
+         "dt",
+         "prev_pos_cmd[0]", "pos_fb[0]", "H0",  //H0: home_state for J0
+         "prev_pos_cmd[1]", "pos_fb[1]", "H1",
+         "prev_pos_cmd[2]", "pos_fb[2]", "H2",
+         "prev_pos_cmd[3]", "pos_fb[3]", "H3",
+         "spindle_revs"
+       );
 #endif
 
     pending_cnt = 0;
@@ -721,6 +718,16 @@ int rtapi_app_main(void)
         wou_prog_risc(&w_param, bins);
 #if (MBOX_LOG)
         mbox_fp = fopen ("./mbox.log", "w");
+        fprintf (mbox_fp, "%10s  ", "bp_tick");
+        for (i=0; i<4; i++) {
+            fprintf (mbox_fp, "%9s%d  %9s%d %9s%d %9s%d  ",
+                              "pls_pos-", i,
+                              "enc_pos-", i,
+                              "pid_out-", i,
+                              "cmd_err-", i
+                    );
+        }
+        fprintf (mbox_fp, "\n");
 #endif
         // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
@@ -1355,8 +1362,6 @@ static void update_freq(void *arg, long period)
     // num_chan: 4, calculated from step_type;
     /* loop thru generators */
 
-    // DP("before checking home_state...\n");
-
     r_load_pos = 0;
     r_switch_en = 0;
     r_index_en = prev_r_index_en;
@@ -1846,7 +1851,7 @@ static void update_freq(void *arg, long period)
                     WB_WR_CMD,
                     (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_chan, data);
         }
-	DPS("%15.7f%15.7f%7d",
+	DPS("  %15.7f%15.7f%3d",
 	    (stepgen->prev_pos_cmd), *stepgen->pos_fb,
              *stepgen->home_state);
 
@@ -1854,7 +1859,7 @@ static void update_freq(void *arg, long period)
 	stepgen++;
     }
 
-    DPS("%15.7f", *machine_control->spindle_revs);
+    DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
     if(machine_control->position_compensation_en_flag == 1) {
         fp_req_vel = ((machine_control->fp_original_requested_vel));
