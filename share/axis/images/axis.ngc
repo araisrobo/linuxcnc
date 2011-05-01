@@ -4,9 +4,17 @@
 ( Hint jog the Z axis down a bit then touch off )
 ( Also press the Toggle Skip Lines with "/" to see that part )
 #1=.1 (SH)
-#2=.01 (CUT)
-#3=.0003 (SCALE)
-#4=60 (FEED)
+
+; original parameters
+; #2=.01 (CUT)
+; #3=.0003 (SCALE)
+; #4=60 (FEED)
+
+; parameters for 3m x 2m table
+#2=.00 (CUT)
+#3=.0030 (SCALE)
+#4=600 (FEED)
+
 G20
 (Character: 'E')
 G00 Z #1
