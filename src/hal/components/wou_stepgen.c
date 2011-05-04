@@ -159,7 +159,6 @@ static FILE *dptrace;
 static FILE *mbox_fp;
 #endif
 
-
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
@@ -942,12 +941,12 @@ int rtapi_app_main(void)
 //obsolete:         /* config fraction bit of param */
 //obsolete:         immediate_data = FRACTION_BITS;
 //obsolete:         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
-        /* config velocity */
-        immediate_data = (uint32_t)((max_vel*pos_scale*dt)*(1 << FRACTION_BITS));
-        immediate_data = (immediate_data > 0) ? immediate_data : -immediate_data;
-        immediate_data += 1;
+        /* config MAX velocity */
+        immediate_data = (uint32_t)(max_vel * fabs(pos_scale) * dt * (1 << FRACTION_BITS) 
+                                    + (1 << (FRACTION_BITS-1)));    // rounding to 0.5
         rtapi_print_msg(RTAPI_MSG_DBG,
-                " max_vel= %f*%f*%f*(2^%d) = (%d) ", max_vel, pos_scale, dt, FRACTION_BITS, immediate_data);
+                " max_vel= %f*%f*%f*(2^%d) = (%d) ", 
+                max_vel, pos_scale, dt, FRACTION_BITS, immediate_data);
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
