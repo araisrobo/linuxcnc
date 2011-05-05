@@ -333,7 +333,6 @@ typedef struct {
 
     hal_s32_t *home_state;	/* pin: home_state from homing.c */
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-
     double sum_err_0;
     double sum_err_1;
     
@@ -1206,7 +1205,7 @@ static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
     int n, i, enable;
-    double physical_maxvel;	// max vel supported by current step timings & position-scal
+    double physical_maxvel, maxvel;	// max vel supported by current step timings & position-scal
 
     // int32_t wou_cmd_accum;
     uint16_t sync_cmd;
@@ -1491,6 +1490,13 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
 	    }
+	} else {
+	    // home idle
+	    if(normal_move_flag[n] == 1) {
+                immediate_data = NORMAL_MOVE;
+                write_mot_param (n, (MOTION_TYPE), immediate_data);
+                normal_move_flag[n] = 0;
+            }
 	}
         stepgen->prev_home_state = *stepgen->home_state;
 	/* move on to next channel */
@@ -1587,7 +1593,8 @@ static void update_freq(void *arg, long period)
     for (n = 0; n < num_chan; n++) {
 
 	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
-        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
+//        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
+	if (machine_control->bp_tick != machine_control->prev_bp) {
             // update velocity-feedback only after encoder movement
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
                                   / (machine_control->bp_tick - machine_control->prev_bp) 
@@ -1722,6 +1729,24 @@ static void update_freq(void *arg, long period)
 	    }
 	    if (*stepgen->ctrl_type_switch == 0) {
                 stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+
+                /* begin:  ramp up/down spindle */
+                maxvel = stepgen->maxvel;   /* unit/s */
+                if (stepgen->vel_cmd > maxvel) {
+                    stepgen->vel_cmd = maxvel;
+                } else if(stepgen->vel_cmd < -maxvel){
+                    stepgen->vel_cmd = -maxvel;
+                }
+                stepgen->accel_cmd = (stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
+
+                if (stepgen->accel_cmd > stepgen->maxaccel) {
+                    stepgen->accel_cmd = stepgen->maxaccel;
+                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+                } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
+                    stepgen->accel_cmd = -(stepgen->maxaccel);
+                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+                }
+                /* end: ramp up/down spindle */
 
 	    } else {
 	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
