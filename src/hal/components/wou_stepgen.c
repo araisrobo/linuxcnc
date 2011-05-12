@@ -159,6 +159,9 @@ static FILE *dptrace;
 static FILE *mbox_fp;
 #endif
 
+#define VEL_UPDATE_FREQ         (0.00065536)   // in second
+#define VEL_UPDATE_BP           (VEL_UPDATE_FREQ * 1526)
+
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
@@ -265,6 +268,9 @@ const char *ferror_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(ferror_str, MAX_CHAN,
                       "max following error value for up to 8 channels");
 
+const char *machine_param_str = "XYZA"; // XYZY, XYZY_
+RTAPI_MP_STRING(machine_param_str,
+                      "specify machine");
 //const char *home_use_index_str[MAX_CHAN] =
 //    { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
 //RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
@@ -671,6 +677,28 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     return;
 }
 
+static void write_machine_param (uint32_t addr, int32_t data)
+{
+    uint16_t    sync_cmd;
+    uint8_t     buf[MAX_DSIZE];
+    int         j;
+
+    for(j=0; j<sizeof(int32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+        // wou_flush(&w_param);
+    }
+
+    sync_cmd = SYNC_MACH_PARAM | PACK_MACH_PARAM_ADDR(addr);
+    memcpy(buf, &sync_cmd, sizeof(uint16_t));
+    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+            sizeof(uint16_t), buf);
+    wou_flush(&w_param);
+
+    return;
+}
 
 
 /***********************************************************************
@@ -766,6 +794,20 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_ERR,
                         "WOU: ERROR: no encoder type: enc_type\n");
         return -1;
+    }
+    // config machine type
+    if (strcmp(machine_param_str, "XYZA") == 0) {
+        // config machine type normal (no synchronized joints)
+        write_machine_param (MACHINE_TYPE, XYZA);
+    } else if (strcmp(machine_param_str, "XYZY") == 0) {
+        // config machine type YY (one kind of gantry)
+        write_machine_param (MACHINE_TYPE, XYZY);
+    } else if (strcmp(machine_param_str, "XYZY_") == 0) {
+       // config machine type YY_ (one kind of gantry)
+        write_machine_param (MACHINE_TYPE, XYZY_);
+    } else {
+        fprintf(stderr, "non-supported machine type\n");
+        assert(0);
     }
 
 //obsolete:    if (1 == adc_spi_en) {
@@ -941,7 +983,7 @@ int rtapi_app_main(void)
 //obsolete:         immediate_data = FRACTION_BITS;
 //obsolete:         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
         /* config MAX velocity */
-        immediate_data = (uint32_t)(max_vel * fabs(pos_scale) * dt * (1 << FRACTION_BITS) 
+        immediate_data = (uint32_t)(max_vel * fabs(pos_scale) * dt * (1 << FRACTION_BITS)
                                     + (1 << (FRACTION_BITS-1)));    // rounding to 0.5
         rtapi_print_msg(RTAPI_MSG_DBG,
                 " max_vel= %f*%f*%f*(2^%d) = (%d) ", 
@@ -1033,30 +1075,7 @@ int rtapi_app_main(void)
         }
 
      }
-    // for gantry parameter
-//    if(gantry_str[0] != NULL) {
-//        rtapi_print_msg(RTAPI_MSG_INFO, "GANTRY: ");
-//        rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
-//        for (i=0; i < (FF2-P_GAIN+1); i++) {
-//            // all gain varies from 0(0%) to 65535(100%)
-//            value = atof(gantry_str[i]);
-//            immediate_data = (int32_t) (value);
-//            write_mot_param (4, (P_GAIN + i), immediate_data);
-//            rtapi_print_msg(RTAPI_MSG_INFO, "gantry(%d) = %s (%d)\n", i, gantry_str[i], immediate_data);
-//        }
-//        for (; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
-//                        // parameter use parameter fraction, parameter unit: pulse
-//            value = atof(gantry_str[i]);
-//            immediate_data = (int32_t) (value) * (1 << param_fraction_bit[1]);
-//            write_mot_param (4, (P_GAIN + i), immediate_data);
-//            rtapi_print_msg(RTAPI_MSG_INFO, "gantgry(%d) = %s (%d)\n",i , gantry_str[i], immediate_data);
-//        }
-//
-//        value = 0;
-//        immediate_data = (int32_t) (value);
-//        write_mot_param (4, (ENABLE), immediate_data);
-//        rtapi_print_msg(RTAPI_MSG_INFO, "\n");
-//    }
+
 
     /* to send position compensation velocity  of Z*/
     thc_vel = atof(thc_velocity);
@@ -1594,7 +1613,7 @@ static void update_freq(void *arg, long period)
 
 	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-	if (machine_control->bp_tick != machine_control->prev_bp) {
+	if ((machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
             // update velocity-feedback only after encoder movement
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
                                   / (machine_control->bp_tick - machine_control->prev_bp) 
@@ -1747,7 +1766,7 @@ static void update_freq(void *arg, long period)
                     stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
                 }
                 /* end: ramp up/down spindle */
-
+//                fprintf(stderr,"prev_vel(%f) accel_cmd(%f) \n", stepgen->prev_vel_cmd, stepgen->accel_cmd);
 	    } else {
 	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 	    }
