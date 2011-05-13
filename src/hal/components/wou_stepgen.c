@@ -1887,7 +1887,7 @@ static void update_freq(void *arg, long period)
                     }
 
 //                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
-                    *machine_control->spindle_revs = (spindle_pos - machine_control->last_spindle_index_pos)/pos_scale;
+                    *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
             }
 
 	}
