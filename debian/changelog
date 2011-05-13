@@ -1,5 +1,11 @@
 emc2 (1:2.4.0-nurbs-2011.05.08) lucid; urgency=low
 
+  * Add machine type support
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 13 May 2011 12:05:08 +0800
+ 
+emc2 (1:2.4.0-nurbs-2011.05.08) lucid; urgency=low
+
   * Improve G96 and G33 commands
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Sun, 08 May 2011 23:08:08 +0800
