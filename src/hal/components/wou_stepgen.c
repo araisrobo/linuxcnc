@@ -220,32 +220,47 @@ RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  16
+#define NUM_PID_PARAMS  13
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
-const char *gantry_str[NUM_PID_PARAMS]=
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-RTAPI_MP_ARRAY_STRING(gantry_str, NUM_PID_PARAMS,
-                      "gantry parameters");
+const char *j4_pid_str[NUM_PID_PARAMS] =
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+RTAPI_MP_ARRAY_STRING(j4_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[0]");
+
+const char *j5_pid_str[NUM_PID_PARAMS] =
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+RTAPI_MP_ARRAY_STRING(j5_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[1]");
+
+const char *j6_pid_str[NUM_PID_PARAMS] =
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+RTAPI_MP_ARRAY_STRING(j6_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[2]");
+
+const char *j7_pid_str[NUM_PID_PARAMS] =
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+RTAPI_MP_ARRAY_STRING(j7_pid_str, NUM_PID_PARAMS,
+                      "pid parameters for joint[3]");
 
 
 const char *max_vel_str[MAX_CHAN] =
@@ -963,10 +978,10 @@ int rtapi_app_main(void)
     pid_str[1] = j1_pid_str;
     pid_str[2] = j2_pid_str;
     pid_str[3] = j3_pid_str;
-    // pid_str[4] = j4_pid_str;
-    // pid_str[5] = j5_pid_str;
-    // pid_str[6] = j6_pid_str;
-    // pid_str[7] = j7_pid_str;
+    pid_str[4] = j4_pid_str;
+    pid_str[5] = j5_pid_str;
+    pid_str[6] = j6_pid_str;
+    pid_str[7] = j7_pid_str;
 
     /* configure motion parameters for risc*/
     for(n=0; n<num_chan; n++) {
@@ -1061,7 +1076,7 @@ int rtapi_app_main(void)
             
             // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
             // all the others units are '1 pulse'
-            for (i=0; i < (PROBE_BACK_OFF-P_GAIN+1); i++) {
+            for (i=0; i < (MAXCMD_DD-P_GAIN+1); i++) {
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value);
                 write_mot_param (n, (P_GAIN + i), immediate_data);
