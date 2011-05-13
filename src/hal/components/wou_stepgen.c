@@ -432,9 +432,11 @@ typedef struct {
     hal_bit_t *spindle_index_enable;    // TODO: move spindle-index sync into motion
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
-    double  last_spindle_index_pos;
+//    double  last_spindle_index_pos;
+    int32_t last_spindle_index_pos;
     int32_t spindle_enc_count;          // predicted spindle-encoder count
-    double  prev_spindle_irevs;         // to calculate index position
+//    double  prev_spindle_irevs;         // to calculate index position
+    int32_t prev_spindle_irevs;
     
     /* MPG */
     hal_s32_t *mpg_count;
@@ -1846,34 +1848,46 @@ static void update_freq(void *arg, long period)
                     // TODO: let TRAJ-PLANNER judge the index/revolution
                     // TODO: remove this section from wou_stepgen.c
                     double delta;
-                    double spindle_pos;
-                    double spindle_irevs;
+//                    double spindle_pos;
+                    int32_t spindle_pos;
+//                    double spindle_irevs;
+                    int32_t spindle_irevs;
                     double pos_scale;
                     pos_scale = stepgen->pos_scale;
                     // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
                     machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
 
-                    spindle_pos = (double) (machine_control->spindle_enc_count) / pos_scale;
+//                    spindle_pos = (double) (machine_control->spindle_enc_count) / pos_scale;
+                    spindle_pos = machine_control->spindle_enc_count;
 
-                    spindle_irevs =
-                        (fmod((double) (machine_control->spindle_enc_count), pos_scale) / pos_scale);
-                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
+//                    spindle_irevs =
+//                        (fmod((double) (machine_control->spindle_enc_count), pos_scale) / pos_scale);
+
+                    spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
+
+//                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
+                    delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
+
                     machine_control->prev_spindle_irevs = spindle_irevs;
 
                     if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
 
                         if (delta < -0.5) {
                             // ex.: 0.9 -> 0.1 (forward)
-                            machine_control->last_spindle_index_pos = floor(spindle_pos);
+//                            machine_control->last_spindle_index_pos = floor(spindle_pos);
+                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
                             *machine_control->spindle_index_enable = 0;
+
                         } else if (delta > 0.5) {
                             // ex.: 0.1 -> 0.9 (backward)
-                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
+//                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
+                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
                             *machine_control->spindle_index_enable = 0;
                         }
                     }
 
-                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
+//                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
+                    *machine_control->spindle_revs = (spindle_pos - machine_control->last_spindle_index_pos)/pos_scale;
             }
 
 	}
