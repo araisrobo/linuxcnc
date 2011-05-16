@@ -144,6 +144,7 @@
 #define PLASMA_ON_BIT 0x02
 #define FRACTION_BITS 16
 #define FRACTION_MASK 0x0000FFFF
+#define PID_LOOP 8
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include "dptrace.h"
@@ -220,47 +221,47 @@ RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 const char *thc_velocity = "1.0"; // 1mm/s
 RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
-#define NUM_PID_PARAMS  13
+#define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
 const char *j4_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j4_pid_str, NUM_PID_PARAMS,
-                      "pid parameters for joint[0]");
+                      "pid parameters for joint[4]");
 
 const char *j5_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j5_pid_str, NUM_PID_PARAMS,
-                      "pid parameters for joint[1]");
+                      "pid parameters for joint[5]");
 
 const char *j6_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j6_pid_str, NUM_PID_PARAMS,
-                      "pid parameters for joint[2]");
+                      "pid parameters for joint[6]");
 
 const char *j7_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 RTAPI_MP_ARRAY_STRING(j7_pid_str, NUM_PID_PARAMS,
-                      "pid parameters for joint[3]");
+                      "pid parameters for joint[7]");
 
 
 const char *max_vel_str[MAX_CHAN] =
@@ -985,7 +986,7 @@ int rtapi_app_main(void)
     pid_str[6] = j6_pid_str;
     pid_str[7] = j7_pid_str;
 
-    /* configure motion parameters for risc*/
+    /* configure motion parameters */
     for(n=0; n<num_chan; n++) {
         // const char **pid_str;
 
@@ -1057,7 +1058,43 @@ int rtapi_app_main(void)
         immediate_data = NORMAL_MOVE;
         write_mot_param (n, (MOTION_TYPE), immediate_data);
 
-        // test valid PID parameter for joint[n]
+//        // test valid PID parameter for joint[n]
+//        if (pid_str[n][0] != NULL) {
+//            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
+//            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO 14:PE 15:PB\n");
+//            // for (i=0; i < (FF2-P_GAIN+1); i++) {
+//            //     // all gain varies from 0(0%) to 65535(100%)
+//            //     value = atof(pid_str[n][i]);
+//            //     immediate_data = (int32_t) (value);
+//            //     write_mot_param (n, (P_GAIN + i), immediate_data);
+//            //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+//            // }
+//            // for (; i < (PROBE_BACK_OFF-P_GAIN); i++) {
+//            //     // parameter use parameter fraction, parameter unit: pulse
+//            //     value = atof(pid_str[n][i]);
+//            //     immediate_data = (int32_t) (value * (1 << FRACTION_BITS));
+//            //     write_mot_param (n, (P_GAIN + i), immediate_data);
+//            //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+//            // }
+//
+//            // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
+//            // all the others units are '1 pulse'
+//            for (i=0; i < (MAXOUTPUT-P_GAIN+1); i++) {
+//                value = atof(pid_str[n][i]);
+//                immediate_data = (int32_t) (value);
+//                write_mot_param (n, (P_GAIN + i), immediate_data);
+//                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+//            }
+//
+//            value = 0;
+//            immediate_data = (int32_t) (value);
+//            write_mot_param (n, (ENABLE), immediate_data);
+//            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
+//        }
+
+     }
+    // config PID parameter
+    for (n=0; n < PID_LOOP; n++) {
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
             rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO 14:PE 15:PB\n");
@@ -1075,10 +1112,10 @@ int rtapi_app_main(void)
             //     write_mot_param (n, (P_GAIN + i), immediate_data);
             //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             // }
-            
+
             // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
             // all the others units are '1 pulse'
-            for (i=0; i < (MAXCMD_DD-P_GAIN+1); i++) {
+            for (i=0; i < (MAXOUTPUT-P_GAIN+1); i++) {
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value);
                 write_mot_param (n, (P_GAIN + i), immediate_data);
@@ -1090,8 +1127,7 @@ int rtapi_app_main(void)
             write_mot_param (n, (ENABLE), immediate_data);
             rtapi_print_msg(RTAPI_MSG_INFO, "\n");
         }
-
-     }
+    }
 
 
     /* to send position compensation velocity  of Z*/
