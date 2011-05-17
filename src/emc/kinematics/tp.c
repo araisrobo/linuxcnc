@@ -2177,6 +2177,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     primary_displacement.v = primary_after.v - primary_before.v;
     primary_displacement.w = primary_after.w - primary_before.w;
 
+    emcmotStatus->motionState = tc->accel_state;
+
     // blend criteria
     if (nexttc && (tc->distance_to_go <= tc->tolerance)) {
         if (tc->currentvel > nexttc->currentvel) {

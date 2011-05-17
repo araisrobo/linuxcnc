@@ -123,6 +123,7 @@
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
 #include "hal.h"		/* HAL public API decls */
+#include "tc.h"                 /* motion state */
 #include <math.h>
 #include <string.h>
 #include <float.h>
@@ -409,16 +410,17 @@ typedef struct {
     hal_bit_t *position_compensation_en_trigger;
     hal_bit_t *position_compensation_en;
     hal_u32_t *position_compensation_ref;
-    int8_t position_compensation_en_flag;
+//    int8_t position_compensation_en_flag;
 
     // velocity control
-    hal_float_t *requested_vel;
-    hal_float_t *current_vel;
-    double fp_original_requested_vel;
-    double fp_requested_vel;
-    double fp_current_vel;
-    int32_t vel_sync;
-
+//obsolete:    hal_float_t *requested_vel;
+//obsolete:    hal_float_t *current_vel;
+//obsolete:    double fp_original_requested_vel;
+//obsolete:    double fp_requested_vel;
+//obsolete:    double fp_current_vel;
+//obsolete:    int32_t vel_sync;
+    hal_s32_t *motion_state;
+    int32_t prev_motion_state;
     /* probe */
     hal_bit_t *probe_trigger;
     hal_u32_t *probe_type;
@@ -622,7 +624,7 @@ static void fetchmail(const uint8_t *buf_head)
             prev_din0 = din[0];
             fprintf (stderr, "DIN: 0x%08X\n", din[0]);
         }
-        dsize = sprintf (dmsg, "%10d  ", bp_tick);
+        dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
@@ -635,10 +637,10 @@ static void fetchmail(const uint8_t *buf_head)
                              );
             stepgen += 1;   // point to next joint
         }
-        dsize += sprintf (dmsg + dsize, "0x%04X %10d",
+        dsize += sprintf (dmsg + dsize, "0x%04X %10d", // #21 #22
                           din[0],
                           machine_control->probe_state);
-        dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag);
+        dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #23 #24
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
             p += 1;
@@ -1296,7 +1298,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     int32_t immediate_data = 0;
-    double fp_req_vel, fp_cur_vel, fp_diff;
+//obsolete: double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -1344,9 +1346,9 @@ static void update_freq(void *arg, long period)
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
 
-            machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
-            machine_control->fp_original_requested_vel = (*machine_control->requested_vel);
-            fprintf(stderr,"original_requested_vel(%f)\n", machine_control->fp_original_requested_vel);
+//            machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
+//obsolete:            machine_control->fp_original_requested_vel = (*machine_control->requested_vel);
+//obsolete:            fprintf(stderr,"original_requested_vel(%f)\n", machine_control->fp_original_requested_vel);
         }
         *(machine_control->position_compensation_en_trigger) = 0;
     }
@@ -1946,51 +1948,66 @@ static void update_freq(void *arg, long period)
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
-    if(machine_control->position_compensation_en_flag == 1) {
-        fp_req_vel = ((machine_control->fp_original_requested_vel));
-        fp_cur_vel = ((*machine_control->current_vel));
-        if (fp_req_vel != machine_control->fp_requested_vel) {
-            // tell RISC that we got a new request velocity (while changing Feedrate)
-            // forward requested velocity
-            machine_control->fp_requested_vel = fp_req_vel;
-            // forward current velocity
-            machine_control->fp_current_vel = fp_cur_vel;
-            sync_cmd = SYNC_VEL;
+    if(*machine_control->position_compensation_en == 1) {
+//obsolete:        fp_req_vel = ((machine_control->fp_original_requested_vel));
+//obsolete:        fp_cur_vel = ((*machine_control->current_vel));
+//obsolete:        if (fp_req_vel != machine_control->fp_requested_vel) {
+//obsolete:            // tell RISC that we got a new request velocity (while changing Feedrate)
+//obsolete:            // forward requested velocity
+//obsolete:            machine_control->fp_requested_vel = fp_req_vel;
+//obsolete:            // forward current velocity
+//obsolete:            machine_control->fp_current_vel = fp_cur_vel;
+//obsolete:            sync_cmd = SYNC_VEL;
+//obsolete:            memcpy(data, &sync_cmd, sizeof(uint16_t));
+//obsolete:            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//obsolete:                    sizeof(uint16_t), data);
+//obsolete:            machine_control->vel_sync = 0;
+//obsolete:        }
+//obsolete:        fp_diff = fabs (fp_cur_vel - machine_control->fp_original_requested_vel);
+//obsolete:        // fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
+//obsolete:        // 0.03: the coefficient of NEAR_VEL_SYNC
+//obsolete:        // TODO: set K_NEAR_VEL_SYNC as a parameter for wou_stepgen
+//obsolete:        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.03)) &&   //  120 mm/min
+//obsolete:                (fp_cur_vel != machine_control->fp_current_vel) &&  // TODO: confirm why do we need this equation?
+//obsolete:                (machine_control->vel_sync == 0)) {
+//obsolete:            // forward current velocity
+//obsolete:            if(machine_control->fp_original_requested_vel == machine_control->fp_requested_vel) {
+//obsolete:                machine_control->vel_sync = 1;
+//obsolete:                sync_cmd = (SYNC_VEL | (((int32_t)fp_cur_vel) << 1)) | 0x0001;
+//obsolete:                memcpy(data, &sync_cmd, sizeof(uint16_t));
+//obsolete:                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//obsolete:                        sizeof(uint16_t), data);
+//obsolete:                fprintf(stderr,"vel(%f) synced with original_vel(%f) requested(%f)\n",
+//obsolete:                        machine_control->fp_current_vel,
+//obsolete:                        machine_control->fp_original_requested_vel,
+//obsolete:                        machine_control->fp_requested_vel);
+//obsolete:            } else {
+//obsolete:                fprintf(stderr,"vel synced but not original vel requested\n");
+//obsolete:            }
+//obsolete:        } else if(machine_control->vel_sync == 1 && (fp_diff >
+//obsolete:                            ((machine_control->fp_original_requested_vel)*0.03))){
+//obsolete:            machine_control->vel_sync = 0;
+//obsolete:            sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
+//obsolete:            memcpy(data, &sync_cmd, sizeof(uint16_t));
+//obsolete:            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//obsolete:                   sizeof(uint16_t), data);
+//obsolete:        }
+//obsolete:        machine_control->fp_current_vel = fp_cur_vel;
+        if (*machine_control->motion_state != machine_control->prev_motion_state) {
+            if (*machine_control->motion_state == ACCEL_S3) {
+                sync_cmd = SYNC_VEL | 0x0001;
+                 fprintf(stderr,"motion_state == ACCEL_S3\n");
+
+            } else {
+                sync_cmd = SYNC_VEL;
+//                 fprintf(stderr,"motion_state != ACCEL_S3\n");
+            }
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-            machine_control->vel_sync = 0;
         }
-        fp_diff = fabs (fp_cur_vel - machine_control->fp_original_requested_vel);
-        // fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-        // 0.03: the coefficient of NEAR_VEL_SYNC
-        // TODO: set K_NEAR_VEL_SYNC as a parameter for wou_stepgen
-        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.03)) &&   //  120 mm/min
-                (fp_cur_vel != machine_control->fp_current_vel) &&  // TODO: confirm why do we need this equation?
-                (machine_control->vel_sync == 0)) {
-            // forward current velocity
-            if(machine_control->fp_original_requested_vel == machine_control->fp_requested_vel) {
-                machine_control->vel_sync = 1;
-                sync_cmd = (SYNC_VEL | (((int32_t)fp_cur_vel) << 1)) | 0x0001;
-                memcpy(data, &sync_cmd, sizeof(uint16_t));
-                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                        sizeof(uint16_t), data);
-                fprintf(stderr,"vel(%f) synced with original_vel(%f) requested(%f)\n",
-                        machine_control->fp_current_vel,
-                        machine_control->fp_original_requested_vel,
-                        machine_control->fp_requested_vel);
-            } else {
-                fprintf(stderr,"vel synced but not original vel requested\n");
-            }
-        } else if(machine_control->vel_sync == 1 && (fp_diff >
-                            ((machine_control->fp_original_requested_vel)*0.03))){
-            machine_control->vel_sync = 0;
-            sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                   sizeof(uint16_t), data);
-        }
-        machine_control->fp_current_vel = fp_cur_vel;
+        machine_control->prev_motion_state = *machine_control->motion_state;
+//        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
     }
 
 #if (TRACE!=0)
@@ -2373,20 +2390,20 @@ static int export_machine_control(machine_control_t * machine_control)
             return retval;
     }
     *(machine_control->position_compensation_ref) = 0;
-    retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
-                                "wou.requested-vel");
-    *(machine_control->requested_vel) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-    retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->current_vel), comp_id,
-                             "wou.current-vel");
-    *(machine_control->current_vel) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
+  // obsolete:  retval =
+  // obsolete:          hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
+  // obsolete:                              "wou.requested-vel");
+  // obsolete:  *(machine_control->requested_vel) = 0;    // pin index must not beyond index
+  // obsolete:  if (retval != 0) {
+  // obsolete:      return retval;
+  // obsolete:  }
+  // obsolete:  retval =
+  // obsolete:          hal_pin_float_newf(HAL_IN, &(machine_control->current_vel), comp_id,
+  // obsolete:                           "wou.current-vel");
+  // obsolete:  *(machine_control->current_vel) = 0;    // pin index must not beyond index
+  // obsolete:  if (retval != 0) {
+  // obsolete:      return retval;
+  // obsolete:  }
     /* for plasma control */
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
@@ -2413,6 +2430,13 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_u32_newf(HAL_IO, &(machine_control->probe_type), comp_id,
                              "wou.probe.type");
     *(machine_control->probe_type) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+
+    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->motion_state), comp_id,
+                             "wou.motion-state");
+    *(machine_control->motion_state) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
@@ -2473,10 +2497,10 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->mpg_count) = 0;
 
     machine_control->prev_out = 0;
-    machine_control->fp_current_vel = 0;
-    machine_control->fp_requested_vel = 0;
+  //obsolete:  machine_control->fp_current_vel = 0;
+  //obsolete:  machine_control->fp_requested_vel = 0;
 
-    machine_control->position_compensation_en_flag = 0;
+//    machine_control->position_compensation_en_flag = 0;
 
     machine_control->last_spindle_index_pos = 0;
     machine_control->prev_spindle_irevs = 0;

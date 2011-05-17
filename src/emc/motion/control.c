@@ -1769,6 +1769,7 @@ static void output_to_hal(void)
     
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->distance_to_go) = emcmotStatus->distance_to_go;
+    *(emcmot_hal_data->motion_state) = emcmotStatus->motionState;
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
         *(emcmot_hal_data->requested_vel) = emcmotStatus->requested_vel;
