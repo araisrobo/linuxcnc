@@ -219,8 +219,8 @@ RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
 int num_gpio_out = 64;
 RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 
-const char *thc_velocity = "1.0"; // 1mm/s
-RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
+//const char *thc_velocity = "1.0"; // 1mm/s
+//RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
 
 #define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
@@ -734,7 +734,7 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    double max_vel, max_accel, pos_scale, thc_vel, value, max_following_error;
+    double max_vel, max_accel, pos_scale, value, max_following_error;
     int msg;
 
     msg = rtapi_get_msg_level();
@@ -1136,11 +1136,11 @@ int rtapi_app_main(void)
 
 
     /* to send position compensation velocity  of Z*/
-    thc_vel = atof(thc_velocity);
-    pos_scale = atof(pos_scale_str[2]);
-    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << FRACTION_BITS));
-    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-    write_mot_param (2, (COMP_VEL), immediate_data);
+//    thc_vel = atof(thc_velocity);
+//    pos_scale = atof(pos_scale_str[2]);
+//    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << FRACTION_BITS));
+//    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+//    write_mot_param (2, (COMP_VEL), immediate_data);
 
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
@@ -1334,9 +1334,9 @@ static void update_freq(void *arg, long period)
 //    if((*(machine_control->position_compensation_en_trigger) != 0)) {
     if (((uint32_t)*machine_control->ahc_state) !=
             ((uint32_t)machine_control->prev_ahc_state)) {
-        assert((((uint32_t)(*machine_control->ahc_state)) == AHC_DISABLE) ||
-               (((uint32_t)*machine_control->ahc_state) == AHC_ENABLE) ||
-               (((uint32_t)*machine_control->ahc_state) == AHC_SUSPEND));
+        // assert((((uint32_t)(*machine_control->ahc_state)) == AHC_DISABLE) ||
+        //        (((uint32_t)*machine_control->ahc_state) == AHC_ENABLE) ||
+        //        (((uint32_t)*machine_control->ahc_state) == AHC_SUSPEND));
         if(*(machine_control->thc_enbable)) {
             immediate_data = (uint32_t)(*(machine_control->ahc_level));
             fprintf(stderr,"ahc_state(%d) ahc_level(%d)\n",
@@ -1348,7 +1348,7 @@ static void update_freq(void *arg, long period)
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
             }
-            sync_cmd = SYNC_PC |  SYNC_COMP_EN(((uint32_t)*(machine_control->ahc_state)));
+            sync_cmd = SYNC_AHC |  AHC_STATE(((uint32_t)*(machine_control->ahc_state)));
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
