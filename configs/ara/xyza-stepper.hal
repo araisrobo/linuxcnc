@@ -98,8 +98,8 @@ net enc_pos_j3 <=  wou.stepgen.3.enc_pos
 
 # pass vel status and req_status to FPGA
 
-net current_vel motion.current-vel => wou.current-vel
-net requested_vel motion.requested-vel => wou.requested-vel
+# obsolete: net current_vel motion.current-vel => wou.current-vel
+# obsolete: net requested_vel motion.requested-vel => wou.requested-vel
 
 
 net sync_in_trigger      =>  wou.sync.in.trigger
