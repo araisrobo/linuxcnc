@@ -407,9 +407,12 @@ typedef struct {
     hal_bit_t *out[64];
     int num_gpio_out;
     uint64_t prev_out;		//ON or OFF
-    hal_bit_t *position_compensation_en_trigger;
-    hal_bit_t *position_compensation_en;
-    hal_u32_t *position_compensation_ref;
+//    hal_bit_t *position_compensation_en_trigger;
+//    hal_bit_t *position_compensation_en;
+    double     prev_ahc_state;
+    hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
+//    hal_u32_t *position_compensation_ref;
+    hal_float_t *ahc_level;
 //    int8_t position_compensation_en_flag;
 
     // velocity control
@@ -1038,7 +1041,7 @@ int rtapi_app_main(void)
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
 
 
-        rtapi_print_msg(RTAPI_MSG_DBG, "(max ferror) = (%d) (%d) ",
+        rtapi_print_msg(RTAPI_MSG_DBG, "(max ferror) = (%d) (%d) \n",
                        ((uint32_t) (immediate_data/pos_scale)),(immediate_data));
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
 
@@ -1328,12 +1331,16 @@ static void update_freq(void *arg, long period)
     }
 
     /* begin: process position compensation enable */
-    if((*(machine_control->position_compensation_en_trigger) != 0)) {
-
+//    if((*(machine_control->position_compensation_en_trigger) != 0)) {
+    if (((uint32_t)*machine_control->ahc_state) !=
+            ((uint32_t)machine_control->prev_ahc_state)) {
+        assert((((uint32_t)(*machine_control->ahc_state)) == AHC_DISABLE) ||
+               (((uint32_t)*machine_control->ahc_state) == AHC_ENABLE) ||
+               (((uint32_t)*machine_control->ahc_state) == AHC_SUSPEND));
         if(*(machine_control->thc_enbable)) {
-            immediate_data = (uint32_t)(*(machine_control->position_compensation_ref));
-            fprintf(stderr,"position compensation triggered(%d) ref(%d)\n",
-                            *(machine_control->position_compensation_en),immediate_data);
+            immediate_data = (uint32_t)(*(machine_control->ahc_level));
+            fprintf(stderr,"ahc_state(%d) ahc_level(%d)\n",
+                            (uint32_t)*(machine_control->ahc_state),(uint32_t)*(machine_control->ahc_level));
 
             for(j=0; j<sizeof(uint32_t); j++) {
                 sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1341,7 +1348,7 @@ static void update_freq(void *arg, long period)
                 wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                         sizeof(uint16_t), data);
             }
-            sync_cmd = SYNC_PC |  SYNC_COMP_EN(*(machine_control->position_compensation_en));
+            sync_cmd = SYNC_PC |  SYNC_COMP_EN(((uint32_t)*(machine_control->ahc_state)));
             memcpy(data, &sync_cmd, sizeof(uint16_t));
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
@@ -1350,8 +1357,10 @@ static void update_freq(void *arg, long period)
 //obsolete:            machine_control->fp_original_requested_vel = (*machine_control->requested_vel);
 //obsolete:            fprintf(stderr,"original_requested_vel(%f)\n", machine_control->fp_original_requested_vel);
         }
-        *(machine_control->position_compensation_en_trigger) = 0;
+//        *(machine_control->position_compensation_en_trigger) = 0;
     }
+    machine_control->prev_ahc_state = *machine_control->ahc_state;
+
     /* end: process position compensation enable */
 
     /* begin: process motion synchronized input */
@@ -1948,7 +1957,7 @@ static void update_freq(void *arg, long period)
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
-    if(*machine_control->position_compensation_en == 1) {
+    if(*machine_control->ahc_state == 1) {
 //obsolete:        fp_req_vel = ((machine_control->fp_original_requested_vel));
 //obsolete:        fp_cur_vel = ((*machine_control->current_vel));
 //obsolete:        if (fp_req_vel != machine_control->fp_requested_vel) {
@@ -2368,28 +2377,28 @@ static int export_machine_control(machine_control_t * machine_control)
 	*(machine_control->out[i]) = 0;
     }
 
+//    retval =
+//            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en_trigger), comp_id,
+//                            "wou.pos.comp.en.trigger");
+//    if (retval != 0) {
+//        return retval;
+//    }
+//    *(machine_control->position_compensation_en_trigger) = 0;
+
     retval =
-            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en_trigger), comp_id,
-                            "wou.pos.comp.en.trigger");
+            hal_pin_float_newf(HAL_IN, &(machine_control->ahc_state), comp_id,
+                            "wou.ahc.state");
     if (retval != 0) {
         return retval;
     }
-    *(machine_control->position_compensation_en_trigger) = 0;
+    *(machine_control->ahc_state) = 0;
 
-    retval =
-            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en), comp_id,
-                            "wou.pos.comp.en");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->position_compensation_en) = 0;
-
-    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->position_compensation_ref), comp_id,
-                            "wou.pos.comp.ref");
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->ahc_level), comp_id,
+                            "wou.ahc.level");
     if (retval != 0) {
             return retval;
     }
-    *(machine_control->position_compensation_ref) = 0;
+    *(machine_control->ahc_level) = 0;
   // obsolete:  retval =
   // obsolete:          hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
   // obsolete:                              "wou.requested-vel");
