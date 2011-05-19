@@ -55,12 +55,6 @@ typedef struct {
 } syncdio_t;
 
 typedef struct {
-    char pos_comp_en_triggered;
-    int en_flag;
-    int pos_comp_ref;
-} pos_comp_en_t;
-
-typedef struct {
     PmLine xyz;             // original, but elongated, move down
     PmLine aux_xyz;         // this will be generated on the fly, for the other
                             // two moves: retraction, final placement
@@ -156,7 +150,6 @@ typedef struct {
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     char atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
-    pos_comp_en_t pos_comp_en;
 } TC_STRUCT;
 
 /* TC_STRUCT functions */

@@ -1676,25 +1676,6 @@ int emcMotionSetSyncInput(unsigned char index, unsigned char now,
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-/*Set flag to enable position compensation loop in risc */
-int emcMotionSetPosCompEnable(int enable_flag, int pos_comp_ref)
-{
-    emcmotCommand.command = EMCMOT_SET_POS_COMP_EN;
-    emcmotCommand.pos_comp_en = enable_flag;
-    emcmotCommand.pos_comp_ref = pos_comp_ref;
-    return usrmotWriteEmcmotCommand(&emcmotCommand);
-}
-/* M201 replace position compensation enable
-int emcMotionSetImmediatePos(int axis, double pos)
-{
-    emcmotCommand.command = EMCMOT_SET_IMMEDIATE_POS;
-    emcmotCommand.axis = axis;
-    emcmotCommand.offset = pos;
-
-    return usrmotWriteEmcmotCommand(&emcmotCommand);
-}*/
-
-
 int emcSpindleAbort(void)
 {
     return emcSpindleOff();

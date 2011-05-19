@@ -42,7 +42,6 @@ extern emcmot_debug_t *emcmotDebug;
 static int immediate_state;
 int output_chan = 0;
 syncdio_t syncdio; //record tpSetDout's here
-pos_comp_en_t pos_comp_en;
 
 int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
     if (0 == tp) {
@@ -92,12 +91,6 @@ int tpClearDIOs() {
     return 0;
 }
 
-int tpClearPosCompEn() {
-    pos_comp_en.pos_comp_en_triggered = 0;
-    pos_comp_en.en_flag = 0;
-    pos_comp_en.pos_comp_ref = 0;
-    return 0;
-}
 /*
  tpClear() is a "soft init" in the sense that the TP_STRUCT configuration
  parameters (cycleTime, vMax, and aMax) are left alone, but the queue is
@@ -130,7 +123,7 @@ int tpClear(TP_STRUCT * tp) {
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
     ZERO_EMC_POSE(emcmotStatus->dtg);
-    tpClearPosCompEn();
+
     return tpClearDIOs();
 }
 
@@ -367,15 +360,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
-    if (tc.pos_comp_en.pos_comp_en_triggered != 0) {
-        tc.pos_comp_en = pos_comp_en;
-        tpClearPosCompEn();
-    } else {
-        tc.pos_comp_en.en_flag = 0;
-        tc.pos_comp_en.pos_comp_en_triggered = 0;
-        tc.pos_comp_en.pos_comp_ref = 0;
-    }
-
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -501,14 +485,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
-    if (pos_comp_en.pos_comp_en_triggered != 0) {
-        tc.pos_comp_en = pos_comp_en;
-        tpClearPosCompEn();
-    } else {
-        tc.pos_comp_en.en_flag = 0;
-        tc.pos_comp_en.pos_comp_en_triggered = 0;
-        tc.pos_comp_en.pos_comp_ref = 0;
-    }
+
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -631,14 +608,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
         tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
-    if (pos_comp_en.pos_comp_en_triggered != 0) {
-        tc.pos_comp_en = pos_comp_en;
-        tpClearPosCompEn();
-    } else {
-        tc.pos_comp_en.en_flag = 0;
-        tc.pos_comp_en.pos_comp_en_triggered = 0;
-        tc.pos_comp_en.pos_comp_ref = 0;
-    }
+    
     if (tcqPut(&tp->queue, tc) == -1) {
         return -1;
     }
@@ -786,14 +756,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
             tc.syncdio.anychanged = 0;
             tc.syncdio.sync_input_triggered = 0;
         }
-        if (pos_comp_en.pos_comp_en_triggered != 0) {
-            tc.pos_comp_en = pos_comp_en;
-            tpClearPosCompEn();
-        } else {
-            tc.pos_comp_en.en_flag = 0;
-            tc.pos_comp_en.pos_comp_en_triggered = 0;
-            tc.pos_comp_en.pos_comp_ref = 0;
-        }
+        
         if (tcqPut(&tp->queue, tc) == -1) {
             rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
             return -1;
@@ -1763,13 +1726,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     if (v)
         *v = newvel;
 }
-void tpToggleCompPosEn(TC_STRUCT * tc) {
-    if (tc->pos_comp_en.pos_comp_en_triggered != 0) {
-        emcmotPosCompWrite(tc->pos_comp_en.en_flag,
-                tc->pos_comp_en.pos_comp_ref);
-    }
-    tc->pos_comp_en.pos_comp_en_triggered = 0;
-}
+
 void tpToggleDIOs(TC_STRUCT * tc) {
     int i = 0;
     if (tc->syncdio.anychanged != 0) { // we have DIO's to turn on or off
@@ -2193,7 +2150,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         } else {
 
             tpToggleDIOs(nexttc); //check and do DIO changes
-            tpToggleCompPosEn(nexttc); // check if any position compensation flag enable or not
             target = tcGetEndpoint(nexttc);
             tp->motionType = nexttc->canon_motion_type;
             emcmotStatus->distance_to_go = nexttc->distance_to_go;
@@ -2232,7 +2188,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tp->currentPos.w += primary_displacement.w + secondary_displacement.w;
     } else { // if (nexttc && (tc->distance_to_go <= tc->tolerance))
         tpToggleDIOs(tc); //check and do DIO changes
-        tpToggleCompPosEn(tc);
 
         target = tcGetEndpoint(tc);
         tp->motionType = tc->canon_motion_type;
@@ -2296,7 +2251,6 @@ int tpAbort(TP_STRUCT * tp) {
         /* to abort, signal a pause and set our abort flag */
         tp->aborting = 1;
     }
-    tpClearPosCompEn(); // disable risc auto control motion
     return tpClearDIOs(); //clears out any already cached DIOs
 }
 
@@ -2373,17 +2327,6 @@ int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type) {
     syncdio.sync_in = index; // the end value can't be set from canon currently, and has the same value as start
     syncdio.wait_type = wait_type;
     syncdio.timeout = timeout;
-    return 0;
-}
-int tpSetPosCompEnWrite(TP_STRUCT *tp, int en_flag, int pos_comp_ref) {
-    if (0 == tp) {
-        return -1;
-    }
-
-    pos_comp_en.pos_comp_en_triggered = 1;
-    pos_comp_en.en_flag = en_flag;
-    pos_comp_en.pos_comp_ref = pos_comp_ref;
-
     return 0;
 }
 // vim:sw=4:sts=4:et:

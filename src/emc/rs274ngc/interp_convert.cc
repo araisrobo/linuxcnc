@@ -3016,13 +3016,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
           }
           SET_MOTION_SYNC_INPUT_BIT(round_to_int(block->p_number),block->l_number,
                          block->q_number,0);
-      } else if (block->m_modes[11] == 201) {
-        CHKS((block->p_flag == OFF), _("No valid P word with M201"));
-        CHKS((block->q_flag == OFF), _("No valid Q word with M201"));
-        // replace immediate pos with position compensation enable
-        // SET_MOTION_IMMEDIATE_POS((block->p_flag == ON)?round_to_int(block->p_number):0,block->q_number);
-        SET_MOTION_POS_COMP_EN(round_to_int(block->p_number), round_to_int(block->q_number));
-    }
+      } 
 
 
   return INTERP_OK;
