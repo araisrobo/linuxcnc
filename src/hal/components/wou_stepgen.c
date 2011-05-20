@@ -843,12 +843,12 @@ int rtapi_app_main(void)
 
     // config auto height control behavior
     ahc_joint = atoi(ahc_joint_str);
-    write_machine_param(AHC_JOINT, ahc_joint);
+    write_machine_param(AHC_JNT, ahc_joint);
     pos_scale = atof(pos_scale_str[ahc_joint]);
     if (strcmp(ahc_polarity, "POSITIVE") == 0) {
     	if (pos_scale >=0) {
     		// set risc positive
-    		write_machine_param(AHC_POLARITY, AHC_POSITVIE);
+    		write_machine_param(AHC_POLARITY, AHC_POSITIVE);
     	} else {
     		// set risc negative
     		write_machine_param(AHC_POLARITY, AHC_NEGATIVE);
