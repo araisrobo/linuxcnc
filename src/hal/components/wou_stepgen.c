@@ -285,9 +285,17 @@ const char *ferror_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(ferror_str, MAX_CHAN,
                       "max following error value for up to 8 channels");
 
+const char *ahc_polarity = "POSITIVE";  // normally joint is lifted up when feedback level below reference
+RTAPI_MP_STRING(ahc_polarity,
+		"auto height control behavior");
+
+const char *ahc_joint_str = "2";
+RTAPI_MP_STRING(ahc_joint_str,
+		"auto height control joint");
+
 const char *machine_param_str = "XYZA"; // XYZY, XYZY_
 RTAPI_MP_STRING(machine_param_str,
-                      "specify machine");
+                      "specify machine type");
 //const char *home_use_index_str[MAX_CHAN] =
 //    { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
 //RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
@@ -735,7 +743,7 @@ int rtapi_app_main(void)
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
     double max_vel, max_accel, pos_scale, value, max_following_error;
-    int msg;
+    int msg, ahc_joint;
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
@@ -833,6 +841,30 @@ int rtapi_app_main(void)
         assert(0);
     }
 
+    // config auto height control behavior
+    ahc_joint = atoi(ahc_joint_str);
+    write_machine_param(AHC_JOINT, ahc_joint);
+    pos_scale = atof(pos_scale_str[ahc_joint]);
+    if (strcmp(ahc_polarity, "POSITIVE") == 0) {
+    	if (pos_scale >=0) {
+    		// set risc positive
+    		write_machine_param(AHC_POLARITY, AHC_POSITVIE);
+    	} else {
+    		// set risc negative
+    		write_machine_param(AHC_POLARITY, AHC_NEGATIVE);
+    	}
+    } else if (strcmp(ahc_polarity, "NEGATIVE") == 0) {
+    	if (pos_scale >= 0) {
+    		// set risc negative
+    		write_machine_param(AHC_POLARITY, AHC_NEGATIVE);
+    	} else {
+    		// set risc positive
+    		write_machine_param(AHC_POLARITY, AHC_POSITIVE);
+    	}
+    } else {
+    	fprintf(stderr, "non-supported ahc polarity config\n");
+    	assert(0);
+    }
 //obsolete:    if (1 == adc_spi_en) {
 //obsolete:        rtapi_print_msg(RTAPI_MSG_INFO,
 //obsolete:                        "WOU: enable ADC_SPI\n");
