@@ -1503,7 +1503,9 @@ static void update_freq(void *arg, long period)
     r_index_en = prev_r_index_en;
     /* begin: homing logic */
     for (n = 0; n < num_chan; n++) {
-	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
+	if ((*stepgen->home_state != HOME_IDLE) &&
+	        stepgen->pos_mode &&
+	        (*stepgen->home_state != HOME_FINAL_MOVE_WAIT)) {
 	    static hal_s32_t prev_switch_pos;
 	    hal_s32_t switch_pos_tmp;
 	    hal_s32_t index_pos_tmp;
@@ -1872,12 +1874,11 @@ static void update_freq(void *arg, long period)
 //obsolete:            else
 //obsolete:                stepgen->vel_cmd = 0;
 	}
-
 	{
             
             //wou_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
             integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
-
+        
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
             
