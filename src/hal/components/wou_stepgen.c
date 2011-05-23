@@ -295,13 +295,14 @@ RTAPI_MP_STRING(ahc_joint_str,
 
 const char *machine_param_str = "XYZA"; // XYZY, XYZY_
 RTAPI_MP_STRING(machine_param_str,
-                      "specify machine type");
-//const char *home_use_index_str[MAX_CHAN] =
-//    { "NO", "NO", "NO", "NO", "NO", "NO", "NO", "NO" };
-//RTAPI_MP_ARRAY_STRING(home_use_index_str, MAX_CHAN,
-//                      "home use index flag for up to 8 channels");
+                "specify machine type");
 
-//static int home_use_index[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
+const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
+RTAPI_MP_STRING(pattern_type_str,
+                "indicate test pattern type");
+
+static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
+
 static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
@@ -451,7 +452,8 @@ typedef struct {
     int32_t spindle_enc_count;          // predicted spindle-encoder count
 //    double  prev_spindle_irevs;         // to calculate index position
     int32_t prev_spindle_irevs;
-    
+    /* test pattern  */
+    hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
 
@@ -865,6 +867,19 @@ int rtapi_app_main(void)
     	fprintf(stderr, "non-supported ahc polarity config\n");
     	assert(0);
     }
+
+    // config debug pattern
+    if (strcmp(pattern_type_str, "NO_TEST") == 0) {
+        write_machine_param(TEST_PATTERN_TYPE, NO_TEST);
+        test_pattern_type = NO_TEST;
+    } else if (strcmp(pattern_type_str, "ANALOG_IN") == 0) {
+        write_machine_param(TEST_PATTERN_TYPE, ANALOG_IN);
+        test_pattern_type = ANALOG_IN;
+    } else {
+        fprintf(stderr, "unknow test pattern type (%s)\n", pattern_type_str);
+        assert(0);
+    }
+
 //obsolete:    if (1 == adc_spi_en) {
 //obsolete:        rtapi_print_msg(RTAPI_MSG_INFO,
 //obsolete:                        "WOU: enable ADC_SPI\n");
@@ -1362,6 +1377,12 @@ static void update_freq(void *arg, long period)
 	prev_r_index_lock = r_index_lock;
     }
 
+    /* begin: sending debug pattern */
+    if (test_pattern_type != NO_TEST) {
+        write_machine_param(TEST_PATTERN, *(machine_control->test_pattern));
+    }
+
+    /* end: sending debug pattern*/
     /* begin: process position compensation enable */
 //    if((*(machine_control->position_compensation_en_trigger) != 0)) {
     if (((uint32_t)*machine_control->ahc_state) !=
@@ -2537,6 +2558,14 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->mpg_count) = 0;
+
+    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->test_pattern), comp_id,
+                             "wou.test_pattern");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->test_pattern) = 0;
+
 
     machine_control->prev_out = 0;
   //obsolete:  machine_control->fp_current_vel = 0;
