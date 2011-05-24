@@ -403,13 +403,16 @@ typedef struct {
     uint32_t    prev_in0;
     uint32_t    prev_in1;
 
+    hal_float_t *analog_ref_level;
+    double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
-    hal_u32_t *sync_in;		//
-    hal_u32_t *wait_type;
+    hal_float_t *sync_in;		//
+    hal_float_t *wait_type;
     hal_float_t *timeout;
     int num_gpio_in;
     
-    uint32_t    bp_tick;    /* base-period tick obtained from fetchmail */
+//    uint32_t    bp_tick;    /* base-period tick obtained from fetchmail */
+    hal_u32_t *bp_tick;     /* base-period tick obtained from fetchmail */
     uint32_t    prev_bp;    /* previous base-period tick */
 
     /* sync output pins (output from motmod) */
@@ -551,7 +554,7 @@ static void fetchmail(const uint8_t *buf_head)
         // BP_TICK
         p = (uint32_t *) (buf_head + 4);
         bp_tick = *p;
-        machine_control->bp_tick = bp_tick;
+        *machine_control->bp_tick = bp_tick;
 
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
@@ -1381,7 +1384,12 @@ static void update_freq(void *arg, long period)
     if (test_pattern_type != NO_TEST) {
         write_machine_param(TEST_PATTERN, *(machine_control->test_pattern));
     }
-
+    /* handle M104 */
+    if (*machine_control->analog_ref_level != machine_control->prev_analog_ref_level) {
+        write_machine_param(ANALOG_REF_LEVEL, (uint32_t)(*(machine_control->analog_ref_level)));
+        fprintf(stderr,"analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
+    }
+    machine_control->prev_analog_ref_level = *machine_control->analog_ref_level;
     /* end: sending debug pattern*/
     /* begin: process position compensation enable */
 //    if((*(machine_control->position_compensation_en_trigger) != 0)) {
@@ -1425,7 +1433,8 @@ static void update_freq(void *arg, long period)
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
         //immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
         // transmit immediate data
-        fprintf(stderr,"set risc timeout(%u) type (%d)\n",immediate_data, *(machine_control->wait_type));
+        fprintf(stderr,"risc wait input(%d) timeout(%u) type (%d)\n",(uint32_t)*machine_control->sync_in,
+                immediate_data, (uint32_t)*(machine_control->wait_type));
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
             memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1438,8 +1447,8 @@ static void update_freq(void *arg, long period)
                 sizeof(uint16_t), data);
         // end: setup sync timeout
         // begin: trigger sync in and wait timeout 
-        sync_cmd = SYNC_DIN | PACK_IO_ID(*(machine_control->sync_in)) |
-                                           PACK_DI_TYPE(*(machine_control->wait_type));
+        sync_cmd = SYNC_DIN | PACK_IO_ID((uint32_t)*(machine_control->sync_in)) |
+                                           PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
         wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
                                       sizeof(uint16_t), (uint8_t *) &sync_cmd);
         // end: trigger sync in and wait timeout
@@ -1462,7 +1471,8 @@ static void update_freq(void *arg, long period)
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
-            } else {
+
+            } else if(i !=1) {
                 fprintf(stderr,"gpio_%02d => (%d)\n",
                         i,*(machine_control->out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
@@ -1732,10 +1742,10 @@ static void update_freq(void *arg, long period)
 
 	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-	if ((machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
+	if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
             // update velocity-feedback only after encoder movement
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
-                                  / (machine_control->bp_tick - machine_control->prev_bp) 
+                                  / (*machine_control->bp_tick - machine_control->prev_bp)
                                  );
             stepgen->prev_pos_fb = *stepgen->pos_fb;
             stepgen->prev_enc_pos = *stepgen->enc_pos;
@@ -1748,7 +1758,7 @@ static void update_freq(void *arg, long period)
                 //DEBUG:                 machine_control->prev_bp,
                 //DEBUG:                 *(stepgen->vel_fb)
                 //DEBUG:                );
-                machine_control->prev_bp = machine_control->bp_tick;
+                machine_control->prev_bp = *machine_control->bp_tick;
             }
         }
 
@@ -1913,7 +1923,6 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
-
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
@@ -1929,11 +1938,6 @@ static void update_freq(void *arg, long period)
             
             wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
 
-            // if (integer_pos_cmd >= 0) {
-            //     wou_cmd_accum += wou_pos_cmd;
-            // } else {
-            //     wou_cmd_accum -= wou_pos_cmd;
-            // }
 
             /* packing fraction part */
             sync_cmd = (uint16_t) wou_pos_cmd;
@@ -1957,16 +1961,9 @@ static void update_freq(void *arg, long period)
                     pos_scale = stepgen->pos_scale;
                     // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
                     machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
-
-//                    spindle_pos = (double) (machine_control->spindle_enc_count) / pos_scale;
                     spindle_pos = machine_control->spindle_enc_count;
-
-//                    spindle_irevs =
-//                        (fmod((double) (machine_control->spindle_enc_count), pos_scale) / pos_scale);
-
                     spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
 
-//                    delta = spindle_irevs - machine_control->prev_spindle_irevs;
                     delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
 
                     machine_control->prev_spindle_irevs = spindle_irevs;
@@ -1975,20 +1972,17 @@ static void update_freq(void *arg, long period)
 
                         if (delta < -0.5) {
                             // ex.: 0.9 -> 0.1 (forward)
-//                            machine_control->last_spindle_index_pos = floor(spindle_pos);
-                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
                             *machine_control->spindle_index_enable = 0;
 
                         } else if (delta > 0.5) {
                             // ex.: 0.1 -> 0.9 (backward)
-//                            machine_control->last_spindle_index_pos = ceil (spindle_pos);
-                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
                             *machine_control->spindle_index_enable = 0;
                         }
                     }
 
-//                    *machine_control->spindle_revs = spindle_pos - machine_control->last_spindle_index_pos;
-                    *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
+                   *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
             }
 
 	}
@@ -2402,13 +2396,13 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     retval =
-	hal_pin_u32_newf(HAL_IN, &(machine_control->sync_in), comp_id,
+	hal_pin_float_newf(HAL_IN, &(machine_control->sync_in), comp_id,
 			 "wou.sync.in.index");
     *(machine_control->sync_in) = 0;	// pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wait_type), comp_id,
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->wait_type), comp_id,
 			      "wou.sync.in.wait_type");
     if (retval != 0) {
 	return retval;
@@ -2431,6 +2425,13 @@ static int export_machine_control(machine_control_t * machine_control)
 	*(machine_control->out[i]) = 0;
     }
 
+    retval =
+            hal_pin_float_newf(HAL_IN, &(machine_control->analog_ref_level), comp_id,
+                             "wou.sync.analog_ref_level");
+        *(machine_control->analog_ref_level) = 0;    // pin index must not beyond index
+        if (retval != 0) {
+            return retval;
+        }
 //    retval =
 //            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en_trigger), comp_id,
 //                            "wou.pos.comp.en.trigger");
@@ -2566,6 +2567,12 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->test_pattern) = 0;
 
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->bp_tick), comp_id,
+                                 "wou.bp_tick");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->bp_tick) = 0;
 
     machine_control->prev_out = 0;
   //obsolete:  machine_control->fp_current_vel = 0;
