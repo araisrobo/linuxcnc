@@ -961,7 +961,9 @@ extern char _parameter_file_name[];	/* in canon.cc */
 
 #define USER_DEFINED_FUNCTION_NUM 100
 typedef void (*USER_DEFINED_FUNCTION_TYPE) (int num, double arg1,
-					    double arg2);
+					    double arg2, double arg3,
+                                            double arg4, double arg5,
+                                            double arg6, double arg7);
 extern USER_DEFINED_FUNCTION_TYPE
     USER_DEFINED_FUNCTION[USER_DEFINED_FUNCTION_NUM];
 extern int USER_DEFINED_FUNCTION_ADD(USER_DEFINED_FUNCTION_TYPE func,

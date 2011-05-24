@@ -45,7 +45,8 @@ Interp interp;
 
 static char user_defined_fmt[EMC_SYSTEM_CMD_LEN] = "nc_files/M1%02d";
 
-static void user_defined_add_m_code(int num, double arg1, double arg2)
+static void user_defined_add_m_code(int num, double arg1, double arg2, double arg3,
+                                double arg4, double arg5, double arg6, double arg7)
 {
     char fmt[EMC_SYSTEM_CMD_LEN];
     EMC_SYSTEM_CMD system_cmd;
@@ -54,8 +55,8 @@ static void user_defined_add_m_code(int num, double arg1, double arg2)
     //otherwise they would mix badly
     FINISH();
     strcpy(fmt, user_defined_fmt);
-    strcat(fmt, " %f %f");
-    sprintf(system_cmd.string, fmt, num, arg1, arg2);
+    strcat(fmt, " %f %f %f %f %f %f %f");
+    sprintf(system_cmd.string, fmt, num, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
     interp_list.append(system_cmd);
 }
 

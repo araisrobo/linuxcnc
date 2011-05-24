@@ -685,12 +685,13 @@ int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) { return def; }
 int WAIT(int index, int input_type, int wait_type, double timeout) { return 0;}
 
-static void user_defined_function(int num, double arg1, double arg2) {
+static void user_defined_function(int num, double arg1, double arg2, double arg3,
+                                  double arg4, double arg5, double arg6, double arg7) {
     if(interp_error) return;
     maybe_new_line();
     PyObject *result =
         PyObject_CallMethod(callback, "user_defined_function",
-                            "idd", num, arg1, arg2);
+                            "idd", num, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
     if(result == NULL) interp_error++;
     Py_XDECREF(result);
 }

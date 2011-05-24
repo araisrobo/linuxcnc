@@ -2971,7 +2971,8 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     if (USER_DEFINED_FUNCTION[index - 100] == 0) {
       CHKS(1, NCE_UNKNOWN_M_CODE_USED);
     }
-    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number);
+    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number,block->r_number,
+                           block->s_number,block->j_number,block->k_number, block->l_number);
   }
 
   if (block->m_modes[11] == 200) {
