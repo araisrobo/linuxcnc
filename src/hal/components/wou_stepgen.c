@@ -842,7 +842,7 @@ int rtapi_app_main(void)
        // config machine type YY_ (one kind of gantry)
         write_machine_param (MACHINE_TYPE, XYZY_);
     } else {
-        fprintf(stderr, "non-supported machine type\n");
+        fprintf(stderr, "wou_stepgen.c: non-supported machine type\n");
         assert(0);
     }
 
@@ -867,7 +867,7 @@ int rtapi_app_main(void)
     		write_machine_param(AHC_POLARITY, AHC_POSITIVE);
     	}
     } else {
-    	fprintf(stderr, "non-supported ahc polarity config\n");
+    	fprintf(stderr, "wou_stepgen.c: non-supported ahc polarity config\n");
     	assert(0);
     }
 
@@ -879,7 +879,7 @@ int rtapi_app_main(void)
         write_machine_param(TEST_PATTERN_TYPE, ANALOG_IN);
         test_pattern_type = ANALOG_IN;
     } else {
-        fprintf(stderr, "unknow test pattern type (%s)\n", pattern_type_str);
+        fprintf(stderr, "wou_stepgen.c: unknow test pattern type (%s)\n", pattern_type_str);
         assert(0);
     }
 
@@ -1384,13 +1384,16 @@ static void update_freq(void *arg, long period)
     if (test_pattern_type != NO_TEST) {
         write_machine_param(TEST_PATTERN, *(machine_control->test_pattern));
     }
-    /* handle M104 */
+    /* end: sending debug pattern*/
+
+    /* begin set analog trigger level*/
     if (*machine_control->analog_ref_level != machine_control->prev_analog_ref_level) {
         write_machine_param(ANALOG_REF_LEVEL, (uint32_t)(*(machine_control->analog_ref_level)));
-        fprintf(stderr,"analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
+        fprintf(stderr,"wou_stepgen.c: analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
     }
     machine_control->prev_analog_ref_level = *machine_control->analog_ref_level;
-    /* end: sending debug pattern*/
+    /* end: */
+
     /* begin: process position compensation enable */
 //    if((*(machine_control->position_compensation_en_trigger) != 0)) {
     if (((uint32_t)*machine_control->ahc_state) !=
@@ -1400,7 +1403,7 @@ static void update_freq(void *arg, long period)
         //        (((uint32_t)*machine_control->ahc_state) == AHC_SUSPEND));
         if(*(machine_control->thc_enbable)) {
             immediate_data = (uint32_t)(*(machine_control->ahc_level));
-            fprintf(stderr,"ahc_state(%d) ahc_level(%d)\n",
+            fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d)\n",
                             (uint32_t)*(machine_control->ahc_state),(uint32_t)*(machine_control->ahc_level));
 
             for(j=0; j<sizeof(uint32_t); j++) {
@@ -1433,7 +1436,7 @@ static void update_freq(void *arg, long period)
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
         //immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
         // transmit immediate data
-        fprintf(stderr,"risc wait input(%d) timeout(%u) type (%d)\n",(uint32_t)*machine_control->sync_in,
+        fprintf(stderr,"wou_stepgen.c: risc wait input(%d) timeout(%u) type (%d)\n",(uint32_t)*machine_control->sync_in,
                 immediate_data, (uint32_t)*(machine_control->wait_type));
         for(j=0; j<sizeof(uint32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
@@ -1466,14 +1469,14 @@ static void update_freq(void *arg, long period)
             if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
 //                fprintf(stderr,"plasma_switch(%d)\n",
 //                        *(machine_control->sync_out[i]));
-                fprintf(stderr,"gpio_%2d => (%d)\n",
+                fprintf(stderr,"wou_stepgen.c: gpio_%2d => (%d)\n",
                                         i,*(machine_control->out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
 
             } else if(i !=1) {
-                fprintf(stderr,"gpio_%02d => (%d)\n",
+                fprintf(stderr,"wou_stepgen.c: gpio_%02d => (%d)\n",
                         i,*(machine_control->out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -2053,7 +2056,7 @@ static void update_freq(void *arg, long period)
         if (*machine_control->motion_state != machine_control->prev_motion_state) {
             if (*machine_control->motion_state == ACCEL_S3) {
                 sync_cmd = SYNC_VEL | 0x0001;
-                 fprintf(stderr,"motion_state == ACCEL_S3\n");
+                 fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
 
             } else {
                 sync_cmd = SYNC_VEL;
@@ -2480,7 +2483,7 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     } else {
-        *machine_control->plasma_enable = 1;
+        *machine_control->plasma_enable = 1;    // default enabled
     }
 
     /* for probe */
