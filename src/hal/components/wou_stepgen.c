@@ -419,21 +419,13 @@ typedef struct {
     hal_bit_t *out[64];
     int num_gpio_out;
     uint64_t prev_out;		//ON or OFF
-//    hal_bit_t *position_compensation_en_trigger;
-//    hal_bit_t *position_compensation_en;
+
     double     prev_ahc_state;
     hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
-//    hal_u32_t *position_compensation_ref;
     hal_float_t *ahc_level;
-//    int8_t position_compensation_en_flag;
+    hal_float_t *ahc_max_offset;
 
-    // velocity control
-//obsolete:    hal_float_t *requested_vel;
-//obsolete:    hal_float_t *current_vel;
-//obsolete:    double fp_original_requested_vel;
-//obsolete:    double fp_requested_vel;
-//obsolete:    double fp_current_vel;
-//obsolete:    int32_t vel_sync;
+    /* motion state tracker */
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
     /* probe */
@@ -1395,17 +1387,27 @@ static void update_freq(void *arg, long period)
     /* end: */
 
     /* begin: process position compensation enable */
-//    if((*(machine_control->position_compensation_en_trigger) != 0)) {
     if (((uint32_t)*machine_control->ahc_state) !=
             ((uint32_t)machine_control->prev_ahc_state)) {
-        // assert((((uint32_t)(*machine_control->ahc_state)) == AHC_DISABLE) ||
-        //        (((uint32_t)*machine_control->ahc_state) == AHC_ENABLE) ||
-        //        (((uint32_t)*machine_control->ahc_state) == AHC_SUSPEND));
-        if(*(machine_control->thc_enbable)) {
-            immediate_data = (uint32_t)(*(machine_control->ahc_level));
-            fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d)\n",
-                            (uint32_t)*(machine_control->ahc_state),(uint32_t)*(machine_control->ahc_level));
 
+        if(*(machine_control->thc_enbable)) {
+            int32_t max_offset, pos_scale;
+            stepgen = arg;
+            stepgen += atoi(ahc_joint_str);
+            pos_scale = (stepgen->pos_scale);
+            max_offset = *(machine_control->ahc_max_offset);
+            max_offset = max_offset >= 0? max_offset:0;
+            fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d) max_offset(%d)\n",
+                            (uint32_t)*(machine_control->ahc_state),(uint32_t) *
+                                (machine_control->ahc_level),
+                            (uint32_t)abs(max_offset *
+                                (pos_scale)));
+
+            /* ahc max_offset */
+            write_machine_param(AHC_MAX_OFFSET, (uint32_t)
+                    abs((max_offset)) * (pos_scale));
+            /* ahc level , ahc state */
+            immediate_data = (uint32_t)(*(machine_control->ahc_level));
             for(j=0; j<sizeof(uint32_t); j++) {
                 sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
@@ -1417,14 +1419,9 @@ static void update_freq(void *arg, long period)
             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
 
-//            machine_control->position_compensation_en_flag = *machine_control->position_compensation_en;
-//obsolete:            machine_control->fp_original_requested_vel = (*machine_control->requested_vel);
-//obsolete:            fprintf(stderr,"original_requested_vel(%f)\n", machine_control->fp_original_requested_vel);
         }
-//        *(machine_control->position_compensation_en_trigger) = 0;
     }
     machine_control->prev_ahc_state = *machine_control->ahc_state;
-
     /* end: process position compensation enable */
 
     /* begin: process motion synchronized input */
@@ -1642,7 +1639,7 @@ static void update_freq(void *arg, long period)
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
 	    }
 	} else {
-	    // home idle
+	    // home idle, home final move (wait)
 	    if(normal_move_flag[n] == 1) {
                 immediate_data = NORMAL_MOVE;
                 write_mot_param (n, (MOTION_TYPE), immediate_data);
@@ -2009,55 +2006,11 @@ static void update_freq(void *arg, long period)
     DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
     if(*machine_control->ahc_state == 1) {
-//obsolete:        fp_req_vel = ((machine_control->fp_original_requested_vel));
-//obsolete:        fp_cur_vel = ((*machine_control->current_vel));
-//obsolete:        if (fp_req_vel != machine_control->fp_requested_vel) {
-//obsolete:            // tell RISC that we got a new request velocity (while changing Feedrate)
-//obsolete:            // forward requested velocity
-//obsolete:            machine_control->fp_requested_vel = fp_req_vel;
-//obsolete:            // forward current velocity
-//obsolete:            machine_control->fp_current_vel = fp_cur_vel;
-//obsolete:            sync_cmd = SYNC_VEL;
-//obsolete:            memcpy(data, &sync_cmd, sizeof(uint16_t));
-//obsolete:            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//obsolete:                    sizeof(uint16_t), data);
-//obsolete:            machine_control->vel_sync = 0;
-//obsolete:        }
-//obsolete:        fp_diff = fabs (fp_cur_vel - machine_control->fp_original_requested_vel);
-//obsolete:        // fp_diff = fp_diff > 0 ? fp_diff:-fp_diff;
-//obsolete:        // 0.03: the coefficient of NEAR_VEL_SYNC
-//obsolete:        // TODO: set K_NEAR_VEL_SYNC as a parameter for wou_stepgen
-//obsolete:        if (((fp_diff) <= ((machine_control->fp_original_requested_vel)*0.03)) &&   //  120 mm/min
-//obsolete:                (fp_cur_vel != machine_control->fp_current_vel) &&  // TODO: confirm why do we need this equation?
-//obsolete:                (machine_control->vel_sync == 0)) {
-//obsolete:            // forward current velocity
-//obsolete:            if(machine_control->fp_original_requested_vel == machine_control->fp_requested_vel) {
-//obsolete:                machine_control->vel_sync = 1;
-//obsolete:                sync_cmd = (SYNC_VEL | (((int32_t)fp_cur_vel) << 1)) | 0x0001;
-//obsolete:                memcpy(data, &sync_cmd, sizeof(uint16_t));
-//obsolete:                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//obsolete:                        sizeof(uint16_t), data);
-//obsolete:                fprintf(stderr,"vel(%f) synced with original_vel(%f) requested(%f)\n",
-//obsolete:                        machine_control->fp_current_vel,
-//obsolete:                        machine_control->fp_original_requested_vel,
-//obsolete:                        machine_control->fp_requested_vel);
-//obsolete:            } else {
-//obsolete:                fprintf(stderr,"vel synced but not original vel requested\n");
-//obsolete:            }
-//obsolete:        } else if(machine_control->vel_sync == 1 && (fp_diff >
-//obsolete:                            ((machine_control->fp_original_requested_vel)*0.03))){
-//obsolete:            machine_control->vel_sync = 0;
-//obsolete:            sync_cmd = (SYNC_VEL|(((int32_t)fp_cur_vel) << 1)) & 0xFFFE;
-//obsolete:            memcpy(data, &sync_cmd, sizeof(uint16_t));
-//obsolete:            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//obsolete:                   sizeof(uint16_t), data);
-//obsolete:        }
-//obsolete:        machine_control->fp_current_vel = fp_cur_vel;
+
         if (*machine_control->motion_state != machine_control->prev_motion_state) {
             if (*machine_control->motion_state == ACCEL_S3) {
                 sync_cmd = SYNC_VEL | 0x0001;
                  fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
-
             } else {
                 sync_cmd = SYNC_VEL;
 //                 fprintf(stderr,"motion_state != ACCEL_S3\n");
@@ -2431,17 +2384,10 @@ static int export_machine_control(machine_control_t * machine_control)
     retval =
             hal_pin_float_newf(HAL_IN, &(machine_control->analog_ref_level), comp_id,
                              "wou.sync.analog_ref_level");
-        *(machine_control->analog_ref_level) = 0;    // pin index must not beyond index
-        if (retval != 0) {
-            return retval;
-        }
-//    retval =
-//            hal_pin_bit_newf(HAL_IN, &(machine_control->position_compensation_en_trigger), comp_id,
-//                            "wou.pos.comp.en.trigger");
-//    if (retval != 0) {
-//        return retval;
-//    }
-//    *(machine_control->position_compensation_en_trigger) = 0;
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->analog_ref_level) = 0;    // pin index must not beyond index
 
     retval =
             hal_pin_float_newf(HAL_IN, &(machine_control->ahc_state), comp_id,
@@ -2451,34 +2397,31 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->ahc_state) = 0;
 
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->ahc_level), comp_id,
+    retval =
+            hal_pin_float_newf(HAL_IN, &(machine_control->ahc_level), comp_id,
                             "wou.ahc.level");
     if (retval != 0) {
             return retval;
     }
     *(machine_control->ahc_level) = 0;
-  // obsolete:  retval =
-  // obsolete:          hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
-  // obsolete:                              "wou.requested-vel");
-  // obsolete:  *(machine_control->requested_vel) = 0;    // pin index must not beyond index
-  // obsolete:  if (retval != 0) {
-  // obsolete:      return retval;
-  // obsolete:  }
-  // obsolete:  retval =
-  // obsolete:          hal_pin_float_newf(HAL_IN, &(machine_control->current_vel), comp_id,
-  // obsolete:                           "wou.current-vel");
-  // obsolete:  *(machine_control->current_vel) = 0;    // pin index must not beyond index
-  // obsolete:  if (retval != 0) {
-  // obsolete:      return retval;
-  // obsolete:  }
-    /* for plasma control */
+
+    retval =
+                hal_pin_float_newf(HAL_IN, &(machine_control->ahc_max_offset), comp_id,
+                                "wou.ahc.max_offset");
+    if (retval != 0) {
+            return retval;
+    }
+    *(machine_control->ahc_max_offset) = 0;
+
+    /* auto height control switches */
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
                                 "wou.thc_enable");
     if (retval != 0) {
         return retval;
-    }retval =
-            hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
+    }
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
                             "wou.plasma_enable");
     if (retval != 0) {
         return retval;
@@ -2578,14 +2521,11 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->bp_tick) = 0;
 
     machine_control->prev_out = 0;
-  //obsolete:  machine_control->fp_current_vel = 0;
-  //obsolete:  machine_control->fp_requested_vel = 0;
 
 //    machine_control->position_compensation_en_flag = 0;
 
     machine_control->last_spindle_index_pos = 0;
     machine_control->prev_spindle_irevs = 0;
-//obsolete:    machine_control->prev_spindle_pos = 0;
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
