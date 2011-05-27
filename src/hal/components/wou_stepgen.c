@@ -412,6 +412,7 @@ typedef struct {
     int num_gpio_in;
     
 //    uint32_t    bp_tick;    /* base-period tick obtained from fetchmail */
+    hal_u32_t *wou_bp_tick;     /* base-period tick obtained from fetchmail */
     hal_u32_t *bp_tick;     /* base-period tick obtained from fetchmail */
     uint32_t    prev_bp;    /* previous base-period tick */
 
@@ -424,6 +425,8 @@ typedef struct {
     hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
     hal_float_t *ahc_level;
     hal_float_t *ahc_max_offset;
+    hal_float_t *ahc_max_level;
+    hal_float_t *ahc_min_level;
 
     /* motion state tracker */
     hal_s32_t *motion_state;
@@ -627,6 +630,9 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
 
+        // host tick
+        p += 1;
+        *machine_control->wou_bp_tick = *p;
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -1342,6 +1348,7 @@ static void update_freq(void *arg, long period)
     uint8_t r_index_lock;
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
+    static uint32_t host_tick = 0;
     int32_t immediate_data = 0;
 //obsolete: double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
@@ -1360,9 +1367,12 @@ static void update_freq(void *arg, long period)
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
-//    DP("before wou_update()\n");
-    wou_update(&w_param);
+    // update host tick for risc
+    host_tick += 1;
+    write_machine_param(HOST_TICK, host_tick);
 
+    //    DP("before wou_update()\n");
+    wou_update(&w_param);
     // read SSIF_INDEX_LOCK
     memcpy(&r_index_lock,
 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
@@ -1392,20 +1402,27 @@ static void update_freq(void *arg, long period)
 
         if(*(machine_control->thc_enbable)) {
             int32_t max_offset, pos_scale;
-            stepgen = arg;
-            stepgen += atoi(ahc_joint_str);
-            pos_scale = (stepgen->pos_scale);
-            max_offset = *(machine_control->ahc_max_offset);
-            max_offset = max_offset >= 0? max_offset:0;
-            fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d) max_offset(%d)\n",
-                            (uint32_t)*(machine_control->ahc_state),(uint32_t) *
-                                (machine_control->ahc_level),
-                            (uint32_t)abs(max_offset *
-                                (pos_scale)));
+            /* config only if ahc_state = enable */
+            if (((uint32_t)*machine_control->ahc_state) == 1) {
+                stepgen = arg;
+                stepgen += atoi(ahc_joint_str);
+                pos_scale = (stepgen->pos_scale);
+                max_offset = *(machine_control->ahc_max_offset);
+                max_offset = max_offset >= 0? max_offset:0;
+                fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d) max_offset(%d)\n",
+                                (uint32_t)*(machine_control->ahc_state),(uint32_t) *
+                                    (machine_control->ahc_level),
+                                (uint32_t)abs(max_offset *
+                                    (pos_scale)));
 
-            /* ahc max_offset */
-            write_machine_param(AHC_MAX_OFFSET, (uint32_t)
-                    abs((max_offset)) * (pos_scale));
+                /* ahc max_offset */
+                write_machine_param(AHC_MAX_OFFSET, (uint32_t)
+                        abs((max_offset)) * (pos_scale));
+                /* max control voltage */
+
+                /* min control voltage */
+
+            }
             /* ahc level , ahc state */
             immediate_data = (uint32_t)(*(machine_control->ahc_level));
             for(j=0; j<sizeof(uint32_t); j++) {
@@ -1435,16 +1452,17 @@ static void update_freq(void *arg, long period)
         // transmit immediate data
         fprintf(stderr,"wou_stepgen.c: risc wait input(%d) timeout(%u) type (%d)\n",(uint32_t)*machine_control->sync_in,
                 immediate_data, (uint32_t)*(machine_control->wait_type));
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        }
-        sync_cmd = SYNC_ST;
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
+        write_machine_param(WAIT_TIMEOUT, immediate_data);
+//        for(j=0; j<sizeof(uint32_t); j++) {
+//            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
+//            memcpy(data, &sync_cmd, sizeof(uint16_t));
+//            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//                    sizeof(uint16_t), data);
+//        }
+//        sync_cmd = SYNC_ST;
+//        memcpy(data, &sync_cmd, sizeof(uint16_t));
+//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//                sizeof(uint16_t), data);
         // end: setup sync timeout
         // begin: trigger sync in and wait timeout 
         sync_cmd = SYNC_DIN | PACK_IO_ID((uint32_t)*(machine_control->sync_in)) |
@@ -2413,6 +2431,22 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->ahc_max_offset) = 0;
 
+    retval =
+                hal_pin_float_newf(HAL_IN, &(machine_control->ahc_max_level), comp_id,
+                                "wou.ahc.max_level");
+    if (retval != 0) {
+            return retval;
+    }
+    *(machine_control->ahc_max_level) = 0;
+
+    retval =
+                hal_pin_float_newf(HAL_IN, &(machine_control->ahc_min_level), comp_id,
+                                "wou.ahc.min_level");
+    if (retval != 0) {
+            return retval;
+    }
+    *(machine_control->ahc_min_level) = 0;
+
     /* auto height control switches */
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
@@ -2519,6 +2553,14 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->bp_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_bp_tick), comp_id,
+                                 "wou.wou_bp_tick");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->wou_bp_tick) = 0;
+
 
     machine_control->prev_out = 0;
 
