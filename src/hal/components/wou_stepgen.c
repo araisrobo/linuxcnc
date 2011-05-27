@@ -140,6 +140,7 @@
 #include <wb_regs.h>
 #include <mailtag.h>
 #include <sync_cmd.h>
+#define REQUEST_TICK_SYNC_AFTER 500 // after 500 tick count, request risc to sync tick count
 #define MAX_CHAN 8
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
@@ -631,8 +632,8 @@ static void fetchmail(const uint8_t *buf_head)
         }
 
         // host tick
-        p += 1;
-        *machine_control->wou_bp_tick = *p;
+//        p += 1;
+//        *machine_control->wou_bp_tick = *p;
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -1211,7 +1212,6 @@ int rtapi_app_main(void)
 	return -1;
     }
 
-
     /* allocate shared memory for counter data */
     stepgen_array = hal_malloc(num_chan * sizeof(stepgen_t));
     if (stepgen_array == 0) {
@@ -1368,9 +1368,18 @@ static void update_freq(void *arg, long period)
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     // update host tick for risc
-    host_tick += 1;
-    write_machine_param(HOST_TICK, host_tick);
 
+    write_machine_param(HOST_TICK, host_tick);
+    *machine_control->wou_bp_tick = host_tick;
+    if (host_tick == REQUEST_TICK_SYNC_AFTER) {
+
+        sync_cmd = SYNC_BP ;
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+        wou_flush(&w_param);
+    }
+    host_tick += 1;
     //    DP("before wou_update()\n");
     wou_update(&w_param);
     // read SSIF_INDEX_LOCK
