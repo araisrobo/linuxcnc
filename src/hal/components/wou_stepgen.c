@@ -433,11 +433,14 @@ typedef struct {
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
     /* probe */
-    hal_bit_t *probe_trigger;
-    hal_u32_t *probe_type;
-    hal_bit_t *probe_input;
-    uint8_t prev_probe_input;
-    int8_t probe_state;
+//    hal_bit_t *probe_trigger;
+//    hal_u32_t *probe_type;
+//    hal_bit_t *probe_input;
+//    uint8_t prev_probe_input;
+//    int8_t probe_state;
+    hal_float_t *probe_type;
+    double prev_probe_type;
+    hal_float_t *probe_pin;
 
     /* spindle */
 //obsolete:    hal_bit_t *spindle_enable;
@@ -603,14 +606,14 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[4]) = *p;
         p += 1; *(analog->in[5]) = *p;
 
-        // probe state
-        p += 1;
-        machine_control->probe_state = *p;
-        if(machine_control->probe_state == 5) {
-            *machine_control->probe_input = 1;
-        } else {
-            *machine_control->probe_input = 0;
-        }
+//        // probe state
+//        p += 1;
+//        machine_control->probe_state = *p;
+//        if(machine_control->probe_state == 5) {
+//            *machine_control->probe_input = 1;
+//        } else {
+//            *machine_control->probe_input = 0;
+//        }
         
         // MPG
         p += 1;
@@ -1349,6 +1352,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     static uint32_t host_tick = 0;
+    static uint8_t is_probing = 0;
     int32_t immediate_data = 0;
 //obsolete: double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
@@ -1519,28 +1523,39 @@ static void update_freq(void *arg, long period)
     /* end: process motion synchronized output */
 
     /* begin: probe */
-    if(*machine_control->probe_trigger != 0 ) {
-
-        *machine_control->probe_trigger = 0;
-        sync_cmd = SYNC_PROBE | ((uint16_t)*machine_control->probe_type);
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        wou_flush(&w_param);
-        fprintf(stderr,"probe_trigger(%d) \n",*machine_control->probe_type);
-
+    if (*machine_control->probe_type != machine_control->prev_probe_type) {
+        write_machine_param(PROBE_INPUT_ID, (uint32_t)
+                        (*machine_control->probe_pin));
+        write_machine_param(PROBE_TYPE, (uint32_t)
+                        (*machine_control->probe_type));
+        if (*machine_control->probe_type != PROBE_NONE) {
+            is_probing = 1;
+        }
+        fprintf(stderr, "probe_type(%d) \n", (uint32_t)*machine_control->probe_type);
     }
-    if((machine_control->prev_probe_input != *machine_control->probe_input) &&
-            machine_control->prev_probe_input) {
-        /* disable probe motion in risc */
-        sync_cmd = SYNC_PROBE;
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        wou_flush(&w_param);
-
-    }
-    machine_control->prev_probe_input = *machine_control->probe_input;
+    machine_control->prev_probe_type = *machine_control->probe_type;
+//    if(*machine_control->probe_trigger != 0 ) {
+//
+//        *machine_control->probe_trigger = 0;
+//        sync_cmd = SYNC_PROBE | ((uint16_t)*machine_control->probe_type);
+//        memcpy(data, &sync_cmd, sizeof(uint16_t));
+//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//                sizeof(uint16_t), data);
+//        wou_flush(&w_param);
+//        fprintf(stderr,"probe_trigger(%d) \n",*machine_control->probe_type);
+//
+//    }
+//    if((machine_control->prev_probe_input != *machine_control->probe_input) &&
+//            machine_control->prev_probe_input) {
+//        /* disable probe motion in risc */
+//        sync_cmd = SYNC_PROBE;
+//        memcpy(data, &sync_cmd, sizeof(uint16_t));
+//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//                sizeof(uint16_t), data);
+//        wou_flush(&w_param);
+//
+//    }
+//    machine_control->prev_probe_input = *machine_control->probe_input;
     /* end: probe */
 
     /* point at stepgen data */
@@ -2032,23 +2047,32 @@ static void update_freq(void *arg, long period)
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
-    if(*machine_control->ahc_state == 1) {
+//    if(*machine_control->ahc_state == 1) {
 
-        if (*machine_control->motion_state != machine_control->prev_motion_state) {
-            if (*machine_control->motion_state == ACCEL_S3) {
-                sync_cmd = SYNC_VEL | 0x0001;
-                 fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
-            } else {
-                sync_cmd = SYNC_VEL;
+    if (*machine_control->motion_state != machine_control->prev_motion_state) {
+        if (*machine_control->motion_state == ACCEL_S3) {
+            sync_cmd = SYNC_VEL | 0x0001;
+             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
+        } else {
+            sync_cmd = SYNC_VEL;
 //                 fprintf(stderr,"motion_state != ACCEL_S3\n");
-            }
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
         }
-        machine_control->prev_motion_state = *machine_control->motion_state;
-//        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
+        memcpy(data, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), data);
+
+        if (is_probing) {
+            if (*machine_control->motion_state == ACCEL_S7) {
+                *machine_control->probe_type = PROBE_NONE;
+                is_probing = 0;
+                fprintf(stderr, "clean probe state \n");
+            }
+            fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
+        }
     }
+    machine_control->prev_motion_state = *machine_control->motion_state;
+//        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
+//    }
 
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
@@ -2473,16 +2497,16 @@ static int export_machine_control(machine_control_t * machine_control)
     }
 
     /* for probe */
-    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_trigger), comp_id,
-                         "wou.probe.trigger");
-    *(machine_control->probe_trigger) = 0;    // pin index must not beyond index
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_type), comp_id,
+                         "wou.probe.type");
+    *(machine_control->probe_type) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
 
-    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->probe_type), comp_id,
-                             "wou.probe.type");
-    *(machine_control->probe_type) = 0;    // pin index must not beyond index
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_pin), comp_id,
+                             "wou.probe.pin");
+    *(machine_control->probe_pin) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
@@ -2494,12 +2518,12 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_input), comp_id,
-                             "wou.probe.input");
-    *(machine_control->probe_input) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
+//    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_input), comp_id,
+//                             "wou.probe.input");
+//    *(machine_control->probe_input) = 0;    // pin index must not beyond index
+//    if (retval != 0) {
+//        return retval;
+//    }
 
     /* for spindle */
 //obsolete:    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_enable), comp_id,
