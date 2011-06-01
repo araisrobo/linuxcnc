@@ -441,6 +441,9 @@ typedef struct {
     hal_float_t *probe_type;
     double prev_probe_type;
     hal_float_t *probe_pin;
+    /* zero z */
+    hal_float_t *zero_z_flag;
+    hal_float_t *zero_trigger;
 
     /* spindle */
 //obsolete:    hal_bit_t *spindle_enable;
@@ -532,7 +535,7 @@ static void fetchmail(const uint8_t *buf_head)
 {
     int         i;
     uint16_t    mail_tag;
-    uint32_t    *p, din[1];
+    uint32_t    *p, din[1], dout[1];
     // obsolete: double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
@@ -583,6 +586,10 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
+        // digital output
+        p += 1;
+        dout[0] = *p;
+
         //obsolete: din[0] &= gpio_mask_in0;
 
         // update gpio_in[31:0]
@@ -655,9 +662,9 @@ static void fetchmail(const uint8_t *buf_head)
                              );
             stepgen += 1;   // point to next joint
         }
-        dsize += sprintf (dmsg + dsize, "0x%04X %10d", // #21 #22
+        dsize += sprintf (dmsg + dsize, "0x%04X 0x%04X", // #21 #22
                           din[0],
-                          machine_control->probe_state);
+                          dout[0]);
         dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #23 #24
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
@@ -1534,29 +1541,28 @@ static void update_freq(void *arg, long period)
         fprintf(stderr, "probe_type(%d) \n", (uint32_t)*machine_control->probe_type);
     }
     machine_control->prev_probe_type = *machine_control->probe_type;
-//    if(*machine_control->probe_trigger != 0 ) {
-//
-//        *machine_control->probe_trigger = 0;
-//        sync_cmd = SYNC_PROBE | ((uint16_t)*machine_control->probe_type);
-//        memcpy(data, &sync_cmd, sizeof(uint16_t));
-//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//                sizeof(uint16_t), data);
-//        wou_flush(&w_param);
-//        fprintf(stderr,"probe_trigger(%d) \n",*machine_control->probe_type);
-//
-//    }
-//    if((machine_control->prev_probe_input != *machine_control->probe_input) &&
-//            machine_control->prev_probe_input) {
-//        /* disable probe motion in risc */
-//        sync_cmd = SYNC_PROBE;
-//        memcpy(data, &sync_cmd, sizeof(uint16_t));
-//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//                sizeof(uint16_t), data);
-//        wou_flush(&w_param);
-//
-//    }
-//    machine_control->prev_probe_input = *machine_control->probe_input;
     /* end: probe */
+
+    /* begin: zeroing */
+    if (*machine_control->zero_trigger) {
+        if (*machine_control->zero_z_flag) { // would replace with j2
+            r_switch_en |= (1 << 2);
+            *machine_control->zero_z_flag = 0;
+        }
+        *machine_control->zero_trigger = 0;
+        if (r_switch_en != 0) {
+//            // issue a WOU_WRITE
+//            wou_cmd(&w_param,
+//                    WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, &r_switch_en);
+//            // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
+//            wou_flush(&w_param);
+            sync_cmd = SYNC_RST_POS | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
+            memcpy(data, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
+        }
+        fprintf(stderr,"reset enc Z\n");
+    }
+    /* end: zeroing */
 
     /* point at stepgen data */
     stepgen = arg;
@@ -2062,7 +2068,8 @@ static void update_freq(void *arg, long period)
                 sizeof(uint16_t), data);
 
         if (is_probing) {
-            if (*machine_control->motion_state == ACCEL_S7) {
+            if (*machine_control->motion_state == ACCEL_S7 ||
+                    *machine_control->motion_state == ACCEL_S6) {
                 *machine_control->probe_type = PROBE_NONE;
                 is_probing = 0;
                 fprintf(stderr, "clean probe state \n");
@@ -2507,6 +2514,20 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_pin), comp_id,
                              "wou.probe.pin");
     *(machine_control->probe_pin) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    /* zero z */
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->zero_z_flag), comp_id,
+                             "wou.zero.z_flag");
+    *(machine_control->zero_z_flag) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->zero_trigger), comp_id,
+                             "wou.zero.trigger");
+
+    *(machine_control->zero_trigger) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
