@@ -403,7 +403,8 @@ typedef struct {
     hal_bit_t   *in[64];
     uint32_t    prev_in0;
     uint32_t    prev_in1;
-
+    hal_u32_t   *dout0; // dout reg 0
+//    hal_u32_t   *dout1; // dout reg 1
     hal_float_t *analog_ref_level;
     double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
@@ -589,7 +590,7 @@ static void fetchmail(const uint8_t *buf_head)
         // digital output
         p += 1;
         dout[0] = *p;
-
+        *machine_control->dout0 = dout[0];
         //obsolete: din[0] &= gpio_mask_in0;
 
         // update gpio_in[31:0]
@@ -2600,6 +2601,15 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->test_pattern) = 0;
+
+
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->dout0), comp_id,
+                                     "wou.dout0");
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->dout0) = 0;
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->bp_tick), comp_id,
                                  "wou.bp_tick");
