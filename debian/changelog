@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.06.04) lucid; urgency=low
+
+  * Improve PLASMA-CUTTING commands
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Sat, 04 Jun 2011 08:34:09 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.05.23) lucid; urgency=low
 
   * BUGFIX for USB-HOMING with HOME_OFFSET
