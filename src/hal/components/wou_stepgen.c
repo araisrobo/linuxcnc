@@ -1583,9 +1583,7 @@ static void update_freq(void *arg, long period)
     r_index_en = prev_r_index_en;
     /* begin: homing logic */
     for (n = 0; n < num_chan; n++) {
-	if ((*stepgen->home_state != HOME_IDLE) &&
-	        stepgen->pos_mode &&
-	        (*stepgen->home_state != HOME_FINAL_MOVE_WAIT)) {
+	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
 	    static hal_s32_t prev_switch_pos;
 	    hal_s32_t switch_pos_tmp;
 	    hal_s32_t index_pos_tmp;
@@ -1687,13 +1685,6 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
                         n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
 	    }
-	} else {
-	    // home idle, home final move (wait)
-	    if(normal_move_flag[n] == 1) {
-                immediate_data = NORMAL_MOVE;
-                write_mot_param (n, (MOTION_TYPE), immediate_data);
-                normal_move_flag[n] = 0;
-            }
 	}
         stepgen->prev_home_state = *stepgen->home_state;
 	/* move on to next channel */
