@@ -93,12 +93,4 @@ hal/components/conv_u32_bit.comp: hal/components/conv.comp.in hal/components/mkc
 hal/components/conv_u32_s32.comp: hal/components/conv.comp.in hal/components/mkconv.sh hal/components/Submakefile
 	sh hal/components/mkconv.sh u32 s32 "" -1 2147483647 < $< > $@
 
-../bin/audio: hal/components/audio.comp
-	../bin/comp --install $<
-userspace: ../bin/audio
-
-../bin/data_log: hal/components/data_log.comp
-	../bin/comp --install $<
-userspace: ../bin/data_log
-
 #not for binary release: # TARGETS += ../bin/audio
