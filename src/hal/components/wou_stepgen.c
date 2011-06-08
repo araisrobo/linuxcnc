@@ -414,9 +414,10 @@ typedef struct {
     int num_gpio_in;
     
 //    uint32_t    bp_tick;    /* base-period tick obtained from fetchmail */
-    hal_u32_t *wou_bp_tick;     /* base-period tick obtained from fetchmail */
+    hal_u32_t *wou_bp_tick;     /* host side bp counter */
     hal_u32_t *bp_tick;     /* base-period tick obtained from fetchmail */
     uint32_t    prev_bp;    /* previous base-period tick */
+    hal_u32_t *crc_error_counter;
 
     /* sync output pins (output from motmod) */
     hal_bit_t *out[64];
@@ -532,6 +533,12 @@ void endian_swap(uint32_t  *x)
 /************************************************************************
  * mailbox callback function for libwou                                 *
  ************************************************************************/
+static void get_crc_error_counter(int32_t crc_error_counter)
+{
+    // store crc_error_counter
+
+    return;
+}
 static void fetchmail(const uint8_t *buf_head)
 {
     int         i;
@@ -818,6 +825,8 @@ int rtapi_app_main(void)
 #endif
         // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
+        // set crc counter callback function
+        wou_set_crc_error_cb (&w_param, get_crc_error_counter);
     }
 
     if(pulse_type != -1) {
@@ -2608,6 +2617,14 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->bp_tick) = 0;
+
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->crc_error_counter), comp_id,
+                                 "wou.crc-error-counter");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->crc_error_counter) = 0;
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_bp_tick), comp_id,
                                  "wou.wou_bp_tick");
