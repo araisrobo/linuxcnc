@@ -440,6 +440,7 @@ typedef struct {
 //    hal_bit_t *probe_input;
 //    uint8_t prev_probe_input;
 //    int8_t probe_state;
+    hal_float_t *probe_ref_voltage;
     hal_float_t *probe_type;
     double prev_probe_type;
     hal_float_t *probe_pin;
@@ -1085,7 +1086,7 @@ int rtapi_app_main(void)
 
         /* config acceleration */
         immediate_data = (uint32_t)(((max_accel*pos_scale*dt*
-                                        dt)*(1 << FRACTION_BITS)));
+                                        dt)*(1 << FRACTION_BITS)+ (1 << (FRACTION_BITS-1))));
         immediate_data = immediate_data > 0? immediate_data:-immediate_data;
         immediate_data += 1;
         rtapi_print_msg(RTAPI_MSG_DBG,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
@@ -1095,7 +1096,7 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
-        immediate_data = (uint32_t)((1 << FRACTION_BITS)/(max_accel*pos_scale*dt*dt));
+        immediate_data = (uint32_t)((1 << FRACTION_BITS)/(max_accel*pos_scale*dt*dt)+ (1 << (FRACTION_BITS-1)));
         immediate_data = (immediate_data > 0) ? immediate_data : -immediate_data;
         rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
                                         max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
@@ -1424,6 +1425,7 @@ static void update_freq(void *arg, long period)
         fprintf(stderr,"wou_stepgen.c: analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
     }
     machine_control->prev_analog_ref_level = *machine_control->analog_ref_level;
+    *(machine_control->probe_ref_voltage) = *machine_control->analog_ref_level;
     /* end: */
 
     /* begin: process position compensation enable */
@@ -1545,6 +1547,7 @@ static void update_freq(void *arg, long period)
                         (*machine_control->probe_pin));
         write_machine_param(PROBE_TYPE, (uint32_t)
                         (*machine_control->probe_type));
+
         if (*machine_control->probe_type != PROBE_NONE) {
             is_probing = 1;
         }
@@ -2508,6 +2511,12 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_type), comp_id,
                          "wou.probe.type");
     *(machine_control->probe_type) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->probe_ref_voltage), comp_id,
+                             "wou.probe.ref-voltage");
+    *(machine_control->probe_ref_voltage) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
