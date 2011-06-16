@@ -294,6 +294,18 @@ const char *ahc_joint_str = "2";
 RTAPI_MP_STRING(ahc_joint_str,
 		"auto height control joint");
 
+const char *ahc_ch_str ="0"; // ANALOG_0: analog input0
+RTAPI_MP_STRING(ahc_ch_str,
+                "auto height control analog channel");
+
+const char *ahc_level_max_str ="1700";
+RTAPI_MP_STRING(ahc_level_max_str,
+                "auto height control: max level");
+
+const char *ahc_level_min_str ="1100";
+RTAPI_MP_STRING(ahc_level_min_str,
+                "auto height control: min level");
+
 const char *machine_param_str = "XYZA"; // XYZY, XYZY_
 RTAPI_MP_STRING(machine_param_str,
                 "specify machine type");
@@ -301,6 +313,8 @@ RTAPI_MP_STRING(machine_param_str,
 const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
                 "indicate test pattern type");
+
+
 
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
@@ -760,7 +774,7 @@ int rtapi_app_main(void)
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
     double max_vel, max_accel, pos_scale, value, max_following_error;
-    int msg, ahc_joint;
+    int msg, ahc_joint, ahc_channel, ahc_level_max, ahc_level_min;
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
@@ -861,8 +875,14 @@ int rtapi_app_main(void)
     }
 
     // config auto height control behavior
+    ahc_channel = atoi(ahc_ch_str);
+    write_machine_param(AHC_ANALOG_CH, ahc_channel);
     ahc_joint = atoi(ahc_joint_str);
     write_machine_param(AHC_JNT, ahc_joint);
+    ahc_level_min = atoi(ahc_level_min_str);
+    write_machine_param(AHC_LEVEL_MIN, ahc_level_min);
+    ahc_level_max = atoi(ahc_level_max_str);
+    write_machine_param(AHC_LEVEL_MAX, ahc_level_max);
     pos_scale = atof(pos_scale_str[ahc_joint]);
     if (strcmp(ahc_polarity, "POSITIVE") == 0) {
     	if (pos_scale >=0) {
@@ -1435,11 +1455,12 @@ static void update_freq(void *arg, long period)
                 pos_scale = (stepgen->pos_scale);
                 max_offset = *(machine_control->ahc_max_offset);
                 max_offset = max_offset >= 0? max_offset:0;
-                fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d) max_offset(%d)\n",
+                fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d) max_offset(%d) ahc_joint(%d) \n",
                                 (uint32_t)*(machine_control->ahc_state),(uint32_t) *
                                     (machine_control->ahc_level),
                                 (uint32_t)abs(max_offset *
-                                    (pos_scale)));
+                                    (pos_scale)),
+                                    atoi(ahc_joint_str));
 
                 /* ahc max_offset */
                 write_machine_param(AHC_MAX_OFFSET, (uint32_t)
@@ -2550,6 +2571,8 @@ static int export_machine_control(machine_control_t * machine_control)
                                 "wou.thc_enable");
     if (retval != 0) {
         return retval;
+    } else {
+        *machine_control->thc_enbable = 1; // default enabled
     }
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
