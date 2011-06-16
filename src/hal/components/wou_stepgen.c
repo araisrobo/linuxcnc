@@ -637,6 +637,8 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[3]) = *p;
         p += 1; *(analog->in[4]) = *p;
         p += 1; *(analog->in[5]) = *p;
+        p += 1; *(analog->in[6]) = *p;
+        p += 1; *(analog->in[7]) = *p;
         // MPG
         p += 1;
         *(machine_control->mpg_count) = *p;
@@ -1558,11 +1560,6 @@ static void update_freq(void *arg, long period)
 
     /* begin: probe */
 
-
-
-
-
-
     if (*machine_control->probe_type != machine_control->prev_probe_type) {
         if (*machine_control->probe_pin < 0) *machine_control->probe_pin = 0;
         if (*machine_control->probe_type <0) *machine_control->probe_type = 0;
@@ -1572,16 +1569,20 @@ static void update_freq(void *arg, long period)
             if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) >= 1) {
                 *machine_control->probe_output = 1;
                 *machine_control->probe_type = 0;
+                is_probing = 0;
             } else {
                 *machine_control->probe_output = 0;
+                is_probing = 1;
             }
             break;
         case PROBE_LOW:
             if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) <= 0) {
                 *machine_control->probe_output = 1;
                 *machine_control->probe_type = 0;
+                is_probing = 0;
             } else {
                 *machine_control->probe_output = 0;
+                is_probing = 1;
             }
             break;
         case PROBE_LEVEL_HIGH:
@@ -1589,8 +1590,10 @@ static void update_freq(void *arg, long period)
                 *machine_control->analog_ref_level + *(machine_control->probe_hyst)) {
                 *machine_control->probe_output = 1;
                 *machine_control->probe_type = 0;
+                is_probing = 0;
             } else {
                 *machine_control->probe_output = 0;
+                is_probing = 1;
             }
             break;
         case PROBE_LEVEL_LOW:
@@ -1598,33 +1601,25 @@ static void update_freq(void *arg, long period)
                 *machine_control->analog_ref_level - *(machine_control->probe_hyst)) {
                 *machine_control->probe_output = 1;
                 *machine_control->probe_type = 0;
+                is_probing = 0;
+                fprintf(stderr,"ABORT this probing \n");
             } else {
+                is_probing = 1;
                 *machine_control->probe_output = 0;
             }
             break;
         }
-
-//        if (*machine_control->probe_output == 0) {
-            // check if it ok to send probe command
-    //        if ((int32_t)(*machine_control->probe_type) == PROBE_HIGH) {
-    //            // check the probe pin initial state
-    //        } else if ((int32_t)(*machine_control->probe_type) == PROPBE_LOW) {
-    //            // check the probe pin initial state
-    //        } else if ((int32_t)(*machine_control->probe_type) == PROBE_ANALOG_HIGH) {
-    //            // check the analog initial value
-    //        } else if ((int32_t)(*machine_control->probe_type) == PROBE_ANALOG_HIGH) {
-    //            // check the analog initial value
-    //        }
 
         write_machine_param(PROBE_INPUT_ID, (uint32_t)
                         (*machine_control->probe_pin));
         write_machine_param(PROBE_TYPE, (uint32_t)
                         (*machine_control->probe_type));
 
-        if (*machine_control->probe_type != PROBE_NONE) {
-            is_probing = 1;
-        }
-        fprintf(stderr, "probe_type(%d) \n", (uint32_t)*machine_control->probe_type);
+//        if (*machine_control->probe_type != PROBE_NONE) {
+//            is_probing = 1;
+//        }
+        fprintf(stderr, "probe_type(%d) is_probing(%d) probe_out(%d)\n",
+                (uint32_t)*machine_control->probe_type, is_probing, *machine_control->probe_output);
 //        }
     }
     machine_control->prev_probe_type = *machine_control->probe_type;
@@ -2150,7 +2145,8 @@ static void update_freq(void *arg, long period)
                     *machine_control->motion_state == ACCEL_S6) {
                 *machine_control->probe_type = PROBE_NONE;
                 is_probing = 0;
-                fprintf(stderr, "clean probe state \n");
+                fprintf(stderr, "clean probe state  probe_type(%0f) prev_probe_type(%0f)\n",
+                        *machine_control->probe_type, machine_control->prev_probe_type);
             }
             fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
         }
