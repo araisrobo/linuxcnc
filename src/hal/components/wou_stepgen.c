@@ -309,7 +309,7 @@ static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
 static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
-
+static uint8_t is_probing = 0;
 
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 
@@ -440,7 +440,9 @@ typedef struct {
 //    hal_bit_t *probe_input;
 //    uint8_t prev_probe_input;
 //    int8_t probe_state;
-    hal_float_t *probe_ref_voltage;
+    hal_s32_t   *probe_hyst;
+    hal_bit_t   *probe_output;
+//    hal_float_t *probe_ref_voltage;
     hal_float_t *probe_type;
     double prev_probe_type;
     hal_float_t *probe_pin;
@@ -621,16 +623,6 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[3]) = *p;
         p += 1; *(analog->in[4]) = *p;
         p += 1; *(analog->in[5]) = *p;
-
-//        // probe state
-//        p += 1;
-//        machine_control->probe_state = *p;
-//        if(machine_control->probe_state == 5) {
-//            *machine_control->probe_input = 1;
-//        } else {
-//            *machine_control->probe_input = 0;
-//        }
-        
         // MPG
         p += 1;
         *(machine_control->mpg_count) = *p;
@@ -650,9 +642,11 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
 
-        // host tick
-//        p += 1;
-//        *machine_control->wou_bp_tick = *p;
+        // probe output
+        if (is_probing == 1) {
+            p += 1;
+            *machine_control->probe_output = (*p);
+        }
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -1370,7 +1364,7 @@ static void update_freq(void *arg, long period)
     static uint8_t prev_r_index_en = 0;
     static uint8_t prev_r_index_lock = 0;
     static uint32_t host_tick = 0;
-    static uint8_t is_probing = 0;
+
     int32_t immediate_data = 0;
 //obsolete: double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
@@ -1425,7 +1419,7 @@ static void update_freq(void *arg, long period)
         fprintf(stderr,"wou_stepgen.c: analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
     }
     machine_control->prev_analog_ref_level = *machine_control->analog_ref_level;
-    *(machine_control->probe_ref_voltage) = *machine_control->analog_ref_level;
+//    *(machine_control->probe_ref_voltage) = *machine_control->analog_ref_level;
     /* end: */
 
     /* begin: process position compensation enable */
@@ -1542,7 +1536,65 @@ static void update_freq(void *arg, long period)
     /* end: process motion synchronized output */
 
     /* begin: probe */
+
+
+
+
+
+
     if (*machine_control->probe_type != machine_control->prev_probe_type) {
+        if (*machine_control->probe_pin < 0) *machine_control->probe_pin = 0;
+        if (*machine_control->probe_type <0) *machine_control->probe_type = 0;
+
+        switch ((int32_t)*machine_control->probe_type) {
+        case PROBE_HIGH:
+            if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) >= 1) {
+                *machine_control->probe_output = 1;
+                *machine_control->probe_type = 0;
+            } else {
+                *machine_control->probe_output = 0;
+            }
+            break;
+        case PROBE_LOW:
+            if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) <= 0) {
+                *machine_control->probe_output = 1;
+                *machine_control->probe_type = 0;
+            } else {
+                *machine_control->probe_output = 0;
+            }
+            break;
+        case PROBE_LEVEL_HIGH:
+            if (*(analog->in[(int32_t)*machine_control->probe_pin]) >
+                *machine_control->analog_ref_level + *(machine_control->probe_hyst)) {
+                *machine_control->probe_output = 1;
+                *machine_control->probe_type = 0;
+            } else {
+                *machine_control->probe_output = 0;
+            }
+            break;
+        case PROBE_LEVEL_LOW:
+            if (*(analog->in[(int32_t)*machine_control->probe_pin]) <
+                *machine_control->analog_ref_level - *(machine_control->probe_hyst)) {
+                *machine_control->probe_output = 1;
+                *machine_control->probe_type = 0;
+            } else {
+                *machine_control->probe_output = 0;
+            }
+            break;
+        }
+
+//        if (*machine_control->probe_output == 0) {
+            // check if it ok to send probe command
+    //        if ((int32_t)(*machine_control->probe_type) == PROBE_HIGH) {
+    //            // check the probe pin initial state
+    //        } else if ((int32_t)(*machine_control->probe_type) == PROPBE_LOW) {
+    //            // check the probe pin initial state
+    //        } else if ((int32_t)(*machine_control->probe_type) == PROBE_ANALOG_HIGH) {
+    //            // check the analog initial value
+    //        } else if ((int32_t)(*machine_control->probe_type) == PROBE_ANALOG_HIGH) {
+    //            // check the analog initial value
+    //        }
+
         write_machine_param(PROBE_INPUT_ID, (uint32_t)
                         (*machine_control->probe_pin));
         write_machine_param(PROBE_TYPE, (uint32_t)
@@ -1552,6 +1604,7 @@ static void update_freq(void *arg, long period)
             is_probing = 1;
         }
         fprintf(stderr, "probe_type(%d) \n", (uint32_t)*machine_control->probe_type);
+//        }
     }
     machine_control->prev_probe_type = *machine_control->probe_type;
     /* end: probe */
@@ -2514,9 +2567,25 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->probe_ref_voltage), comp_id,
-                             "wou.probe.ref-voltage");
-    *(machine_control->probe_ref_voltage) = 0;    // pin index must not beyond index
+//    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->probe_ref_voltage), comp_id,
+//                             "wou.probe.ref-voltage");
+//    *(machine_control->probe_ref_voltage) = 0;    // pin index must not beyond index
+//    if (retval != 0) {
+//        return retval;
+//    }
+
+
+
+    retval = hal_pin_s32_newf(HAL_IO, &(machine_control->probe_hyst), comp_id,
+                             "wou.probe.analog-hyst");
+    *(machine_control->probe_hyst) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_output), comp_id,
+                             "wou.probe.probe-out");
+    *(machine_control->probe_output) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
