@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.06.17) lucid; urgency=low
+
+  * Update for AHC (Automatic Height Control)
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 17 Jun 2011 07:55:56 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.06.08) lucid; urgency=low
 
   * BUGFIX for USB-HOMING
