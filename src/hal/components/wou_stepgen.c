@@ -460,9 +460,6 @@ typedef struct {
     hal_float_t *probe_type;
     double prev_probe_type;
     hal_float_t *probe_pin;
-    /* zero z */
-    hal_float_t *zero_z_flag;
-    hal_float_t *zero_trigger;
 
     /* spindle */
 //obsolete:    hal_bit_t *spindle_enable;
@@ -639,6 +636,15 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[5]) = *p;
         p += 1; *(analog->in[6]) = *p;
         p += 1; *(analog->in[7]) = *p;
+        if (strcmp(pattern_type_str, "ANALOG_IN") == 0) {
+            *(analog->in[0]) = *machine_control->test_pattern;
+            *(analog->in[0]) = *machine_control->test_pattern;
+            *(analog->in[0]) = *machine_control->test_pattern;
+            *(analog->in[0]) = *machine_control->test_pattern;
+            *(analog->in[0]) = *machine_control->test_pattern;
+            *(analog->in[0]) = *machine_control->test_pattern;
+            *(analog->in[0]) = *machine_control->test_pattern;
+        }
         // MPG
         p += 1;
         *(machine_control->mpg_count) = *p;
@@ -663,6 +669,7 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *machine_control->probe_output = (*p);
         }
+
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -1560,16 +1567,16 @@ static void update_freq(void *arg, long period)
 
     /* begin: probe */
 
-    if (*machine_control->probe_type != machine_control->prev_probe_type) {
         if (*machine_control->probe_pin < 0) *machine_control->probe_pin = 0;
         if (*machine_control->probe_type <0) *machine_control->probe_type = 0;
-
+    if (is_probing != 1) {
         switch ((int32_t)*machine_control->probe_type) {
         case PROBE_HIGH:
             if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) >= 1) {
                 *machine_control->probe_output = 1;
                 *machine_control->probe_type = 0;
                 is_probing = 0;
+                fprintf(stderr,"ABORT this probing \n");
             } else {
                 *machine_control->probe_output = 0;
                 is_probing = 1;
@@ -1577,11 +1584,12 @@ static void update_freq(void *arg, long period)
             break;
         case PROBE_LOW:
             if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) <= 0) {
-                *machine_control->probe_output = 1;
+                *machine_control->probe_output = 0;
                 *machine_control->probe_type = 0;
                 is_probing = 0;
+                fprintf(stderr,"ABORT this probing \n");
             } else {
-                *machine_control->probe_output = 0;
+                *machine_control->probe_output = 1;
                 is_probing = 1;
             }
             break;
@@ -1591,6 +1599,7 @@ static void update_freq(void *arg, long period)
                 *machine_control->probe_output = 1;
                 *machine_control->probe_type = 0;
                 is_probing = 0;
+                fprintf(stderr,"ABORT this probing \n");
             } else {
                 *machine_control->probe_output = 0;
                 is_probing = 1;
@@ -1599,17 +1608,18 @@ static void update_freq(void *arg, long period)
         case PROBE_LEVEL_LOW:
             if (*(analog->in[(int32_t)*machine_control->probe_pin]) <
                 *machine_control->analog_ref_level - *(machine_control->probe_hyst)) {
-                *machine_control->probe_output = 1;
+                *machine_control->probe_output = 0;
                 *machine_control->probe_type = 0;
                 is_probing = 0;
                 fprintf(stderr,"ABORT this probing \n");
             } else {
                 is_probing = 1;
-                *machine_control->probe_output = 0;
+                *machine_control->probe_output = 1;
             }
             break;
         }
-
+    }
+    if (*machine_control->probe_type != machine_control->prev_probe_type) {
         write_machine_param(PROBE_INPUT_ID, (uint32_t)
                         (*machine_control->probe_pin));
         write_machine_param(PROBE_TYPE, (uint32_t)
@@ -1626,24 +1636,24 @@ static void update_freq(void *arg, long period)
     /* end: probe */
 
     /* begin: zeroing */
-    if (*machine_control->zero_trigger) {
-        if (*machine_control->zero_z_flag) { // would replace with j2
-            r_switch_en |= (1 << 2);
-            *machine_control->zero_z_flag = 0;
-        }
-        *machine_control->zero_trigger = 0;
-        if (r_switch_en != 0) {
-//            // issue a WOU_WRITE
-//            wou_cmd(&w_param,
-//                    WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, &r_switch_en);
-//            // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-//            wou_flush(&w_param);
-            sync_cmd = SYNC_RST_POS | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
-        }
-        fprintf(stderr,"reset enc Z\n");
-    }
+//    if (*machine_control->zero_trigger) {
+//        if (*machine_control->zero_z_flag) { // would replace with j2
+//            r_switch_en |= (1 << 2);
+//            *machine_control->zero_z_flag = 0;
+//        }
+//        *machine_control->zero_trigger = 0;
+//        if (r_switch_en != 0) {
+////            // issue a WOU_WRITE
+////            wou_cmd(&w_param,
+////                    WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, &r_switch_en);
+////            // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
+////            wou_flush(&w_param);
+//            sync_cmd = SYNC_RST_POS | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
+//            memcpy(data, &sync_cmd, sizeof(uint16_t));
+//            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
+//        }
+//        fprintf(stderr,"reset enc Z\n");
+//    }
     /* end: zeroing */
 
     /* point at stepgen data */
@@ -2612,20 +2622,6 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_pin), comp_id,
                              "wou.probe.pin");
     *(machine_control->probe_pin) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-    /* zero z */
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->zero_z_flag), comp_id,
-                             "wou.zero.z_flag");
-    *(machine_control->zero_z_flag) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->zero_trigger), comp_id,
-                             "wou.zero.trigger");
-
-    *(machine_control->zero_trigger) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
