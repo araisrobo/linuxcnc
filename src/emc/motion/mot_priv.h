@@ -87,7 +87,9 @@ typedef struct {
 /* machine data */
 
 typedef struct {
-    hal_bit_t *probe_input;	/* RPI: probe switch input */
+    //obsolete: hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_u32_t *usb_cmd;         /* usb command output */
+    hal_u32_t *usb_status;      /* usb status input */
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;

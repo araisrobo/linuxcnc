@@ -20,6 +20,7 @@
 #include "motion_struct.h"
 #include "mot_priv.h"
 #include "rtapi_math.h"
+#include "usb.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -293,7 +294,10 @@ static int init_hal_io(void)
     }
 
     /* export machine wide hal pins */
-    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
+    //obsolete on arais-emc2-usb: if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.wou.cmd")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->usb_status), mot_comp_id, "motion.wou.status")) != 0) goto error;
+
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) != 0) goto error;
 
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_on), mot_comp_id, "motion.spindle-on")) != 0) goto error;
@@ -396,7 +400,10 @@ static int init_hal_io(void)
     *(emcmot_hal_data->adaptive_feed) = 1.0;
     *(emcmot_hal_data->feed_hold) = 0;
 
-    *(emcmot_hal_data->probe_input) = 0;
+    //obsolete on arais-emc2-usb: *(emcmot_hal_data->probe_input) = 0;
+    *(emcmot_hal_data->usb_cmd) = USB_CMD_NOOP;
+    *(emcmot_hal_data->usb_status) = USB_STATUS_READY;
+
     /* default value of enable is TRUE, so simple machines
        can leave it disconnected */
     *(emcmot_hal_data->enable) = 1;

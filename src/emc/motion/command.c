@@ -59,6 +59,7 @@
 #include "posemath.h"
 #include "rtapi.h"
 #include "hal.h"
+#include "usb.h"
 #include "motion.h"
 #include "motion_debug.h"
 #include "motion_struct.h"
@@ -1397,7 +1398,7 @@ check_stuff ( "before command_handler()" );
 		tpAbort(&emcmotDebug->coord_tp);
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!(emcmotCommand->probe_type & 1)) {
+	    } /* else if (!(emcmotCommand->probe_type & 1)) {
                 // if suppress errors = off...
 
                 int probeval = *(emcmot_hal_data->probe_input);
@@ -1415,7 +1416,7 @@ check_stuff ( "before command_handler()" );
                     SET_MOTION_ERROR_FLAG(1);
                     break;
                 }
-            }
+            } */
 
 	    /* append it to the emcmotDebug->coord_tp */
 	    tpSetId(&emcmotDebug->coord_tp, emcmotCommand->id);
@@ -1438,6 +1439,14 @@ check_stuff ( "before command_handler()" );
 		   joint is moved in joint mode, for machines with no forward
 		   kins */
 		rehomeAll = 1;
+
+                if (emcmotCommand->probe_type & 2) {
+                  // G38.2, G38.3  
+                  emcmotStatus->usb_cmd = USB_CMD_PROBE_HIGH;
+                } else {
+                  // G38.4, G38.5  
+                  emcmotStatus->usb_cmd = USB_CMD_PROBE_LOW;
+                }
 	    }
 	    break;
 
