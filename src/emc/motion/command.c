@@ -932,6 +932,7 @@ check_stuff ( "before command_handler()" );
             break;
 
         case EMCMOT_SET_NURBS:
+            //TODO: have to consider several condition
             tpAddNURBS(&emcmotDebug->coord_tp, emcmotCommand->motion_type,
                        emcmotCommand->nurbs_block, emcmotCommand->pos,
                        emcmotStatus->enables_new, emcmotCommand->vel,
