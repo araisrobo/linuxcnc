@@ -68,6 +68,7 @@
 #include "rtapi_math.h"
 #include "motion_types.h"
 #include "stdio.h"
+#include "assert.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -1373,8 +1374,9 @@ check_stuff ( "before command_handler()" );
 
 	case EMCMOT_CLEAR_PROBE_FLAGS:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
-	    emcmotStatus->probing = 0;
-            emcmotStatus->probeTripped = 0;
+	    //obsolete: emcmotStatus->probing = 0;
+            //obsolete: emcmotStatus->probeTripped = 0;
+            assert(0);
 	    break;
 
 	case EMCMOT_PROBE:
@@ -1432,7 +1434,7 @@ check_stuff ( "before command_handler()" );
 		SET_MOTION_ERROR_FLAG(1);
 		break;
 	    } else {
-		emcmotStatus->probing = 1;
+		//obsolete: emcmotStatus->probing = 1;
                 emcmotStatus->probe_type = emcmotCommand->probe_type;
 		SET_MOTION_ERROR_FLAG(0);
 		/* set flag that indicates all joints need rehoming, if any

@@ -27,6 +27,8 @@
 #include "simple_tp.h"
 #include "motion_debug.h"
 #include "config.h"
+#include "usb.h"
+#include "assert.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -395,6 +397,10 @@ static void process_inputs(void)
     joint_hal_t *joint_data;
     emcmot_joint_t *joint;
     unsigned char enables;
+    
+    /* read usb status */
+    emcmotStatus->usb_status = *emcmot_hal_data->usb_status;
+
     /* read spindle angle (for threading, etc) */
     emcmotStatus->spindleRevs = *emcmot_hal_data->spindle_revs;
     emcmotStatus->spindleSpeedIn = *emcmot_hal_data->spindle_speed_in;
@@ -649,84 +655,121 @@ static void do_forward_kins(void)
 
 static void process_probe_inputs(void)
 {
-    static int old_probeVal = 0;
+    //obsolete: static int old_probeVal = 0;
     unsigned char probe_type = emcmotStatus->probe_type;
 
     // don't error
     char probe_suppress = probe_type & 1;
 
-    // trigger when the probe clears, instead of the usual case of triggering when it trips
-    char probe_whenclears = !!(probe_type & 2);
+    switch ( emcmotStatus->usb_status) {
+    case USB_STATUS_PROBING:
+        if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
+            /**
+             * there's messages queued inside USB-link, got to flush them
+             * to clarify the probing status
+             **/
+            reportError("TODO: we should pause the TP and wait for USB to ACK the CMD_ABORT");
+            reportError("TODO: the above statement is not implemented yet");
+            assert (0);
+            /* the TRAJ-PLANNER is already stopped, but we need to remember the current 
+               position here, because it will still be queried */
+            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+            if (probe_suppress == 0) {
+                reportError("G38.X probe move finished without tripping probe");
+                SET_MOTION_ERROR_FLAG(1);
+            }
+            emcmotStatus->usb_cmd = USB_CMD_ABORT;
+        }
+        break;
+    case USB_STATUS_PROBE_HIT:
+        emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
+        /* stop! */
+        tpAbort(&emcmotDebug->coord_tp);
+        /* tell USB that we've got the status */
+        emcmotStatus->usb_cmd = USB_CMD_STATUS_ACK;
+        break;
+    case USB_STATUS_PROBE_ERROR:
+        reportError("TODO: got to figure out all the PROBE ERROR conditions");
+        reportError("TODO: -- end of TP motion");
+        reportError("TODO: -- probe signal got triggered while not at probing state (do we need to check this?)");
+        assert (0);
+        break;
+    default:
+        // deal with PROBE related status only
+        break;
+    }
     
-//TODO:    /* read probe input */
-//TODO:    emcmotStatus->probeVal = *(emcmot_hal_data->probe_input);
-//TODO:    if (emcmotStatus->probing) {
-//TODO:        /* check if the probe has been tripped */
-//TODO:        if (emcmotStatus->probeVal ^ probe_whenclears) {
-//TODO:            /* remember the current position */
-//TODO:            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
-//TODO:            /* stop! */
-//TODO:            tpAbort(&emcmotDebug->coord_tp);
-//TODO:            emcmotStatus->probing = 0;
-//TODO:            emcmotStatus->probeTripped = 1;
-//TODO:        /* check if the probe hasn't tripped, but the move finished */
-//TODO:        } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
-//TODO:            /* we are already stopped, but we need to remember the current 
-//TODO:               position here, because it will still be queried */
-//TODO:            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-//TODO:            emcmotStatus->probing = 0;
-//TODO:            if (probe_suppress) {
-//TODO:                emcmotStatus->probeTripped = 0;
-//TODO:            } else {
-//TODO:                reportError("G38.2 probe move finished without tripping probe");
-//TODO:                SET_MOTION_ERROR_FLAG(1);
-//TODO:            }
-//TODO:        }
-//TODO:    } else if (!old_probeVal && emcmotStatus->probeVal) {
-//TODO:        // not probing, but we have a rising edge on the probe.
-//TODO:        // this could be expensive if we don't stop.
-//TODO:        int i;
-//TODO:        int aborted = 0;
-//TODO:
-//TODO:        if(!GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) &&
-//TODO:           tpGetExecId(&emcmotDebug->coord_tp) <= 0) {
-//TODO:            // running an MDI command
-//TODO:            reportError("Probe tripped during non-probe MDI command.");
-//TODO:            tpAbort(&emcmotDebug->coord_tp);
-//TODO:        }
-//TODO:
-//TODO:        for(i=0; i<emcmotConfig->numJoints; i++) {
-//TODO:            emcmot_joint_t *joint = &joints[i];
-//TODO:
-//TODO:            if (!GET_JOINT_ACTIVE_FLAG(joint)) {
-//TODO:                /* if joint is not active, skip it */
-//TODO:                continue;
-//TODO:            }
-//TODO:
-//TODO:            // abort any homing
-//TODO:            if(GET_JOINT_HOMING_FLAG(joint)) {
-//TODO:                joint->home_state = HOME_ABORT;
-//TODO:                aborted=1;
-//TODO:            }
-//TODO:
-//TODO:            // abort any jogs
-//TODO:            if(joint->free_tp.enable == 1) {
-//TODO:                joint->free_tp.enable = 0;
-//TODO:                // since homing uses free_tp, this protection of aborted
-//TODO:                // is needed so the user gets the correct error.
-//TODO:                if(!aborted) aborted=2;
-//TODO:            }
-//TODO:        }
-//TODO:
-//TODO:        if(aborted == 1) {
-//TODO:            reportError("Probe tripped during homing motion.");
-//TODO:        }
-//TODO:
-//TODO:        if(aborted == 2) {
-//TODO:            reportError("Probe tripped during a jog.");
-//TODO:        }
-//TODO:    }
-//TODO:    old_probeVal = emcmotStatus->probeVal;
+//obsolete:    // trigger when the probe clears, instead of the usual case of triggering when it trips
+//obsolete:    char probe_whenclears = !!(probe_type & 2);
+//obsolete:    /* read probe input */
+//obsolete:    emcmotStatus->probeVal = *(emcmot_hal_data->probe_input);
+//obsolete:    if (emcmotStatus->probing) {
+//obsolete:        /* check if the probe has been tripped */
+//obsolete:        if (emcmotStatus->probeVal ^ probe_whenclears) {
+//obsolete:            /* remember the current position */
+//obsolete:            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
+//obsolete:            /* stop! */
+//obsolete:            tpAbort(&emcmotDebug->coord_tp);
+//obsolete:            emcmotStatus->probing = 0;
+//obsolete:            emcmotStatus->probeTripped = 1;
+//obsolete:        /* check if the probe hasn't tripped, but the move finished */
+//obsolete:        } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
+//obsolete:            /* we are already stopped, but we need to remember the current 
+//obsolete:               position here, because it will still be queried */
+//obsolete:            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+//obsolete:            emcmotStatus->probing = 0;
+//obsolete:            if (probe_suppress) {
+//obsolete:                emcmotStatus->probeTripped = 0;
+//obsolete:            } else {
+//obsolete:                reportError("G38.2 probe move finished without tripping probe");
+//obsolete:                SET_MOTION_ERROR_FLAG(1);
+//obsolete:            }
+//obsolete:        }
+//obsolete:    } else if (!old_probeVal && emcmotStatus->probeVal) {
+//obsolete:        // not probing, but we have a rising edge on the probe.
+//obsolete:        // this could be expensive if we don't stop.
+//obsolete:        int i;
+//obsolete:        int aborted = 0;
+//obsolete:
+//obsolete:        if(!GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) &&
+//obsolete:           tpGetExecId(&emcmotDebug->coord_tp) <= 0) {
+//obsolete:            // running an MDI command
+//obsolete:            reportError("Probe tripped during non-probe MDI command.");
+//obsolete:            tpAbort(&emcmotDebug->coord_tp);
+//obsolete:        }
+//obsolete:
+//obsolete:        for(i=0; i<emcmotConfig->numJoints; i++) {
+//obsolete:            emcmot_joint_t *joint = &joints[i];
+//obsolete:
+//obsolete:            if (!GET_JOINT_ACTIVE_FLAG(joint)) {
+//obsolete:                /* if joint is not active, skip it */
+//obsolete:                continue;
+//obsolete:            }
+//obsolete:
+//obsolete:            // abort any homing
+//obsolete:            if(GET_JOINT_HOMING_FLAG(joint)) {
+//obsolete:                joint->home_state = HOME_ABORT;
+//obsolete:                aborted=1;
+//obsolete:            }
+//obsolete:
+//obsolete:            // abort any jogs
+//obsolete:            if(joint->free_tp.enable == 1) {
+//obsolete:                joint->free_tp.enable = 0;
+//obsolete:                // since homing uses free_tp, this protection of aborted
+//obsolete:                // is needed so the user gets the correct error.
+//obsolete:                if(!aborted) aborted=2;
+//obsolete:            }
+//obsolete:        }
+//obsolete:
+//obsolete:        if(aborted == 1) {
+//obsolete:            reportError("Probe tripped during homing motion.");
+//obsolete:        }
+//obsolete:
+//obsolete:        if(aborted == 2) {
+//obsolete:            reportError("Probe tripped during a jog.");
+//obsolete:        }
+//obsolete:    }
+//obsolete:    old_probeVal = emcmotStatus->probeVal;
 }
 
 static void check_for_faults(void)
