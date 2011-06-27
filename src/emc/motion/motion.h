@@ -583,6 +583,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 */
 
     typedef struct emcmot_status_t {
+        uint32_t usb_cmd;
+        uint32_t usb_status;
+
 	unsigned char head;	/* flag count for mutex detect */
 	/* these three are updated only when a new command is handled */
 	cmd_code_t commandEcho;	/* echo of input command */
@@ -612,11 +615,11 @@ Suggestion: Split this in to an Error and a Status flag register..
 
 	int on_soft_limit;	/* non-zero if any joint is on soft limit */
 
-	int probeVal;		/* debounced value of probe input */
-
-	int probeTripped;	/* Has the probe signal changed since start
-				   of probe command? */
-	int probing;		/* Currently looking for a probe signal? */
+//obsolete:	int probeVal;		/* debounced value of probe input */
+//obsolete:
+//obsolete:	int probeTripped;	/* Has the probe signal changed since start
+//obsolete:				   of probe command? */
+//obsolete:	int probing;		/* Currently looking for a probe signal? */
         unsigned char probe_type;
 	EmcPose probedPos;	/* Axis positions stored as soon as possible
 				   after last probeTripped */

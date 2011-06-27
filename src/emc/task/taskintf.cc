@@ -1454,9 +1454,9 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
 
     stat->probedPosition = emcmotStatus.probedPos;
 
-    stat->probeval = emcmotStatus.probeVal;
-    stat->probing = emcmotStatus.probing;
-    stat->probe_tripped = emcmotStatus.probeTripped;
+//TODO: mandatory?    stat->probeval = emcmotStatus.probeVal;
+//TODO: mandatory?    stat->probing = emcmotStatus.probing;
+//TODO: mandatory?    stat->probe_tripped = emcmotStatus.probeTripped;
     
     if (emcmotStatus.motionFlag & EMCMOT_MOTION_COORD_BIT)
         enables = emcmotStatus.enables_queued;

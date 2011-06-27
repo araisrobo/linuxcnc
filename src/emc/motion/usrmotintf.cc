@@ -521,9 +521,9 @@ void usrmotPrintEmcmotStatus(emcmot_status_t s, int which)
 #endif
 	printf("enabled:     \t%s\n",
 	    s.motionFlag & EMCMOT_MOTION_ENABLE_BIT ? "ENABLED" : "DISABLED");
-	printf("probe value: %d\n", s.probeVal);
-	printf("probe Tripped: %d\n", s.probeTripped);
-	printf("probing: %d\n", s.probing);
+//	printf("probe value: %d\n", s.probeVal);
+//	printf("probe Tripped: %d\n", s.probeTripped);
+//	printf("probing: %d\n", s.probing);
 	printf("probed pos:      \t%f\t%f\t%f\n",
 	    s.probedPos.tran.x, s.probedPos.tran.y, s.probedPos.tran.z);
 	break;

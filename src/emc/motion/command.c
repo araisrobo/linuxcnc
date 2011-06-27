@@ -59,6 +59,7 @@
 #include "posemath.h"
 #include "rtapi.h"
 #include "hal.h"
+#include "usb.h"
 #include "motion.h"
 #include "motion_debug.h"
 #include "motion_struct.h"
@@ -67,6 +68,7 @@
 #include "rtapi_math.h"
 #include "motion_types.h"
 #include "stdio.h"
+#include "assert.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -1373,8 +1375,9 @@ check_stuff ( "before command_handler()" );
 
 	case EMCMOT_CLEAR_PROBE_FLAGS:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
-	    emcmotStatus->probing = 0;
-            emcmotStatus->probeTripped = 0;
+	    //obsolete: emcmotStatus->probing = 0;
+            //obsolete: emcmotStatus->probeTripped = 0;
+            assert(0);
 	    break;
 
 	case EMCMOT_PROBE:
@@ -1398,7 +1401,7 @@ check_stuff ( "before command_handler()" );
 		tpAbort(&emcmotDebug->coord_tp);
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!(emcmotCommand->probe_type & 1)) {
+	    } /* else if (!(emcmotCommand->probe_type & 1)) {
                 // if suppress errors = off...
 
                 int probeval = *(emcmot_hal_data->probe_input);
@@ -1416,7 +1419,7 @@ check_stuff ( "before command_handler()" );
                     SET_MOTION_ERROR_FLAG(1);
                     break;
                 }
-            }
+            } */
 
 	    /* append it to the emcmotDebug->coord_tp */
 	    tpSetId(&emcmotDebug->coord_tp, emcmotCommand->id);
@@ -1432,13 +1435,21 @@ check_stuff ( "before command_handler()" );
 		SET_MOTION_ERROR_FLAG(1);
 		break;
 	    } else {
-		emcmotStatus->probing = 1;
+		//obsolete: emcmotStatus->probing = 1;
                 emcmotStatus->probe_type = emcmotCommand->probe_type;
 		SET_MOTION_ERROR_FLAG(0);
 		/* set flag that indicates all joints need rehoming, if any
 		   joint is moved in joint mode, for machines with no forward
 		   kins */
 		rehomeAll = 1;
+
+                if (emcmotCommand->probe_type & 2) {
+                  // G38.2, G38.3  
+                  emcmotStatus->usb_cmd = USB_CMD_PROBE_HIGH;
+                } else {
+                  // G38.4, G38.5  
+                  emcmotStatus->usb_cmd = USB_CMD_PROBE_LOW;
+                }
 	    }
 	    break;
 
