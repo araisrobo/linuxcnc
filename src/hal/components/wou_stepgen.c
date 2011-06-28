@@ -140,6 +140,7 @@
 #include <wb_regs.h>
 #include <mailtag.h>
 #include <sync_cmd.h>
+
 #define REQUEST_TICK_SYNC_AFTER 500 // after 500 tick count, request risc to sync tick count
 #define MAX_CHAN 8
 #define MAX_STEP_CUR 255
@@ -314,7 +315,17 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
                 "indicate test pattern type");
 
+const char *probe_pin_type="DIGITAL_PIN"; // ANALOG_IN
+RTAPI_MP_STRING(probe_pin_type,
+                "indicate probing type");
 
+const char *probe_pin_id= "0";         // probing input channel
+RTAPI_MP_STRING(probe_pin_id,
+                "indicate probing channel");
+
+const char *probe_analog_ref_level= "2048";
+RTAPI_MP_STRING(probe_analog_ref_level,
+                "indicate probing level used by analog probing");
 
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
@@ -323,7 +334,7 @@ static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
 static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
-static uint8_t is_probing = 0;
+//static uint8_t is_probing = 0;
 
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
 
@@ -448,19 +459,11 @@ typedef struct {
     /* motion state tracker */
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
-    /* probe */
-//    hal_bit_t *probe_trigger;
-//    hal_u32_t *probe_type;
-//    hal_bit_t *probe_input;
-//    uint8_t prev_probe_input;
-//    int8_t probe_state;
-    hal_s32_t   *probe_hyst;
-    hal_bit_t   *probe_output;
-//    hal_float_t *probe_ref_voltage;
-    hal_float_t *probe_type;
-    double prev_probe_type;
-    hal_float_t *probe_pin;
-
+    /* command channel for emc2 */
+    hal_u32_t *wou_cmd;
+    uint32_t prev_wou_cmd;
+    hal_u32_t *wou_status;
+    uint32_t a_cmd_on_going;
     /* spindle */
 //obsolete:    hal_bit_t *spindle_enable;
 //obsolete:    hal_float_t *spindle_vel_cmd;
@@ -636,15 +639,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[5]) = *p;
         p += 1; *(analog->in[6]) = *p;
         p += 1; *(analog->in[7]) = *p;
-        if (strcmp(pattern_type_str, "ANALOG_IN") == 0) {
-            *(analog->in[0]) = *machine_control->test_pattern;
-            *(analog->in[0]) = *machine_control->test_pattern;
-            *(analog->in[0]) = *machine_control->test_pattern;
-            *(analog->in[0]) = *machine_control->test_pattern;
-            *(analog->in[0]) = *machine_control->test_pattern;
-            *(analog->in[0]) = *machine_control->test_pattern;
-            *(analog->in[0]) = *machine_control->test_pattern;
-        }
+
         // MPG
         p += 1;
         *(machine_control->mpg_count) = *p;
@@ -662,12 +657,6 @@ static void fetchmail(const uint8_t *buf_head)
         for (i=0; i<num_chan; i++) {
             *stepgen->ferror_flag = ferror_flag & (1 << i);
             stepgen += 1;   // point to next joint
-        }
-
-        // probe output
-        if (is_probing == 1) {
-            p += 1;
-            *machine_control->probe_output = (*p);
         }
 
 #if (MBOX_LOG)
@@ -702,7 +691,6 @@ static void fetchmail(const uint8_t *buf_head)
 #endif
         break;
     case MT_ERROR_CODE:
-
         // error code
         p = (uint32_t *) (buf_head + 4);
         p += 1;
@@ -715,7 +703,24 @@ static void fetchmail(const uint8_t *buf_head)
 //        fprintf(mbox_fp, "# error occure with code(%d)\n",bp_tick);
 #endif
         break;
+    case MT_USB_STATUS:
+//        fprintf(stderr,"MT_USB_STATUS\n");
+//        if (machine_control->a_cmd_on_going == 1) {
+
+//            assert(machine_control->a_cmd_on_going);
+            // update wou status only if a cmd ongoing
+            p = (uint32_t *) (buf_head + 4);
+            /* probe status */
+            p += 1;
+            *machine_control->wou_status = *p;
+//        } else {
+//            assert(machine_control->a_cmd_on_going == 0);
+//            *machine_control->wou_status = 0;// USB_STATUS_READY
+//        }
+        break;
     default:
+        fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag\n");
+        assert(0);
 #if (MBOX_LOG)
         fprintf(mbox_fp, "# unknown mail tag\n"
                 );
@@ -771,6 +776,46 @@ static void write_machine_param (uint32_t addr, int32_t data)
     return;
 }
 
+static void parse_usb_cmd (uint32_t usb_cmd)
+{
+    if (machine_control->a_cmd_on_going == 0) {
+
+        // issue a command relative to the usb_cmd
+        switch(usb_cmd) {
+        case USB_CMD_PROBE_HIGH:
+            machine_control->a_cmd_on_going = 1;
+            write_machine_param(PROBE_CMD, PROBE_HIGH);
+            break;
+        case USB_CMD_PROBE_LOW:
+            machine_control->a_cmd_on_going = 1;
+            write_machine_param(PROBE_CMD, PROBE_LOW);
+            break;
+        }
+    } else if (usb_cmd == USB_CMD_STATUS_ACK){
+
+        // issue a command to clear or abort previous command
+        switch(machine_control->prev_wou_cmd) {
+        case USB_CMD_PROBE_HIGH:
+        case USB_CMD_PROBE_LOW:
+            machine_control->a_cmd_on_going = 0;
+            write_machine_param(PROBE_CMD, PROBE_END);
+            break;
+        }
+        assert(machine_control->a_cmd_on_going == 0); // assert to make sure this command valid
+    } else if (usb_cmd == USB_CMD_ABORT) {
+        switch(machine_control->prev_wou_cmd) {
+        case USB_CMD_PROBE_HIGH:
+        case USB_CMD_PROBE_LOW:
+            machine_control->a_cmd_on_going = 0;
+            write_machine_param(PROBE_CMD, PROBE_END);
+            break;
+        }
+        assert(machine_control->a_cmd_on_going == 0); // assert to make sure this command valid
+    } else {
+        fprintf(stderr, "issue command while another command is ongoing.\n");
+        assert(0);
+    }
+}
 
 /***********************************************************************
 *                       INIT AND EXIT CODE                             *
@@ -783,7 +828,7 @@ int rtapi_app_main(void)
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
     double max_vel, max_accel, pos_scale, value, max_following_error;
-    int msg, ahc_joint, ahc_channel, ahc_level_max, ahc_level_min;
+    int msg;
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_ALL);
@@ -883,16 +928,32 @@ int rtapi_app_main(void)
         assert(0);
     }
 
+    // config probe parameters
+    immediate_data = atoi(probe_pin_id);
+    write_machine_param(PROBE_PIN_ID, immediate_data);
+    immediate_data = atoi(probe_analog_ref_level);
+    write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);
+    if (strcmp(probe_pin_type, "ANALOG_PIN") == 0) {
+        immediate_data = ANALOG_PIN;
+    } else if (strcmp(probe_pin_type, "DIGITAL_PIN") == 0){
+        immediate_data = DIGITAL_PIN;
+    } else {
+        fprintf(stderr,"ERROR: wou_stepgen.c unknown probe_pin_type\n");
+        assert(0);
+    }
+    write_machine_param(PROBE_PIN_TYPE, immediate_data);
+
     // config auto height control behavior
-    ahc_channel = atoi(ahc_ch_str);
-    write_machine_param(AHC_ANALOG_CH, ahc_channel);
-    ahc_joint = atoi(ahc_joint_str);
-    write_machine_param(AHC_JNT, ahc_joint);
-    ahc_level_min = atoi(ahc_level_min_str);
-    write_machine_param(AHC_LEVEL_MIN, ahc_level_min);
-    ahc_level_max = atoi(ahc_level_max_str);
-    write_machine_param(AHC_LEVEL_MAX, ahc_level_max);
-    pos_scale = atof(pos_scale_str[ahc_joint]);
+    immediate_data = atoi(ahc_ch_str);
+    write_machine_param(AHC_ANALOG_CH, immediate_data);
+    immediate_data = atoi(ahc_joint_str);
+    pos_scale = atof(pos_scale_str[immediate_data]);
+    write_machine_param(AHC_JNT, immediate_data);
+    immediate_data = atoi(ahc_level_min_str);
+    write_machine_param(AHC_LEVEL_MIN, immediate_data);
+    immediate_data = atoi(ahc_level_max_str);
+    write_machine_param(AHC_LEVEL_MAX, immediate_data);
+
     if (strcmp(ahc_polarity, "POSITIVE") == 0) {
     	if (pos_scale >=0) {
     		// set risc positive
@@ -921,6 +982,9 @@ int rtapi_app_main(void)
     } else if (strcmp(pattern_type_str, "ANALOG_IN") == 0) {
         write_machine_param(TEST_PATTERN_TYPE, ANALOG_IN);
         test_pattern_type = ANALOG_IN;
+    } else if (strcmp(pattern_type_str, "DIGITAL_IN") == 0) {
+        write_machine_param(TEST_PATTERN_TYPE, DIGITAL_IN);
+        test_pattern_type = DIGITAL_IN;
     } else {
         fprintf(stderr, "wou_stepgen.c: unknow test pattern type (%s)\n", pattern_type_str);
         assert(0);
@@ -1448,8 +1512,22 @@ static void update_freq(void *arg, long period)
         fprintf(stderr,"wou_stepgen.c: analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
     }
     machine_control->prev_analog_ref_level = *machine_control->analog_ref_level;
-//    *(machine_control->probe_ref_voltage) = *machine_control->analog_ref_level;
     /* end: */
+
+    /* begin:  handle usb cmd */
+    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
+        // call api to parse wou_cmd to risc
+        parse_usb_cmd (*machine_control->wou_cmd);
+        fprintf(stderr, "bp(%d) wou_cmd(%d) prev_wou_cmd(%d)\n",*machine_control->wou_bp_tick, *machine_control->wou_cmd,
+                machine_control->prev_wou_cmd);
+    }
+//    if (machine_control->a_cmd_on_going == 0) {
+//        // no ongoing cmd, just keep reseting status
+//        *machine_control->wou_status = 0; // USB_STATUS_READY
+//    }
+    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
+//    fprintf(stderr,"acmdongoing(%d)\n", machine_control->a_cmd_on_going);
+    /* end: handle usb cmd */
 
     /* begin: process position compensation enable */
     if (((uint32_t)*machine_control->ahc_state) !=
@@ -1474,9 +1552,6 @@ static void update_freq(void *arg, long period)
                 /* ahc max_offset */
                 write_machine_param(AHC_MAX_OFFSET, (uint32_t)
                         abs((max_offset)) * (pos_scale));
-                /* max control voltage */
-
-                /* min control voltage */
 
             }
             /* ahc level , ahc state */
@@ -1565,96 +1640,17 @@ static void update_freq(void *arg, long period)
     }
     /* end: process motion synchronized output */
 
-    /* begin: probe */
-
-        if (*machine_control->probe_pin < 0) *machine_control->probe_pin = 0;
-        if (*machine_control->probe_type <0) *machine_control->probe_type = 0;
-    if (is_probing != 1) {
-        switch ((int32_t)*machine_control->probe_type) {
-        case PROBE_HIGH:
-            if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) >= 1) {
-                *machine_control->probe_output = 1;
-                *machine_control->probe_type = 0;
-                is_probing = 0;
-                fprintf(stderr,"ABORT this probing \n");
-            } else {
-                *machine_control->probe_output = 0;
-                is_probing = 1;
-            }
-            break;
-        case PROBE_LOW:
-            if (*(machine_control->in[(int32_t)*machine_control->probe_pin]) <= 0) {
-                *machine_control->probe_output = 0;
-                *machine_control->probe_type = 0;
-                is_probing = 0;
-                fprintf(stderr,"ABORT this probing \n");
-            } else {
-                *machine_control->probe_output = 1;
-                is_probing = 1;
-            }
-            break;
-        case PROBE_LEVEL_HIGH:
-            if (*(analog->in[(int32_t)*machine_control->probe_pin]) >
-                *machine_control->analog_ref_level + *(machine_control->probe_hyst)) {
-                *machine_control->probe_output = 1;
-                *machine_control->probe_type = 0;
-                is_probing = 0;
-                fprintf(stderr,"ABORT this probing \n");
-            } else {
-                *machine_control->probe_output = 0;
-                is_probing = 1;
-            }
-            break;
-        case PROBE_LEVEL_LOW:
-            if (*(analog->in[(int32_t)*machine_control->probe_pin]) <
-                *machine_control->analog_ref_level - *(machine_control->probe_hyst)) {
-                *machine_control->probe_output = 0;
-                *machine_control->probe_type = 0;
-                is_probing = 0;
-                fprintf(stderr,"ABORT this probing \n");
-            } else {
-                is_probing = 1;
-                *machine_control->probe_output = 1;
-            }
-            break;
-        }
-    }
-    if (*machine_control->probe_type != machine_control->prev_probe_type) {
-        write_machine_param(PROBE_INPUT_ID, (uint32_t)
-                        (*machine_control->probe_pin));
-        write_machine_param(PROBE_TYPE, (uint32_t)
-                        (*machine_control->probe_type));
-
-//        if (*machine_control->probe_type != PROBE_NONE) {
-//            is_probing = 1;
+//    /* begin: wou_cmd */
+//    if (*machine_control->wou_cmd != machine_control->prev_wou_cmd) {
+//        // parsing command
+//        if (*machine_control->wou_cmd >= PROBE_HIGH && *machine_control->wou_cmd <= PROBE_END) {
+////            assert(0);
+//            write_machine_param (PROBE_CMD, *machine_control->wou_cmd);
 //        }
-        fprintf(stderr, "probe_type(%d) is_probing(%d) probe_out(%d)\n",
-                (uint32_t)*machine_control->probe_type, is_probing, *machine_control->probe_output);
-//        }
-    }
-    machine_control->prev_probe_type = *machine_control->probe_type;
-    /* end: probe */
-
-    /* begin: zeroing */
-//    if (*machine_control->zero_trigger) {
-//        if (*machine_control->zero_z_flag) { // would replace with j2
-//            r_switch_en |= (1 << 2);
-//            *machine_control->zero_z_flag = 0;
-//        }
-//        *machine_control->zero_trigger = 0;
-//        if (r_switch_en != 0) {
-////            // issue a WOU_WRITE
-////            wou_cmd(&w_param,
-////                    WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, &r_switch_en);
-////            // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-////            wou_flush(&w_param);
-//            sync_cmd = SYNC_RST_POS | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
-//            memcpy(data, &sync_cmd, sizeof(uint16_t));
-//            wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
-//        }
-//        fprintf(stderr,"reset enc Z\n");
+//
 //    }
-    /* end: zeroing */
+//    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
+//    /* end: wou_cmd */
 
     /* point at stepgen data */
     stepgen = arg;
@@ -2150,16 +2146,16 @@ static void update_freq(void *arg, long period)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
 
-        if (is_probing) {
-            if (*machine_control->motion_state == ACCEL_S7 ||
-                    *machine_control->motion_state == ACCEL_S6) {
-                *machine_control->probe_type = PROBE_NONE;
-                is_probing = 0;
-                fprintf(stderr, "clean probe state  probe_type(%0f) prev_probe_type(%0f)\n",
-                        *machine_control->probe_type, machine_control->prev_probe_type);
-            }
-            fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
-        }
+//        if (is_probing) {
+//            if (*machine_control->motion_state == ACCEL_S7 ||
+//                    *machine_control->motion_state == ACCEL_S6) {
+//                *machine_control->probe_type = PROBE_NONE;
+//                is_probing = 0;
+//                fprintf(stderr, "clean probe state  probe_type(%0f) prev_probe_type(%0f)\n",
+//                        *machine_control->probe_type, machine_control->prev_probe_type);
+//            }
+//            fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
+//        }
     }
     machine_control->prev_motion_state = *machine_control->motion_state;
 //        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
@@ -2589,39 +2585,18 @@ static int export_machine_control(machine_control_t * machine_control)
         *machine_control->plasma_enable = 1;    // default enabled
     }
 
-    /* for probe */
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_type), comp_id,
-                         "wou.probe.type");
-    *(machine_control->probe_type) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-//    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->probe_ref_voltage), comp_id,
-//                             "wou.probe.ref-voltage");
-//    *(machine_control->probe_ref_voltage) = 0;    // pin index must not beyond index
-//    if (retval != 0) {
-//        return retval;
-//    }
-
-
-
-    retval = hal_pin_s32_newf(HAL_IO, &(machine_control->probe_hyst), comp_id,
-                             "wou.probe.analog-hyst");
-    *(machine_control->probe_hyst) = 0;    // pin index must not beyond index
+    /* wou command */
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
+                             "wou.motion.cmd");
+    *(machine_control->wou_cmd) = 0;    // pin index must not beyond index
+    machine_control->prev_wou_cmd = 0;
     if (retval != 0) {
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_output), comp_id,
-                             "wou.probe.probe-out");
-    *(machine_control->probe_output) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->probe_pin), comp_id,
-                             "wou.probe.pin");
-    *(machine_control->probe_pin) = 0;    // pin index must not beyond index
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id,
+                             "wou.motion.status");
+    *(machine_control->wou_status) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
@@ -2632,33 +2607,6 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-
-//    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->probe_input), comp_id,
-//                             "wou.probe.input");
-//    *(machine_control->probe_input) = 0;    // pin index must not beyond index
-//    if (retval != 0) {
-//        return retval;
-//    }
-
-    /* for spindle */
-//obsolete:    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_enable), comp_id,
-//obsolete:                             "wou.spindle.enable");
-//obsolete:    *(machine_control->spindle_enable) = 0;
-//obsolete:    if (retval != 0) {
-//obsolete:        return retval;
-//obsolete:    }
-//obsolete:    retval = hal_pin_float_newf(HAL_IN, &(machine_control->spindle_vel_cmd), comp_id,
-//obsolete:                                 "wou.spindle.vel_cmd");
-//obsolete:    *(machine_control->spindle_vel_cmd) = 0;
-//obsolete:    if (retval != 0) {
-//obsolete:        return retval;
-//obsolete:    }
-//obsolete:    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_vel_fb), comp_id,
-//obsolete:                                     "wou.spindle.vel_cmd_fb");
-//obsolete:    *(machine_control->spindle_vel_cmd) = 0;
-//obsolete:    if (retval != 0) {
-//obsolete:        return retval;
-//obsolete:    }
 
     retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_revs), comp_id,
                                      "wou.spindle.spindle-revs");
