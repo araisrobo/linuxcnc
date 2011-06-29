@@ -797,21 +797,24 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         switch(machine_control->prev_wou_cmd) {
         case USB_CMD_PROBE_HIGH:
         case USB_CMD_PROBE_LOW:
-            machine_control->a_cmd_on_going = 0;
+//            machine_control->a_cmd_on_going = 0;
             write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
-        assert(machine_control->a_cmd_on_going == 0); // assert to make sure this command valid
+
     } else if (usb_cmd == USB_CMD_ABORT) {
         switch(machine_control->prev_wou_cmd) {
         case USB_CMD_PROBE_HIGH:
         case USB_CMD_PROBE_LOW:
-            machine_control->a_cmd_on_going = 0;
+//            machine_control->a_cmd_on_going = 0;
             write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
-        assert(machine_control->a_cmd_on_going == 0); // assert to make sure this command valid
-    } else {
+
+    } else if (usb_cmd == USB_CMD_NOOP) {
+        machine_control->a_cmd_on_going = 0;
+        write_machine_param(PROBE_CMD, USB_CMD_NOOP);
+    } else  {
         fprintf(stderr, "issue command while another command is ongoing.\n");
         assert(0);
     }
@@ -1521,10 +1524,6 @@ static void update_freq(void *arg, long period)
         fprintf(stderr, "bp(%d) wou_cmd(%d) prev_wou_cmd(%d)\n",*machine_control->wou_bp_tick, *machine_control->wou_cmd,
                 machine_control->prev_wou_cmd);
     }
-//    if (machine_control->a_cmd_on_going == 0) {
-//        // no ongoing cmd, just keep reseting status
-//        *machine_control->wou_status = 0; // USB_STATUS_READY
-//    }
     machine_control->prev_wou_cmd = *machine_control->wou_cmd;
 //    fprintf(stderr,"acmdongoing(%d)\n", machine_control->a_cmd_on_going);
     /* end: handle usb cmd */

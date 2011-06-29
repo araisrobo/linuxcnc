@@ -657,7 +657,9 @@ static void process_probe_inputs(void)
 {
     //obsolete: static int old_probeVal = 0;
     unsigned char probe_type = emcmotStatus->probe_type;
-
+    int i;
+    emcmot_joint_status_t *joint_status;
+    emcmot_joint_t *joint;
     // don't error
     char probe_suppress = probe_type & 1;
 
@@ -685,14 +687,56 @@ static void process_probe_inputs(void)
         emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
         /* stop! */
         tpAbort(&emcmotDebug->coord_tp);
+        for (i = 0; i < emcmotConfig->numJoints; i++) {
+            joint_status = &(emcmotStatus->joint_status[i]);
+            if (joint_status->vel_cmd != 0) {
+                break;
+            }
+        }
+        // correct pos_cmd by aligning pos_cmd to pos_fb.
+        for (i = 0; i < emcmotConfig->numJoints; i++) {
+            joint = &joints[i];
+            joint->pos_cmd = joint->pos_fb;
+        }
+
+        tpAbort(&emcmotDebug->coord_tp);
         /* tell USB that we've got the status */
         emcmotStatus->usb_cmd = USB_CMD_STATUS_ACK;
+        // TODO: let TP resume.
+        //obsolete:            emcmotStatus->probing = 0;
+        //obsolete:            emcmotStatus->probeTripped = 1;
         break;
     case USB_STATUS_PROBE_ERROR:
-        reportError("TODO: got to figure out all the PROBE ERROR conditions");
-        reportError("TODO: -- end of TP motion");
-        reportError("TODO: -- probe signal got triggered while not at probing state (do we need to check this?)");
-        assert (0);
+//        reportError("TODO: got to figure out all the PROBE ERROR conditions");
+//        reportError("TODO: -- end of TP motion");
+//        reportError("TODO: -- probe signal got triggered while not at probing state (do we need to check this?)");
+
+        tpAbort(&emcmotDebug->coord_tp);
+
+        for (i = 0; i < emcmotConfig->numJoints; i++) {
+            joint_status = &(emcmotStatus->joint_status[i]);
+            if (joint_status->vel_cmd != 0) {
+                break;
+            }
+        }
+        // correct pos_cmd by aligning pos_cmd to pos_fb.
+        for (i = 0; i < emcmotConfig->numJoints; i++) {
+            joint = &joints[i];
+            joint->pos_cmd = joint->pos_fb;
+        }
+        emcmotStatus->usb_cmd = USB_CMD_ABORT;
+        break;
+    case USB_STATUS_PROBE_FLUSH_CMD:
+        // do nothing just wait status change
+//        fprintf(stderr, "control.c: usb status flushing cmd \n");
+        break;
+    case USB_STATUS_READY:
+        // send cmd to stop risc report status
+        if (emcmotStatus->usb_cmd == USB_CMD_ABORT || emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
+            emcmotStatus->usb_cmd = USB_CMD_NOOP;  // wou should consider the status and prev cmd to send PROBE_STOP_REPORT
+        }
+//        fprintf(stderr, "control.c: USB_STATUS_READY\n");
+        // do something make TP resume
         break;
     default:
         // deal with PROBE related status only
