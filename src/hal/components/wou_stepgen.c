@@ -704,19 +704,16 @@ static void fetchmail(const uint8_t *buf_head)
 #endif
         break;
     case MT_USB_STATUS:
-//        fprintf(stderr,"MT_USB_STATUS\n");
-//        if (machine_control->a_cmd_on_going == 1) {
-
-//            assert(machine_control->a_cmd_on_going);
             // update wou status only if a cmd ongoing
-            p = (uint32_t *) (buf_head + 4);
-            /* probe status */
-            p += 1;
+        p = (uint32_t *) (buf_head + 4);
+        /* probe status */
+        p += 1;
+        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
             *machine_control->wou_status = *p;
-//        } else {
-//            assert(machine_control->a_cmd_on_going == 0);
-//            *machine_control->wou_status = 0;// USB_STATUS_READY
-//        }
+        } else {
+            *machine_control->wou_status = USB_STATUS_READY;
+        }
+
         break;
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag\n");
@@ -814,6 +811,7 @@ static void parse_usb_cmd (uint32_t usb_cmd)
     } else if (usb_cmd == USB_CMD_NOOP) {
         machine_control->a_cmd_on_going = 0;
         write_machine_param(PROBE_CMD, USB_CMD_NOOP);
+        *machine_control->wou_status = USB_STATUS_READY;
     } else  {
         fprintf(stderr, "issue command while another command is ongoing.\n");
         assert(0);
@@ -933,6 +931,7 @@ int rtapi_app_main(void)
 
     // config probe parameters
     immediate_data = atoi(probe_pin_id);
+    fprintf(stderr,"wou_stgepgen.c: probe_pin_id(%d)\n", immediate_data);
     write_machine_param(PROBE_PIN_ID, immediate_data);
     immediate_data = atoi(probe_analog_ref_level);
     write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);

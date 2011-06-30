@@ -656,88 +656,111 @@ static void do_forward_kins(void)
 static void process_probe_inputs(void)
 {
     //obsolete: static int old_probeVal = 0;
+    // TODO: detect probe trigger if not doing probe (should be handled by risc)
+    static int aborted = 0;
     unsigned char probe_type = emcmotStatus->probe_type;
     int i;
     emcmot_joint_status_t *joint_status;
-    emcmot_joint_t *joint;
     // don't error
-    char probe_suppress = probe_type & 1;
+    char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
+                                           // motion would stop.
 
     switch ( emcmotStatus->usb_status) {
     case USB_STATUS_PROBING:
         if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
-            /**
-             * there's messages queued inside USB-link, got to flush them
-             * to clarify the probing status
-             **/
-            reportError("TODO: we should pause the TP and wait for USB to ACK the CMD_ABORT");
-            reportError("TODO: the above statement is not implemented yet");
-            assert (0);
-            /* the TRAJ-PLANNER is already stopped, but we need to remember the current 
-               position here, because it will still be queried */
-            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-            if (probe_suppress == 0) {
-                reportError("G38.X probe move finished without tripping probe");
-                SET_MOTION_ERROR_FLAG(1);
+
+            tpPause(&emcmotDebug->coord_tp);
+            for (i = 0; i < emcmotConfig->numJoints; i++) {
+                joint_status = &(emcmotStatus->joint_status[i]);
+                if (joint_status->vel_cmd != 0) {
+                    break;
+                }
             }
-            emcmotStatus->usb_cmd = USB_CMD_ABORT;
+            if (!aborted) {
+
+                if (probe_suppress == 0) {
+                    reportError("G38.X probe move finished without tripping probe");
+                    SET_MOTION_ERROR_FLAG(1);
+                }
+//                else {
+//                    emcmotStatus->usb_cmd = USB_CMD_NOOP;
+//                    aborted = 0;
+//                }
+                aborted = 1;
+
+                // TODO: handle boundary condiction
+                /**
+                 * there's messages queued inside USB-link, got to flush them
+                 * to clarify the probing status
+                 **/
+            }
+            emcmotStatus->usb_cmd = USB_CMD_NOOP;
         }
         break;
     case USB_STATUS_PROBE_HIT:
-        emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
+
         /* stop! */
-        tpAbort(&emcmotDebug->coord_tp);
+        tpPause(&emcmotDebug->coord_tp);
+
         for (i = 0; i < emcmotConfig->numJoints; i++) {
             joint_status = &(emcmotStatus->joint_status[i]);
             if (joint_status->vel_cmd != 0) {
                 break;
             }
         }
-        // correct pos_cmd by aligning pos_cmd to pos_fb.
-        for (i = 0; i < emcmotConfig->numJoints; i++) {
-            joint = &joints[i];
-            joint->pos_cmd = joint->pos_fb;
+        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+
+        if (!aborted) {
+            tpAbort(&emcmotDebug->coord_tp);
+            aborted = 1;
         }
 
-        tpAbort(&emcmotDebug->coord_tp);
         /* tell USB that we've got the status */
         emcmotStatus->usb_cmd = USB_CMD_STATUS_ACK;
-        // TODO: let TP resume.
-        //obsolete:            emcmotStatus->probing = 0;
-        //obsolete:            emcmotStatus->probeTripped = 1;
         break;
     case USB_STATUS_PROBE_ERROR:
-//        reportError("TODO: got to figure out all the PROBE ERROR conditions");
-//        reportError("TODO: -- end of TP motion");
-//        reportError("TODO: -- probe signal got triggered while not at probing state (do we need to check this?)");
-
-        tpAbort(&emcmotDebug->coord_tp);
-
+        tpPause(&emcmotDebug->coord_tp);
         for (i = 0; i < emcmotConfig->numJoints; i++) {
             joint_status = &(emcmotStatus->joint_status[i]);
             if (joint_status->vel_cmd != 0) {
                 break;
             }
         }
-        // correct pos_cmd by aligning pos_cmd to pos_fb.
-        for (i = 0; i < emcmotConfig->numJoints; i++) {
-            joint = &joints[i];
-            joint->pos_cmd = joint->pos_fb;
+        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+
+        if (!aborted) {
+            tpAbort(&emcmotDebug->coord_tp);
+            reportError("probe already trapped before probing\n");
+            aborted = 1;
         }
+
         emcmotStatus->usb_cmd = USB_CMD_ABORT;
         break;
     case USB_STATUS_PROBE_FLUSH_CMD:
         // do nothing just wait status change
-//        fprintf(stderr, "control.c: usb status flushing cmd \n");
         break;
     case USB_STATUS_READY:
         // send cmd to stop risc report status
-        if (emcmotStatus->usb_cmd == USB_CMD_ABORT || emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
-            emcmotStatus->usb_cmd = USB_CMD_NOOP;  // wou should consider the status and prev cmd to send PROBE_STOP_REPORT
+        if (emcmotStatus->usb_cmd == USB_CMD_ABORT) {
+            // probe error case.
+            /* the TRAJ-PLANNER is already stopped, but we need to remember the current
+                               position here, because it will still be queried */
+            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+//            aborted = 0;
+            SET_MOTION_ERROR_FLAG(1);
+            emcmotStatus->usb_cmd = USB_CMD_NOOP;
+            fprintf(stderr, "probe error USB_STATUS_READY\n");
+        } else if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
+            // probe hit case
+            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+//            aborted = 0;
+            tpResume(&emcmotDebug->coord_tp) ;
+            emcmotStatus->usb_cmd = USB_CMD_NOOP;
+            fprintf(stderr, "probe hit USB_STATUS_READY\n");
         }
-//        fprintf(stderr, "control.c: USB_STATUS_READY\n");
-        // do something make TP resume
+        aborted = 0;
         break;
+
     default:
         // deal with PROBE related status only
         break;
