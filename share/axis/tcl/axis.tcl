@@ -1995,7 +1995,10 @@ proc update_state {args} {
     if {$::task_state == $::STATE_ON && $::interp_state == $::INTERP_IDLE &&
         ($::motion_mode != $::TRAJ_MODE_FREE
             || $::kinematics_type == $::KINEMATICS_IDENTITY)} {
-        $::_tabs_manual.jogf.zerohome.zero configure -state normal
+        # $::_tabs_manual.jogf.zerohome.zero configure -state normal
+        # the "Touch Off" button is too close to "Home All";
+        # always disable this botton for Cabot
+        $::_tabs_manual.jogf.zerohome.zero configure -state disabled
     } else {
         $::_tabs_manual.jogf.zerohome.zero configure -state disabled
     }
