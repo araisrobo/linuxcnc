@@ -661,6 +661,7 @@ static void process_probe_inputs(void)
     unsigned char probe_type = emcmotStatus->probe_type;
     int i;
     emcmot_joint_status_t *joint_status;
+    static double prev_joint_cmd[EMCMOT_MAX_JOINTS];
     // don't error
     char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
                                            // motion would stop.
@@ -668,24 +669,18 @@ static void process_probe_inputs(void)
     switch ( emcmotStatus->usb_status) {
     case USB_STATUS_PROBING:
         if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
-
             tpPause(&emcmotDebug->coord_tp);
             for (i = 0; i < emcmotConfig->numJoints; i++) {
                 joint_status = &(emcmotStatus->joint_status[i]);
                 if (joint_status->vel_cmd != 0) {
-                    break;
+                    return;
                 }
             }
             if (!aborted) {
-
                 if (probe_suppress == 0) {
                     reportError("G38.X probe move finished without tripping probe");
                     SET_MOTION_ERROR_FLAG(1);
                 }
-//                else {
-//                    emcmotStatus->usb_cmd = USB_CMD_NOOP;
-//                    aborted = 0;
-//                }
                 aborted = 1;
 
                 // TODO: handle boundary condiction
@@ -694,25 +689,18 @@ static void process_probe_inputs(void)
                  * to clarify the probing status
                  **/
             }
-            emcmotStatus->usb_cmd = USB_CMD_NOOP;
+            emcmotStatus->usb_cmd = USB_CMD_NOOP; // use ACK?
         }
         break;
     case USB_STATUS_PROBE_HIT:
-
         /* stop! */
         tpPause(&emcmotDebug->coord_tp);
 
         for (i = 0; i < emcmotConfig->numJoints; i++) {
             joint_status = &(emcmotStatus->joint_status[i]);
             if (joint_status->vel_cmd != 0) {
-                break;
+                return;
             }
-        }
-        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-
-        if (!aborted) {
-            tpAbort(&emcmotDebug->coord_tp);
-            aborted = 1;
         }
 
         /* tell USB that we've got the status */
@@ -723,22 +711,12 @@ static void process_probe_inputs(void)
         for (i = 0; i < emcmotConfig->numJoints; i++) {
             joint_status = &(emcmotStatus->joint_status[i]);
             if (joint_status->vel_cmd != 0) {
-                break;
+                return;
             }
         }
-        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-
-        if (!aborted) {
-            tpAbort(&emcmotDebug->coord_tp);
-            reportError("probe already trapped before probing\n");
-            aborted = 1;
-        }
-
         emcmotStatus->usb_cmd = USB_CMD_ABORT;
         break;
-    case USB_STATUS_PROBE_FLUSH_CMD:
-        // do nothing just wait status change
-        break;
+
     case USB_STATUS_READY:
         // send cmd to stop risc report status
         if (emcmotStatus->usb_cmd == USB_CMD_ABORT) {
@@ -746,15 +724,16 @@ static void process_probe_inputs(void)
             /* the TRAJ-PLANNER is already stopped, but we need to remember the current
                                position here, because it will still be queried */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-//            aborted = 0;
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
+            tpAbort(&emcmotDebug->coord_tp);
             emcmotStatus->usb_cmd = USB_CMD_NOOP;
             fprintf(stderr, "probe error USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
             // probe hit case
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-//            aborted = 0;
-            tpResume(&emcmotDebug->coord_tp) ;
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+            tpAbort(&emcmotDebug->coord_tp);
             emcmotStatus->usb_cmd = USB_CMD_NOOP;
             fprintf(stderr, "probe hit USB_STATUS_READY\n");
         }
@@ -1350,9 +1329,16 @@ static void get_pos_cmds(long period)
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
 	    /* run coordinated trajectory planning cycle */
+	    if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
+	        fprintf(stderr, "1. coord_tp_z(%f) ", emcmotDebug->coord_tp.currentPos.tran.z);
+	    }
 	    tpRunCycle(&emcmotDebug->coord_tp, period);
+	    if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
+               fprintf(stderr, "2. coord_tp_z(%f) \n", emcmotDebug->coord_tp.currentPos.tran.z);
+           }
 	    /* gt new commanded traj pos */
 	    emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
+
 	    /* OUTPUT KINEMATICS - convert to joints in local array */
 	    kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
 		&iflags, &fflags);
