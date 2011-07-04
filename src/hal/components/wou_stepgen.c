@@ -817,17 +817,12 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         *machine_control->wou_status = USB_STATUS_READY;
     } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
         // align prev pos cmd and pos cmd
-        machine_control->a_cmd_on_going = 0;
+//        machine_control->a_cmd_on_going = 0;
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
             stepgen->prev_pos_cmd = *stepgen->pos_cmd;
             stepgen++;
         }
-
-        *machine_control->wou_cmd = USB_CMD_NOOP;
-        machine_control->prev_wou_cmd = USB_CMD_NOOP;
-        write_machine_param(PROBE_CMD, USB_CMD_NOOP);
-        *machine_control->wou_status = USB_STATUS_READY;
     } else {
         fprintf(stderr, "issue command while another command is ongoing.\n");
         assert(0);
