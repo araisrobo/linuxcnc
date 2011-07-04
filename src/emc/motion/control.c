@@ -661,7 +661,6 @@ static void process_probe_inputs(void)
     unsigned char probe_type = emcmotStatus->probe_type;
     int i;
     emcmot_joint_status_t *joint_status;
-    static double prev_joint_cmd[EMCMOT_MAX_JOINTS];
     // don't error
     char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
                                            // motion would stop.
@@ -727,17 +726,28 @@ static void process_probe_inputs(void)
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
             tpAbort(&emcmotDebug->coord_tp);
-            emcmotStatus->usb_cmd = USB_CMD_NOOP;
+            emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC; 
             fprintf(stderr, "probe error USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
             // probe hit case
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-            tpAbort(&emcmotDebug->coord_tp);
-            emcmotStatus->usb_cmd = USB_CMD_NOOP;
+            if (!aborted) {
+                tpAbort(&emcmotDebug->coord_tp);
+            }
+            emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC;
             fprintf(stderr, "probe hit USB_STATUS_READY\n");
+        } else if (emcmotStatus->usb_cmd == USB_CMD_WOU_CMD_SYNC){
+            if (aborted) {
+                tpPause(&emcmotDebug->coord_tp);
+            }
+            emcmotStatus->usb_cmd = USB_CMD_NOOP;
+        } else if (emcmotStatus->usb_cmd == USB_CMD_NOOP) {
+            if (aborted) {
+                tpResume(&emcmotDebug->coord_tp);
+                aborted = 0;
+            }
         }
-        aborted = 0;
         break;
 
     default:
@@ -1329,16 +1339,9 @@ static void get_pos_cmds(long period)
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
 	    /* run coordinated trajectory planning cycle */
-	    if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
-	        fprintf(stderr, "1. coord_tp_z(%f) ", emcmotDebug->coord_tp.currentPos.tran.z);
-	    }
 	    tpRunCycle(&emcmotDebug->coord_tp, period);
-	    if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
-               fprintf(stderr, "2. coord_tp_z(%f) \n", emcmotDebug->coord_tp.currentPos.tran.z);
-           }
 	    /* gt new commanded traj pos */
 	    emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
-
 	    /* OUTPUT KINEMATICS - convert to joints in local array */
 	    kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
 		&iflags, &fflags);
@@ -1353,11 +1356,15 @@ static void get_pos_cmds(long period)
 		/* point to joint struct */
 		joint = &joints[joint_num];
 		joint->coarse_pos = positions[joint_num];
+
                 // for gnuplot analysis: compare trajectory planning results
                 DPS ("%17.7f", positions[joint_num]);
 		/* spline joints up-- note that we may be adding points
 		   that fail soft limits, but we'll abort at the end of
 		   this cycle so it doesn't really matter */
+                if (emcmotStatus->usb_cmd == USB_CMD_WOU_CMD_SYNC) { // drain cubic so that assigned position won't be changed 
+                    cubicDrain(&(joint->cubic));
+                }
 		cubicAddPoint(&(joint->cubic), joint->coarse_pos);
 	    }
 	    /* END OF OUTPUT KINS */
@@ -1937,8 +1944,8 @@ static void output_to_hal(void)
 	/* point to joint struct */
 	joint = &joints[joint_num];
 	/* apply backlash and motor offset to output */
-	joint->motor_pos_cmd =
-	    joint->pos_cmd + joint->backlash_filt + joint->motor_offset;
+        joint->motor_pos_cmd =
+            joint->pos_cmd + joint->backlash_filt + joint->motor_offset;
 	/* point to HAL data */
 	joint_data = &(emcmot_hal_data->joint[joint_num]);
 	/* write to HAL pins */

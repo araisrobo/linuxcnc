@@ -2229,7 +2229,6 @@ int tpPause(TP_STRUCT * tp) {
         return -1;
     }
     tp->pausing = 1;
-    //emcmotPosCompWrite(0, 0);// not necessary
     return 0;
 }
 

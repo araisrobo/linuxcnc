@@ -775,6 +775,9 @@ static void write_machine_param (uint32_t addr, int32_t data)
 
 static void parse_usb_cmd (uint32_t usb_cmd)
 {
+    int i;
+    stepgen_t   *stepgen;
+
     if (machine_control->a_cmd_on_going == 0) {
 
         // issue a command relative to the usb_cmd
@@ -812,7 +815,20 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         machine_control->a_cmd_on_going = 0;
         write_machine_param(PROBE_CMD, USB_CMD_NOOP);
         *machine_control->wou_status = USB_STATUS_READY;
-    } else  {
+    } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
+        // align prev pos cmd and pos cmd
+        machine_control->a_cmd_on_going = 0;
+        stepgen = stepgen_array;
+        for (i=0; i<num_chan; i++) {
+            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+            stepgen++;
+        }
+
+        *machine_control->wou_cmd = USB_CMD_NOOP;
+        machine_control->prev_wou_cmd = USB_CMD_NOOP;
+        write_machine_param(PROBE_CMD, USB_CMD_NOOP);
+        *machine_control->wou_status = USB_STATUS_READY;
+    } else {
         fprintf(stderr, "issue command while another command is ongoing.\n");
         assert(0);
     }
@@ -1520,7 +1536,7 @@ static void update_freq(void *arg, long period)
     if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
         // call api to parse wou_cmd to risc
         parse_usb_cmd (*machine_control->wou_cmd);
-        fprintf(stderr, "bp(%d) wou_cmd(%d) prev_wou_cmd(%d)\n",*machine_control->wou_bp_tick, *machine_control->wou_cmd,
+        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
                 machine_control->prev_wou_cmd);
     }
     machine_control->prev_wou_cmd = *machine_control->wou_cmd;
