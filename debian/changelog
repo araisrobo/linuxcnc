@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.07.14) lucid; urgency=low
+
+  * Improve USB-PROBE
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 14 Jul 2011 08:25:38 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.07.01) lucid; urgency=low
 
   * Update for USB-PROBE
