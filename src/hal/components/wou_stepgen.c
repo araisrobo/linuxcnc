@@ -480,7 +480,8 @@ typedef struct {
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
-
+    /* DEBUG */
+    hal_s32_t *debug;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -658,6 +659,10 @@ static void fetchmail(const uint8_t *buf_head)
             *stepgen->ferror_flag = ferror_flag & (1 << i);
             stepgen += 1;   // point to next joint
         }
+
+        // DEBUG
+        p += 1;
+        *(machine_control->debug) = *p;
 
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
@@ -2652,7 +2657,12 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->test_pattern) = 0;
 
-
+    retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->debug), comp_id,
+                                 "wou.debug");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->debug) = 0;
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->dout0), comp_id,
                                      "wou.dout0");
