@@ -718,7 +718,7 @@ static void fetchmail(const uint8_t *buf_head)
         } else {
             *machine_control->wou_status = USB_STATUS_READY;
         }
-
+        fprintf(stderr, "wou_stepgen.c: probe_level(%d) probe_ref(%d)\n", *(p+1), *(p+2));
         break;
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag\n");
