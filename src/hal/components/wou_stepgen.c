@@ -323,6 +323,10 @@ const char *probe_pin_id= "0";         // probing input channel
 RTAPI_MP_STRING(probe_pin_id,
                 "indicate probing channel");
 
+const char *probe_decel_cmd= "0";         // deceleration command for probing in user-unit/s
+RTAPI_MP_STRING(probe_decel_cmd,
+                "deceleration for probing");
+
 const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
                 "indicate probing level used by analog probing");
@@ -718,7 +722,7 @@ static void fetchmail(const uint8_t *buf_head)
         } else {
             *machine_control->wou_status = USB_STATUS_READY;
         }
-        fprintf(stderr, "wou_stepgen.c: probe_level(%d) probe_ref(%d)\n", *(p+1), *(p+2));
+//        fprintf(stderr, "wou_stepgen.c: probe_level(%d) probe_ref(%d)\n", *(p+1), *(p+2));
         break;
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag\n");
@@ -844,7 +848,7 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    double max_vel, max_accel, pos_scale, value, max_following_error;
+    double max_vel, max_accel, pos_scale, value, max_following_error, probe_decel;
     int msg;
 
     msg = rtapi_get_msg_level();
@@ -946,6 +950,7 @@ int rtapi_app_main(void)
     }
 
     // config probe parameters
+    // probe_decel_cmd
     immediate_data = atoi(probe_pin_id);
     fprintf(stderr,"wou_stgepgen.c: probe_pin_id(%d)\n", immediate_data);
     write_machine_param(PROBE_PIN_ID, immediate_data);
@@ -960,6 +965,8 @@ int rtapi_app_main(void)
         assert(0);
     }
     write_machine_param(PROBE_PIN_TYPE, immediate_data);
+    // we use this value later.
+    probe_decel = atoi(probe_decel_cmd);
 
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
@@ -998,9 +1005,11 @@ int rtapi_app_main(void)
         write_machine_param(TEST_PATTERN_TYPE, NO_TEST);
         test_pattern_type = NO_TEST;
     } else if (strcmp(pattern_type_str, "ANALOG_IN") == 0) {
+        fprintf(stderr, "output to risc  test pattern(ANALOG_IN)\n");
         write_machine_param(TEST_PATTERN_TYPE, ANALOG_IN);
         test_pattern_type = ANALOG_IN;
     } else if (strcmp(pattern_type_str, "DIGITAL_IN") == 0) {
+        fprintf(stderr, "output to risc  test pattern(DIGITAL_IN)\n");
         write_machine_param(TEST_PATTERN_TYPE, DIGITAL_IN);
         test_pattern_type = DIGITAL_IN;
     } else {
@@ -1220,79 +1229,26 @@ int rtapi_app_main(void)
                        ((uint32_t) (immediate_data/pos_scale)),(immediate_data));
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
 
-        /* config move type */
-//        for(j = 0; home_use_index_str[j]; j++) {
-//            str[j] = toupper(home_use_index_str[n][j]);
-//        }
-//        str[j] = '\0';
-//
-//        if((strcmp(str,"YES") == 0)) {
-//            home_use_index[n] = 1;
-//            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = yes\n");
-//        } else {
-//            rtapi_print_msg(RTAPI_MSG_DBG, "use_index = no\n");
-//            home_use_index[n] = 0;
-//        }
+        // set probe decel cmd
+        immediate_data = (uint32_t)(((probe_decel*pos_scale*dt*
+                                dt)*(1 << FRACTION_BITS)+ (1 << (FRACTION_BITS-1))));
+        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
+        immediate_data += 1;
+        rtapi_print_msg(RTAPI_MSG_DBG,"probe_decel=%f*%f*(%f^2)*(2^%d) = (%d) ",
+                probe_decel, pos_scale, dt, FRACTION_BITS, immediate_data);
+
+        assert(immediate_data>0);
+        write_mot_param (n, (PROBE_DECEL_CMD), immediate_data);
 
         // set move type as normal by default
         immediate_data = NORMAL_MOVE;
         write_mot_param (n, (MOTION_TYPE), immediate_data);
-
-//        // test valid PID parameter for joint[n]
-//        if (pid_str[n][0] != NULL) {
-//            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
-//            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO 14:PE 15:PB\n");
-//            // for (i=0; i < (FF2-P_GAIN+1); i++) {
-//            //     // all gain varies from 0(0%) to 65535(100%)
-//            //     value = atof(pid_str[n][i]);
-//            //     immediate_data = (int32_t) (value);
-//            //     write_mot_param (n, (P_GAIN + i), immediate_data);
-//            //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
-//            // }
-//            // for (; i < (PROBE_BACK_OFF-P_GAIN); i++) {
-//            //     // parameter use parameter fraction, parameter unit: pulse
-//            //     value = atof(pid_str[n][i]);
-//            //     immediate_data = (int32_t) (value * (1 << FRACTION_BITS));
-//            //     write_mot_param (n, (P_GAIN + i), immediate_data);
-//            //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
-//            // }
-//
-//            // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
-//            // all the others units are '1 pulse'
-//            for (i=0; i < (MAXOUTPUT-P_GAIN+1); i++) {
-//                value = atof(pid_str[n][i]);
-//                immediate_data = (int32_t) (value);
-//                write_mot_param (n, (P_GAIN + i), immediate_data);
-//                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
-//            }
-//
-//            value = 0;
-//            immediate_data = (int32_t) (value);
-//            write_mot_param (n, (ENABLE), immediate_data);
-//            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
-//        }
-
-     }
+    }
     // config PID parameter
     for (n=0; n < PID_LOOP; n++) {
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
             rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO 14:PE 15:PB\n");
-            // for (i=0; i < (FF2-P_GAIN+1); i++) {
-            //     // all gain varies from 0(0%) to 65535(100%)
-            //     value = atof(pid_str[n][i]);
-            //     immediate_data = (int32_t) (value);
-            //     write_mot_param (n, (P_GAIN + i), immediate_data);
-            //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
-            // }
-            // for (; i < (PROBE_BACK_OFF-P_GAIN); i++) {
-            //     // parameter use parameter fraction, parameter unit: pulse
-            //     value = atof(pid_str[n][i]);
-            //     immediate_data = (int32_t) (value * (1 << FRACTION_BITS));
-            //     write_mot_param (n, (P_GAIN + i), immediate_data);
-            //     rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
-            // }
-
             // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
             // all the others units are '1 pulse'
             for (i=0; i < (MAXOUTPUT-P_GAIN+1); i++) {
@@ -2050,7 +2006,7 @@ static void update_freq(void *arg, long period)
             
             //wou_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
             integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
-        
+
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
             
