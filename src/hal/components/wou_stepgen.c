@@ -227,42 +227,42 @@ RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 #define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] =
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
 const char *j4_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j4_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[4]");
 
 const char *j5_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j5_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[5]");
 
 const char *j6_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j6_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[6]");
 
 const char *j7_pid_str[NUM_PID_PARAMS] =
-        { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j7_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[7]");
 
@@ -486,6 +486,22 @@ typedef struct {
     hal_s32_t *mpg_count;
     /* DEBUG */
     hal_s32_t *debug;
+    /* tick */
+    hal_u32_t *total_tick;
+    hal_u32_t *fun0_tick;
+    hal_u32_t *fun1_tick;
+    hal_u32_t *fun2_tick;
+    hal_u32_t *fun3_tick;
+    hal_u32_t *fun4_tick;
+    hal_u32_t *fun5_tick;
+    hal_u32_t *fun6_tick;
+    hal_u32_t *fun7_tick;
+    hal_u32_t *fun8_tick;
+    hal_u32_t *fun9_tick;
+    hal_u32_t *fun10_tick;
+    hal_u32_t *fun11_tick;
+    hal_u32_t *fun12_tick;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -667,7 +683,35 @@ static void fetchmail(const uint8_t *buf_head)
         // DEBUG
         p += 1;
         *(machine_control->debug) = *p;
-
+        // tick
+        p += 1;
+        *(machine_control->total_tick) = *p;
+        p += 1;
+        *(machine_control->fun0_tick) = *p;
+        p += 1;
+        *(machine_control->fun1_tick) = *p;
+        p += 1;
+        *(machine_control->fun2_tick) = *p;
+        p += 1;
+        *(machine_control->fun3_tick) = *p;
+        p += 1;
+        *(machine_control->fun4_tick) = *p;
+        p += 1;
+        *(machine_control->fun5_tick) = *p;
+        p += 1;
+        *(machine_control->fun6_tick) = *p;
+        p += 1;
+        *(machine_control->fun7_tick) = *p;
+        p += 1;
+        *(machine_control->fun8_tick) = *p;
+        p += 1;
+        *(machine_control->fun9_tick) = *p;
+        p += 1;
+        *(machine_control->fun10_tick) = *p;
+        p += 1;
+        *(machine_control->fun11_tick) = *p;
+        p += 1;
+        *(machine_control->fun12_tick) = *p;
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -2619,6 +2663,105 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->debug) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->total_tick), comp_id,
+                                 "wou.tick.total");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->total_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun0_tick), comp_id,
+                                 "wou.tick.fun0");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun0_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun1_tick), comp_id,
+                                 "wou.tick.fun1");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun1_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun2_tick), comp_id,
+                                 "wou.tick.fun2");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun2_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun3_tick), comp_id,
+                                 "wou.tick.fun3");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun3_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun4_tick), comp_id,
+                                 "wou.tick.fun4");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun4_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun5_tick), comp_id,
+                                 "wou.tick.fun5");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun5_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun6_tick), comp_id,
+                                 "wou.tick.fun6");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun6_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun7_tick), comp_id,
+                                 "wou.tick.fun7");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun7_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun8_tick), comp_id,
+                                 "wou.tick.fun8");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun8_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun9_tick), comp_id,
+                                 "wou.tick.fun9");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun9_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun10_tick), comp_id,
+                                 "wou.tick.fun10");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun10_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun11_tick), comp_id,
+                                 "wou.tick.fun11");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun11_tick) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun12_tick), comp_id,
+                                 "wou.tick.fun12");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->fun12_tick) = 0;
+
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->dout0), comp_id,
                                      "wou.dout0");
