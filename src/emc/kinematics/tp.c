@@ -1127,7 +1127,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             break;
         case ACCEL_S3:
             ENTER_STATE(s3);
-
             // AT = A0 + JT
             newaccel = 0;
             // VT = V0 + A0T + 1/2 JT2
@@ -1151,10 +1150,11 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s3);
                 break;
             } else if (tc->on_feed_change == 0) {
-                if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel
-                        - tc->ori_reqvel > VELOCITY_EPSTHON) ||
-                        (tc->reqvel - tc->currentvel > VELOCITY_EPSTHON)
-                        ) {
+                if ((tc->feed_override > tc->ori_feed_override) ||
+                    (tc->reqvel - tc->ori_reqvel > VELOCITY_EPSTHON)
+                    // bug: || (tc->reqvel - tc->currentvel > VELOCITY_EPSTHON)
+                    //      有可能currentvel遠小於reqvel，但不應該去S8加速
+                ) {
                     // speed up
                     tc->accel_state = ACCEL_S8;
                     tc->prev_state = ACCEL_S3;
@@ -1162,8 +1162,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     EXIT_STATE(s3);
                     break;
                 } else if ((tc->feed_override < tc->ori_feed_override)
-                        || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)||
-                        (tc->reqvel - tc->currentvel < -VELOCITY_EPSTHON)) {
+                        || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)
+                    // bug: || (tc->reqvel - tc->currentvel < -VELOCITY_EPSTHON)
+                    //      有可能currentvel遠小於reqvel，但不應該去S9減速
+                    ) {
                     // speed down
                     tc->accel_state = ACCEL_S9;
                     tc->prev_state = ACCEL_S3;
@@ -1859,6 +1861,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             tp->execId = 0;
             tp->motionType = 0;
             tp->synchronized = 0;
+            tc->accel_state = ACCEL_S7;
             waiting_for_index = 0;
             waiting_for_atspeed = 0;
             emcmotStatus->spindleSync = 0;
