@@ -533,7 +533,7 @@ static const unsigned char num_phases_lut[] =
 static int comp_id;		/* component ID */
 static int num_chan = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
-static double recip_dt;		/* recprocal of period, avoids divides */
+static double recip_dt;		/* reciprocal of period, avoids divides */
 
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
