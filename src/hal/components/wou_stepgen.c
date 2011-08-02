@@ -485,22 +485,24 @@ typedef struct {
     /* MPG */
     hal_s32_t *mpg_count;
     /* DEBUG */
-    hal_s32_t *debug;
+//    hal_s32_t *debug;
+    hal_s32_t *debug[8];
     /* tick */
-    hal_u32_t *total_tick;
-    hal_u32_t *fun0_tick;
-    hal_u32_t *fun1_tick;
-    hal_u32_t *fun2_tick;
-    hal_u32_t *fun3_tick;
-    hal_u32_t *fun4_tick;
-    hal_u32_t *fun5_tick;
-    hal_u32_t *fun6_tick;
-    hal_u32_t *fun7_tick;
-    hal_u32_t *fun8_tick;
-    hal_u32_t *fun9_tick;
-    hal_u32_t *fun10_tick;
-    hal_u32_t *fun11_tick;
-    hal_u32_t *fun12_tick;
+    hal_u32_t *tick[14];
+//    hal_u32_t *total_tick;
+//    hal_u32_t *fun0_tick;
+//    hal_u32_t *fun1_tick;
+//    hal_u32_t *fun2_tick;
+//    hal_u32_t *fun3_tick;
+//    hal_u32_t *fun4_tick;
+//    hal_u32_t *fun5_tick;
+//    hal_u32_t *fun6_tick;
+//    hal_u32_t *fun7_tick;
+//    hal_u32_t *fun8_tick;
+//    hal_u32_t *fun9_tick;
+//    hal_u32_t *fun10_tick;
+//    hal_u32_t *fun11_tick;
+//    hal_u32_t *fun12_tick;
 
 } machine_control_t;
 
@@ -681,37 +683,38 @@ static void fetchmail(const uint8_t *buf_head)
         }
 
         // DEBUG
-        p += 1;
-        *(machine_control->debug) = *p;
-        // tick
-        p += 1;
-        *(machine_control->total_tick) = *p;
-        p += 1;
-        *(machine_control->fun0_tick) = *p;
-        p += 1;
-        *(machine_control->fun1_tick) = *p;
-        p += 1;
-        *(machine_control->fun2_tick) = *p;
-        p += 1;
-        *(machine_control->fun3_tick) = *p;
-        p += 1;
-        *(machine_control->fun4_tick) = *p;
-        p += 1;
-        *(machine_control->fun5_tick) = *p;
-        p += 1;
-        *(machine_control->fun6_tick) = *p;
-        p += 1;
-        *(machine_control->fun7_tick) = *p;
-        p += 1;
-        *(machine_control->fun8_tick) = *p;
-        p += 1;
-        *(machine_control->fun9_tick) = *p;
-        p += 1;
-        *(machine_control->fun10_tick) = *p;
-        p += 1;
-        *(machine_control->fun11_tick) = *p;
-        p += 1;
-        *(machine_control->fun12_tick) = *p;
+//        p += 1;
+//        *(machine_control->debug) = *p;
+//        // tick
+//
+//        p += 1;
+//        *(machine_control->total_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun0_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun1_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun2_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun3_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun4_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun5_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun6_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun7_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun8_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun9_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun10_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun11_tick) = *p;
+//        p += 1;
+//        *(machine_control->fun12_tick) = *p;
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -734,6 +737,9 @@ static void fetchmail(const uint8_t *buf_head)
                           din[0],
                           dout[0]);
         dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #23 #24
+
+        dsize += sprintf(dmsg + dsize, "%10d ", *(machine_control->debug));
+
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
             p += 1;
@@ -767,6 +773,21 @@ static void fetchmail(const uint8_t *buf_head)
             *machine_control->wou_status = USB_STATUS_READY;
         }
 //        fprintf(stderr, "wou_stepgen.c: probe_level(%d) probe_ref(%d)\n", *(p+1), *(p+2));
+        break;
+    case MT_DEBUG:
+        p = (uint32_t *) (buf_head + 4);
+        for (i=0; i<8; i++) {
+            p += 1;
+            *machine_control->debug[i] = *p;
+        }
+        break;
+    case MT_TICK:
+        p = (uint32_t *) (buf_head + 4);
+
+        for (i=0; i<14; i++) {
+            p += 1;
+            *machine_control->tick[i] = *p;
+        }
         break;
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag\n");
@@ -2657,110 +2678,23 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->test_pattern) = 0;
 
-    retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->debug), comp_id,
-                                 "wou.debug");
-    if (retval != 0) {
-        return retval;
+    for (i=0; i<14; i++) {
+        retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->tick[i]), comp_id,
+                                     "wou.tick.count-%d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->tick[i]) = 0;
     }
-    *(machine_control->debug) = 0;
 
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->total_tick), comp_id,
-                                 "wou.tick.total");
-    if (retval != 0) {
-        return retval;
+    for (i=0; i<8; i++) {
+        retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->debug[i]), comp_id,
+                                     "wou.debug.value-%d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->debug[i]) = 0;
     }
-    *(machine_control->total_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun0_tick), comp_id,
-                                 "wou.tick.fun0");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun0_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun1_tick), comp_id,
-                                 "wou.tick.fun1");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun1_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun2_tick), comp_id,
-                                 "wou.tick.fun2");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun2_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun3_tick), comp_id,
-                                 "wou.tick.fun3");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun3_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun4_tick), comp_id,
-                                 "wou.tick.fun4");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun4_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun5_tick), comp_id,
-                                 "wou.tick.fun5");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun5_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun6_tick), comp_id,
-                                 "wou.tick.fun6");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun6_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun7_tick), comp_id,
-                                 "wou.tick.fun7");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun7_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun8_tick), comp_id,
-                                 "wou.tick.fun8");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun8_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun9_tick), comp_id,
-                                 "wou.tick.fun9");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun9_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun10_tick), comp_id,
-                                 "wou.tick.fun10");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun10_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun11_tick), comp_id,
-                                 "wou.tick.fun11");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun11_tick) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->fun12_tick), comp_id,
-                                 "wou.tick.fun12");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->fun12_tick) = 0;
 
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->dout0), comp_id,
