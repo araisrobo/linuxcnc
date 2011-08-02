@@ -488,7 +488,7 @@ typedef struct {
 //    hal_s32_t *debug;
     hal_s32_t *debug[8];
     /* tick */
-    hal_u32_t *tick[13];
+    hal_u32_t *tick[14];
 //    hal_u32_t *total_tick;
 //    hal_u32_t *fun0_tick;
 //    hal_u32_t *fun1_tick;
@@ -784,7 +784,7 @@ static void fetchmail(const uint8_t *buf_head)
     case MT_TICK:
         p = (uint32_t *) (buf_head + 4);
 
-        for (i=0; i<13; i++) {
+        for (i=0; i<14; i++) {
             p += 1;
             *machine_control->tick[i] = *p;
         }
@@ -2678,7 +2678,7 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->test_pattern) = 0;
 
-    for (i=0; i<13; i++) {
+    for (i=0; i<14; i++) {
         retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->tick[i]), comp_id,
                                      "wou.tick.count-%d", i);
         if (retval != 0) {
