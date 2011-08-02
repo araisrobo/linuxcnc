@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.07.29) lucid; urgency=low
+
+  * BUGFIX for S-Curve velocity profile
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 29 Jul 2011 11:32:17 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.07.25) lucid; urgency=low
 
   * Improve USB-PROBE
