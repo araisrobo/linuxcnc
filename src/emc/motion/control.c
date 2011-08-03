@@ -736,7 +736,7 @@ static void process_probe_inputs(void)
             /* the TRAJ-PLANNER is already stopped, but we need to remember the current
                                position here, because it will still be queried */
             // TODO: to handle suppress error mode. refer to command.c EMCMOT_PROBE
-            reportError(_("Probe is already tripped/cleared when starting G38.2, G38.3 move or G38.4 or G38.5"));
+            reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
