@@ -1130,6 +1130,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             // AT = A0 + JT
             newaccel = 0;
             // VT = V0 + A0T + 1/2 JT2
+            // TODO: let currentvel be equal to  exactly.
+            //       we would computate decel dist again in S3.`
             newvel = tc->currentvel;
             if (tc->decel_dist + (tc->currentvel) * tc->cycle_time > tc->target
                     - tc->progress) {
@@ -1151,7 +1153,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if (tc->on_feed_change == 0) {
                 if ((tc->feed_override > tc->ori_feed_override) ||
-                    (tc->reqvel - tc->ori_reqvel > VELOCITY_EPSTHON)
+					// bug fix: motion state not leave S3 when reqvel changed.
+                    (tc->reqvel - tc->ori_reqvel > 0)
+                    // (tc->reqvel - tc->ori_reqvel > VELOCITY_EPSTHON)
+                    // (tc->reqvel - tc->ori_reqvel > 0)
                     // bug: || (tc->reqvel - tc->currentvel > VELOCITY_EPSTHON)
                     //      有可能currentvel遠小於reqvel，但不應該去S8加速
                 ) {
@@ -1162,7 +1167,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     EXIT_STATE(s3);
                     break;
                 } else if ((tc->feed_override < tc->ori_feed_override)
-                        || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)
+                    // bug fix: motion state not leave S3 when reqvel changed.
+                        || (tc->reqvel - tc->ori_reqvel < 0)
+                    // || (tc->reqvel - tc->ori_reqvel < -VELOCITY_EPSTHON)
                     // bug: || (tc->reqvel - tc->currentvel < -VELOCITY_EPSTHON)
                     //      有可能currentvel遠小於reqvel，但不應該去S9減速
                     ) {
