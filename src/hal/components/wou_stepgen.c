@@ -163,6 +163,11 @@ static FILE *dptrace;
 static FILE *mbox_fp;
 #endif
 
+#define DEBUG_LOG 0
+#if (DEBUG_LOG)
+static FILE *debug_fp;
+#endif
+
 #define VEL_UPDATE_FREQ         (0.00065536)   // in second
 #define VEL_UPDATE_BP           (VEL_UPDATE_FREQ * 1526)
 
@@ -592,6 +597,9 @@ static void fetchmail(const uint8_t *buf_head)
     char        dmsg[1024];
     int         dsize;
     static      uint32_t prev_din0;
+#elif (DEBUG_LOG)
+    char        dmsg[1024];
+	int         dsize;
 #endif
 
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
@@ -738,7 +746,6 @@ static void fetchmail(const uint8_t *buf_head)
                           dout[0]);
         dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #23 #24
 
-        dsize += sprintf(dmsg + dsize, "%10d ", *(machine_control->debug));
 
         // number of debug words: to match "send_joint_status() at common.c
         for (i=0; i<MBOX_DEBUG_VARS; i++) {
@@ -776,10 +783,22 @@ static void fetchmail(const uint8_t *buf_head)
         break;
     case MT_DEBUG:
         p = (uint32_t *) (buf_head + 4);
+        bp_tick = *p;
+#if (DEBUG_LOG)
+        dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
+#endif
         for (i=0; i<8; i++) {
             p += 1;
             *machine_control->debug[i] = *p;
+
+#if (DEBUG_LOG)
+            dsize += sprintf (dmsg + dsize, "%10d", *p);
+            assert (dsize < 1023);
+#endif
         }
+#if (DEBUG_LOG)
+        fprintf (debug_fp, "%s\n", dmsg);
+#endif
         break;
     case MT_TICK:
         p = (uint32_t *) (buf_head + 4);
@@ -971,6 +990,9 @@ int rtapi_app_main(void)
                     );
         }
         fprintf (mbox_fp, "\n");
+#endif
+#if (DEBUG_LOG)
+        debug_fp = fopen ("./debug.log", "w");
 #endif
         // set mailbox callback function
         wou_set_mbox_cb (&w_param, fetchmail);
