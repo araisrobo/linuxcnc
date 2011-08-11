@@ -34,7 +34,7 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
-#define VELOCITY_EPSTHON 1e-3
+#define VELOCITY_EPSTHON 0
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
