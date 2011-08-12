@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.08.12) lucid; urgency=low
+
+  * BUGFIX for S-Curve velocity profile (for small velocity changing)
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 12 Aug 2011 04:53:11 +0800
+ 
 emc2 (1:2.4.0-nurbs-2011.08.05) lucid; urgency=low
 
   * BUGFIX for S-Curve velocity profile (for LATHE operation)
