@@ -684,6 +684,8 @@ static void process_probe_inputs(void)
             }
 //            if (!aborted) {
 			if (probe_suppress == 0) {  // just stop motion
+//				tpAbort(&emcmotDebug->coord_tp);
+				tpPause(&emcmotDebug->coord_tp);
 		        if (abort_reason == NO_REASON) {
 		        	fprintf(stderr,"PROBE: TP_END\n");
 		        }
@@ -743,6 +745,7 @@ static void process_probe_inputs(void)
         }
 //        emcmotStatus->usb_cmd = USB_CMD_ABORT;
         if (probe_suppress == 0) {
+        	tpPause(&emcmotDebug->coord_tp);
             if (emcmotStatus->usb_cmd != USB_CMD_ABORT) {
             	fprintf(stderr,"PROBE: USB_CMD_ABORT\n");
             }
@@ -750,10 +753,13 @@ static void process_probe_inputs(void)
             if (abort_reason == NO_REASON) {
             	abort_reason = TIPPED_BEFORE_START;
             }
+            aborted = 1;
 
         } else {
+        	tpPause(&emcmotDebug->coord_tp);
         	if (emcmotStatus->usb_cmd != USB_CMD_STATUS_ACK) {
         		fprintf(stderr,"PROBE: USB_CMD_ABORT no suppress\n");
+        		abort_reason = NO_REASON;
 			}
             emcmotStatus->usb_cmd = USB_CMD_STATUS_ACK;
         }
@@ -766,6 +772,7 @@ static void process_probe_inputs(void)
             /* the TRAJ-PLANNER is already stopped, but we need to remember the current
                                position here, because it will still be queried */
             // TODO: to handle suppress error mode. refer to command.c EMCMOT_PROBE
+        	tpPause(&emcmotDebug->coord_tp);
         	if (abort_reason == TIPPED_BEFORE_START) {
         		reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
 
@@ -777,6 +784,7 @@ static void process_probe_inputs(void)
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
             tpAbort(&emcmotDebug->coord_tp);
+            aborted = 1;
             emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC; 
             fprintf(stderr, "probe error USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
@@ -789,15 +797,18 @@ static void process_probe_inputs(void)
             emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC;
             fprintf(stderr, "probe hit USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_WOU_CMD_SYNC){
-//            if (aborted) {
-//                tpPause(&emcmotDebug->coord_tp);
-//            }
+            if (aborted) {
+                tpPause(&emcmotDebug->coord_tp);
+            } else {
+//            	tpResume(&emcmotDebug->coord_tp);
+            }
             emcmotStatus->usb_cmd = USB_CMD_NOOP;
         } else if (emcmotStatus->usb_cmd == USB_CMD_NOOP) {
 //            if (aborted) {
-//                tpResume(&emcmotDebug->coord_tp);
+
 //                aborted = 0;
 //            }
+        	aborted = 0;
         	abort_reason = NO_REASON;
         }
         break;
