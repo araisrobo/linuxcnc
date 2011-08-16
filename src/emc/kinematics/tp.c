@@ -1182,8 +1182,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 }
             }
             tc->ori_reqvel = tc->reqvel;
-            break;
             assert(newvel >= 0);
+            break;
         case ACCEL_S4:
             ENTER_STATE(s4);
             /* not necessary to process speed modification */
@@ -1551,51 +1551,50 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             } else {
                 // prediction distant when speed down
                 /* estimates decel_dist for S3->S4->S5->S6->S3 */
-                target_vel = (tc->currentvel + tc->reqvel * tc->feed_override)
-                        / 2;
-                t = sqrt(2 * (tc->currentvel - target_vel) / tc->jerk); // time for deceleration to 0.5 currentvel
-                t = floor(t / tc->cycle_time) * tc->cycle_time;
-                SP("time_for_decel(%f)\n",t);
-                if (tc->jerk * t > tc->rt_maxaccel) {
-                    // S4+S5+S6
-                    t = tc->rt_maxaccel / tc->jerk;
-                    accel_vel = 0.5 * tc->jerk * pow(t, 2);
-
-                    // accure predict S6 final speed
-                    target_vel = tc->currentvel - accel_vel - (tc->reqvel
-                            * tc->feed_override + accel_vel);
-                    t1 = floor((target_vel / tc->rt_maxaccel) / tc->cycle_time)
-                            * tc->cycle_time;
-                    target_vel = tc->currentvel - accel_vel - tc->rt_maxaccel
-                            * t1 - accel_vel;// possible vel before leaving S6
-
-                    //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
-                    decel_dist = tc->currentvel * t - 1.0 / 6.0 * tc->jerk
-                            * pow(t, 3); // S4
-                    SP("expected d(s4)(%f) ",decel_dist);
-                    decel_dist += (accel_vel + target_vel) * t - 0.5
-                            * tc->rt_maxaccel * pow(t, 2) + 1.0 / 6.0
-                            * tc->jerk * pow(t, 3); // S6
-                    SP("d(s6)(%f) ",accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3));
-                    t = t1;
-                    decel_dist += (tc->currentvel - accel_vel) * t - 0.5
-                            * tc->rt_maxaccel * pow(t, 2);
-                    SP("d(s5)(%f) ",(target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2));
-
-                } else {
-                    // consider deceleration progress exclude S5
-                    //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
-                    t = floor(t / tc->cycle_time) * tc->cycle_time;
-                    decel_dist = tc->currentvel * t - 1.0 / 6.0 * tc->jerk
-                            * pow(t, 3);
-                    accel_vel = 0.5 * tc->jerk * pow(t, 2);
-                    target_vel = tc->currentvel - accel_vel;
-                    decel_dist += target_vel * t - 0.5 * (tc->jerk * t) * pow(
-                            t, 2) + 1.0 / 6.0 * tc->jerk * pow(t, 3);
-                    //                  SP("exclude S5");
-                }
-
-                if (tc->decel_dist + decel_dist < tc->target - tc->progress) {
+// speed down always allowed:                 target_vel = (tc->currentvel + tc->reqvel * tc->feed_override)
+// speed down always allowed:                         / 2;
+// speed down always allowed:                 t = sqrt(2 * (tc->currentvel - target_vel) / tc->jerk); // time for deceleration to 0.5 currentvel
+// speed down always allowed:                 t = floor(t / tc->cycle_time) * tc->cycle_time;
+// speed down always allowed:                 SP("time_for_decel(%f)\n",t);
+// speed down always allowed:                 if (tc->jerk * t > tc->rt_maxaccel) {
+// speed down always allowed:                     // S4+S5+S6
+// speed down always allowed:                     t = tc->rt_maxaccel / tc->jerk;
+// speed down always allowed:                     accel_vel = 0.5 * tc->jerk * pow(t, 2);
+//
+// speed down always allowed:                     // accure predict S6 final speed
+// speed down always allowed:                     target_vel = tc->currentvel - accel_vel - (tc->reqvel
+// speed down always allowed:                             * tc->feed_override + accel_vel);
+// speed down always allowed:                     t1 = floor((target_vel / tc->rt_maxaccel) / tc->cycle_time)
+// speed down always allowed:                             * tc->cycle_time;
+// speed down always allowed:                     target_vel = tc->currentvel - accel_vel - tc->rt_maxaccel
+// speed down always allowed:                             * t1 - accel_vel;// possible vel before leaving S6
+//
+// speed down always allowed:                     //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+// speed down always allowed:                     decel_dist = tc->currentvel * t - 1.0 / 6.0 * tc->jerk
+// speed down always allowed:                             * pow(t, 3); // S4
+// speed down always allowed:                     SP("expected d(s4)(%f) ",decel_dist);
+// speed down always allowed:                     decel_dist += (accel_vel + target_vel) * t - 0.5
+// speed down always allowed:                             * tc->rt_maxaccel * pow(t, 2) + 1.0 / 6.0
+// speed down always allowed:                             * tc->jerk * pow(t, 3); // S6
+// speed down always allowed:                     SP("d(s6)(%f) ",accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3));
+// speed down always allowed:                     t = t1;
+// speed down always allowed:                     decel_dist += (tc->currentvel - accel_vel) * t - 0.5
+// speed down always allowed:                             * tc->rt_maxaccel * pow(t, 2);
+// speed down always allowed:                     SP("d(s5)(%f) ",(target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2));
+//
+// speed down always allowed:                 } else {
+// speed down always allowed:                     // consider deceleration progress exclude S5
+// speed down always allowed:                     //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
+// speed down always allowed:                     t = floor(t / tc->cycle_time) * tc->cycle_time;
+// speed down always allowed:                     decel_dist = tc->currentvel * t - 1.0 / 6.0 * tc->jerk
+// speed down always allowed:                             * pow(t, 3);
+// speed down always allowed:                     accel_vel = 0.5 * tc->jerk * pow(t, 2);
+// speed down always allowed:                     target_vel = tc->currentvel - accel_vel;
+// speed down always allowed:                     decel_dist += target_vel * t - 0.5 * (tc->jerk * t) * pow(
+// speed down always allowed:                             t, 2) + 1.0 / 6.0 * tc->jerk * pow(t, 3);
+// speed down always allowed:                     //                  SP("exclude S5");
+// speed down always allowed:                 }
+// speed down always allowed:                 if (tc->decel_dist + decel_dist < tc->target - tc->progress) {
                     tc->accel_state = ACCEL_S4;
                     tc->accel_time = tc->currentvel;
                     tc->accel_dist = 0;
@@ -1605,12 +1604,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     immediate_state = 1;
                     EXIT_STATE(s9);
                     break;
-                } else {
-                    tc->accel_state = tc->prev_state;
-                    tc->on_feed_change = 0;
-                    //  immediate_state = 1;
-                    EXIT_STATE(s9);
-                }
+// speed down always allowed:                } else {
+// speed down always allowed:                    tc->accel_state = tc->prev_state;
+// speed down always allowed:                    tc->on_feed_change = 0;
+// speed down always allowed:                    //  immediate_state = 1;
+// speed down always allowed:                    EXIT_STATE(s9);
+// speed down always allowed:                }
             }
             break;
 
