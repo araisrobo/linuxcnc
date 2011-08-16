@@ -2194,7 +2194,7 @@ static void update_freq(void *arg, long period)
     if (*machine_control->motion_state != machine_control->prev_motion_state) {
         if (*machine_control->motion_state == ACCEL_S3) {
             sync_cmd = SYNC_VEL | 0x0001;
-             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
+//             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
         } else {
             sync_cmd = SYNC_VEL;
 //                 fprintf(stderr,"motion_state != ACCEL_S3\n");
