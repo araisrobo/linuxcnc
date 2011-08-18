@@ -1349,8 +1349,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             newvel = tc->currentvel + tc->cur_accel * tc->cycle_time + 0.5
                     * tc->rt_jerk * pow(tc->cycle_time, 2);
 
-            if (tc->target_vel == 0 && newvel < tc->target_vel) {
-                newvel = tc->currentvel;
+            if (tc->target_vel == 0) {
+                if ((newvel < tc->target_vel) || (newvel == 0)) {
+                    newvel = tc->currentvel;
+                }
             }
             if (tc->target_vel != 0 && newaccel > 0) { //raise torrence for velocity check
 
