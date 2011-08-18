@@ -791,16 +791,14 @@ static void process_probe_inputs(void)
             // probe hit case
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-//            if (!aborted) {
-                tpAbort(&emcmotDebug->coord_tp);
-//            }
+            tpAbort(&emcmotDebug->coord_tp);
             emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC;
             fprintf(stderr, "probe hit USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_WOU_CMD_SYNC){
             if (aborted) {
                 tpPause(&emcmotDebug->coord_tp);
             } else {
-//            	tpResume(&emcmotDebug->coord_tp);
+                tpResume(&emcmotDebug->coord_tp);
             }
             emcmotStatus->usb_cmd = USB_CMD_NOOP;
         } else if (emcmotStatus->usb_cmd == USB_CMD_NOOP) {
