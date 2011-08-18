@@ -673,6 +673,9 @@ static void process_probe_inputs(void)
 
     switch ( emcmotStatus->usb_status) {
     case USB_STATUS_PROBING:
+        if (GET_MOTION_INPOS_FLAG()) {
+            tpPause(&emcmotDebug->coord_tp);
+        }
         if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; // don't update here, fb is not true here.
             tpPause(&emcmotDebug->coord_tp);
@@ -683,20 +686,18 @@ static void process_probe_inputs(void)
                 }
             }
 //            if (!aborted) {
-//			if (probe_suppress == 0) {  // just stop motion
+			if (probe_suppress == 0) {  // just stop motion
 //				tpAbort(&emcmotDebug->coord_tp);
 				tpPause(&emcmotDebug->coord_tp);
 		        if (abort_reason == NO_REASON) {
 		        	fprintf(stderr,"PROBE: TP_END\n");
 		        }
-
+//				emcmotStatus->usb_cmd = USB_CMD_ABORT;		// clear probe mode and stop motion
 				abort_reason = TP_END;
 
-				// TODO: since not solution for TP_END
-//                reportError("G38.X probe move finished without tripping probe");
-                emcmotStatus->usb_cmd = USB_CMD_ABORT;      // clear probe mode and stop motion
-//                SET_MOTION_ERROR_FLAG(1);
-//			}
+//                    reportError("G38.X probe move finished without tripping probe");
+//                    SET_MOTION_ERROR_FLAG(1);
+			}
 //			else {
 //				emcmotStatus->usb_cmd = USB_CMD_STATUS_ACK;  // clear probe mode and continue motion
 //			}
@@ -793,7 +794,9 @@ static void process_probe_inputs(void)
             // probe hit case
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-            tpAbort(&emcmotDebug->coord_tp);
+            if (abort_reason != TP_END) {
+                tpAbort(&emcmotDebug->coord_tp);
+            }
             emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC;
             fprintf(stderr, "probe hit USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_WOU_CMD_SYNC){
