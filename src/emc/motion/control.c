@@ -683,18 +683,20 @@ static void process_probe_inputs(void)
                 }
             }
 //            if (!aborted) {
-			if (probe_suppress == 0) {  // just stop motion
+//			if (probe_suppress == 0) {  // just stop motion
 //				tpAbort(&emcmotDebug->coord_tp);
 				tpPause(&emcmotDebug->coord_tp);
 		        if (abort_reason == NO_REASON) {
 		        	fprintf(stderr,"PROBE: TP_END\n");
 		        }
-//				emcmotStatus->usb_cmd = USB_CMD_ABORT;		// clear probe mode and stop motion
+
 				abort_reason = TP_END;
 
-//                    reportError("G38.X probe move finished without tripping probe");
-//                    SET_MOTION_ERROR_FLAG(1);
-			}
+				// TODO: since not solution for TP_END
+//                reportError("G38.X probe move finished without tripping probe");
+                emcmotStatus->usb_cmd = USB_CMD_ABORT;      // clear probe mode and stop motion
+//                SET_MOTION_ERROR_FLAG(1);
+//			}
 //			else {
 //				emcmotStatus->usb_cmd = USB_CMD_STATUS_ACK;  // clear probe mode and continue motion
 //			}
