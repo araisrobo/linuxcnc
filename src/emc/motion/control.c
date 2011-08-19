@@ -34,6 +34,8 @@
 #define _(s) (s)
 #define PI                      3.141592653589
 
+static int num_dio = DEFAULT_DIO;	/* default number of motion synched DIO */
+
 /* kinematics flags */
 KINEMATICS_FORWARD_FLAGS fflags = 0;
 KINEMATICS_INVERSE_FLAGS iflags = 0;
@@ -906,6 +908,11 @@ static void check_for_faults(void)
 	if ( *(emcmot_hal_data->enable) == 0 ) {
 	    reportError(_("motion stopped by enable input"));
 	    emcmotDebug->enabling = 0;
+
+            /* turn-off all motion-synch-dout[] */
+            for (n = 0; n < num_dio; n++) {
+                *(emcmot_hal_data->synch_do[n]) = 0;
+            }
 	}
     }
     /* check for various joint fault conditions */
