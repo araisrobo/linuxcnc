@@ -670,6 +670,14 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[5]) = *p;
         p += 1; *(analog->in[6]) = *p;
         p += 1; *(analog->in[7]) = *p;
+        p += 1; *(analog->in[8]) = *p;
+        p += 1; *(analog->in[9]) = *p;
+        p += 1; *(analog->in[10]) = *p;
+        p += 1; *(analog->in[11]) = *p;
+        p += 1; *(analog->in[12]) = *p;
+        p += 1; *(analog->in[13]) = *p;
+        p += 1; *(analog->in[14]) = *p;
+        p += 1; *(analog->in[15]) = *p;
 
         // MPG
         p += 1;
