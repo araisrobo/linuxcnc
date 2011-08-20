@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.08.19) lucid; urgency=low
+
+  * 1st Binary Release for PLASMA
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 19 Aug 2011 14:53:25 +0800
+
 emc2 (1:2.4.0-nurbs-2011.08.17) lucid; urgency=low
 
   * BUGFIX for S-Curve velocity profile (for speed down algorithm)
