@@ -1378,7 +1378,7 @@ check_stuff ( "before command_handler()" );
 	    if (emcmotStatus->usb_cmd != USB_CMD_NOOP) {
 	        reportError(_("initiate probe command while usb_cmd is not USB_CMD_NOOP"));
 	        fprintf(stderr,"initiate probe command while usb_cmd is not USB_CMD_NOOP");
-	        assert(0);
+	        // give warning only :assert(0);
 	    }
 //	    if (emcmotStatus->usb_status != USB_STATUS_READY) {
 //	        assert(0);
