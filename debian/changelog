@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.08.24) lucid; urgency=low
+
+  * Workaround for "Queue is not empty after probing"
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 24 Aug 2011 09:42:26 +0800
+
 emc2 (1:2.4.0-nurbs-2011.08.19) lucid; urgency=low
 
   * 1st Binary Release for PLASMA
