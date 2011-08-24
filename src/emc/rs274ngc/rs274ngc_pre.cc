@@ -79,6 +79,7 @@ include an option for suppressing superfluous commands.
 #include <time.h>
 #include <unistd.h>
 #include <libintl.h>
+#include <assert.h>
 
 #include "inifile.hh"		// INIFILE
 #include "rs274ngc.hh"
@@ -774,6 +775,11 @@ int Interp::read(const char *command)  //!< may be NULL or a string to read
   int read_status;
 
   if (_setup.probe_flag == ON) {
+    while (GET_EXTERNAL_QUEUE_EMPTY() == 0) {
+        // FIXME: this is a work-around for NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
+        printf("emcStatus->motion.traj.queue != 0\n");
+        // assert(0);
+    };
     CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
         NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
     set_probe_data(&_setup);
