@@ -63,7 +63,7 @@
 #include <sys/mman.h>		/* PROT_READ, needed for rtai_shm.h */
 #include <sys/types.h>		/* off_t, needed for rtai_shm.h */
 #include <sys/fcntl.h>		/* O_RDWR, needed for rtai_shm.h */
-#include <rtai_shm.h>		/* rtai_malloc,free() */
+#include "rtapi_rtai_shm_wrap.h" /*rtai_malloc,free() */
 #include <malloc.h>		/* malloc(), free() */
 #include <sys/io.h>		/* inb(), outb() */
 #include <errno.h>		/* errno */
@@ -88,7 +88,7 @@ static int fifo_fd_array[RTAPI_MAX_FIFOS + 1];
 
 static int msg_level = RTAPI_MSG_ERR;	/* message printing level */
 
-static void check_memlock_limit();
+static void check_memlock_limit(const char *where);
 
 /***********************************************************************
 *                      GENERAL PURPOSE FUNCTIONS                       *
@@ -101,8 +101,6 @@ int rtapi_init(const char *modname)
 
     /* say hello */
     rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI: initing module %s\n", modname);
-    /* setup revision string and code, and print opening message */
-    setup_revision_info();
     /* get shared memory block from OS and save its address */
     errno = 0;
     rtapi_data = rtai_malloc(RTAPI_KEY, sizeof(rtapi_data_t));
@@ -112,6 +110,7 @@ int rtapi_init(const char *modname)
     if (rtapi_data == NULL || rtapi_data == (rtapi_data_t*)-1) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 	    "RTAPI: ERROR: could not open shared memory (errno=%d)\n", errno);
+	check_memlock_limit("could not open shared memory");
 	return -ENOMEM;
     }
     /* perform a global init if needed */
@@ -120,7 +119,6 @@ int rtapi_init(const char *modname)
     if (rtapi_data->rev_code != rev_code) {
 	/* mismatch - release master shared memory block */
 	rtapi_print_msg(RTAPI_MSG_ERR, "RTAPI: ERROR: version mismatch %d vs %d\n", rtapi_data->rev_code, rev_code);
-	rtai_free(RTAPI_KEY, rtapi_data);
 	return -EINVAL;
     }
     /* set up local pointers to global data */
@@ -219,9 +217,7 @@ int rtapi_exit(int module_id)
     module->state = NO_MODULE;
     module->name[0] = '\0';
     rtapi_data->ul_module_count--;
-    /* unmap shared memory block */
     rtapi_mutex_give(&(rtapi_data->mutex));
-    rtai_free(RTAPI_KEY, rtapi_data);
     return 0;
 }
 
@@ -451,7 +447,7 @@ int rtapi_shmem_new(int key, int module_id, unsigned long int size)
 		rtapi_print_msg(RTAPI_MSG_ERR,
 		    "RTAPI: ERROR: failed to map shmem\n");
 		rtapi_mutex_give(&(rtapi_data->mutex));
-		check_memlock_limit();
+		check_memlock_limit("failed to map shmem");
 		return -ENOMEM;
 	    }
 	    /* update usage data */
@@ -505,7 +501,7 @@ int rtapi_shmem_new(int key, int module_id, unsigned long int size)
 #include <sys/time.h>
 #include <sys/resource.h>
 #define RECOMMENDED (20480*1024lu)
-static void check_memlock_limit() {
+static void check_memlock_limit(const char *where) {
     static int checked=0;
     struct rlimit lim;
     int result;
@@ -518,10 +514,10 @@ static void check_memlock_limit() {
     if(lim.rlim_cur >= RECOMMENDED) return; // limit is at least recommended
     rtapi_print_msg(RTAPI_MSG_ERR,
         "RTAPI: Locked memory limit is %luKiB, recommended at least %luKiB.\n"
-        "This can cause the error 'failed to map shmem'.\n"
+        "This can cause the error '%s'.\n"
         "For more information, see\n"
         "\thttp://wiki.linuxcnc.org/cgi-bin/emcinfo.pl?LockedMemory\n",
-        (unsigned long)lim.rlim_cur/1024, RECOMMENDED/1024);
+        (unsigned long)lim.rlim_cur/1024, RECOMMENDED/1024, where);
     return;
 }
 

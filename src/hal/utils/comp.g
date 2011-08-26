@@ -267,8 +267,8 @@ static int comp_id;
         v = ":".join(map(str, v))
         print >>f, "MODULE_INFO(emc2, %s);" % q(v)
         license = finddoc('license')
-        if license and license[1]:
-            print >>f, "MODULE_LICENSE(\"%s\");" % license[1].split("\n")[0]
+    if license and license[1]:
+        print >>f, "MODULE_LICENSE(\"%s\");" % license[1].split("\n")[0]
     print >>f, "#endif // MODULE_INFO"
     print >>f
 
@@ -359,13 +359,15 @@ static int comp_id;
         print >>f, "static int export(char *prefix, long extra_arg, long personality) {"
     else:
         print >>f, "static int export(char *prefix, long extra_arg) {"
-    print >>f, "    char buf[HAL_NAME_LEN + 2];"
+    print >>f, "    char buf[HAL_NAME_LEN + 1];"
     print >>f, "    int r = 0;"
     if has_array:
         print >>f, "    int j = 0;"
     print >>f, "    int sz = sizeof(struct state) + get_data_size();"
     print >>f, "    struct state *inst = hal_malloc(sz);"
     print >>f, "    memset(inst, 0, sz);"
+    if has_data:
+        print >>f, "    inst->_data = (char*)inst + sizeof(struct state);"
     if has_personality:
         print >>f, "    inst->_personality = personality;"
     if options.get("extra_setup"):
@@ -429,7 +431,7 @@ static int comp_id;
             print >>f, "    inst->%s = %s;" % (name, value)
 
     for name, fp in functions:
-        print >>f, "    rtapi_snprintf(buf, HAL_NAME_LEN, \"%%s%s\", prefix);"\
+        print >>f, "    rtapi_snprintf(buf, sizeof(buf), \"%%s%s\", prefix);"\
             % to_hal("." + name)
         print >>f, "    r = hal_export_funct(buf, (void(*)(void *inst, long))%s, inst, %s, 0, comp_id);" % (
             to_c(name), int(fp))
@@ -481,8 +483,8 @@ static int comp_id;
                         to_hal(removeprefix(comp_name, "hal_"))
         elif options.get("count_function"):
             print >>f, "    for(i=0; i<count; i++) {"
-            print >>f, "        char buf[HAL_NAME_LEN + 2];"
-            print >>f, "        rtapi_snprintf(buf, HAL_NAME_LEN, " \
+            print >>f, "        char buf[HAL_NAME_LEN + 1];"
+            print >>f, "        rtapi_snprintf(buf, sizeof(buf), " \
                                         "\"%s.%%d\", i);" % \
                     to_hal(removeprefix(comp_name, "hal_"))
             if has_personality:
@@ -499,8 +501,8 @@ static int comp_id;
             print >>f, "    if(!count && !names[0]) count = default_count;"
             print >>f, "    if(count) {"
             print >>f, "        for(i=0; i<count; i++) {"
-            print >>f, "            char buf[HAL_NAME_LEN + 2];"
-            print >>f, "            rtapi_snprintf(buf, HAL_NAME_LEN, " \
+            print >>f, "            char buf[HAL_NAME_LEN + 1];"
+            print >>f, "            rtapi_snprintf(buf, sizeof(buf), " \
                                         "\"%s.%%d\", i);" % \
                     to_hal(removeprefix(comp_name, "hal_"))
             if has_personality:
@@ -590,7 +592,7 @@ static int comp_id;
 
         if has_data:
             print >>f, "#undef data"
-            print >>f, "#define data (*(%s*)&(inst->_data))" % options['data']
+            print >>f, "#define data (*(%s*)(inst->_data))" % options['data']
         if has_personality:
             print >>f, "#undef personality"
             print >>f, "#define personality (inst->_personality)"
@@ -826,7 +828,10 @@ def document(filename, outfilename):
             print >>f, type, dir,
             if array:
                 sz = name.count("#")
-                print >>f, " (%s=%0*d..%0*d)" % ("M" * sz, sz, 0, sz, array-1),
+                if isinstance(array, tuple):
+                    print >>f, " (%s=%0*d..%s)" % ("M" * sz, sz, 0, array[1]),
+                else:
+                    print >>f, " (%s=%0*d..%0*d)" % ("M" * sz, sz, 0, sz, array-1),
             if personality:
                 print >>f, " [if %s]" % personality,
             if value:

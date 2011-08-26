@@ -81,6 +81,23 @@ proc sSlide {f a b} {
 # Build menu
 # fixme clean up the underlines so they are unique under each set
 set menubar [menu $top.menubar -tearoff 0]
+set filemenu [menu $menubar.file -tearoff 1]
+    $menubar add cascade -label [msgcat::mc "File"] \
+            -menu $filemenu
+        set ::savelabel "Save Watch List" ;# identifier for entryconfigure
+        $filemenu add command -label [msgcat::mc $::savelabel] \
+            -command {savewatchlist}
+        $filemenu add command -label [msgcat::mc "Load Watch List"] \
+            -command {getwatchlist}
+        $filemenu add command -label [msgcat::mc "Exit"] \
+            -command {destroy .; exit}
+        $filemenu configure -postcommand {
+          if {$::watchlist != ""} {
+            $filemenu entryconfigure [msgcat::mc $::savelabel] -state normal
+          } else {
+            $filemenu entryconfigure [msgcat::mc $::savelabel] -state disabled
+          }
+        }
 set viewmenu [menu $menubar.view -tearoff 0]
     $menubar add cascade -label [msgcat::mc "Tree View"] \
             -menu $viewmenu
@@ -172,72 +189,29 @@ proc listHAL {} {
 proc makeNodeP {which pstring} {
     global treew 
     # make an array to hold position counts
-    array set pcounts {1 1 2 1 3 1 4 1 5 1}
+    array set pcounts {1 1}
     # consider each listed element
     foreach p $pstring {
         set elementlist [split $p "." ]
         set lastnode [llength $elementlist]
         set i 1
+        set snode {}
         foreach element $elementlist {
-            switch $i {
-                1 {
-                    set snode "$which+$element"
-                    if {! [$treew exists "$snode"] } {
-                        set leaf [expr $lastnode - 1]
-                        set j [lindex [array get pcounts 1] end]
-                        writeNode "$j $which $snode $element $leaf"
-                        array set pcounts "1 [incr j] 2 1 3 1 4 1 5 1"
-                        set j 0
-                    }
-                    set i 2
-                }
-                2 {
-                    set ssnode "$snode.$element"
-                    if {! [$treew exists "$ssnode"] } {
-                        set leaf [expr $lastnode - 2]
-                        set j [lindex [array get pcounts 2] end]
-                        writeNode "$j $snode $ssnode $element $leaf"
-                        array set pcounts "2 [incr j] 3 1 4 1 5 1"
-                        set j 0
-                    }
-                    set i 3
-                }
-                3 {
-                    set sssnode "$ssnode.$element"
-                    if {! [$treew exists "$sssnode"] } {
-                        set leaf [expr $lastnode - 3]
-                        set j [lindex [array get pcounts 3] end]
-                        writeNode "$j $ssnode $sssnode $element $leaf"
-                        array set pcounts "3 [incr j] 4 1 5 1"
-                        set j 0
-                    }
-                    set i 4
-                }
-                4 {
-                    set ssssnode "$sssnode.$element"
-                    if {! [$treew exists "$ssssnode"] } {
-                        set leaf [expr $lastnode - 4]
-                        set j [lindex [array get pcounts 4] end]
-                        writeNode "$j $sssnode $ssssnode $element $leaf"
-                        array set pcounts "4 [incr j] 5 1"
-                        set j 0
-                    }
-                    set i 5
-                }
-                5 {
-                    set sssssnode "$ssssnode.$element"
-                    if {! [$treew exists "$sssssnode"] } {
-                        set leaf [expr $lastnode - 5]
-                        set j [lindex [array get pcounts 5] end]
-                        writeNode "$j $ssssnode $sssssnode $element $leaf"
-                        array set pcounts "5 [incr j]"
-                        set j 0
-                    }
-                }
-              # end of node making switch
+            if {$snode == {}} {
+                set parent $which; set snode "$which+$element"
+            } else {
+                set parent $snode; set snode "$snode.$element"
             }
+            set leaf [expr {$i == $lastnode}]
+            set j $pcounts($i)
+            if {! [$treew exists "$snode"] } {
+                writeNode [list $j $parent $snode $element $leaf]
+            }
+            incr pcounts($i)
+            incr i
+            set pcounts($i) 1
            # end of element foreach
-         }
+        }
         # end of param foreach
     }
     # empty the counts array in preparation for next proc call
@@ -572,6 +546,41 @@ proc displayThis {str} {
     $disp delete 1.0 end
     $disp insert end $str
     $disp configure -state disabled
+}
+
+proc getwatchlist {} {
+  set lfile [tk_getOpenFile \
+            -initialdir  [pwd]\
+            -initialfile  my.halshow\
+            -title       [msgcat::mc "Load a watch list"]\
+            ]
+  loadwatchlist $lfile
+}
+
+proc loadwatchlist {filename} {
+  if {"$filename" == ""} return
+  set f [open $filename r]
+  set wl [gets $f]
+  close $f
+  if {"$wl" == ""} return
+  watchReset all
+  $::top raise pw
+  foreach item $wl { watchHAL $item }
+}
+
+proc savewatchlist {} {
+  if {"$::watchlist" == ""} {
+    return -code error "savewatchlist: null watchlist"
+  }
+  set sfile [tk_getSaveFile \
+            -initialdir  [pwd]\
+            -initialfile my.halshow\
+            -title       [msgcat::mc "Save current watch list"]\
+            ]
+  if {"$sfile" == ""} return
+  set f [open $sfile w]
+  puts $f $::watchlist
+  close $f
 }
 
 #----------start up the displays----------

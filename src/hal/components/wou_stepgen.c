@@ -2354,7 +2354,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 
     /* export pin for index_enable */
     retval = hal_pin_bit_newf(HAL_IO, &(addr->index_enable), comp_id,
-			      "wou.stepgen.%d.index_enable", num);
+			      "wou.stepgen.%d.index-enable", num);
     if (retval != 0) {
 	return retval;
     }

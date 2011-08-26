@@ -119,7 +119,7 @@ AC_ARG_WITH(realtime,
     [  --with-realtime=<path to realtime>     Path where RTAI or RTlinux is installed],
     [   case "$withval" in
 	"" | y | ye | yes | n | no)
-	    AC_MSG_ERROR([You must supply a path for --with-rtai.]) ;;
+	    AC_MSG_ERROR([You must supply a path for --with-realtime.]) ;;
 	*)
 		case "$SIMULATOR" in
 		yes) AC_MSG_ERROR([--with-realtime and --enable-simulator are mutually exclusive]) ;;
@@ -280,6 +280,8 @@ fi
 EMC2_HOME=`(cd .. ; pwd)`
 AC_SUBST([EMC2_HOME])
 
+AC_DEFINE_UNQUOTED([RTDIR], "$RTDIR", [Directory of the installed realtime system])
+
 ##############################################################################
 # Section 3                                                                  #
 # aditional checking                                                         #
@@ -339,22 +341,21 @@ void use_rdtscll(void) { long long tsc; rdtscll(tsc); }
     ], [MSR_H_USABLE=no])
 AC_MSG_RESULT($MSR_H_USABLE)
 
-CFLAGS_save=$CFLAGS
-if ! test -z "$KERNELDIR"; then
-	CFLAGS="$CFLAGS -I$KERNELDIR/include"
-fi
-AC_MSG_CHECKING([for usability of linux/joystick.h])
+AC_MSG_CHECKING([for usability of linux/hidraw.h])
 AC_TRY_LINK(
     [
-#include <inttypes.h>
-#include <linux/joystick.h>
+#include <sys/ioctl.h>
+#include <linux/hidraw.h>
+long hidiocgrawinfo = HIDIOCGRAWINFO;
     ],
     [],
-    [JOYSTICK_H_USABLE=yes],
-    [JOYSTICK_H_USABLE=no])
-AC_MSG_RESULT($JOYSTICK_H_USABLE)
-AC_SUBST([JOYSTICK_H_USABLE])
-CFLAGS=$CFLAGS_save
+    [
+	HIDRAW_H_USABLE=yes
+        AC_DEFINE([HIDRAW_H_USABLE], [], [Define to 1 if linux/hidraw.h is usable and defines HIDIOCGRAWINFO])
+],
+    [HIDRAW_H_USABLE=no])
+AC_MSG_RESULT($HIDRAW_H_USABLE)
+AC_SUBST([HIDRAW_H_USABLE])
 
 ##############################################################################
 # Subsection 3.2 - check for the kernel version, with RT patches             #
@@ -380,6 +381,8 @@ AC_MSG_CHECKING([for kernel version string])
 
 if test -e $KERNELDIR/include/linux/utsrelease.h; then
     VERSION_FILE=$KERNELDIR/include/linux/utsrelease.h
+elif test -e $KERNELDIR/include/generated/utsrelease.h; then
+    VERSION_FILE=$KERNELDIR/include/generated/utsrelease.h
 else
     VERSION_FILE=$KERNELDIR/include/linux/version.h
 fi
@@ -513,6 +516,7 @@ fe () {
 
 if test "xyes" = "x$RUN_IN_PLACE"; then
     EMC2_LATENCY_SCRIPT=$EMC2_HOME/scripts/latency-test
+    EMC2_LATENCYPLOT_SCRIPT=$EMC2_HOME/scripts/latencyplot
     EMC2_SCRIPT=$EMC2_HOME/scripts/emc
     EMC2_SUFFIX=" (run-in-place)"
     EMC2_ICON=$EMC2_HOME/emc2icon.png
@@ -531,13 +535,14 @@ else
     EMC2_HOME=${prefix}
     EMC2_BIN_DIR=${prefix}/bin
     EMC2_LATENCY_SCRIPT=$EMC2_BIN_DIR/latency-test
+    EMC2_LATENCYPLOT_SCRIPT=$EMC2_BIN_DIR/latencyplot
     EMC2_SCRIPT=$EMC2_BIN_DIR/emc
     EMC2_SUFFIX=""
     EMC2_ICON=emc2icon
-    EMC2_TCL_DIR=${prefix}/share/emc/tcl
-    EMC2_TCL_LIB_DIR=${prefix}/lib/emc/tcl
+    EMC2_TCL_DIR=${prefix}/lib/tcltk/emc2
+    EMC2_TCL_LIB_DIR=${prefix}/lib/tcltk/emc2
     EMC2_LANG_DIR=${prefix}/share/emc/tcl/msgs
-    EMC2_PO_DIR=${prefix}/share
+    EMC2_PO_DIR=${prefix}/share/locale
     EMC2_HELP_DIR=${prefix}/share/doc/emc2
     case $MODULE_DIR in
         */emc2*) EMC2_RTLIB_DIR=$MODULE_DIR ;;
@@ -571,6 +576,7 @@ AC_SUBST([REALTIME])
 AC_SUBST([EMC2_IMAGE_DIR])
 AC_SUBST([EMC2_SCRIPT])
 AC_SUBST([EMC2_LATENCY_SCRIPT])
+AC_SUBST([EMC2_LATENCYPLOT_SCRIPT])
 AC_SUBST([EMC2_SUFFIX])
 AC_SUBST([EMC2_ICON])
 
@@ -589,25 +595,42 @@ else
   AC_MSG_ERROR(no -- required until somebody makes modbus optional)
 fi
 
-AC_MSG_CHECKING([for GTK 2.4.0 or above])
-if pkg-config gtk+-2.0 --atleast-version 2.4.0 >/dev/null 2>&1; then
-  GTK_VER=`pkg-config gtk+-2.0 --modversion`
-  AC_MSG_RESULT(yes - $GTK_VER)
-  GTK_CFLAGS=`pkg-config gtk+-2.0 --cflags`
-  GTK_LIBS=`pkg-config gtk+-2.0 --libs`
-  AC_MSG_CHECKING(for libgnomeprintui-2.2)
-  if pkg-config --exists libgnomeprintui-2.2; then
-    AC_MSG_RESULT(yes)
-    GTK_CFLAGS="$GTK_CFLAGS `pkg-config --cflags libgnomeprintui-2.2`"
-    GTK_LIBS="$GTK_LIBS `pkg-config --libs libgnomeprintui-2.2`"
-    HAVE_GNOMEPRINT=yes
+
+AC_ARG_ENABLE(gtk,
+    [  --disable-gtk        Disable the parts of emc2 that depend on GTK],
+    [
+	case "$enableval" in
+	Y*|y*)
+	    BUILD_GTK=yes ;;
+	*)
+	    BUILD_GTK=no ;;
+	esac
+    ],
+    [BUILD_GTK=yes])
+
+if test "$BUILD_GTK" = "yes"; then
+  AC_MSG_CHECKING([for GTK 2.4.0 or above])
+  if pkg-config gtk+-2.0 --atleast-version 2.4.0 >/dev/null 2>&1; then
+    GTK_VER=`pkg-config gtk+-2.0 --modversion`
+    AC_MSG_RESULT(yes - $GTK_VER)
+    GTK_CFLAGS=`pkg-config gtk+-2.0 --cflags`
+    GTK_LIBS=`pkg-config gtk+-2.0 --libs`
+    AC_MSG_CHECKING(for libgnomeprintui-2.2)
+    if pkg-config --exists libgnomeprintui-2.2; then
+      AC_MSG_RESULT(yes)
+      GTK_CFLAGS="$GTK_CFLAGS `pkg-config --cflags libgnomeprintui-2.2`"
+      GTK_LIBS="$GTK_LIBS `pkg-config --libs libgnomeprintui-2.2`"
+      HAVE_GNOMEPRINT=yes
+    else
+      AC_MSG_RESULT(no -- printing from classicladder will not be possible)
+      HAVE_GNOMEPRINT= 
+    fi
   else
-    AC_MSG_RESULT(no -- printing from classicladder will not be possible)
-    HAVE_GNOMEPRINT= 
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([GTK2 missing.  Install it or specify --disable-gtk to skip the parts of emc2 that depend on GTK])
   fi
-else
-  AC_MSG_WARN([GTK2 not found, some utilities (halscope, classicladder) will not be built])
 fi
+
 AC_SUBST(HAVE_GNOMEPRINT)
 AC_SUBST(GTK_VER)
 AC_SUBST(GTK_LIBS)
@@ -624,6 +647,13 @@ AC_SUBST(GLIB_CFLAGS)
 
 SPATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
 AC_PROG_CXX
+
+AC_PATH_PROG(CXX,$CXX,"none")
+if test $CXX = "none"
+then
+    AC_MSG_ERROR([C++ compiler not found])
+fi
+
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PATH_PROG(AR,ar)
@@ -992,11 +1022,11 @@ AH_VERBATIM([_GNU_SOURCE],
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_FUNCS(semtimedop)
-LDFLAGS_hold=$LDFLAGS
-LDFLAGS="$LDFLAGS -lm"
+LIBS_hold=$LIBS
+LIBS="$LIBS -lm"
 AC_CHECK_FUNCS(sincos)
 AC_CHECK_FUNCS(__sincos)
-LDFLAGS=$LDFLAGS_hold
+LIBS=$LIBS_hold
 
 AH_BOTTOM(#endif
 )
@@ -1132,13 +1162,25 @@ AC_PATH_XTRA
 AC_SUBST([X_LIBS])
 AC_SUBST([X_CFLAGS])
 
+AC_CHECK_HEADERS(X11/extensions/Xinerama.h,
+	    [HAVE_XINERAMA=yes],
+	    [HAVE_XINERAMA=no])
+
+AC_CHECK_LIB(Xinerama, XineramaQueryExtension,
+	    [],
+	    [HAVE_XINERAMA=no])
+
+if test "x$HAVE_XINERAMA" = "xno"; then
+    AC_MSG_ERROR([Xinerama library or headers not found])
+fi
+
 # check for Xaw, that is needed for emc2/src/emc/usr_intf/xemc.cc
 
 if test "$have_x" = "yes"; then
 CFLAGS_hold=$CFLAGS
-LDFLAGS_hold=$LDFLAGS
+LIBS_hold=$LIBS
 CFLAGS="$CFLAGS $X_CFLAGS"
-LDFLAGS="$LDFLAGS $X_PRE_LIBS $X_LIBS"
+LIBS="$LIBS $X_PRE_LIBS $X_LIBS"
 
 AC_CHECK_HEADERS(X11/Xaw/XawInit.h,
 	    [HAVE_XAW=yes],
@@ -1150,11 +1192,11 @@ AC_CHECK_LIB(Xaw, XawDialogGetValueString,
 	    [],
 	    [HAVE_XAW=no])
 CFLAGS=$CFLAGS_hold
-LDFLAGS=$LDFLAGS_hold
+LIBS=$LIBS_hold
 fi
 
 if test "x$HAVE_XAW" = "xno"; then
-    AC_MSG_WARN(Xaw lib missing, you won't be able to build/run xemc. try installing it with 'apt-get install libxaw7-dev')
+    AC_MSG_WARN([Xaw lib missing, you won't be able to build/run xemc. try installing it with 'apt-get install libxaw7-dev'])
 else    
     XAW_LIBS="$X_PRE_LIBS $X_LIBS -lX11 -lXaw"
 fi
@@ -1206,7 +1248,7 @@ AC_CHECK_LIB(ncurses, initscr,
 	    [HAVE_NCURSES=no])
 
 if test "x$HAVE_NCURSES" = "xno"; then
-    AC_MSG_WARN(ncurses lib missing, you won't be ablet o build/run keystick. try installing it with 'apt-get install libncurses-dev')
+    AC_MSG_WARN(ncurses lib missing, you won't be able to build/run keystick. try installing it with 'apt-get install libncurses-dev')
 else    
     NCURSES_LIBS="-lncurses"
 fi
@@ -1267,7 +1309,9 @@ LIBS="$X_LIBS $temp_LIBS"
 
 AC_PATH_PROG(XGETTEXT,xgettext,none)
 XGETTEXT_TCL_WORKS=no
-if test "$XGETTEXT" != "none"; then
+if test "$XGETTEXT" = "none"; then
+   AC_MSG_ERROR(install gettext 0.14.5 or above)
+else
    AC_MSG_CHECKING(for xgettext tcl bug)
    set -- $(xgettext --version | head -1)
    version=$4
@@ -1284,7 +1328,9 @@ fi
 AC_SUBST(XGETTEXT)
 
 AC_PATH_PROG(MSGFMT,msgfmt,none)
-if test "$MSGFMT" != "none"; then
+if test "$MSGFMT" = "none"; then
+   AC_MSG_ERROR(install gettext 0.14.5 or above)
+else
     AC_MSG_CHECKING(for --tcl support in msgfmt)
     if $MSGFMT --tcl -l de -d /tmp /dev/null > /dev/null 2>&1; then
         AC_MSG_RESULT(yes)
@@ -1362,6 +1408,9 @@ Install this version and specify --with-tclConfig and --with-tkConfig if necessa
 		AC_MSG_ERROR([Required GLU library missing.  Install it or specify --disable-python to skip the parts of emc2 that depend on Python])]
 	
     )
+
+    AC_MSG_CHECKING(for Xmu headers)
+    AC_CHECK_HEADERS(X11/Xmu/Xmu.h,[],[AC_MSG_ERROR([Required Xmu header missing.  Install it, or specify --disable-python to skip the parts of emc2 that depend on Python])])
 fi
 
 AC_SUBST([BUILD_PYTHON])
@@ -1380,12 +1429,14 @@ AC_CONFIG_FILES([../scripts/halrun], [chmod +x ../scripts/halrun])
 AC_CONFIG_FILES([../scripts/emc-environment], [chmod +x ../scripts/emc-environment])
 AC_CONFIG_FILES([../scripts/haltcl], [chmod +x ../scripts/haltcl])
 AC_CONFIG_FILES([../scripts/realtime], [chmod +x ../scripts/realtime])
+AC_CONFIG_FILES([../scripts/latencyplot], [chmod +x ../scripts/latencyplot])
 AC_CONFIG_FILES(Makefile.inc)
 AC_CONFIG_FILES(Makefile.modinc)
 AC_CONFIG_FILES(../tcl/emc.tcl)
 AC_CONFIG_FILES(../lib/python/nf.py)
 AC_CONFIG_FILES([../scripts/emcmkdesktop], [chmod +x ../scripts/emcmkdesktop])
 AC_CONFIG_FILES(../share/applications/emc-latency.desktop)
+AC_CONFIG_FILES(../share/applications/emc-latencyplot.desktop)
 AC_CONFIG_FILES(../share/applications/emc.desktop)
 AC_CONFIG_FILES(../share/desktop-directories/cnc.directory)
 AC_CONFIG_FILES(../share/menus/CNC.menu)

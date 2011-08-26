@@ -17,6 +17,30 @@ TRIVIAL_BUILD=no
 endif
 endif
 
+# Beautify output
+# ---------------------------------------------------------------------------
+#
+# A simple variant is to prefix commands with $(Q) - that's useful
+# for commands that shall be hidden in non-verbose mode.
+#
+#	$(Q)ln $@ :<
+#
+# If BUILD_VERBOSE equals 0 then the above command will be hidden.
+# If BUILD_VERBOSE equals 1 then the above command is displayed.
+
+ifeq ("$(origin V)", "command line")
+  BUILD_VERBOSE = $(V)
+endif
+ifndef BUILD_VERBOSE
+  BUILD_VERBOSE = 0
+endif
+
+ifeq ($(BUILD_VERBOSE),1)
+  Q =
+else
+  Q = @
+endif
+
 ifeq "$(findstring s,$(MAKEFLAGS))" ""
 ECHO=@echo
 VECHO=echo
@@ -80,8 +104,9 @@ SUBDIRS := \
     hal/components hal/drivers hal/user_comps/devices \
     hal/user_comps hal/user_comps/vismach hal/classicladder hal/utils hal \
     \
-    emc/usr_intf/axis emc/usr_intf/stepconf emc/usr_intf/pncconf \
-    emc/usr_intf emc/nml_intf emc/usr_intf/touchy emc/usr_intf/eTouchy emc/task emc/iotask emc/kinematics emc/canterp \
+    emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
+    emc/usr_intf/gremlin \
+    emc/usr_intf emc/nml_intf emc/task emc/iotask emc/kinematics emc/canterp \
     emc/motion emc/ini emc/rs274ngc emc/sai emc \
     \
     module_helper \
@@ -117,7 +142,7 @@ $(call ASSERT_EMPTY,$(filter-out %.c %.cc, $(USERSRCS)))
 $(call ASSERT_EMPTY,$(filter-out %.c, $(RTSRCS)))
 
 ifeq ($(BUILD_PYTHON),yes)
-$(call TOOBJSDEPS,$(PYSRCS)) : EXTRAFLAGS += -fPIC
+$(call TOOBJSDEPS,$(PYSRCS)) : EXTRAFLAGS += -fPIC $(call cc-option,-fno-strict-aliasing)
 USERSRCS += $(PYSRCS)
 endif
 
@@ -152,16 +177,10 @@ OPT := -O0
 # for release: 
 # OPT := -O2
 
-# NOTE: Wwrite-strings is supposed to be OFF unless explicitly requested, even with -Wall,
-# since it produces a mess of warnings on any code that doesn't use "const" fastidiously
-# There is a bug in some versions of gcc that turns it on.
-# ( see http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=442950 )
-# So we explicitly turn it off here, to avoid a flood of meaningless warnings that
-# might be hiding a few real ones.
 # for debug: 
-DEBUG := -g -Wall $(call cc-option,-Wno-write-strings)
+DEBUG := -g -Wall
 # for release: 
-# DEBUG := -Wall $(call cc-option,-Wno-write-strings)
+# DEBUG := -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
@@ -186,21 +205,21 @@ $(sort $(call TODEPS, $(filter %.c,$(USERSRCS)))): depends/%.d: %.c
 $(sort $(CUSEROBJS)) : objects/%.o: %.c
 	$(ECHO) Compiling $<
 	@mkdir -p $(dir $@)
-	$(CC) -c $(CFLAGS) $(EXTRAFLAGS) $< -o $@
+	$(Q)$(CC) -c $(CFLAGS) $(EXTRAFLAGS) $< -o $@
 
 $(sort $(CXXUSEROBJS)) : objects/%.o: %.cc
 	$(ECHO) Compiling $<
 	@mkdir -p $(dir $@)
-	$(CXX) -c $(CXXFLAGS) $(EXTRAFLAGS) $< -o $@
+	$(Q)$(CXX) -c $(CXXFLAGS) $(EXTRAFLAGS) $< -o $@
 
 # Rules to make .i (preprocessed) files
 $(sort $(patsubst %.c,%.i,$(CUSERSRCS))): %.i: %.c
-	@echo Preprocessing $< to $@
-	@$(CC) -dD $(CFLAGS) $(EXTRAFLAGS) -E $< -o $@
+	$(ECHO) Preprocessing $< to $@
+	$(Q)$(CC) -dD $(CFLAGS) $(EXTRAFLAGS) -E $< -o $@
 
 $(sort $(patsubst %.cc,%.ii,$(CXXUSERSRCS))): %.ii: %.cc
-	@echo Preprocessing $< to $@
-	@$(CXX) -dD $(CXXFLAGS) $(EXTRAFLAGS) -E $< -o $@
+	$(ECHO) Preprocessing $< to $@
+	$(Q)$(CXX) -dD $(CXXFLAGS) $(EXTRAFLAGS) -E $< -o $@
 
 ifeq ($(TRIVIAL_BUILD),no)
 configure: configure.in
@@ -223,10 +242,12 @@ INFILES = \
 	../docs/man/man1/emc.1 ../scripts/emc ../scripts/realtime \
 	../scripts/haltcl ../scripts/rtapi.conf Makefile.inc Makefile.modinc \
 	../tcl/emc.tcl ../scripts/halrun ../scripts/emc-environment \
-	../scripts/emcmkdesktop ../lib/python/nf.py \
+	../scripts/emcmkdesktop ../scripts/latencyplot \
+	 ../lib/python/nf.py \
 	../share/desktop-directories/cnc.directory ../share/menus/CNC.menu \
 	../share/applications/emc.desktop \
-	../share/applications/emc-latency.desktop
+	../share/applications/emc-latency.desktop \
+	../share/applications/emc-latencyplot.desktop
 
 $(INFILES): %: %.in config.status
 	@./config.status --file=$@
@@ -256,6 +277,7 @@ HEADERS := \
     emc/motion/motion.h \
     emc/motion/usrmotintf.h \
     emc/nml_intf/canon.hh \
+    emc/nml_intf/emctool.h \
     emc/nml_intf/emc.hh \
     emc/nml_intf/emc_nml.hh \
     emc/nml_intf/emccfg.h \
@@ -336,6 +358,7 @@ userspace: $(TARGETS)
 ifeq ($(BUILD_PYTHON),yes)
 pythonclean:
 	rm -f $(PYTARGETS)
+	find ../lib/python -name '*.so' -exec rm {} +
 python: $(PYTARGETS)
 userspace: python
 clean: docclean pythonclean
@@ -346,10 +369,9 @@ endif
 # accomodated here.
 ifeq ($(BUILD_SYS),kbuild)
 
-# '-o $(KERNELDIR)/Module.symvers' silences warnings about that file being missing
 modules:
-	./modsilent $(MAKE) -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 -o $(KERNELDIR)/Module.symvers modules 
-	-cp *$(MODULE_EXT) ../rtlib/
+	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 modules
+	-cp Module.symvers *$(MODULE_EXT) ../rtlib/
 endif
 
 # These rules clean things up.  'modclean' cleans files generated by 'modules'
@@ -417,7 +439,8 @@ install:
 install-menus install-menu: ../share/menus/CNC.menu \
 		../share/desktop-directories/cnc.directory \
 		../share/applications/emc.desktop \
-		../share/applications/emc-latency.desktop
+		../share/applications/emc-latency.desktop \
+		../share/applications/emc-latencyplot.desktop
 	mkdir -p $(HOME)/.config/menus/applications-merged
 	cp $< $(HOME)/.config/menus/applications-merged
 else
@@ -448,7 +471,7 @@ install-dirs:
 		$(DESTDIR)$(libdir) $(DESTDIR)$(includedir)/emc2 \
 		$(DESTDIR)$(docsdir) $(DESTDIR)$(ncfilesdir) \
 		$(DESTDIR)/etc/X11/app-defaults $(DESTDIR)$(tcldir)/bin \
-		$(DESTDIR)$(tcldir)/scripts $(DESTDIR)$(libdir)/emc/tcl \
+		$(DESTDIR)$(tcldir)/scripts \
 		$(DESTDIR)$(mandir)/man1 \
 		$(DESTDIR)$(mandir)/man3 \
 		$(DESTDIR)$(mandir)/man9 \
@@ -456,6 +479,9 @@ install-dirs:
 		$(DESTDIR)$(localedir)/de/LC_MESSAGES \
 		$(DESTDIR)$(datadir)/axis/images \
 		$(DESTDIR)$(datadir)/axis/tcl \
+		$(DESTDIR)$(datadir)/glade3/catalogs \
+		$(DESTDIR)$(datadir)/glade3/pixmaps \
+		$(DESTDIR)$(datadir)/gtksourceview-2.0/language-specs \
 		$(DESTDIR)$(datadir)/emc/pncconf/pncconf-help
 
 install-kernel-indep: install-dirs
@@ -476,9 +502,9 @@ install-kernel-indep: install-dirs
 	$(EXE) $(filter-out ../bin/emc_module_helper ../bin/pci_write ../bin/pci_read, $(filter ../bin/%,$(TARGETS))) $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/emc $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/latency-test $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/latencyplot $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/emcmkdesktop $(DESTDIR)$(bindir)
 	$(EXE) ../bin/tooledit $(DESTDIR)$(bindir)
-	$(EXE) ../bin/toolconvert $(DESTDIR)$(bindir)
 	$(FILE) $(filter ../lib/%.a ../lib/%.so.0,$(TARGETS)) $(DESTDIR)$(libdir)
 	cp --no-dereference $(filter ../lib/%.so, $(TARGETS)) $(DESTDIR)$(libdir)
 	-ldconfig $(DESTDIR)$(libdir)
@@ -491,8 +517,9 @@ install-kernel-indep: install-dirs
 	$(FILE) ../app-defaults/XEmc $(DESTDIR)/etc/X11/app-defaults
 	$(FILE) Makefile.modinc $(DESTDIR)$(datadir)/emc
 	$(EXE) $(TCL) $(DESTDIR)$(tcldir)
-	$(FILE) ../tcl/hal.so $(DESTDIR)$(libdir)/emc/tcl
+	$(FILE) ../tcl/hal.so $(DESTDIR)$(tcldir)
 	$(FILE) ../tcl/emc.so $(DESTDIR)$(tcldir)
+	$(FILE) ../tcl/pkgIndex.tcl $(DESTDIR)$(tcldir)
 	$(EXE) $(TCL_BIN) $(DESTDIR)$(tcldir)/bin
 	$(FILE) ../tcl/scripts/balloon.tcl ../tcl/scripts/emchelp.tcl $(DESTDIR)$(tcldir)/scripts
 	$(EXE) ../tcl/scripts/Set_Coordinates.tcl $(DESTDIR)$(tcldir)/scripts
@@ -504,17 +531,22 @@ install-kernel-indep: install-dirs
 	$(FILE) ../src/emc/usr_intf/pncconf/pncconf-help/*.txt $(DESTDIR)$(prefix)/share/emc/pncconf/pncconf-help
 	$(FILE) ../src/emc/usr_intf/pncconf/pncconf-help/*.png $(DESTDIR)$(prefix)/share/emc/pncconf/pncconf-help
 
+	$(FILE) ../lib/python/gladevcp/hal_python.xml $(DESTDIR)$(datadir)/glade3/catalogs/
+	$(FILE) ../lib/python/gladevcp/widget*.png  $(DESTDIR)$(datadir)/glade3/pixmaps/
+
+	$(FILE) ../share/gtksourceview-2.0/language-specs/*.lang  $(DESTDIR)$(datadir)/gtksourceview-2.0/language-specs/
+
 ifeq ($(BUILD_PYTHON),yes)
 install-kernel-indep: install-python
 install-python: install-dirs
 	$(DIR) $(DESTDIR)$(SITEPY) $(DESTDIR)$(SITEPY)/rs274
 	$(DIR) $(DESTDIR)$(SITEPY)/touchy
-	$(DIR) $(DESTDIR)$(SITEPY)/eTouchy
+	$(DIR) $(DESTDIR)$(SITEPY)/gladevcp
 	$(FILE) ../lib/python/*.py ../lib/python/*.so $(DESTDIR)$(SITEPY)
 	$(FILE) ../lib/python/rs274/*.py $(DESTDIR)$(SITEPY)/rs274
 	$(FILE) ../lib/python/touchy/*.py $(DESTDIR)$(SITEPY)/touchy
-	$(FILE) ../lib/python/eTouchy/*.py $(DESTDIR)$(SITEPY)/eTouchy
-	$(EXE) ../bin/stepconf ../bin/pncconf ../bin/hal_input ../bin/pyvcp ../bin/axis ../bin/axis-remote ../bin/debuglevel ../bin/emctop ../bin/mdi ../bin/hal_manualtoolchange ../bin/image-to-gcode ../bin/touchy ../bin/eTouchy $(DESTDIR)$(bindir)
+	$(FILE) ../lib/python/gladevcp/*.py $(DESTDIR)$(SITEPY)/gladevcp
+	$(EXE) ../bin/stepconf ../bin/pncconf ../bin/hal_input ../bin/pyvcp ../bin/gladevcp ../bin/axis ../bin/axis-remote ../bin/debuglevel ../bin/emctop ../bin/mdi ../bin/hal_manualtoolchange ../bin/image-to-gcode ../bin/touchy $(DESTDIR)$(bindir)
 	$(EXE) $(patsubst %.py,../bin/%,$(VISMACH_PY)) $(DESTDIR)$(bindir)
 	$(FILE) ../share/emc/emc2-wizard.gif $(DESTDIR)$(prefix)/share/emc
 	$(FILE) emc/usr_intf/axis/etc/axis_light_background $(DESTDIR)$(docsdir)
@@ -529,6 +561,7 @@ install-kernel-dep:
 		$(DESTDIR)$(sysconfdir)/emc2
 	$(FILE) ../rtlib/*$(MODULE_EXT) $(DESTDIR)$(EMC2_RTLIB_DIR)
 ifneq "$(BUILD_SYS)" "sim"
+	$(FILE) Module.symvers $(DESTDIR)$(EMC2_RTLIB_DIR)
 	$(SETUID) ../bin/emc_module_helper $(DESTDIR)$(bindir)
 	$(SETUID) ../bin/pci_write $(DESTDIR)$(bindir)
 	$(SETUID) ../bin/pci_read $(DESTDIR)$(bindir)
@@ -570,12 +603,14 @@ endif
 # "kbuild" system.  $(BASEPWD) is used here, instead of relative paths, because
 # that's what kbuild seems to require
 
-EXTRA_CFLAGS = $(RTFLAGS) -D__MODULE__ -I$(BASEPWD) -I$(BASEPWD)/libnml/linklist \
+EXTRA_CFLAGS = $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I$(BASEPWD)/libnml/linklist \
 	-I$(BASEPWD)/libnml/cms -I$(BASEPWD)/libnml/rcs -I$(BASEPWD)/libnml/inifile \
 	-I$(BASEPWD)/libnml/os_intf -I$(BASEPWD)/libnml/nml -I$(BASEPWD)/libnml/buffer \
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
 	-I$(BASEPWD)/emc/nml_intf -I$(BASEPWD)/emc/kinematics -I$(BASEPWD)/emc/motion \
-        -DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER
+        -DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
+	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations \
+	$(call cc-option,-Wframe-larger-than=2560)
 ifeq ($(RTARCH),x86_64)
 EXTRA_CFLAGS += -msse
 endif
@@ -644,6 +679,8 @@ obj-$(CONFIG_SIM_ENCODER) += sim_encoder.o
 sim_encoder-objs := hal/components/sim_encoder.o $(MATHSTUB)
 obj-$(CONFIG_WEIGHTED_SUM) += weighted_sum.o
 weighted_sum-objs := hal/components/weighted_sum.o $(MATHSTUB)
+obj-$(CONFIG_WATCHDOG) += watchdog.o
+watchdog-objs := hal/components/watchdog.o $(MATHSTUB)
 obj-$(CONFIG_MODMATH) += modmath.o
 modmath-objs := hal/components/modmath.o $(MATHSTUB)
 obj-$(CONFIG_STREAMER) += streamer.o
@@ -685,9 +722,14 @@ hostmot2-objs :=                          \
     hal/drivers/mesa-hostmot2/ioport.o    \
     hal/drivers/mesa-hostmot2/encoder.o   \
     hal/drivers/mesa-hostmot2/pwmgen.o    \
+    hal/drivers/mesa-hostmot2/tp_pwmgen.o \
+	hal/drivers/mesa-hostmot2/sserial.o   \
+	hal/drivers/mesa-hostmot2/mesa_8i20.o \
+	hal/drivers/mesa-hostmot2/mesa_7i64.o \
     hal/drivers/mesa-hostmot2/stepgen.o   \
     hal/drivers/mesa-hostmot2/watchdog.o  \
     hal/drivers/mesa-hostmot2/pins.o      \
+    hal/drivers/mesa-hostmot2/led.o       \
     hal/drivers/mesa-hostmot2/tram.o      \
     hal/drivers/mesa-hostmot2/raw.o       \
     hal/drivers/mesa-hostmot2/bitfile.o   \
@@ -814,11 +856,7 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	ld -g -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	@# original: ld -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
-	@# to fix the "undefined reference to `__stack_chk_fail_local'" error
-	@# replace "ld" with "gcc" for linking with '-shared' parameter
-	@# http://nsnam.isi.edu/nsnam/index.php/User_Information#Ubuntu_Installation_Guide
-	gcc -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
+	@$(CC) -g -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(EXTRALINK)
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)
@@ -877,6 +915,7 @@ endif
 ../rtlib/supply$(MODULE_EXT): $(addprefix objects/rt,$(supply-objs))
 ../rtlib/sim_encoder$(MODULE_EXT): $(addprefix objects/rt,$(sim_encoder-objs))
 ../rtlib/weighted_sum$(MODULE_EXT): $(addprefix objects/rt,$(weighted_sum-objs))
+../rtlib/watchdog$(MODULE_EXT): $(addprefix objects/rt,$(watchdog-objs))
 ../rtlib/modmath$(MODULE_EXT): $(addprefix objects/rt,$(modmath-objs))
 ../rtlib/streamer$(MODULE_EXT): $(addprefix objects/rt,$(streamer-objs))
 ../rtlib/sampler$(MODULE_EXT): $(addprefix objects/rt,$(sampler-objs))

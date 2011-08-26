@@ -1,6 +1,9 @@
 abs.9
+abs_s32.9
 and2.9
 biquad.9
+bldc_hall3.9
+bldc_sine.9
 blend.9
 charge_pump.9
 clarke2.9
@@ -66,6 +69,7 @@ mult2.9
 mux2.9
 mux4.9
 mux8.9
+mux16.9
 near.9
 not.9
 offset.9
@@ -82,6 +86,7 @@ steptest.9
 sum2.9
 thc.9
 threadtest.9
+time.9
 timedelta.9
 timedelay.9
 toggle.9

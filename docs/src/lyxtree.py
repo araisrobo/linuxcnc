@@ -17,7 +17,7 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import tempfile
-import sha
+import hashlib
 import sys
 import getopt
 import os
@@ -103,11 +103,11 @@ class LyxTreeMaker:
             self.push('ert')
 	elif k == 'LatexCommand':
 	    if v.startswith("\\label{"):
-		self.add('label', id=v[7:-1])
+		self.add('label', id=v[7:-1].replace("\\_", "_"))
 	    elif v.startswith("\\index{"):
-		self.add('index', id=v[7:-1])
+		self.add('index', id=v[7:-1].replace("\\_", "_"))
 	    elif v.startswith("\\ref{"):
-		self.add('ref', target=v[5:-1])
+		self.add('ref', target=v[5:-1].replace("\\_", "_"))
 	    elif v.startswith("\\url{"):
 		url=v[5:-1]
 		self.push('htmlurl', url=url)
@@ -605,7 +605,7 @@ EquationTemplate = """
 
 def EquationProcess(v0, outdir):
     v = EquationTemplate % v0
-    ref = sha.new(v).hexdigest()
+    ref = hashlib.sha1(v).hexdigest()
     tfn = os.path.join(outdir, "tmp_%s" % os.getpid() + ref + ".png")
     fn = os.path.join(outdir, ref + ".png")
     if not os.path.exists(fn):

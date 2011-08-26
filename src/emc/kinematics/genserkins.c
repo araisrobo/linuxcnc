@@ -47,6 +47,7 @@ struct haldata {
     hal_float_t *a[GENSER_MAX_JOINTS];
     hal_float_t *alpha[GENSER_MAX_JOINTS];
     hal_float_t *d[GENSER_MAX_JOINTS];
+    hal_s32_t   unrotate[GENSER_MAX_JOINTS];
     genser_struct *kins;
     go_pose *pos;		// used in various functions, we malloc it
 				// only once in rtapi_app_main
@@ -84,8 +85,6 @@ int genser_kin_init(void) {
     /* set a select few to make it PUMA-like */
     // FIXME-AJ: make a hal pin, also set number of joints based on it
     genser->link_num = 6;
-//    genser->iterations = 0;
-    genser->max_iterations = GENSER_DEFAULT_MAX_ITERATIONS;
 
     return GO_RESULT_OK;
 }
@@ -321,6 +320,8 @@ int kinematicsForward(const double *joint,
 	if (!GO_ROT_CLOSE(j[i],joint[i])) changed = 1;
 	// convert to radians to pass to genser_kin_fwd
 	jcopy[i] = joint[i] * PM_PI / 180;
+        if ((i) && (haldata->unrotate[i]))
+            jcopy[i] -= haldata->unrotate[i]*jcopy[i-1];
     }
     
     if (changed) {
@@ -508,6 +509,8 @@ int kinematicsInverse(const EmcPose * world,
 	    for (link = 0; link < genser->link_num; link++) {
 		// convert from radians back to angles
 		joints[link] = jest[link] * 180 / PM_PI;
+                if ((link) && (haldata->unrotate[link]))
+                    joints[link] += (haldata->unrotate[link]) * joints[link-1];
 	    }
 //	    rtapi_print("DONEkineInverse(joints: %f %f %f %f %f %f), (iterations=%d)\n", joints[0],joints[1],joints[2],joints[3],joints[4],joints[5], genser->iterations);
 	    return GO_RESULT_OK;
@@ -583,25 +586,44 @@ int rtapi_app_main(void)
     if (!haldata)
 	goto error;
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < GENSER_MAX_JOINTS; i++) {
 	if ((res =
 		hal_pin_float_newf(HAL_IO, &(haldata->a[i]), comp_id,
 		    "genserkins.A-%d", i)) < 0)
 	    goto error;
+        *(haldata->a[i])=0;
 	if ((res =
 		hal_pin_float_newf(HAL_IO, &(haldata->alpha[i]), comp_id,
 		    "genserkins.ALPHA-%d", i)) < 0)
 	    goto error;
+        *(haldata->alpha[i])=0;
 	if ((res =
 		hal_pin_float_newf(HAL_IO, &(haldata->d[i]), comp_id,
 		    "genserkins.D-%d", i)) < 0)
 	    goto error;
+        *(haldata->d[i])=0;
+        if ((res =
+                hal_param_s32_newf(HAL_RW, &(haldata->unrotate[i]), comp_id,
+                    "genserkins.unrotate-%d", i)) < 0)
+            goto error;
+        haldata->unrotate[i]=0;
     }
 
     KINS_PTR = hal_malloc(sizeof(genser_struct));
     haldata->pos = (go_pose *) hal_malloc(sizeof(go_pose));
     if (KINS_PTR == NULL)
 	goto error;
+    if (haldata->pos == NULL)
+	goto error;
+    if ((res=
+        hal_param_s32_newf(HAL_RO, &(KINS_PTR->iterations), comp_id, "genserkins.last-iterations")) < 0)
+        goto error;
+    if ((res=
+        hal_param_s32_newf(HAL_RW, &(KINS_PTR->max_iterations), comp_id, "genserkins.max-iterations")) < 0)
+        goto error;
+
+    KINS_PTR->max_iterations = GENSER_DEFAULT_MAX_ITERATIONS;
+
 
     A(0) = DEFAULT_A1;
     A(1) = DEFAULT_A2;
@@ -677,7 +699,7 @@ int main(int argc, char *argv[])
     KINS_PTR = malloc(sizeof(genser_struct));
     haldata->pos = (go_pose *) malloc(sizeof(go_pose));
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < GENSER_MAX_JOINTS ; i++) {
 	haldata->a[i] = malloc(sizeof(double));
 	haldata->alpha[i] = malloc(sizeof(double));
 	haldata->d[i] = malloc(sizeof(double));

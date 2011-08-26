@@ -344,7 +344,6 @@ static void quit(int sig)
 ********************************************************************/
 int iocontrol_hal_init(void)
 {
-    char name[HAL_NAME_LEN + 2];	//name of the pin to be registered
     int n = 0, retval;		//n - number of the hal component (only one for iocotrol)
 
     /* STEP 1: initialise the hal component */
@@ -367,9 +366,8 @@ int iocontrol_hal_init(void)
     /* STEP 3a: export the out-pin(s) */
 
     // user-enable-out
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.user-enable-out", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->user_enable_out), comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->user_enable_out), comp_id, 
+			      "iocontrol.%d.user-enable-out", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin user-enable-out export failed with err=%i\n",
@@ -378,9 +376,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // user-request-enable
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.user-request-enable", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->user_request_enable), comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->user_request_enable), comp_id, 
+			     "iocontrol.%d.user-request-enable", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin user-request-enable export failed with err=%i\n",
@@ -389,9 +386,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // coolant-flood
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.coolant-flood", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->coolant_flood),	comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->coolant_flood), comp_id,
+			 "iocontrol.%d.coolant-flood", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin coolant-flood export failed with err=%i\n",
@@ -400,10 +396,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // coolant-mist
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.coolant-mist", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->coolant_mist),
-			comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->coolant_mist), comp_id, 
+			      "iocontrol.%d.coolant-mist", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin coolant-mist export failed with err=%i\n",
@@ -412,9 +406,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // lube
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.lube", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->lube), comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->lube), comp_id, 
+			      "iocontrol.%d.lube", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin lube export failed with err=%i\n",
@@ -423,9 +416,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-prepare
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-prepare", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->tool_prepare), comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->tool_prepare), comp_id, 
+			      "iocontrol.%d.tool-prepare", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-prepare export failed with err=%i\n",
@@ -434,9 +426,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-number
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-number", n);
-    retval =
-	hal_pin_s32_new(name, HAL_OUT, &(iocontrol_data->tool_number), comp_id);
+    retval = hal_pin_s32_newf(HAL_OUT, &(iocontrol_data->tool_number), comp_id, 
+			      "iocontrol.%d.tool-number", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-number export failed with err=%i\n",
@@ -445,9 +436,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-prep-number
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-prep-number", n);
-    retval =
-	hal_pin_s32_new(name, HAL_OUT, &(iocontrol_data->tool_prep_number), comp_id);
+    retval = hal_pin_s32_newf(HAL_OUT, &(iocontrol_data->tool_prep_number), comp_id, 
+			      "iocontrol.%d.tool-prep-number", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-prep-number export failed with err=%i\n",
@@ -456,9 +446,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-prep-pocket
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-prep-pocket", n);
-    retval =
-	hal_pin_s32_new(name, HAL_OUT, &(iocontrol_data->tool_prep_pocket), comp_id);
+    retval = hal_pin_s32_newf(HAL_OUT, &(iocontrol_data->tool_prep_pocket), comp_id, 
+			      "iocontrol.%d.tool-prep-pocket", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-prep-pocket export failed with err=%i\n",
@@ -467,9 +456,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-prepared
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-prepared", n);
-    retval =
-	hal_pin_bit_new(name, HAL_IN, &(iocontrol_data->tool_prepared), comp_id);
+    retval = hal_pin_bit_newf(HAL_IN, &(iocontrol_data->tool_prepared), comp_id, 
+			      "iocontrol.%d.tool-prepared", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-prepared export failed with err=%i\n",
@@ -478,9 +466,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-change
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-change", n);
-    retval =
-	hal_pin_bit_new(name, HAL_OUT, &(iocontrol_data->tool_change), comp_id);
+    retval = hal_pin_bit_newf(HAL_OUT, &(iocontrol_data->tool_change), comp_id, 
+			      "iocontrol.%d.tool-change", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-change export failed with err=%i\n",
@@ -489,9 +476,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // tool-changed
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.tool-changed", n);
-    retval =
-	hal_pin_bit_new(name, HAL_IN, &(iocontrol_data->tool_changed), comp_id);
+    retval = hal_pin_bit_newf(HAL_IN, &(iocontrol_data->tool_changed), comp_id, 
+			"iocontrol.%d.tool-changed", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin tool-changed export failed with err=%i\n",
@@ -502,9 +488,8 @@ int iocontrol_hal_init(void)
     /* STEP 3b: export the in-pin(s) */
 
     // emc-enable-in
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.emc-enable-in", n);
-    retval =
-	hal_pin_bit_new(name, HAL_IN, &(iocontrol_data->emc_enable_in), comp_id);
+    retval = hal_pin_bit_newf(HAL_IN, &(iocontrol_data->emc_enable_in), comp_id, 
+			     "iocontrol.%d.emc-enable-in", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin emc-enable-in export failed with err=%i\n",
@@ -513,9 +498,8 @@ int iocontrol_hal_init(void)
 	return -1;
     }
     // lube_level
-    rtapi_snprintf(name, HAL_NAME_LEN, "iocontrol.%d.lube_level", n);
-    retval =
-	hal_pin_bit_new(name, HAL_IN, &(iocontrol_data->lube_level), comp_id);
+    retval = hal_pin_bit_newf(HAL_IN, &(iocontrol_data->lube_level), comp_id, 
+			     "iocontrol.%d.lube_level", n);
     if (retval < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"IOCONTROL: ERROR: iocontrol %d pin lube_level export failed with err=%i\n",
@@ -619,6 +603,16 @@ void load_tool(int pocket) {
     }
 }
 
+void reload_tool_number(int toolno) {
+    if(random_toolchanger) return; // doesn't need special handling here
+    for(int i=1; i<CANON_POCKETS_MAX; i++) {
+        if(emcioStatus.tool.toolTable[i].toolno == toolno) {
+            load_tool(i);
+            break;
+        }
+    }
+}
+
 
 /********************************************************************
 *
@@ -644,7 +638,12 @@ int read_tool_inputs(void)
     }
     
     if (*iocontrol_data->tool_change && *iocontrol_data->tool_changed) {
-	emcioStatus.tool.toolInSpindle = emcioStatus.tool.toolTable[emcioStatus.tool.pocketPrepped].toolno; //the tool now in the spindle is the one that was prepared
+        if(!random_toolchanger && emcioStatus.tool.pocketPrepped == 0) {
+            emcioStatus.tool.toolInSpindle = 0;
+        } else {
+            // the tool now in the spindle is the one that was prepared
+            emcioStatus.tool.toolInSpindle = emcioStatus.tool.toolTable[emcioStatus.tool.pocketPrepped].toolno; 
+        }
 	*(iocontrol_data->tool_number) = emcioStatus.tool.toolInSpindle; //likewise in HAL
 	load_tool(emcioStatus.tool.pocketPrepped);
 	emcioStatus.tool.pocketPrepped = -1; //reset the tool preped number, -1 to permit tool 0 to be loaded
@@ -687,6 +686,11 @@ int main(int argc, char *argv[])
 	    if (t == argc - 1) {
 		return -1;
 	    } else {
+                if (strlen(argv[t+1]) >= LINELEN) {
+                    rtapi_print_msg(RTAPI_MSG_ERR, "ini file name too long (max %d)\n", LINELEN);
+                    rtapi_print_msg(RTAPI_MSG_ERR, "    %s\n", argv[t+1]);
+                    return -1;
+                }
 		strcpy(EMC_INIFILE, argv[t + 1]);
 		t++;
 	    }
@@ -813,6 +817,7 @@ int main(int argc, char *argv[])
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_INIT\n");
 	    loadToolTable(TOOL_TABLE_FILE, emcioStatus.tool.toolTable,
 		    fms, ttcomments, random_toolchanger);
+	    reload_tool_number(emcioStatus.tool.toolInSpindle);
 	    break;
 
 	case EMC_TOOL_HALT_TYPE:
@@ -828,6 +833,8 @@ int main(int argc, char *argv[])
 	    emcioStatus.coolant.flood = 0;
 	    *(iocontrol_data->coolant_mist)=0;		/* coolant mist output pin */
     	    *(iocontrol_data->coolant_flood)=0;		/* coolant flood output pin */
+	    *(iocontrol_data->tool_change)=0;		/* abort tool change if in progress */
+	    *(iocontrol_data->tool_prepare)=0;		/* abort tool prepare if in progress */
 	    break;
 
 	case EMC_TOOL_PREPARE_TYPE:
@@ -895,6 +902,8 @@ int main(int argc, char *argv[])
 		if (0 != loadToolTable(filename, emcioStatus.tool.toolTable,
 				  fms, ttcomments, random_toolchanger))
 		    emcioStatus.status = RCS_ERROR;
+		else
+		    reload_tool_number(emcioStatus.tool.toolInSpindle);
 	    }
 	    break;
 

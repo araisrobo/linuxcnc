@@ -8,6 +8,20 @@ export LANG=C
 
 PIDOF=@PIDOF@
 
+CheckKernel() {
+    case "@KERNEL_VERS@" in
+    "") ;;
+    *)
+	if [ `uname -r` != "@KERNEL_VERS@" ]; then
+	    cat 1>&2 << EOF
+RTAPI requires the real-time kernel @KERNEL_VERS@ to run.  Before running
+this realtime application, reboot and choose this kernel at the boot menu.
+EOF
+	    exit 1
+	fi
+    esac
+}
+
 if ! type -path readlink > /dev/null 2>& 1; then
     function readlink () {
         perl -le 'print readlink(shift)' -- $1
@@ -49,6 +63,7 @@ CheckConfig(){
     fi
     INSMOD="@INSMOD@"
     RMMOD="@RMMOD@"
+    LSMOD="@LSMOD@"
     FUSER="@FUSER@"
 
     # Import the config
@@ -104,7 +119,7 @@ CheckStatus(){
         # check loaded/unloaded status of modules
         unset NOTLOADED
         for MOD in $MODULES_UNLOAD ; do
-            if /sbin/lsmod | awk '{print $1}' | grep -x $MOD >/dev/null ; then
+            if @LSMOD@ | awk '{print $1}' | grep -x $MOD >/dev/null ; then
                 echo "$MOD is loaded"
             else
                 echo "$MOD is not loaded"
@@ -141,6 +156,7 @@ CheckMem(){
 }
 
 Load(){
+    CheckKernel
     case $RTPREFIX in
     sim)
     ;;
@@ -169,10 +185,13 @@ CheckLoaded(){
 }
 
 Unload(){
+    CheckKernel
     case $RTPREFIX in
     sim)
         rtapi_app exit 
-        ipcrm -M 0x48414c32 2>/dev/null
+        ipcrm -M 0x48414c32 2>/dev/null ;# HAL_KEY
+        ipcrm -M 0x90280A48 2>/dev/null ;# RTAPI_KEY
+        ipcrm -M 0x48484c34 2>/dev/null ;# UUID_KEY
         ;;
     *)
         for module in $MODULES_UNLOAD ; do
@@ -186,7 +205,7 @@ CheckUnloaded(){
     STATUS=
     for module in $MODULES_UNLOAD ; do
 	# check to see if the module is installed
-	if /sbin/lsmod | awk '{print $1}' | grep -x $module >/dev/null ; then
+	if @LSMOD@ | awk '{print $1}' | grep -x $module >/dev/null ; then
 	    echo "ERROR: Could not unload '$module'"
 	    STATUS=error
 	fi

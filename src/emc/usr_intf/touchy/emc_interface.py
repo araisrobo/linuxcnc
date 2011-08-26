@@ -26,6 +26,7 @@ class emc_control:
                 self.mdi = 0
                 self.listing = listing
                 self.error = error
+                self.isjogging = [0,0,0,0,0,0,0,0,0]
 
         def mask(self):
                 # updating toggle button active states dumbly causes spurious events
@@ -125,14 +126,17 @@ class emc_control:
 
         def continuous_jog_velocity(self, velocity):
                 self.jog_velocity = velocity / 60.0
+                for i in range(9):
+                        if self.isjogging[i]:
+                                self.emccommand.jog(self.emc.JOG_CONTINUOUS, i, self.isjogging[i] * self.jog_velocity)
         
         def continuous_jog(self, axis, direction):
                 if self.masked: return
                 if direction == 0:
-                        print "continuous_jog direction ==0"
+                        self.isjogging[axis] = 0
                         self.emccommand.jog(self.emc.JOG_STOP, axis)
                 else:
-                        print "continous_jog direction !=0","direction",direction
+                        self.isjogging[axis] = direction
                         self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
                 
 	def quill_up(self):
@@ -192,7 +196,9 @@ class emc_control:
                 if self.emcstat.paused:
                         if self.sb:
                                 self.emccommand.auto(self.emc.AUTO_STEP)
-                                return
+                        else:
+                                self.emccommand.auto(self.emc.AUTO_RESUME)
+                        return
 
                 if self.emcstat.interp_state == self.emc.INTERP_IDLE:
                         self.emccommand.mode(self.emc.MODE_AUTO)
@@ -230,6 +236,8 @@ class emc_status:
                 self.resized_dro = 0
                 
                 self.mm = 0
+                self.machine_units_mm=0
+                self.unit_convert=[1]*9
                 self.actual = 0
                 self.emcstat = emc.stat()
                 self.emcerror = emc.error_channel()
@@ -239,6 +247,13 @@ class emc_status:
 
         def dro_mm(self, b):
                 self.mm = 1
+
+        def set_machine_units(self,u,c):
+                self.machine_units_mm = u
+                self.unit_convert = c
+
+        def convert_units(self,v,c):
+                return map(lambda x,y: x*y, v, c)
 
         def dro_commanded(self, b):
                 self.actual = 0
@@ -285,22 +300,41 @@ class emc_status:
                 else:
                         p = self.emcstat.position
 
-                x = p[0] - self.emcstat.origin[0] - self.emcstat.tool_offset[0]
-                y = p[1] - self.emcstat.origin[1]
-                z = p[2] - self.emcstat.origin[2] - self.emcstat.tool_offset[2]
-                a = p[3] - self.emcstat.origin[3]
-                b = p[4] - self.emcstat.origin[4]
-                c = p[5] - self.emcstat.origin[5]
-                u = p[6] - self.emcstat.origin[6]
-                v = p[7] - self.emcstat.origin[7]
-                w = p[8] - self.emcstat.origin[8] - self.emcstat.tool_offset[8]
-                t = math.radians(-self.emcstat.rotation_xy)
-                relp = [x * math.cos(t) - y * math.sin(t), x * math.sin(t) + y * math.cos(t), z, a, b, c, u, v, w]
+                x = p[0] - self.emcstat.g5x_offset[0] - self.emcstat.tool_offset[0]
+                y = p[1] - self.emcstat.g5x_offset[1] - self.emcstat.tool_offset[1]
+                z = p[2] - self.emcstat.g5x_offset[2] - self.emcstat.tool_offset[2]
+                a = p[3] - self.emcstat.g5x_offset[3] - self.emcstat.tool_offset[3]
+                b = p[4] - self.emcstat.g5x_offset[4] - self.emcstat.tool_offset[4]
+                c = p[5] - self.emcstat.g5x_offset[5] - self.emcstat.tool_offset[5]
+                u = p[6] - self.emcstat.g5x_offset[6] - self.emcstat.tool_offset[6]
+                v = p[7] - self.emcstat.g5x_offset[7] - self.emcstat.tool_offset[7]
+                w = p[8] - self.emcstat.g5x_offset[8] - self.emcstat.tool_offset[8]
+
+                if self.emcstat.rotation_xy != 0:
+                        t = math.radians(-self.emcstat.rotation_xy)
+                        xr = x * math.cos(t) - y * math.sin(t)
+                        yr = x * math.sin(t) + y * math.cos(t)
+                        x = xr
+                        y = yr
+
+                x -= self.emcstat.g92_offset[0] 
+                y -= self.emcstat.g92_offset[1] 
+                z -= self.emcstat.g92_offset[2] 
+                a -= self.emcstat.g92_offset[3] 
+                b -= self.emcstat.g92_offset[4] 
+                c -= self.emcstat.g92_offset[5] 
+                u -= self.emcstat.g92_offset[6] 
+                v -= self.emcstat.g92_offset[7] 
+                w -= self.emcstat.g92_offset[8] 
+
+                relp = [x, y, z, a, b, c, u, v, w]
+
+                if self.mm != self.machine_units_mm:
+                        p = self.convert_units(p,self.unit_convert)
+                        relp = self.convert_units(relp,self.unit_convert)
+                        dtg = self.convert_units(dtg,self.unit_convert)
 
                 if self.mm:
-                        p = [i*25.4 for i in p]
-                        relp = [i*25.4 for i in relp]
-                        dtg = [i*25.4 for i in dtg]
                         fmt = "%c:% 10.3f"
                 else:
                         fmt = "%c:% 9.4f"
@@ -343,15 +377,16 @@ class emc_status:
                 set_active(self.machines['on'], on)
                 set_active(self.machines['off'], not on)
 
-                ovl = self.emcstat.axis[0]['override_limits']
+                ovl = self.emcstat.joint[0]['override_limits']
                 set_active(self.override_limit, ovl)
 
                 set_text(self.status['file'], self.emcstat.file)
+                set_text(self.status['file_lines'], "%d" % len(self.listing.program))
                 set_text(self.status['line'], "%d" % self.emcstat.current_line)
                 set_text(self.status['id'], "%d" % self.emcstat.id)
-                set_text(self.status['dtg'], "%f" % self.emcstat.distance_to_go)
-                set_text(self.status['velocity'], "%f" % (self.emcstat.current_vel * 60.0))
-                set_text(self.status['delay'], "%f" % self.emcstat.delay_left)
+                set_text(self.status['dtg'], "%.4f" % self.emcstat.distance_to_go)
+                set_text(self.status['velocity'], "%.4f" % (self.emcstat.current_vel * 60.0))
+                set_text(self.status['delay'], "%.2f" % self.emcstat.delay_left)
 
                 flood = self.emcstat.flood
                 set_active(self.floods['on'], flood)
@@ -382,8 +417,35 @@ class emc_status:
 			set_text(self.status['preppedtool'], _("None"))
 		else:
 			set_text(self.status['preppedtool'], "%d" % self.emcstat.tool_table[self.emcstat.pocket_prepped].id)
+
+                tt = ""
+                for p, t in zip(range(len(self.emcstat.tool_table)), self.emcstat.tool_table):
+                        if t.id != -1:
+                                tt += "<b>P%02d:</b>T%02d\t" % (p, t.id)
+                                if p == 0: tt += '\n'
+                set_text(self.status['tooltable'], tt)
+                        
+                
                 set_text(self.status['xyrotation'], "%d" % self.emcstat.rotation_xy)
-                set_text(self.status['tlo'], "%f" % self.emcstat.tool_offset[2])
+                set_text(self.status['tlo'], "%.4f" % self.emcstat.tool_offset[2])
+
+                cs = self.emcstat.g5x_index
+                if cs<7:
+                        cslabel = "G5%d" % (cs+3)
+                else:
+                        cslabel = "G59.%d" % (cs-6)
+                        
+                set_text(self.status['label_g5xoffset'], '<b>' + cslabel + '</b>' + ' Offset:');
+
+                g5x = ""
+                g92 = ""
+                for i in range(len(self.emcstat.g5x_offset)):
+                        letter = "XYZABCUVW"[i]
+                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.4f " % (letter, self.emcstat.g5x_offset[i])
+                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.4f " % (letter, self.emcstat.g92_offset[i])
+                                   
+                set_text(self.status['g5xoffset'], g5x);
+                set_text(self.status['g92offset'], g92);
 
                 active_codes = []
                 for i in self.emcstat.gcodes[1:]:
@@ -391,7 +453,7 @@ class emc_status:
                         if i % 10 == 0:
                                 active_codes.append("G%d" % (i/10))
                         else:
-                                active_codes.append("G%d.%d" % (i/10, 1%10))
+                                active_codes.append("G%d.%d" % (i/10, i%10))
 
                 for i in self.emcstat.mcodes[1:]:
                         if i == -1: continue

@@ -104,9 +104,16 @@ class AxisPreferences(cp):
         self.set("DEFAULT", option, type(value))
         self.write(open(self.fn, "w"))
 
+if sys.argv[1] != "-ini":
+    raise SystemExit, "-ini must be first argument"
+
+inifile = emc.ini(sys.argv[2])
+
 ap = AxisPreferences()
 
+os.system("xhost -SI:localuser:gdm -SI:localuser:root > /dev/null 2>&1")
 root_window = Tkinter.Tk(className="Axis")
+root_window.iconify()
 nf.start(root_window)
 nf.makecommand(root_window, "_", _)
 rs274.options.install(root_window)
@@ -122,8 +129,8 @@ program_start_line_last = -1
 
 lathe = 0
 mdi_history_max_entries = 1000
-mdi_history_save_filename= "~/.axis_mdi_history"
-
+mdi_history_save_filename =\
+    inifile.find('DISPLAY', 'MDI_HISTORY_FILE') or "~/.axis_mdi_history"
 
 
 feedrate_blackout = 0
@@ -198,7 +205,7 @@ help2 = [
     ("", ""),
     (_("Control-K"), _("Clear live plot")),
     ("V", _("Cycle among preset views")),
-    ("F4", _("Switch between preview and DRO")),
+    ("F4", _("Cycle among preview, DRO, and user tabs")),
     ("", ""),
     (_("Ctrl-Space"), _("Clear notifications")),
 ]
@@ -298,7 +305,7 @@ class Notification(Tkinter.Frame):
         if len(self.widgets) > 10:
             self.remove(self.widgets[0])
         if self.cache:
-            frame, icon, text, button, discard = widgets = self.cache.pop()
+            frame, icon, text, button, discard = self.cache.pop()
             icon.configure(image=iconname)
             text.configure(text=message)
             widgets = frame, icon, text, button, iconname
@@ -306,12 +313,12 @@ class Notification(Tkinter.Frame):
             frame = Tkinter.Frame(self)
             icon = Tkinter.Label(frame, image=iconname)
             text = Tkinter.Label(frame, text=message, wraplength=300, justify="left")
-            button = Tkinter.Button(frame, image=close,
-                command=lambda: self.remove(widgets))
+            button = Tkinter.Button(frame, image=close)
             widgets = frame, icon, text, button, iconname
             text.pack(side="left")
             icon.pack(side="left")
             button.pack(side="left")
+        button.configure(command=lambda: self.remove(widgets))
         frame.pack(side="top", anchor="e")
         self.widgets.append(widgets)
 
@@ -347,7 +354,8 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.bind('<Button1-Motion>', self.select_cancel, add=True)
         self.highlight_line = None
         self.select_event = None
-        self.select_primed = False
+        self.select_buffer_size = 100
+        self.select_primed = None
         self.last_position = None
         self.last_homed = None
         self.last_origin = None
@@ -400,7 +408,8 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.select_primed = event
 
     def select_cancel(self, event):
-        self.select_primed = False
+        if self.select_primed and (event.x != self.select_primed.x or event.y != self.select_primed.y):
+            self.select_primed = None
 
     def select_fire(self, event):
         if self.select_primed: self.queue_select(event)
@@ -422,6 +431,7 @@ class MyOpengl(GlCanonDraw, Opengl):
     def get_show_rapids(self): return vars.show_rapids.get()
     def get_geometry(self): return geometry
     def get_num_joints(self): return num_joints
+    def get_program_alpha(self): return vars.program_alpha.get()
 
     def get_a_axis_wrapped(self): return a_axis_wrapped
     def get_b_axis_wrapped(self): return b_axis_wrapped
@@ -511,7 +521,7 @@ class MyOpengl(GlCanonDraw, Opengl):
             self.tkRedraw_ortho()
 
     def get_show_program(self): return vars.show_program.get()
-    def get_show_rapids(self): return vars.show_rapids.get()
+    def get_show_offsets(self): return vars.show_offsets.get()
     def get_show_extents(self): return vars.show_extents.get()
     def get_show_metric(self): return vars.metric.get()
     def get_show_live_plot(self): return vars.show_live_plot.get()
@@ -735,7 +745,9 @@ class LivePlotter:
                 or self.stat.actual_position != o.last_position
                 or self.stat.joint_actual_position != o.last_joint_position
                 or self.stat.homed != o.last_homed
-                or self.stat.origin != o.last_origin
+                or self.stat.g5x_offset != o.last_g5x_offset
+                or self.stat.g92_offset != o.last_g92_offset
+                or self.stat.g5x_index != o.last_g5x_index
                 or self.stat.rotation_xy != o.last_rotation_xy
                 or self.stat.limit != o.last_limit
                 or self.stat.tool_table[0] != o.last_tool
@@ -746,7 +758,9 @@ class LivePlotter:
             o.last_limit = self.stat.limit
             o.last_homed = self.stat.homed
             o.last_position = self.stat.actual_position
-            o.last_origin = self.stat.origin
+            o.last_g5x_offset = self.stat.g5x_offset
+            o.last_g92_offset = self.stat.g92_offset
+            o.last_g5x_index = self.stat.g5x_index
             o.last_rotation_xy = self.stat.rotation_xy
             o.last_motion_mode = self.stat.motion_mode
             o.last_tool = self.stat.tool_table[0]
@@ -757,26 +771,27 @@ class LivePlotter:
         root_window.update_idletasks()
         vupdate(vars.exec_state, self.stat.exec_state)
         vupdate(vars.interp_state, self.stat.interp_state)
-        set_manual_mode = comp["set-manual-mode"]
-        if self.set_manual_mode != set_manual_mode:
-             self.set_manual_mode = set_manual_mode
-             if self.set_manual_mode:
-                 root_window.tk.eval(pane_top + ".tabs raise manual")
-        notifications_clear = comp["notifications-clear"]
-        if self.notifications_clear != notifications_clear:
-             self.notifications_clear = notifications_clear
-             if self.notifications_clear:
-                 notifications.clear()
-        notifications_clear_info = comp["notifications-clear-info"]
-        if self.notifications_clear_info != notifications_clear_info:
-             self.notifications_clear_info = notifications_clear_info
-             if self.notifications_clear_info:
-                 notifications.clear("info")
-        notifications_clear_error = comp["notifications-clear-error"]
-        if self.notifications_clear_error != notifications_clear_error:
-             self.notifications_clear_error = notifications_clear_error
-             if self.notifications_clear_error:
-                 notifications.clear("error")
+        if hal_present == 1 :
+            set_manual_mode = comp["set-manual-mode"]
+            if self.set_manual_mode != set_manual_mode:
+                 self.set_manual_mode = set_manual_mode
+                 if self.set_manual_mode:
+                     root_window.tk.eval(pane_top + ".tabs raise manual")
+            notifications_clear = comp["notifications-clear"]
+            if self.notifications_clear != notifications_clear:
+                 self.notifications_clear = notifications_clear
+                 if self.notifications_clear:
+                     notifications.clear()
+            notifications_clear_info = comp["notifications-clear-info"]
+            if self.notifications_clear_info != notifications_clear_info:
+                 self.notifications_clear_info = notifications_clear_info
+                 if self.notifications_clear_info:
+                     notifications.clear("info")
+            notifications_clear_error = comp["notifications-clear-error"]
+            if self.notifications_clear_error != notifications_clear_error:
+                 self.notifications_clear_error = notifications_clear_error
+                 if self.notifications_clear_error:
+                     notifications.clear("error")
         vupdate(vars.task_mode, self.stat.task_mode)
         vupdate(vars.task_state, self.stat.task_state)
         vupdate(vars.task_paused, self.stat.task_paused)
@@ -1324,7 +1339,8 @@ selection = SelectionHandler(root_window)
 class DummyCanon:
     def comment(*args): pass
     def next_line(*args): pass
-    def set_origin_offsets(*args): pass
+    def set_g5x_offset(*args): pass
+    def set_g92_offset(*args): pass
     def set_xy_rotation(*args): pass
     def get_external_angular_units(self): return 1.0
     def get_external_length_units(self): return 1.0
@@ -1336,6 +1352,19 @@ class DummyCanon:
 
     def user_defined_function(self, m, p, q):
         self.number = p
+
+def parse_gcode_expression(e):
+    f = os.path.devnull
+    canon = DummyCanon()
+
+    parameter = inifile.find("RS274NGC", "PARAMETER_FILE")
+    temp_parameter = os.path.join(tempdir, os.path.basename(parameter))
+    shutil.copy(parameter, temp_parameter)
+    canon.parameter_file = temp_parameter
+
+    result, seq = gcode.parse("", canon, "M199 P["+e+"]", "M2")
+    if result > gcode.MIN_ERROR: return False, gcode.strerror(result)
+    return True, canon.number
 
 class _prompt_areyousure:
     """ Prompt for a question, user can enter yes or no """
@@ -1451,21 +1480,9 @@ class _prompt_float:
                 ok = 0
 
         if ok:
-            f = os.path.devnull
-            canon = DummyCanon()
-
-            parameter = inifile.find("RS274NGC", "PARAMETER_FILE")
-            temp_parameter = os.path.join(tempdir, os.path.basename(parameter))
-            shutil.copy(parameter, temp_parameter)
-            canon.parameter_file = temp_parameter
-
-            result, seq = gcode.parse("", canon, "M199 P["+v+"]", "M2")
-
-            if result > gcode.MIN_ERROR:
-                self.w.set(gcode.strerror(result))
-                ok = 0
-            else:
-                self.w.set("= %f%s" % (canon.number, self.unit_str))
+            ok, value = parse_gcode_expression(v)
+            if ok: self.w.set("= %f%s" % (value, self.unit_str))
+            else:  self.w.set(value)
 
         if ok: 
             self.ok.configure(state="normal")
@@ -1647,10 +1664,17 @@ is_wheel_down = 0
 is_wheel_up =0
 
 class TclCommands(nf.TclCommands):
-    def toggle_preview(event=None):
+    def next_tab(event=None):
         current = widgets.right.raise_page()
-        if current == "preview": widgets.right.raise_page("numbers")
-        else: widgets.right.raise_page("preview")
+        pages = widgets.right.pages()
+        try:
+            idx = pages.index(current)
+        except ValueError:
+            idx = -1
+        newidx = (idx + 1) % len(pages)
+        widgets.right.raise_page(pages[newidx])
+        root_window.focus_force()
+
     def redraw_soon(event=None):
         o.redraw_soon()
 
@@ -1661,6 +1685,9 @@ class TclCommands(nf.TclCommands):
         if b is not None: b = float(b)
         return from_internal_linear_unit(float(a), b)
 
+    def toggle_tto_g11(event=None):
+        ap.putpref("tto_g11", vars.tto_g11.get())
+        
     def toggle_optional_stop(event=None):
         c.set_optional_stop(vars.optional_stop.get())
         ap.putpref("optional_stop", vars.optional_stop.get())
@@ -1793,9 +1820,6 @@ class TclCommands(nf.TclCommands):
         widgets.view_y.configure(relief="link")
         widgets.view_p.configure(relief="link")
         vars.view_type.set(3)
-        o.reset()
-        glRotatef(-90, 0, 1, 0)
-        glRotatef(-90, 1, 0, 0)
         o.set_view_x()
 
     def set_view_y(event=None):
@@ -1925,7 +1949,8 @@ class TclCommands(nf.TclCommands):
         else:
             e = string.split(editor)
             e.append(loaded_file)
-            os.spawnvp(os.P_NOWAIT, e[0], e)
+            e.append("&")
+            root_window.tk.call("exec", *e)
 
     def edit_tooltable(*event):
         if tooltable is None:
@@ -1933,7 +1958,8 @@ class TclCommands(nf.TclCommands):
         else:
             e = string.split(tooleditor)
             e.append(tooltable)
-            os.spawnvp(os.P_NOWAIT, e[0], e)
+            e.append("&")
+            root_window.tk.call("exec", *e)
 
     def task_run(*event):#run command read from ngc
         if run_warn(): return
@@ -2163,6 +2189,10 @@ class TclCommands(nf.TclCommands):
         ap.putpref("show_program", vars.show_program.get())
         o.tkRedraw()
 
+    def toggle_program_alpha(*event):
+        ap.putpref("program_alpha", vars.program_alpha.get())
+        o.tkRedraw()
+
     def toggle_show_live_plot(*event):
         ap.putpref("show_live_plot", vars.show_live_plot.get())
         o.tkRedraw()
@@ -2173,6 +2203,10 @@ class TclCommands(nf.TclCommands):
 
     def toggle_show_extents(*event):
         ap.putpref("show_extents", vars.show_extents.get())
+        o.tkRedraw()
+
+    def toggle_show_offsets(*event):
+        ap.putpref("show_offsets", vars.show_offsets.get())
         o.tkRedraw()
 
     def toggle_show_machine_limits(*event):
@@ -2311,7 +2345,8 @@ class TclCommands(nf.TclCommands):
             scale *= 25.4
 
         if system.split()[0] == "T":
-            offset_command = "G10 L10 P%d %c[%s*%.12f]" % (s.tool_in_spindle, vars.current_axis.get(), new_axis_value, scale)
+            lnum = 10 + vars.tto_g11.get()
+            offset_command = "G10 L%d P%d %c[%s*%.12f]" % (lnum, s.tool_in_spindle, vars.current_axis.get(), new_axis_value, scale)
             c.mdi(offset_command)
             c.wait_complete()
             c.mdi("G43")
@@ -2472,6 +2507,13 @@ class TclCommands(nf.TclCommands):
             t.see("%d.0" % (line+2))
             t.see("%d.0" % line)
 
+    def dynamic_tab(name, text):
+        return _dynamic_tab(name,text) # caller: make a frame and pack
+
+    def inifindall(section, item):
+	items = tuple(inifile.findall(section, item))
+	return root_window.tk.merge(*items)
+
 commands = TclCommands(root_window)
 
 vars = nf.Variables(root_window, 
@@ -2488,6 +2530,7 @@ vars = nf.Variables(root_window,
     ("has_ladder", IntVar),
     ("has_editor", IntVar),
     ("current_axis", StringVar),
+    ("tto_g11", BooleanVar),
     ("mist", BooleanVar),
     ("flood", BooleanVar),
     ("brake", BooleanVar),
@@ -2495,9 +2538,11 @@ vars = nf.Variables(root_window,
     ("running_line", IntVar),
     ("highlight_line", IntVar),
     ("show_program", IntVar),
+    ("program_alpha", IntVar),
     ("show_live_plot", IntVar),
     ("show_tool", IntVar),
     ("show_extents", IntVar),
+    ("show_offsets", IntVar),
     ("show_machine_limits", IntVar),
     ("show_machine_speed", IntVar),
     ("show_distance_to_go", IntVar),
@@ -2531,11 +2576,14 @@ vars = nf.Variables(root_window,
 vars.emctop_command.set(os.path.join(os.path.dirname(sys.argv[0]), "emctop"))
 vars.highlight_line.set(-1)
 vars.running_line.set(-1)
+vars.tto_g11.set(ap.getpref("tto_g11", False))
 vars.show_program.set(ap.getpref("show_program", True))
 vars.show_rapids.set(ap.getpref("show_rapids", True))
+vars.program_alpha.set(ap.getpref("program_alpha", False))
 vars.show_live_plot.set(ap.getpref("show_live_plot", True))
 vars.show_tool.set(ap.getpref("show_tool", True))
 vars.show_extents.set(ap.getpref("show_extents", True))
+vars.show_offsets.set(ap.getpref("show_offsets", True))
 vars.show_machine_limits.set(ap.getpref("show_machine_limits", True))
 vars.show_machine_speed.set(ap.getpref("show_machine_speed", True))
 vars.show_distance_to_go.set(ap.getpref("show_distance_to_go", False))
@@ -2777,10 +2825,6 @@ def units(s, d=1.0):
     except ValueError:
         return unit_values.get(s, d)
 
-if sys.argv[1] != "-ini":
-    raise SystemExit, "-ini must be first argument"
-
-inifile = emc.ini(sys.argv[2])
 random_toolchanger = int(inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
 vars.emcini.set(sys.argv[2])
 jointcount = int(inifile.find("KINS", "JOINTS"))
@@ -2880,12 +2924,16 @@ root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end", _("Unhome All
 s = emc.stat(); #in the axis self.stat = emc.stat()
 s.poll()
 statfail=0
+statwait=.01
 while s.joints == 0:
     print "waiting for s.joints"
     time.sleep(.01)
     statfail+=1
-    # if statfail > 500:
-    #     raise SystemExit, "Invalid configuration of axes is preventing EMC from starting"
+    statwait *= 2
+    if statfail > 8:
+        raise SystemExit, (
+            "A configuration error is preventing emc2 from starting.\n"
+            "More information may be available when running from a terminal.")
     s.poll()
 
 num_joints = s.joints
@@ -2913,8 +2961,6 @@ for a in range(9):
             step_size_tmp = min(step_size, 1. / f)
             if a < 3: step_size = astep_size = step_size_tmp
             else: astep_size = step_size_tmp
-
-# print >>sys.stderr, "DEBUG_1: jog_aspeed(%s, %f, %f)" % (jog_speed, float(jog_speed), vars.jog_aspeed.get())
 
 if inifile.find("DISPLAY", "MIN_LINEAR_VELOCITY"):
     root_window.tk.call("set_slider_min", float(inifile.find("DISPLAY", "MIN_LINEAR_VELOCITY"))*60)
@@ -3018,7 +3064,7 @@ def get_coordinate_font(large):
 root_window.bind("<Key-F3>", pane_top + ".tabs raise manual")
 root_window.bind("<Key-F5>", pane_top + ".tabs raise mdi")
 root_window.bind("<Key-F5>", "+" + tabs_mdi + ".command selection range 0 end")
-root_window.bind("<Key-F4>", commands.toggle_preview)
+root_window.bind("<Key-F4>", commands.next_tab)
 
 init()
 
@@ -3043,6 +3089,8 @@ def rClicker(e):
             rmenu.add_separator()
         else: rmenu.add_command(label=txt, command=cmd)
     rmenu.entryconfigure(0, label = "AXIS", state = 'disabled')
+    if not manual_ok():
+        rmenu.entryconfigure(2, state = 'disabled')
     rmenu.tk_popup(e.x_root-3, e.y_root+3,entry="0")
     return "break"
 
@@ -3086,6 +3134,27 @@ if hal_present == 1 :
         vcpparse.create_vcp(f, comp)
     comp.ready()
 
+    gladevcp = inifile.find("DISPLAY", "GLADEVCP")
+    if gladevcp:
+        f = Tkinter.Frame(root_window, container=1, borderwidth=0, highlightthickness=0)
+        f.grid(row=0, column=5, rowspan=6, sticky="nsew", padx=4, pady=4)
+    else:
+        f = None
+    gladevcp_frame = f
+
+_dynamic_childs = {}
+# Call this later
+def load_gladevcp_panel():
+    gladevcp = inifile.find("DISPLAY", "GLADEVCP")
+    if gladevcp:
+        from subprocess import Popen
+
+        xid = gladevcp_frame.winfo_id()
+        cmd = "halcmd loadusr -Wn gladevcp gladevcp -c gladevcp".split()
+        cmd += ['-x', str(xid)] + gladevcp.split()
+        child = Popen(cmd)
+        _dynamic_childs['gladevcp'] = (child, cmd, True)
+
 notifications = Notification(root_window)
 
 root_window.bind("<Control-space>", lambda event: notifications.clear())
@@ -3107,10 +3176,6 @@ def remove_tempdir(t):
     shutil.rmtree(t)
 tempdir = tempfile.mkdtemp()
 atexit.register(remove_tempdir, tempdir)
-
-if postgui_halfile:
-    res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i", vars.emcini.get(), "-f", postgui_halfile])
-    if res: raise SystemExit, res
 
 activate_axis(0, True)
 set_hal_jogincrement()
@@ -3143,10 +3208,77 @@ if o.canon:
     z = (o.canon.min_extents[2] + o.canon.max_extents[2])/2
     o.set_centerpoint(x, y, z)
 
-try:
-    root_window.tk.call("send", "-async", "popimage", "destroy .")
-except Tkinter.TclError:
-    pass
+def destroy_splash():
+    try:
+        root_window.send("popimage", "destroy", ".")
+    except Tkinter.TclError:
+        pass
+
+def _dynamic_tab(name, text):
+    tab = widgets.right.insert("end", name, text=text)
+    tab.configure(borderwidth=1, highlightthickness=0)
+    return tab
+
+def _dynamic_tabs(inifile):
+    from subprocess import Popen
+    tab_names = inifile.findall("DISPLAY", "EMBED_TAB_NAME")
+    tab_cmd   = inifile.findall("DISPLAY", "EMBED_TAB_COMMAND")
+    if len(tab_names) != len(tab_cmd):
+        print "Invalid tab configuration"
+        # Complain somehow
+        return
+
+    # XXX: Set our root window ID in environment so child GladeVcp processes
+    # may forward keyboard events to it
+    rxid = root_window.winfo_id()
+    os.environ['AXIS_FORWARD_EVENTS_TO'] = str(rxid)
+
+    for i,t,c in zip(range(len(tab_cmd)), tab_names, tab_cmd):
+        w = _dynamic_tab("user_" + str(i), t)
+        f = Tkinter.Frame(w, container=1, borderwidth=0, highlightthickness=0)
+        f.pack(fill="both", expand=1)
+        xid = f.winfo_id()
+        cmd = c.replace('{XID}', str(xid)).split()
+        child = Popen(cmd)
+        wait = cmd[:2] == ['halcmd', 'loadusr']
+
+        _dynamic_childs[str(w)] = (child, cmd, wait)
+
+@atexit.register
+def kill_dynamic_childs():
+    for c,_,w in _dynamic_childs.values():
+        if not w:
+            c.terminate()
+
+def check_dynamic_tabs():
+    for c,cmd,w in _dynamic_childs.values():
+        if not w:
+            continue
+        r = c.poll()
+        if r == 0:
+            continue
+        if r is None:
+            break
+        print 'Embeded tab command "%s" exited with error: %s' %\
+                             (" ".join(cmd), r)
+        raise SystemExit(r)
+    else:
+        if postgui_halfile:
+            res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i", vars.emcini.get(), "-f", postgui_halfile])
+            if res: raise SystemExit, res
+        root_window.deiconify()
+        destroy_splash()
+        return
+    root_window.after(100, check_dynamic_tabs)
+
+tkpkgs = inifile.findall("DISPLAY","TKPKG") or ""
+for pkg in tkpkgs:
+    pkg=pkg.split()
+    root_window.tk.call("package","require",*pkg)
+
+tkapps = inifile.findall("DISPLAY","TKAPP") or ""
+for app in tkapps:
+    root_window.tk.call("source",app)
 
 o.update_idletasks()
 
@@ -3250,6 +3382,14 @@ if os.path.exists(rcfile):
         print >>sys.stderr, tb
         root_window.tk.call("nf_dialog", ".error", _("Error in ~/.axisrc"),
             tb, "error", 0, _("OK"))
+
+_dynamic_tabs(inifile)
+if hal_present == 1:
+    load_gladevcp_panel()
+    check_dynamic_tabs()
+else:
+    root_window.deiconify()
+    destroy_splash()
 
 root_window.tk.call("trace", "variable", "metric", "w", "update_units")
 install_help(root_window)

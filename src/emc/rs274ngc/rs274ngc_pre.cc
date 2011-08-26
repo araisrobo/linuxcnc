@@ -107,7 +107,7 @@ Interp::~Interp() {
     }
 }
 
-void Interp::doLog(char *fmt, ...)
+void Interp::doLog(const char *fmt, ...)
 {
 #ifdef LOG_FILE
     struct timeval tv;
@@ -125,6 +125,7 @@ void Interp::doLog(char *fmt, ...)
     {
          fprintf(stderr, "(%d)Unable to open log file:%s\n",
                   getpid(), LOG_FILE);
+         return;
     }
 
     gettimeofday(&tv, NULL);
@@ -177,7 +178,7 @@ int Interp::close()
   if (_setup.file_pointer != NULL) {
     fclose(_setup.file_pointer);
     _setup.file_pointer = NULL;
-    _setup.percent_flag = OFF;
+    _setup.percent_flag = false;
   }
   reset();
 
@@ -224,8 +225,9 @@ int Interp::execute(const char *command)
   logDebug("Interp::execute(%s)", command);
   // process control functions -- will skip if skipping
   //  if (_setup.block1.o_number != 0)
-  if ((_setup.block1.o_number != 0) || (_setup.block1.o_name != 0) )
+  if ((_setup.block1.o_number != 0) || (_setup.block1.o_name != 0) || (_setup.mdi_interrupt))
     {
+      logDebug("Convert control functions");
       CHP(convert_control_functions(&(_setup.block1), &_setup));
 
 #if 1
@@ -236,6 +238,10 @@ int Interp::execute(const char *command)
       // NOTE: the last executed file will still be open, because "close"
       // is really a lazy close.
     
+      if (_setup.mdi_interrupt) {
+	  _setup.mdi_interrupt = false;
+	  MDImode = 1;
+      }
       logDebug("!!!KL Open file is:%s:", _setup.filename);
       logDebug("MDImode = %d", MDImode);
       while(MDImode && _setup.call_level) // we are still in a subroutine
@@ -245,8 +251,16 @@ int Interp::execute(const char *command)
 	    {
                return status;
 	    }
-          execute();
+          status = execute();  // special handling for mdi errors
+          if (status != INTERP_OK) {
+		if (status == INTERP_EXECUTE_FINISH) {
+		    _setup.mdi_interrupt = true;
+		} else
+		    reset();
+               CHP(status);
+          }
       }
+      _setup.mdi_interrupt = false;
 #endif
       return INTERP_OK;
     }
@@ -254,7 +268,7 @@ int Interp::execute(const char *command)
   // skip if skipping
   if(_setup.skipping_o)
     {
-      logDebug("skipping to line: %d", _setup.skipping_o);
+      logDebug("skipping to: %s", _setup.skipping_o);
       return INTERP_OK;
     }
 
@@ -275,7 +289,7 @@ int Interp::execute(const char *command)
                           _setup.named_parameter_values[n]));
 
     // free the string
-      logDebug("freeing param[%d]:|%s|:0x%x", n, _setup.named_parameters[n],
+      logDebug("freeing param[%d]:|%s|:%p", n, _setup.named_parameters[n],
                _setup.named_parameters[n]);
     free(_setup.named_parameters[n]);
   }
@@ -381,6 +395,9 @@ int Interp::init()
   _setup.b_axis_wrapped = 0;
   _setup.c_axis_wrapped = 0;
   _setup.random_toolchanger = 0;
+  _setup.a_indexer = 0;
+  _setup.b_indexer = 0;
+  _setup.c_indexer = 0;
 
   // not clear -- but this is fn is called a second time without an INI.
   if(NULL == iniFileName)
@@ -407,6 +424,10 @@ int Interp::init()
           inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
           inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
           inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
+
+          inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
+          inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
+          inifile.Find(&_setup.c_indexer, "LOCKING_INDEXER", "AXIS_5");
 
           if(NULL != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
           {
@@ -453,6 +474,44 @@ int Interp::init()
           logDebug("_setup.program_prefix:%s:\n", _setup.program_prefix);
 
 
+          if(NULL != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
+          {
+            // found it
+            int dct;
+            char* nextdir;
+            char tmpdirs[PATH_MAX+1];
+
+            for (dct=0; dct < MAX_SUB_DIRS; dct++) {
+                 _setup.subroutines[dct][0] = 0;
+            }
+
+            strcpy(tmpdirs,inistring);
+            nextdir = strtok(tmpdirs,":");  // first token
+            dct = 0;
+            while (1) {
+                if (realpath(nextdir,_setup.subroutines[dct]) == NULL){
+                   //realpath didn't find the file
+                   logDebug("realpath failed to find subroutines[%d]:%s:\n",dct,nextdir);
+                    _setup.subroutines[dct][0] = 0;
+                } else {
+                    logDebug("program prefix[%d]:%s\n",dct,_setup.subroutines[dct]);
+                }
+                dct++;
+                if (dct >= MAX_SUB_DIRS) {
+                   logDebug("too many entries in SUBROUTINE_PATH, max=%d\n", MAX_SUB_DIRS);
+                   break;
+                }
+                nextdir = strtok(NULL,":");
+                if (nextdir == NULL) break; // no more tokens
+             }
+          }
+          else
+          {
+              logDebug("SUBROUTINE_PATH not found");
+          }
+          logDebug("_setup.subroutines:%p:\n", _setup.subroutines);
+
+
           // close it
           inifile.Close();
       }
@@ -472,48 +531,74 @@ int Interp::init()
   }
 
   k = (5200 + (_setup.origin_index * 20));
-  SET_ORIGIN_OFFSETS(USER_TO_PROGRAM_LEN(pars[k + 1] + pars[5211]),
-                     USER_TO_PROGRAM_LEN(pars[k + 2] + pars[5212]), 
-                     USER_TO_PROGRAM_LEN(pars[k + 3] + pars[5213]),
-                     USER_TO_PROGRAM_ANG(pars[k + 4] + pars[5214]),
-                     USER_TO_PROGRAM_ANG(pars[k + 5] + pars[5215]),
-                     USER_TO_PROGRAM_ANG(pars[k + 6] + pars[5216]),
-                     USER_TO_PROGRAM_LEN(pars[k + 7] + pars[5217]),
-                     USER_TO_PROGRAM_LEN(pars[k + 8] + pars[5218]),
-                     USER_TO_PROGRAM_LEN(pars[k + 9] + pars[5219]));
+  _setup.origin_offset_x = USER_TO_PROGRAM_LEN(pars[k + 1]);
+  _setup.origin_offset_y = USER_TO_PROGRAM_LEN(pars[k + 2]);
+  _setup.origin_offset_z = USER_TO_PROGRAM_LEN(pars[k + 3]);
+  _setup.AA_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 4]);
+  _setup.BB_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 5]);
+  _setup.CC_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 6]);
+  _setup.u_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 7]);
+  _setup.v_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 8]);
+  _setup.w_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 9]);
+
+  SET_G5X_OFFSET(_setup.origin_index,
+                 _setup.origin_offset_x ,
+                 _setup.origin_offset_y ,
+                 _setup.origin_offset_z ,
+                 _setup.AA_origin_offset,
+                 _setup.BB_origin_offset,
+                 _setup.CC_origin_offset,
+                 _setup.u_origin_offset ,
+                 _setup.v_origin_offset ,
+                 _setup.w_origin_offset);
+
+  if (pars[5210]) {
+      _setup.axis_offset_x = USER_TO_PROGRAM_LEN(pars[5211]);
+      _setup.axis_offset_y = USER_TO_PROGRAM_LEN(pars[5212]);
+      _setup.axis_offset_z = USER_TO_PROGRAM_LEN(pars[5213]);
+      _setup.AA_axis_offset = USER_TO_PROGRAM_ANG(pars[5214]);
+      _setup.BB_axis_offset = USER_TO_PROGRAM_ANG(pars[5215]);
+      _setup.CC_axis_offset = USER_TO_PROGRAM_ANG(pars[5216]);
+      _setup.u_axis_offset = USER_TO_PROGRAM_LEN(pars[5217]);
+      _setup.v_axis_offset = USER_TO_PROGRAM_LEN(pars[5218]);
+      _setup.w_axis_offset = USER_TO_PROGRAM_LEN(pars[5219]);
+  } else {
+      _setup.axis_offset_x = 0.0;
+      _setup.axis_offset_y = 0.0;
+      _setup.axis_offset_z = 0.0;
+      _setup.AA_axis_offset = 0.0;
+      _setup.BB_axis_offset = 0.0;
+      _setup.CC_axis_offset = 0.0;
+      _setup.u_axis_offset = 0.0;
+      _setup.v_axis_offset = 0.0;
+      _setup.w_axis_offset = 0.0;
+  }
+
+  SET_G92_OFFSET(_setup.axis_offset_x ,
+                 _setup.axis_offset_y ,
+                 _setup.axis_offset_z ,
+                 _setup.AA_axis_offset,
+                 _setup.BB_axis_offset,
+                 _setup.CC_axis_offset,
+                 _setup.u_axis_offset ,
+                 _setup.v_axis_offset ,
+                 _setup.w_axis_offset);
+
   _setup.rotation_xy = pars[k+10];
   SET_XY_ROTATION(pars[k+10]);
   SET_FEED_REFERENCE(CANON_XYZ);
-  _setup.AA_axis_offset = USER_TO_PROGRAM_ANG(pars[5214]);
-//_setup.Aa_current set in Interp::synch
-  _setup.AA_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 4]);
-  _setup.BB_axis_offset = USER_TO_PROGRAM_ANG(pars[5215]);
-//_setup.Bb_current set in Interp::synch
-  _setup.BB_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 5]);
-  _setup.CC_axis_offset = USER_TO_PROGRAM_ANG(pars[5216]);
-//_setup.Cc_current set in Interp::synch
-  _setup.CC_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 6]);
-  _setup.u_axis_offset = USER_TO_PROGRAM_LEN(pars[5217]);
-  _setup.u_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 7]);
-  _setup.v_axis_offset = USER_TO_PROGRAM_LEN(pars[5218]);
-  _setup.v_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 8]);
-  _setup.w_axis_offset = USER_TO_PROGRAM_LEN(pars[5219]);
-  _setup.w_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 9]);
 //_setup.active_g_codes initialized below
 //_setup.active_m_codes initialized below
 //_setup.active_settings initialized below
-  _setup.axis_offset_x = USER_TO_PROGRAM_LEN(pars[5211]);
-  _setup.axis_offset_y = USER_TO_PROGRAM_LEN(pars[5212]);
-  _setup.axis_offset_z = USER_TO_PROGRAM_LEN(pars[5213]);
 //_setup.block1 does not need initialization
   _setup.blocktext[0] = 0;
 //_setup.current_slot set in Interp::synch
 //_setup.current_x set in Interp::synch
 //_setup.current_y set in Interp::synch
 //_setup.current_z set in Interp::synch
-  _setup.cutter_comp_side = OFF;
-  _setup.arc_not_allowed = OFF;
-//_setup.cycle values do not need initialization
+  _setup.cutter_comp_side = false;
+  _setup.arc_not_allowed = false;
+  _setup.cycle_il_flag = false;
   _setup.distance_mode = MODE_ABSOLUTE;
   _setup.ijk_distance_mode = MODE_INCREMENTAL;  // backwards compatability
   _setup.feed_mode = UNITS_PER_MINUTE;
@@ -529,24 +614,21 @@ int Interp::init()
 //_setup.mist set in Interp::synch
   _setup.motion_mode = G_80;
 //_setup.origin_index set above
-  _setup.origin_offset_x = USER_TO_PROGRAM_LEN(pars[k + 1]);
-  _setup.origin_offset_y = USER_TO_PROGRAM_LEN(pars[k + 2]);
-  _setup.origin_offset_z = USER_TO_PROGRAM_LEN(pars[k + 3]);
 //_setup.parameters set above
 //_setup.parameter_occurrence does not need initialization
 //_setup.parameter_numbers does not need initialization
 //_setup.parameter_values does not need initialization
 //_setup.percent_flag does not need initialization
 //_setup.plane set in Interp::synch
-  _setup.probe_flag = OFF;
-  _setup.toolchange_flag = OFF;
-  _setup.input_flag = OFF;
+  _setup.probe_flag = false;
+  _setup.toolchange_flag = false;
+  _setup.input_flag = false;
   _setup.input_index = -1;
-  _setup.input_digital = OFF;
+  _setup.input_digital = false;
   _setup.program_x = 0.;   /* for cutter comp */
   _setup.program_y = 0.;   /* for cutter comp */
   _setup.program_z = 0.;   /* for cutter comp */
-  _setup.cutter_comp_firstmove = ON;
+  _setup.cutter_comp_firstmove = true;
 //_setup.retract_mode does not need initialization
 //_setup.selected_tool_slot set in Interp::synch
   _setup.sequence_number = 0;   /*DOES THIS NEED TO BE AT TOP? */
@@ -569,7 +651,7 @@ int Interp::init()
   _setup.skipping_o = 0;
   _setup.oword_labels = 0;
 
-  _setup.lathe_diameter_mode = OFF;
+  _setup.lathe_diameter_mode = false;
 
   memcpy(_readers, default_readers, sizeof(default_readers));
 
@@ -592,7 +674,27 @@ int Interp::init()
   write_settings(&_setup);
 
   init_tool_parameters();
+  CHP(init_named_parameters());
   // Synch rest of settings to external world
+  return INTERP_OK;
+}
+
+int Interp::init_named_parameters()
+{
+// version       major   minor      Note
+// ------------ -------- ---------- -------------------------------------
+// M.N.m         M.N     0.m        normal format
+// M.N.m~xxx     M.N     0.m        pre-release format
+  const char *pkgversion = PACKAGE_VERSION;  //examples: 2.4.6, 2.5.0~pre
+  const char *version_major = "_vmajor";// named_parameter name (use lower case)
+  const char *version_minor = "_vminor";// named_parameter name (use lower case)
+  double vmajor=0.0, vminor=0.0;
+  sscanf(pkgversion, "%lf%lf", &vmajor, &vminor);
+  CHP( add_named_param((char*)version_major));
+  CHP(init_named_param((char*)version_major,vmajor));
+  CHP( add_named_param((char*)version_minor));
+  CHP(init_named_param((char*)version_minor,vminor));
+
   return INTERP_OK;
 }
 
@@ -703,7 +805,7 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
   CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
   CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
   _setup.file_pointer = fopen(filename, "r");
-  CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE);
+  CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE, filename);
   line = _setup.linetext;
   for (index = -1; index == -1;) {      /* skip blank lines */
     CHKS((fgets(line, LINELEN, _setup.file_pointer) ==
@@ -719,17 +821,17 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
   if (line[index] == '%') {
     for (index--; (index >= 0) && (isspace(line[index])); index--);
     if (index == -1) {
-      _setup.percent_flag = ON;
+      _setup.percent_flag = true;
       _setup.sequence_number = 1;       // We have already read the first line
       // and we are not going back to it.
     } else {
       fseek(_setup.file_pointer, 0, SEEK_SET);
-      _setup.percent_flag = OFF;
+      _setup.percent_flag = false;
       _setup.sequence_number = 0;       // Going back to line 0
     }
   } else {
     fseek(_setup.file_pointer, 0, SEEK_SET);
-    _setup.percent_flag = OFF;
+    _setup.percent_flag = false;
     _setup.sequence_number = 0; // Going back to line 0
   }
   strcpy(_setup.filename, filename);
@@ -749,7 +851,7 @@ Returned Value: int
           close_and_downcased line is a slash, and
        c. INTERP_OK otherwise.
    1. The command and_setup.file_pointer are both NULL: INTERP_FILE_NOT_OPEN
-   2. The probe_flag is ON but the HME command queue is not empty:
+   2. The probe_flag is true but the HME command queue is not empty:
       NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
    3. If read_text (which gets a line of NC code from file) or parse_line
      (which parses the line) returns an error code, this returns that code.
@@ -773,23 +875,23 @@ int Interp::read(const char *command)  //!< may be NULL or a string to read
   static char name[] = "Interp::read";
   int read_status;
 
-  if (_setup.probe_flag == ON) {
+  if (_setup.probe_flag) {
     CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
         NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
     set_probe_data(&_setup);
-    _setup.probe_flag = OFF;
+    _setup.probe_flag = false;
   }
-  if (_setup.toolchange_flag == ON) {
+  if (_setup.toolchange_flag) {
     CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
          _("Queue is not empty after tool change"));
     refresh_actual_position(&_setup);
     load_tool_table();
-    _setup.toolchange_flag = OFF;
+    _setup.toolchange_flag = false;
   }
-  if (_setup.input_flag == ON) {
+  if (_setup.input_flag) {
     CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
         NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT);
-    if (_setup.input_digital == ON) { // we are checking for a digital input
+    if (_setup.input_digital) { // we are checking for a digital input
 	_setup.parameters[5399] =
 	    GET_EXTERNAL_DIGITAL_INPUT(_setup.input_index,
 				      (_setup.parameters[5399] != 0.0));
@@ -797,10 +899,20 @@ int Interp::read(const char *command)  //!< may be NULL or a string to read
 	_setup.parameters[5399] =
 	    GET_EXTERNAL_ANALOG_INPUT(_setup.input_index, _setup.parameters[5399]);
     }
-    _setup.input_flag = OFF;
+    _setup.input_flag = false;
   }
   CHKN(((command == NULL) && (_setup.file_pointer == NULL)),
       INTERP_FILE_NOT_OPEN);
+
+  _setup.parameters[5420] = _setup.current_x;
+  _setup.parameters[5421] = _setup.current_y;
+  _setup.parameters[5422] = _setup.current_z;
+  _setup.parameters[5423] = _setup.AA_current;
+  _setup.parameters[5424] = _setup.BB_current;
+  _setup.parameters[5425] = _setup.CC_current;
+  _setup.parameters[5426] = _setup.u_current;
+  _setup.parameters[5427] = _setup.v_current;
+  _setup.parameters[5428] = _setup.w_current;
 
   if(_setup.file_pointer)
   {
@@ -828,7 +940,7 @@ int Interp::read(const char *command)  //!< may be NULL or a string to read
     else // Blank line (zero length)
     {
           /* RUM - this case reached when the block delete '/' character 
-             is used, or READ_FULL_COMMENT is OFF and a comment is the
+             is used, or READ_FULL_COMMENT is false and a comment is the
              only content of a line. 
              If a block o-type is in effect, block->o_number needs to be 
              incremented to allow o-extensions to work. 
@@ -893,10 +1005,45 @@ int Interp::reset()
   //!!!KL (also called by external -- but probably OK)
   //
   // initialization stuff for subroutines and control structures
+
+  for(; _setup.call_level > 0; _setup.call_level--) {
+    int i;
+    context * sub = _setup.sub_context + _setup.call_level - 1;
+    free_named_parameters(_setup.call_level, &_setup);
+    if(sub->subName) {
+      free(sub->subName);
+      sub->subName = 0;
+    }
+
+    for(i=0; i<INTERP_SUB_PARAMS; i++) {
+      _setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
+        sub->saved_params[i];
+    }
+
+    // When called from Interp::close this one is NULL
+    if (!_setup.file_pointer) continue;
+
+    if(0 != strcmp(_setup.filename, sub->filename)) {
+      fclose(_setup.file_pointer);
+      _setup.file_pointer = fopen(sub->filename, "r");
+
+      strcpy(_setup.filename, sub->filename);
+    }
+
+    fseek(_setup.file_pointer, sub->position, SEEK_SET);
+
+    _setup.sequence_number = sub->sequence_number;
+  }
+  if(_setup.sub_name) {
+    free(_setup.sub_name);
+    _setup.sub_name = 0;
+  }
   _setup.call_level = 0;
   _setup.defining_sub = 0;
   _setup.skipping_o = 0;
   _setup.oword_labels = 0;
+
+  _setup.mdi_interrupt = false;
 
   qc_reset();
 
@@ -955,8 +1102,7 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
       return INTERP_OK;
   // open original for reading
   infile = fopen(filename, "r");
-  sprintf(line,"Unable to open parameter file: '%s'", filename);
-  CHKS((infile == NULL), line);
+  CHKS((infile == NULL), _("Unable to open parameter file: '%s'"), filename);
 
   pars = _setup.parameters;
   k = 0;
@@ -1125,13 +1271,10 @@ the controller.
 
 int Interp::synch()
 {
-  double tolerance;
+
   char file_name[LINELEN];
 
   _setup.control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
-  tolerance = GET_EXTERNAL_MOTION_CONTROL_TOLERANCE();
-  SET_MOTION_CONTROL_MODE(_setup.control_mode, tolerance);
-
   _setup.AA_current = GET_EXTERNAL_POSITION_A();
   _setup.BB_current = GET_EXTERNAL_POSITION_B();
   _setup.CC_current = GET_EXTERNAL_POSITION_C();
@@ -1143,9 +1286,9 @@ int Interp::synch()
   _setup.v_current = GET_EXTERNAL_POSITION_V();
   _setup.w_current = GET_EXTERNAL_POSITION_W();
   _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
-  _setup.flood = (GET_EXTERNAL_FLOOD() != 0) ? ON : OFF;
+  _setup.flood = GET_EXTERNAL_FLOOD();
   _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
-  _setup.mist = (GET_EXTERNAL_MIST() != 0) ? ON : OFF;
+  _setup.mist = GET_EXTERNAL_MIST();
   _setup.plane = GET_EXTERNAL_PLANE();
   _setup.selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
   _setup.speed = GET_EXTERNAL_SPEED();
@@ -1499,8 +1642,10 @@ int Interp::init_tool_parameters()
     _setup.parameters[5412] = _setup.tool_table[0].backangle;
     _setup.parameters[5413] = _setup.tool_table[0].orientation;
   } else {
-    // non random_toolchanger: no tool at startup
-    default_tool_parameters();
+    // non random_toolchanger: no tool at startup, one-time init
+    if (_setup.tool_table[0].toolno == -1) {
+      default_tool_parameters();
+    }
   }
   return 0;
 }

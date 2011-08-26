@@ -9,7 +9,7 @@ Specify the I/O address of the serial ports using the module parameter
 To free up the I/O ports after bootup, install setserial and execute a command
 like:
 .RS 
-sudo setserial /dev/ttyS0 none
+sudo setserial /dev/ttyS0 uart none
 .RE
 but it is best to ensure that the serial port is never used or configured by
 the Linux kernel by setting a kernel commandline parameter or not loading
@@ -65,6 +65,10 @@ EXTRA_SETUP() {
     if(!rtapi_request_region(io[extra_arg], 7, "serport")) {
 	// set this I/O port to 0 so that EXTRA_CLEANUP does not release the IO
 	// ports that were never requested.
+	rtapi_print_msg(RTAPI_MSG_ERR,
+	    "Could not register port at address 0x%x.  See\n"
+	    "'man serport' for information on using 'setserial'\n"
+	    "to make a port available to hal", io[extra_arg]);
         io[extra_arg] = 0; 
         return -EBUSY;
     }

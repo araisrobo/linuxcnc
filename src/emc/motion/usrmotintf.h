@@ -47,7 +47,7 @@ extern "C" {
 
 /* usrmotPrintEmcmotStatus() prints the status in s, using which
    arg to select sub-prints */
-    extern void usrmotPrintEmcmotStatus(emcmot_status_t s, int which);
+    extern void usrmotPrintEmcmotStatus(emcmot_status_t *s, int which);
 
 /* usrmotPrintEmcmotConfig() prints the config in s, using which
    arg to select sub-prints */
@@ -55,7 +55,7 @@ extern "C" {
 
 /* usrmotPrintEmcmotDebug() prints the debug in s, using which
    arg to select sub-prints */
-    extern void usrmotPrintEmcmotDebug(emcmot_debug_t s, int which);
+    extern void usrmotPrintEmcmotDebug(emcmot_debug_t *s, int which);
 
 /* values returned by usrmotWriteEmcmotCommand; negative values
    are all errors */
@@ -70,7 +70,7 @@ extern "C" {
     extern int usrmotWriteEmcmotCommand(emcmot_command_t * c);
 
 /* usrmotInit() initializes communication with the emcmot process */
-    extern int usrmotInit(char *name);
+    extern int usrmotInit(const char *name);
 
 /* usrmotExit() terminates communication with the emcmot process */
     extern int usrmotExit(void);

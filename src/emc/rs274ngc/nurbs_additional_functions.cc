@@ -11,10 +11,16 @@
 /* Those functions are needed to calculate NURBS points */
 #include <stdlib.h>
 #include <math.h>
+#include <algorithm>
 #include "canon.hh"
 
-std::vector<unsigned int> knot_vector_creator(unsigned int n, unsigned int k) 
-{
+static void unit(PLANE_POINT &p) {
+    double h = hypot(p.X, p.Y);
+    if(h != 0) { p.X/=h; p.Y/=h; }
+}
+
+std::vector<unsigned int> knot_vector_creator(unsigned int n, unsigned int k) {
+    
     unsigned int i;
     std::vector<unsigned int> knot_vector;
     for (i=0; i<=n+k; i++) {
@@ -86,6 +92,20 @@ PLANE_POINT nurbs_point(double u, unsigned int k,
 	*nurbs_control_points[i].W/Rden(u,k,nurbs_control_points,knot_vector);
     }
     return point;
+}
+
+#define DU (1e-5)
+PLANE_POINT nurbs_tangent(double u, unsigned int k,
+                  std::vector<CONTROL_POINT> nurbs_control_points,
+                  std::vector<unsigned int> knot_vector) {
+    unsigned int n = nurbs_control_points.size() - 1;
+    double umax = n - k + 2;
+    double ulo = std::max(0.0, u-DU), uhi = std::min(umax, u+DU);
+    PLANE_POINT P1 = nurbs_point(ulo, k, nurbs_control_points, knot_vector);
+    PLANE_POINT P3 = nurbs_point(uhi, k, nurbs_control_points, knot_vector);
+    PLANE_POINT r = {(P3.X - P1.X) / (uhi-ulo), (P3.Y - P1.Y) / (uhi-ulo)};
+    unit(r);
+    return r;
 }
 
 //int nurbs_findspan (int n, int p, double u, const std::vector<double> & U)

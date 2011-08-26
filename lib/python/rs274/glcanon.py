@@ -59,6 +59,25 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.xo = self.yo = self.zo = self.ao = self.bo = self.co = self.uo = self.vo = self.wo = 0
         self.dwell_time = 0
         self.suppress = 0
+        self.g92_offset_x = 0.0
+        self.g92_offset_y = 0.0
+        self.g92_offset_z = 0.0
+        self.g92_offset_a = 0.0
+        self.g92_offset_b = 0.0
+        self.g92_offset_c = 0.0
+        self.g92_offset_u = 0.0
+        self.g92_offset_v = 0.0
+        self.g92_offset_w = 0.0
+        self.g5x_index = 1
+        self.g5x_offset_x = 0.0
+        self.g5x_offset_y = 0.0
+        self.g5x_offset_z = 0.0
+        self.g5x_offset_a = 0.0
+        self.g5x_offset_b = 0.0
+        self.g5x_offset_c = 0.0
+        self.g5x_offset_u = 0.0
+        self.g5x_offset_v = 0.0
+        self.g5x_offset_w = 0.0
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -79,9 +98,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def draw_lines(self, lines, for_selection, j=0):
         return emc.draw_lines(self.geometry, lines, for_selection)
 
-    def draw_dwells(self, dwells, for_selection, j0=0):
-        return emc.draw_dwells(self.geometry, dwells, for_selection, self.is_lathe())
-
+    def draw_dwells(self, dwells, alpha, for_selection, j0=0):
+        return emc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
     def calc_extents(self):
         self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(self.arcfeed, self.feed, self.traverse)
@@ -122,7 +140,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
         self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
-        self.dwells_append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
+#        self.dwells_append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
         self.feed_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
 
     def arc_feed(self, *args):
@@ -189,7 +207,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             coords.append(line[2][:3])
         for line in self.dwells:
             if line[0] != lineno: continue
-            self.draw_dwells([(line[0], c) + line[2:]], 2)
+            self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
             coords.append(line[2:5])
         glEnd()
         glLineWidth(1)
@@ -203,21 +221,35 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             z = (self.min_extents[2] + self.max_extents[2])/2
         return x, y, z
 
+    def color_with_alpha(self, name):
+        glColor4f(*(self.colors[name] + (self.colors.get(name+'_alpha', 1/3.),)))
+    def color(self, name):
+        glColor3f(*self.colors[name])
+
     def draw(self, for_selection=0, no_traverse=True):
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
-            glColor3f(*self.colors['traverse'])
+            if for_selection:
+                self.color('traverse')
+            else:
+                self.color_with_alpha('traverse')
             self.draw_lines(self.traverse, for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
-            glColor3f(*self.colors['straight_feed'])
+            if for_selection:
+                self.color('straight_feed')
+            else:
+                self.color_with_alpha('straight_feed')
             self.draw_lines(self.feed, for_selection, len(self.traverse))
 
-            glColor3f(*self.colors['arc_feed'])
+            if for_selection:
+                self.color('arc_feed')
+            else:
+                self.color_with_alpha('arc_feed')
             self.draw_lines(self.arcfeed, for_selection, len(self.traverse) + len(self.feed))
 
             glLineWidth(2)
-            self.draw_dwells(self.dwells, for_selection, len(self.traverse) + len(self.feed) + len(self.arcfeed))
+            self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection, len(self.traverse) + len(self.feed) + len(self.arcfeed))
             glLineWidth(1)
 
 def with_context(f):
@@ -243,6 +275,7 @@ def with_context_swap(f):
 class GlCanonDraw:
     colors = {
         'traverse': (0.30, 0.50, 0.50),
+        'traverse_alpha': 1/3.,
         'backplotprobing_alpha': 0.75,
         'backplotprobing': (0.63, 0.13, 0.94),
         'backplottraverse': (0.30, 0.50, 0.50),
@@ -263,6 +296,7 @@ class GlCanonDraw:
         'overlay_foreground': (1.00, 1.00, 1.00),
         'overlay_background': (0.00, 0.00, 0.00),
         'straight_feed': (1.00, 1.00, 1.00),
+        'straight_feed_alpha': 1/3.,
         'small_origin': (0.00, 1.00, 1.00),
         'backplottoolchange_alpha': 0.25,
         'backplottraverse_alpha': 0.25,
@@ -275,6 +309,7 @@ class GlCanonDraw:
         'backplotfeed_alpha': 0.75,
         'backplotarc_alpha': 0.75,
         'arc_feed': (1.00, 1.00, 1.00),
+        'arc_feed_alpha': .5,
         'axis_y': (1.00, 0.20, 0.20),
     }
     def __init__(self, s, lp, g=None):
@@ -516,7 +551,7 @@ class GlCanonDraw:
 
         # Labels
         if self.get_show_relative():
-            offset = self.to_internal_units(s.origin)
+            offset = self.to_internal_units(s.g5x_offset + s.g92_offset)
         else:
             offset = 0, 0, 0
         if view != z and g.max_extents[z] > g.min_extents[z]:
@@ -683,10 +718,19 @@ class GlCanonDraw:
         glMatrixMode(GL_MODELVIEW)
 
         if self.get_show_program():
+            if self.get_program_alpha():
+                glDisable(GL_DEPTH_TEST)
+                glEnable(GL_BLEND)
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_main_list))
             glCallList(self.dlist('program_norapids', gen=self.make_main_list))
             glCallList(self.dlist('highlight'))
+
+            if self.get_program_alpha():
+                glDisable(GL_BLEND)
+                glEnable(GL_DEPTH_TEST)
 
             if self.get_show_extents():
                 self.show_extents()
@@ -694,16 +738,67 @@ class GlCanonDraw:
         if self.get_show_live_plot() or self.get_show_program():
 
             alist = self.dlist(('axes', self.get_view()), gen=self.draw_axes)
-            if self.get_show_relative() and (s.origin[0] or s.origin[1] or
-                                          s.origin[2] or s.rotation_xy):
+            if self.get_show_relative() and (s.g5x_offset[0] or s.g5x_offset[1] or s.g5x_offset[2] or
+                                             s.g92_offset[0] or s.g92_offset[1] or s.g92_offset[2] or
+                                             s.rotation_xy):
                 olist = self.dlist('draw_small_origin',
                                         gen=self.draw_small_origin)
                 glCallList(olist)
-                origin = self.to_internal_units(s.origin)[:3]
+                g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
+                g92_offset = self.to_internal_units(s.g92_offset)[:3]
+
                 glPushMatrix()
-                glTranslatef(*origin)
+
+                if self.get_show_offsets() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
+                    glBegin(GL_LINES)
+                    glVertex3f(0,0,0)
+                    glVertex3f(*g5x_offset)
+                    glEnd()
+
+                    i = s.g5x_index
+                    if i<7:
+                        label = "G5%d" % (i+3)
+                    else:
+                        label = "G59.%d" % (i-6)
+                    glPushMatrix()
+                    glScalef(0.2,0.2,0.2)
+                    if self.is_lathe:
+                        g5xrot=math.atan2(g5x_offset[0], -g5x_offset[2])
+                        glRotatef(90, 1, 0, 0)
+                        glRotatef(-90, 0, 0, 1)
+                    else:
+                        g5xrot=math.atan2(g5x_offset[1], g5x_offset[0])
+                    glRotatef(math.degrees(g5xrot), 0, 0, 1)
+                    glTranslatef(0.5, 0.5, 0)
+                    self.hershey.plot_string(label, 0.1)
+                    glPopMatrix()
+
+                glTranslatef(*g5x_offset)
                 glRotatef(s.rotation_xy, 0, 0, 1)
+
+                
+                if  self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                    glBegin(GL_LINES)
+                    glVertex3f(0,0,0)
+                    glVertex3f(*g92_offset)
+                    glEnd()
+
+                    glPushMatrix()
+                    glScalef(0.2,0.2,0.2)
+                    if self.is_lathe:
+                        g92rot=math.atan2(g92_offset[0], -g92_offset[2])
+                        glRotatef(90, 1, 0, 0)
+                        glRotatef(-90, 0, 0, 1)
+                    else:
+                        g92rot=math.atan2(g92_offset[1], g92_offset[0])
+                    glRotatef(math.degrees(g92rot), 0, 0, 1)
+                    glTranslatef(0.5, 0.5, 0)
+                    self.hershey.plot_string("G92", 0.1)
+                    glPopMatrix()
+
+                glTranslatef(*g92_offset)
                 glCallList(alist)
+
                 glPopMatrix()
             else:
                 glCallList(alist)
@@ -922,7 +1017,7 @@ class GlCanonDraw:
 
             if self.get_show_relative():
                 positions = [(i-j) for i, j in zip(positions, s.tool_offset)]
-                positions = [(i-j) for i, j in zip(positions, s.origin)]
+                positions = [(i-j) for i, j in zip(positions, s.g5x_offset)]
 
                 t = -s.rotation_xy
                 t = math.radians(t)
@@ -930,6 +1025,7 @@ class GlCanonDraw:
                 y = positions[1]
                 positions[0] = x * math.cos(t) - y * math.sin(t)
                 positions[1] = x * math.sin(t) + y * math.cos(t)
+                positions = [(i-j) for i, j in zip(positions, s.g92_offset)]
 
             if self.get_a_axis_wrapped():
                 positions[3] = math.fmod(positions[3], 360.0)
@@ -945,24 +1041,60 @@ class GlCanonDraw:
 
             positions = self.to_internal_units(positions)
             axisdtg = self.to_internal_units(s.dtg)
+            g5x_offset = self.to_internal_units(s.g5x_offset)
+            g92_offset = self.to_internal_units(s.g92_offset)
+            tlo_offset = self.to_internal_units(s.tool_offset)
 
             if self.get_show_metric():
                 positions = self.from_internal_units(positions, 1)
                 axisdtg = self.from_internal_units(axisdtg, 1)
-                format = "%3s:% 9.3f"
-                droformat = format + "  DTG%1s:% 9.3f"
+                g5x_offset = self.from_internal_units(g5x_offset, 1)
+                g92_offset = self.from_internal_units(g92_offset, 1)
+                format = "% 6s:% 9.3f"
+                droformat = " " + format + "  DTG %1s:% 9.3f"
+                offsetformat = "% 5s %1s:% 9.3f  G92 %1s:% 9.3f"
+                rotformat = "% 5s %1s:% 9.3f"
             else:
-                format = "%3s:% 9.4f"
-                droformat = format + "  DTG%1s:% 9.4f"
+                format = "% 6s:% 9.4f"
+                droformat = " " + format + "  DTG %1s:% 9.4f"
+                offsetformat = "% 5s %1s:% 9.4f  G92 %1s:% 9.4f"
+                rotformat = "% 5s %1s:% 9.4f"
+            diaformat = " " + format
 
-            posstrs = [format % j for i, j in zip(range(9), zip("XYZABCUVW", positions)) if s.axis_mask & (1<<i)]
-            droposstrs = [droformat % (j + k) for i, j, k in zip(range(9), zip("XYZABCUVW", positions), zip("XYZABCUVW", axisdtg)) if s.axis_mask & (1<<i)]
+            posstrs = []
+            droposstrs = []
+            for i in range(9):
+                a = "XYZABCUVW"[i]
+                if s.axis_mask & (1<<i):
+                    posstrs.append(format % (a, positions[i]))
+                    droposstrs.append(droformat % (a, positions[i], a, axisdtg[i]))
+
+            droposstrs.append("")
+
+            for i in range(9):
+                index = s.g5x_index
+                if index<7:
+                    label = "G5%d" % (index+3)
+                else:
+                    label = "G59.%d" % (index-6)
+
+                a = "XYZABCUVW"[i]
+                if s.axis_mask & (1<<i):
+                    droposstrs.append(offsetformat % (label, a, g5x_offset[i], a, g92_offset[i]))
+            droposstrs.append(rotformat % (label, 'R', s.rotation_xy))
+
+            droposstrs.append("")
+            for i in range(9):
+                a = "XYZABCUVW"[i]
+                if s.axis_mask & (1<<i):
+                    droposstrs.append(rotformat % ("TLO", a, tlo_offset[i]))
+
 
             if self.is_lathe():
                 posstrs[0] = format % ("Rad", positions[0])
                 posstrs.insert(1, format % ("Dia", positions[0]*2.0))
                 droposstrs[0] = droformat % ("Rad", positions[0], "R", axisdtg[0])
-                droposstrs.insert(1, format % ("Dia", positions[0]*2.0))
+                droposstrs.insert(1, diaformat % ("Dia", positions[0]*2.0))
 
             if self.get_show_machine_speed():
                 spd = self.to_internal_linear_unit(s.current_vel)
@@ -1191,10 +1323,10 @@ class GlCanonDraw:
         select_rapids = self.dlist('select_rapids')
         select_program = self.dlist('select_norapids')
         glNewList(select_rapids, GL_COMPILE)
-        if self.canon: self.canon.draw(1)
+        if self.canon: self.canon.draw(1, False)
         glEndList()
         glNewList(select_program, GL_COMPILE)
-        if self.canon: self.canon.draw(1, False)
+        if self.canon: self.canon.draw(1, True)
         glEndList()
 
     def make_main_list(self, unused=None):
@@ -1213,7 +1345,7 @@ class GlCanonDraw:
         result, seq = gcode.parse(f, canon, unitcode, initcode)
         #debug: print "after gcode.parse(), result=", result, ", seq=", seq
 
-        if result < gcode.MIN_ERROR:
+        if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents()
             self.stale_dlist('program_rapids')

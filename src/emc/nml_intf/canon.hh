@@ -146,11 +146,13 @@ struct CANON_POSITION {
 
 typedef struct CanonConfig_t {
     double xy_rotation;
+    int rotary_unlock_for_traverse;
     double css_maximum;
     double css_numerator;
     int feed_mode;
     int synched;
-    CANON_POSITION programOrigin;
+    CANON_POSITION g5xOffset;
+    CANON_POSITION g92Offset;
 /*
   canonEndPoint is the last programmed end point, stored in case it's
   needed for subsequent calculations. It's in absolute frame, mm units.
@@ -203,9 +205,14 @@ extern void INIT_CANON();
 
 /* Representation */
 
-extern void SET_ORIGIN_OFFSETS(double x, double y, double z,
-                               double a, double b, double c,
-                               double u, double v, double w);
+extern void SET_G5X_OFFSET(int origin,
+                           double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w);
+
+extern void SET_G92_OFFSET(double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w);
 
 extern void SET_XY_ROTATION(double t);
 
@@ -464,6 +471,10 @@ extern double Rden(double u, unsigned int k,
 extern PLANE_POINT nurbs_point(double u, unsigned int k, 
                   std::vector<CONTROL_POINT> nurbs_control_points,
                   std::vector<unsigned int> knot_vector);
+extern PLANE_POINT nurbs_tangent(double u, unsigned int k,
+                  std::vector<CONTROL_POINT> nurbs_control_points,
+                  std::vector<unsigned int> knot_vector);
+extern double alpha_finder(double dx, double dy);
 
 /*extern int nurbs_findspan(int n, int p, double u, const std::vector<double> & U);*/
 /*extern void nurbs_basisfun(int i, double u, int p,
@@ -487,16 +498,6 @@ extern void NURBS_FEED_3D (
 /* Move at the feed rate along an approximation of a NURBS with a variable number
  * of control points
  */
-
-extern void SPLINE_FEED(int lineno, double x1, double y1, double x2, double y2, double x3, double y3);
-/* Move at the feed rate along an approximation of the cubic
- * bezier spline with control points x1y1 x2y2 and endpoint x3y3
- */
-extern void SPLINE_FEED(int lineno, double x1, double y1, double x2, double y2);
-/* Move at the feed rate along an approximation of the conic
- * spline with control point x1y1 and endpoint x2y2
- */
-
 
 /* Move at existing feed rate so that at any time during the move,
 all axes have covered the same proportion of their required motion.
@@ -623,7 +624,7 @@ controller.
 An attempt to move an axis while it is clamped should result in an
 error condition in the controller. */
 
-extern void COMMENT(char *s);
+extern void COMMENT(const char *s);
 
 /* This function has no physical effect. If commands are being printed or
 logged, the comment command is printed or logged, including the string
@@ -656,6 +657,7 @@ extern void MESSAGE(char *s);
 
 extern void LOG(char *s);
 extern void LOGOPEN(char *s);
+extern void LOGAPPEND(char *s);
 extern void LOGCLOSE();
 
 extern void MIST_OFF();
@@ -760,6 +762,12 @@ extern int WAIT(int index, /* index of the motion exported input */
 /* WAIT - program execution is stopped until the input selected by index 
    changed to the needed state (specified by wait_type).
    Return value: either wait_type if timeout didn't occur, or -1 otherwise. */
+
+/* tell canon the next move needs the rotary to be unlocked */
+extern int UNLOCK_ROTARY(int line_no, int axis);
+
+/* tell canon that is no longer the case */
+extern int LOCK_ROTARY(int line_no, int axis);
 
 /*************************************************************************/
 

@@ -306,6 +306,7 @@ static int init_hal_io(void)
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_brake), mot_comp_id, "motion.spindle-brake")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out), mot_comp_id, "motion.spindle-speed-out")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out_rps), mot_comp_id, "motion.spindle-speed-out-rps")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_cmd_rps), mot_comp_id, "motion.spindle-speed-cmd-rps")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_css), mot_comp_id, "motion.spindle-surface-speed")) != 0) goto error;
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_revs), mot_comp_id, "motion.spindle-revs")) != 0) goto error;
@@ -497,16 +498,17 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->joint_pos_fb), mot_comp_id, "joint.%d.pos-fb", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->motor_pos_cmd), mot_comp_id, "joint.%d.motor-pos-cmd", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->motor_pos_fb), mot_comp_id, "joint.%d.motor-pos-fb", num)) != 0) return retval;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->motor_offset), mot_comp_id, "joint.%d.motor-offset", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->pos_lim_sw), mot_comp_id, "joint.%d.pos-lim-sw-in", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->neg_lim_sw), mot_comp_id, "joint.%d.neg-lim-sw-in", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->home_sw), mot_comp_id, "joint.%d.home-sw-in", num)) != 0) return retval;
-    if ((retval = hal_pin_bit_newf(HAL_IO, &(addr->index_enable), mot_comp_id, "joint.%d.index_enable", num)) != 0) return retval;
+    if ((retval = hal_pin_bit_newf(HAL_IO, &(addr->index_enable), mot_comp_id, "joint.%d.index-enable", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(addr->amp_enable), mot_comp_id, "joint.%d.amp-enable-out", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->amp_fault), mot_comp_id, "joint.%d.amp-fault-in", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_IN, &(addr->jog_counts), mot_comp_id, "joint.%d.jog-counts", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->jog_enable), mot_comp_id, "joint.%d.jog-enable", num)) != 0) return retval;
-    if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->jog_vel_mode), mot_comp_id, "joint.%d.jog-vel-mode", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->jog_scale), mot_comp_id, "joint.%d.jog-scale", num)) != 0) return retval;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->jog_vel_mode), mot_comp_id, "joint.%d.jog-vel-mode", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->joint_vel_cmd), mot_comp_id, "joint.%d.vel-cmd", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->backlash_corr), mot_comp_id, "joint.%d.backlash-corr", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->backlash_filt), mot_comp_id, "joint.%d.backlash-filt", num)) != 0) return retval;
@@ -532,6 +534,11 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->index_pos_pin), mot_comp_id, "joint.%d.index-pos", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->usb_ferror), mot_comp_id, "joint.%d.usb-ferror", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->usb_ferror_flag), mot_comp_id, "joint.%d.usb-ferror-flag", num)) != 0) return retval;
+    if(num >= 3 && num <= 5) {
+        // for rotaries only...
+        if ((hal_pin_bit_newf(HAL_OUT, &(addr->unlock), mot_comp_id, "joint.%d.unlock", num)) != 0) return retval;
+        if ((hal_pin_bit_newf(HAL_IN, &(addr->is_unlocked), mot_comp_id, "joint.%d.is-unlocked", num)) != 0) return retval;
+    }
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);

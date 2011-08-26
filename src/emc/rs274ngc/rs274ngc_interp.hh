@@ -72,7 +72,7 @@ public:
  void error_text(int error_code, char *error_text,
                                 int max_size);
 
- void setError(const char *fmt, ...);
+ void setError(const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // copy the name of the currently open file into the file_name array,
 // but stop at max_size if the name is longer
@@ -98,6 +98,7 @@ public:
  int ini_load(const char *filename);
 
  int line() { return sequence_number(); }
+ int call_level();
 
  char *command(char *buf, int len) { line_text(buf, len); return buf; }
 
@@ -106,6 +107,7 @@ public:
  int init_tool_parameters();
  int default_tool_parameters();
  int set_tool_parameters();
+ int init_named_parameters();
 
 private:
 
@@ -279,6 +281,9 @@ private:
  int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);
+ int find_current_in_system_without_tlo(setup_pointer s, int system, double *x, double *y, double *z,
+                            double *a, double *b, double *c,
+                            double *u, double *v, double *w);
  int find_ends(block_pointer block, setup_pointer settings, 
                double *px, double *py, double *pz, 
                double *AA_p, double *BB_p, double *CC_p,
@@ -364,15 +369,18 @@ private:
  int read_p(char *line, int *counter, block_pointer block,
                   double *parameters);
  int store_named_param(char *nameBuf, double value);
+ int init_named_param(char *nameBuf, double value);
  int add_named_param(char *nameBuf);
  int find_named_param(char *nameBuf, int *status, double *value);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
-                          double *parameters);
+                          double *parameters, bool check_exists);
  int read_parameter(char *line, int *counter, double *double_ptr,
-                          double *parameters);
+                          double *parameters, bool check_exists);
  int read_parameter_setting(char *line, int *counter,
                                   block_pointer block, double *parameters);
+ int read_bracketed_parameter(char *line, int *counter, double *double_ptr,
+                          double *parameters, bool check_exists);
  int read_named_parameter_setting(char *line, int *counter,
                                   char **param, double *parameters);
  int read_q(char *line, int *counter, block_pointer block,
@@ -438,7 +446,10 @@ private:
   block_pointer block,       /* pointer to a block of RS274/NGC instructions */
   setup_pointer settings);   /* pointer to machine settings */
 
- void doLog(char *fmt, ...);
+ int convert_straight_indexer(int, block*, setup*);
+ int issue_straight_index(int, double, int, setup*);
+
+ void doLog(const char *fmt, ...) __attribute__((format(printf,2,3)));
 
  FILE *log_file;
 

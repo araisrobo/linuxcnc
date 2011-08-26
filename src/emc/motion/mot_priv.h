@@ -34,6 +34,7 @@ typedef struct {
     hal_float_t *backlash_corr;	/* RPI: correction for backlash */
     hal_float_t *backlash_filt;	/* RPI: filtered backlash correction */
     hal_float_t *backlash_vel;	/* RPI: backlash speed variable */
+    hal_float_t *motor_offset;	/* RPI: motor offset, for checking homing stability */
     hal_float_t *motor_pos_cmd;	/* WPI: commanded position, with comp */
     hal_float_t *motor_pos_fb;	/* RPI: position feedback, with comp */
     hal_float_t *joint_pos_cmd;	/* WPI: commanded position w/o comp, mot ofs */
@@ -68,6 +69,9 @@ typedef struct {
     hal_float_t *index_pos_pin; /* RPI: motor index position (absolute motor position count) */
     hal_float_t *usb_ferror;
     hal_bit_t *usb_ferror_flag;
+
+    hal_bit_t *unlock;          /* WPI: command that axis should unlock for rotation */
+    hal_bit_t *is_unlocked;     /* RPI: axis is currently unlocked */
 
     hal_s32_t *jog_counts;	/* WPI: jogwheel position input */
     hal_bit_t *jog_enable;	/* RPI: enable jogwheel */
@@ -149,6 +153,7 @@ typedef struct {
     // output of a prescribed speed (to hook-up to a velocity controller)
     hal_float_t *spindle_speed_out;	/* spindle speed output */
     hal_float_t *spindle_speed_out_rps;	/* spindle speed output */
+    hal_float_t *spindle_speed_cmd_rps;	/* spindle speed command without SO applied */
     hal_float_t *spindle_speed_in;	/* spindle speed measured */
     hal_float_t *spindle_css;           /* output surface when CSS mode */
     
@@ -228,6 +233,9 @@ extern void emcmotDioWrite(int index, char value);
 extern void emcmotAioWrite(int index, double value);
 extern void emcmotSyncInputWrite(int index, double timeout, int wait_type);
 
+extern void emcmotSetRotaryUnlock(int axis, int unlock);
+extern int emcmotGetRotaryIsUnlocked(int axis);
+
 /* homing is no longer in control.c, make functions public */
 extern void do_homing_sequence(void);
 extern void do_homing(void);
@@ -242,7 +250,7 @@ extern void clearHomes(int joint_num);
 extern void check_stuff(const char *msg);
 
 extern void emcmot_config_change(void);
-extern void reportError(const char *fmt, ...);	/* Use the rtapi_print call */
+extern void reportError(const char *fmt, ...) __attribute((format(printf,1,2))); /* Use the rtapi_print call */
 
  /* rtapi_get_time() returns a nanosecond value. In time, we should use a u64
     value for all calcs and only do the conversion to seconds when it is

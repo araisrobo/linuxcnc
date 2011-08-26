@@ -33,11 +33,13 @@
 
 #include <cmath>
 
+#ifndef T_BOOL
 // The C++ standard probably doesn't specify the amount of storage for a 'bool',
 // and on some systems it might be more than one byte.  However, on x86 and
 // x86-64, sizeof(bool) == 1.  When a counterexample is found, this must be
 // replaced with the result of a configure test.
 #define T_BOOL T_UBYTE
+#endif
 
 #define LOCAL_SPINDLE_FORWARD (1)
 #define LOCAL_SPINDLE_REVERSE (-1)
@@ -202,10 +204,11 @@ static PyTypeObject Ini_Type = {
 #define EMC_COMMAND_TIMEOUT 5.0  // how long to wait until timeout
 #define EMC_COMMAND_DELAY   0.01 // how long to sleep between checks
 
-static int emcWaitCommandComplete(int serial_number, RCS_STAT_CHANNEL *s) {
+static int emcWaitCommandComplete(int serial_number, RCS_STAT_CHANNEL *s, double timeout) {
     double start = etime();
 
-    while (etime() - start < EMC_COMMAND_TIMEOUT) {
+    do {
+        double now = etime();
         if(s->peek() == EMC_STAT_TYPE) {
            EMC_STAT *stat = (EMC_STAT*)s->get_address();
 //           printf("WaitComplete: %d %d %d\n", serial_number, stat->echo_serial_number, stat->status);
@@ -214,8 +217,8 @@ static int emcWaitCommandComplete(int serial_number, RCS_STAT_CHANNEL *s) {
                 return s->get_address()->status;
            }
         }
-        esleep(EMC_COMMAND_DELAY);
-    }
+        esleep(fmin(timeout - (now - start), EMC_COMMAND_DELAY));
+    } while (etime() - start < timeout);
     return -1;
 }
 
@@ -287,87 +290,87 @@ static PyMethodDef Stat_methods[] = {
 #define O(x) offsetof(pyStatChannel,status.x)
 static PyMemberDef Stat_members[] = {
 // stat 
-    {"echo_serial_number", T_INT, O(echo_serial_number), READONLY},
-    {"state", T_INT, O(status), READONLY},
+    {(char*)"echo_serial_number", T_INT, O(echo_serial_number), READONLY},
+    {(char*)"state", T_INT, O(status), READONLY},
 
 // task
-    {"task_mode", T_INT, O(task.mode), READONLY},
-    {"task_state", T_INT, O(task.state), READONLY},
-    {"exec_state", T_INT, O(task.execState), READONLY},
-    {"interp_state", T_INT, O(task.interpState), READONLY},
-    {"read_line", T_INT, O(task.readLine), READONLY},
-    {"motion_line", T_INT, O(task.motionLine), READONLY},
-    {"current_line", T_INT, O(task.currentLine), READONLY},
-    {"file", T_STRING_INPLACE, O(task.file), READONLY},
-    {"command", T_STRING_INPLACE, O(task.command), READONLY},
-    {"program_units", T_INT, O(task.programUnits), READONLY},
-    {"interpreter_errcode", T_INT, O(task.interpreter_errcode), READONLY},
-    {"optional_stop", T_BOOL, O(task.optional_stop_state), READONLY},
-    {"block_delete", T_BOOL, O(task.block_delete_state), READONLY},
-    {"task_paused", T_INT, O(task.task_paused), READONLY},
-    {"input_timeout", T_BOOL, O(task.input_timeout), READONLY},
-    {"rotation_xy", T_DOUBLE, O(task.rotation_xy), READONLY},
-    {"delay_left", T_DOUBLE, O(task.delayLeft), READONLY},
+    {(char*)"task_mode", T_INT, O(task.mode), READONLY},
+    {(char*)"task_state", T_INT, O(task.state), READONLY},
+    {(char*)"exec_state", T_INT, O(task.execState), READONLY},
+    {(char*)"interp_state", T_INT, O(task.interpState), READONLY},
+    {(char*)"read_line", T_INT, O(task.readLine), READONLY},
+    {(char*)"motion_line", T_INT, O(task.motionLine), READONLY},
+    {(char*)"current_line", T_INT, O(task.currentLine), READONLY},
+    {(char*)"file", T_STRING_INPLACE, O(task.file), READONLY},
+    {(char*)"command", T_STRING_INPLACE, O(task.command), READONLY},
+    {(char*)"program_units", T_INT, O(task.programUnits), READONLY},
+    {(char*)"interpreter_errcode", T_INT, O(task.interpreter_errcode), READONLY},
+    {(char*)"optional_stop", T_BOOL, O(task.optional_stop_state), READONLY},
+    {(char*)"block_delete", T_BOOL, O(task.block_delete_state), READONLY},
+    {(char*)"task_paused", T_INT, O(task.task_paused), READONLY},
+    {(char*)"input_timeout", T_BOOL, O(task.input_timeout), READONLY},
+    {(char*)"rotation_xy", T_DOUBLE, O(task.rotation_xy), READONLY},
+    {(char*)"delay_left", T_DOUBLE, O(task.delayLeft), READONLY},
 
 // motion
 //   EMC_TRAJ_STAT traj
-    {"linear_units", T_DOUBLE, O(motion.traj.linearUnits), READONLY},
-    {"angular_units", T_DOUBLE, O(motion.traj.angularUnits), READONLY},
-    {"cycle_time", T_DOUBLE, O(motion.traj.cycleTime), READONLY},
-    {"joints", T_INT, O(motion.traj.joints), READONLY},
-    {"axes", T_INT, O(motion.traj.axes), READONLY},
-    {"axis_mask", T_INT, O(motion.traj.axis_mask), READONLY},
-    {"motion_mode", T_INT, O(motion.traj.mode), READONLY},
-    {"enabled", T_BOOL, O(motion.traj.enabled), READONLY},
-    {"inpos", T_BOOL, O(motion.traj.inpos), READONLY},
-    {"queue", T_INT, O(motion.traj.queue), READONLY},
-    {"active_queue", T_INT, O(motion.traj.activeQueue), READONLY},
-    {"queue_full", T_BOOL, O(motion.traj.queueFull), READONLY},
-    {"id", T_INT, O(motion.traj.id), READONLY},
-    {"paused", T_BOOL, O(motion.traj.paused), READONLY},
-    {"feedrate", T_DOUBLE, O(motion.traj.scale), READONLY},
-    {"spindlerate", T_DOUBLE, O(motion.traj.spindle_scale), READONLY},
+    {(char*)"linear_units", T_DOUBLE, O(motion.traj.linearUnits), READONLY},
+    {(char*)"angular_units", T_DOUBLE, O(motion.traj.angularUnits), READONLY},
+    {(char*)"cycle_time", T_DOUBLE, O(motion.traj.cycleTime), READONLY},
+    {(char*)"joints", T_INT, O(motion.traj.joints), READONLY},
+    {(char*)"axes", T_INT, O(motion.traj.axes), READONLY},
+    {(char*)"axis_mask", T_INT, O(motion.traj.axis_mask), READONLY},
+    {(char*)"motion_mode", T_INT, O(motion.traj.mode), READONLY},
+    {(char*)"enabled", T_BOOL, O(motion.traj.enabled), READONLY},
+    {(char*)"inpos", T_BOOL, O(motion.traj.inpos), READONLY},
+    {(char*)"queue", T_INT, O(motion.traj.queue), READONLY},
+    {(char*)"active_queue", T_INT, O(motion.traj.activeQueue), READONLY},
+    {(char*)"queue_full", T_BOOL, O(motion.traj.queueFull), READONLY},
+    {(char*)"id", T_INT, O(motion.traj.id), READONLY},
+    {(char*)"paused", T_BOOL, O(motion.traj.paused), READONLY},
+    {(char*)"feedrate", T_DOUBLE, O(motion.traj.scale), READONLY},
+    {(char*)"spindlerate", T_DOUBLE, O(motion.traj.spindle_scale), READONLY},
     
-    {"velocity", T_DOUBLE, O(motion.traj.velocity), READONLY},
-    {"acceleration", T_DOUBLE, O(motion.traj.acceleration), READONLY},
-    {"max_velocity", T_DOUBLE, O(motion.traj.maxVelocity), READONLY},
-    {"max_acceleration", T_DOUBLE, O(motion.traj.maxAcceleration), READONLY},
-    {"probe_tripped", T_BOOL, O(motion.traj.probe_tripped), READONLY},
-    {"probing", T_BOOL, O(motion.traj.probing), READONLY},
-    {"probe_val", T_INT, O(motion.traj.probeval), READONLY},
-    {"kinematics_type", T_INT, O(motion.traj.kinematics_type), READONLY},
-    {"motion_type", T_INT, O(motion.traj.motion_type), READONLY},
-    {"distance_to_go", T_DOUBLE, O(motion.traj.distance_to_go), READONLY},
-    {"current_vel", T_DOUBLE, O(motion.traj.current_vel), READONLY},
-    {"feed_override_enabled", T_BOOL, O(motion.traj.feed_override_enabled), READONLY},
-    {"spindle_override_enabled", T_BOOL, O(motion.traj.spindle_override_enabled), READONLY},
-    {"adaptive_feed_enabled", T_BOOL, O(motion.traj.adaptive_feed_enabled), READONLY},
-    {"feed_hold_enabled", T_BOOL, O(motion.traj.feed_hold_enabled), READONLY},
+    {(char*)"velocity", T_DOUBLE, O(motion.traj.velocity), READONLY},
+    {(char*)"acceleration", T_DOUBLE, O(motion.traj.acceleration), READONLY},
+    {(char*)"max_velocity", T_DOUBLE, O(motion.traj.maxVelocity), READONLY},
+    {(char*)"max_acceleration", T_DOUBLE, O(motion.traj.maxAcceleration), READONLY},
+    {(char*)"probe_tripped", T_BOOL, O(motion.traj.probe_tripped), READONLY},
+    {(char*)"probing", T_BOOL, O(motion.traj.probing), READONLY},
+    {(char*)"probe_val", T_INT, O(motion.traj.probeval), READONLY},
+    {(char*)"kinematics_type", T_INT, O(motion.traj.kinematics_type), READONLY},
+    {(char*)"motion_type", T_INT, O(motion.traj.motion_type), READONLY},
+    {(char*)"distance_to_go", T_DOUBLE, O(motion.traj.distance_to_go), READONLY},
+    {(char*)"current_vel", T_DOUBLE, O(motion.traj.current_vel), READONLY},
+    {(char*)"feed_override_enabled", T_BOOL, O(motion.traj.feed_override_enabled), READONLY},
+    {(char*)"spindle_override_enabled", T_BOOL, O(motion.traj.spindle_override_enabled), READONLY},
+    {(char*)"adaptive_feed_enabled", T_BOOL, O(motion.traj.adaptive_feed_enabled), READONLY},
+    {(char*)"feed_hold_enabled", T_BOOL, O(motion.traj.feed_hold_enabled), READONLY},
 
 // EMC_SPINDLE_STAT motion.spindle
-    {"spindle_speed", T_DOUBLE, O(motion.spindle.speed), READONLY},
-    {"spindle_direction", T_INT, O(motion.spindle.direction), READONLY},
-    {"spindle_brake", T_INT, O(motion.spindle.brake), READONLY},
-    {"spindle_increasing", T_INT, O(motion.spindle.increasing), READONLY},
-    {"spindle_enabled", T_INT, O(motion.spindle.enabled), READONLY},
+    {(char*)"spindle_speed", T_DOUBLE, O(motion.spindle.speed), READONLY},
+    {(char*)"spindle_direction", T_INT, O(motion.spindle.direction), READONLY},
+    {(char*)"spindle_brake", T_INT, O(motion.spindle.brake), READONLY},
+    {(char*)"spindle_increasing", T_INT, O(motion.spindle.increasing), READONLY},
+    {(char*)"spindle_enabled", T_INT, O(motion.spindle.enabled), READONLY},
 
 // io
 // EMC_TOOL_STAT io.tool
-    {"pocket_prepped", T_INT, O(io.tool.pocketPrepped), READONLY},
-    {"tool_in_spindle", T_INT, O(io.tool.toolInSpindle), READONLY},
+    {(char*)"pocket_prepped", T_INT, O(io.tool.pocketPrepped), READONLY},
+    {(char*)"tool_in_spindle", T_INT, O(io.tool.toolInSpindle), READONLY},
 
 // EMC_COOLANT_STAT io.cooland
-    {"mist", T_INT, O(io.coolant.mist), READONLY},
-    {"flood", T_INT, O(io.coolant.flood), READONLY},
+    {(char*)"mist", T_INT, O(io.coolant.mist), READONLY},
+    {(char*)"flood", T_INT, O(io.coolant.flood), READONLY},
 
 // EMC_AUX_STAT     io.aux
-    {"estop", T_INT, O(io.aux.estop), READONLY},
+    {(char*)"estop", T_INT, O(io.aux.estop), READONLY},
 
 // EMC_LUBE_STAT    io.lube
-    {"lube", T_INT, O(io.lube.on), READONLY},
-    {"lube_level", T_INT, O(io.lube.level), READONLY},
+    {(char*)"lube", T_INT, O(io.lube.on), READONLY},
+    {(char*)"lube_level", T_INT, O(io.lube.level), READONLY},
 
-    {"debug", T_INT, O(debug), READONLY},
+    {(char*)"debug", T_INT, O(debug), READONLY},
     {NULL}
 };
 
@@ -401,8 +404,16 @@ static PyObject *pose(const EmcPose &p) {
     return res;
 }
 
-static PyObject *Stat_origin(pyStatChannel *s) {
-    return pose(s->status.task.origin);
+static PyObject *Stat_g5x_index(pyStatChannel *s) {
+    return PyInt_FromLong(s->status.task.g5x_index);
+}
+
+static PyObject *Stat_g5x_offset(pyStatChannel *s) {
+    return pose(s->status.task.g5x_offset);
+}
+
+static PyObject *Stat_g92_offset(pyStatChannel *s) {
+    return pose(s->status.task.g92_offset);
 }
 
 static PyObject *Stat_tool_offset(pyStatChannel *s) {
@@ -492,12 +503,12 @@ static PyObject *Stat_aout(pyStatChannel *s) {
     return double_array(s->status.motion.analog_output, EMCMOT_MAX_AIO);
 }
 
-static void dict_add(PyObject *d, char *name, unsigned char v) {
+static void dict_add(PyObject *d, const char *name, unsigned char v) {
     PyObject *o;
     PyDict_SetItemString(d, name, o = PyInt_FromLong(v));
     Py_XDECREF(o);
 }
-static void dict_add(PyObject *d, char *name, double v) {
+static void dict_add(PyObject *d, const char *name, double v) {
     PyObject *o;
     PyDict_SetItemString(d, name, o = PyFloat_FromDouble(v));
     Py_XDECREF(o);
@@ -542,26 +553,26 @@ static PyObject *Stat_joint(pyStatChannel *s) {
 }
 
 static PyStructSequence_Field tool_fields[] = {
-    {"id", },
-    {"xoffset", },
-    {"yoffset", },
-    {"zoffset", },
-    {"aoffset", },
-    {"boffset", },
-    {"coffset", },
-    {"uoffset", },
-    {"voffset", },
-    {"woffset", },
-    {"diameter", },
-    {"frontangle", },
-    {"backangle", },
-    {"orientation", },
+    {(char*)"id", },
+    {(char*)"xoffset", },
+    {(char*)"yoffset", },
+    {(char*)"zoffset", },
+    {(char*)"aoffset", },
+    {(char*)"boffset", },
+    {(char*)"coffset", },
+    {(char*)"uoffset", },
+    {(char*)"voffset", },
+    {(char*)"woffset", },
+    {(char*)"diameter", },
+    {(char*)"frontangle", },
+    {(char*)"backangle", },
+    {(char*)"orientation", },
     {0,},
 };
 
 static PyStructSequence_Desc tool_result_desc = {
-    "tool_result", /* name */
-    "", /* doc */
+    (char*)"tool_result", /* name */
+    (char*)"", /* doc */
     tool_fields,
     14
 };
@@ -573,7 +584,6 @@ static PyObject *Stat_tool_table(pyStatChannel *s) {
     int j=0;
     for(int i=0; i<CANON_POCKETS_MAX; i++) {
         struct CANON_TOOL_TABLE &t = s->status.io.tool.toolTable[i];
-        if(t.toolno == -1 && i!=0) continue;
         PyObject *tool = PyStructSequence_New(&ToolResultType);
         PyStructSequence_SET_ITEM(tool, 0, PyInt_FromLong(t.toolno));
         PyStructSequence_SET_ITEM(tool, 1, PyFloat_FromDouble(t.offset.tran.x));
@@ -600,25 +610,27 @@ static PyObject *Stat_tool_table(pyStatChannel *s) {
 // XXX EMC_JOINT_STAT motion.joint[]
 
 static PyGetSetDef Stat_getsetlist[] = {
-    {"actual_position", (getter)Stat_actual},
-    {"ain", (getter)Stat_ain},
-    {"aout", (getter)Stat_aout},
-    {"joint", (getter)Stat_joint},
-    {"din", (getter)Stat_din},
-    {"dout", (getter)Stat_dout},
-    {"gcodes", (getter)Stat_activegcodes},
-    {"homed", (getter)Stat_homed},
-    {"limit", (getter)Stat_limit},
-    {"mcodes", (getter)Stat_activemcodes},
-    {"origin", (getter)Stat_origin},
-    {"position", (getter)Stat_position},
-    {"dtg", (getter)Stat_dtg},
-    {"joint_position", (getter)Stat_joint_position},
-    {"joint_actual_position", (getter)Stat_joint_actual},
-    {"probed_position", (getter)Stat_probed},
-    {"settings", (getter)Stat_activesettings},
-    {"tool_offset", (getter)Stat_tool_offset},
-    {"tool_table", (getter)Stat_tool_table},
+    {(char*)"actual_position", (getter)Stat_actual},
+    {(char*)"ain", (getter)Stat_ain},
+    {(char*)"aout", (getter)Stat_aout},
+    {(char*)"joint", (getter)Stat_joint},
+    {(char*)"din", (getter)Stat_din},
+    {(char*)"dout", (getter)Stat_dout},
+    {(char*)"gcodes", (getter)Stat_activegcodes},
+    {(char*)"homed", (getter)Stat_homed},
+    {(char*)"limit", (getter)Stat_limit},
+    {(char*)"mcodes", (getter)Stat_activemcodes},
+    {(char*)"g5x_offset", (getter)Stat_g5x_offset},
+    {(char*)"g5x_index", (getter)Stat_g5x_index},
+    {(char*)"g92_offset", (getter)Stat_g92_offset},
+    {(char*)"position", (getter)Stat_position},
+    {(char*)"dtg", (getter)Stat_dtg},
+    {(char*)"joint_position", (getter)Stat_joint_position},
+    {(char*)"joint_actual_position", (getter)Stat_joint_actual},
+    {(char*)"probed_position", (getter)Stat_probed},
+    {(char*)"settings", (getter)Stat_activesettings},
+    {(char*)"tool_offset", (getter)Stat_tool_offset},
+    {(char*)"tool_table", (getter)Stat_tool_table},
     {NULL}
 };
 
@@ -1276,11 +1288,14 @@ static PyObject *set_analog_output(pyCommandChannel *s, PyObject *o) {
 }
 
 static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
-    return PyInt_FromLong(emcWaitCommandComplete(s->serial, s->s));
+    double timeout = EMC_COMMAND_TIMEOUT;
+    if (!PyArg_ParseTuple(o, "|d:emc.command.wait_complete", &timeout))
+        return NULL;
+    return PyInt_FromLong(emcWaitCommandComplete(s->serial, s->s, timeout));
 }
 
 static PyMemberDef Command_members[] = {
-    {"serial", T_INT, offsetof(pyCommandChannel, serial), READONLY},
+    {(char*)"serial", T_INT, offsetof(pyCommandChannel, serial), READONLY},
     {NULL}
 };
 
@@ -1288,7 +1303,7 @@ static PyMethodDef Command_methods[] = {
     {"debug", (PyCFunction)debug, METH_VARARGS},
     {"teleop_enable", (PyCFunction)teleop, METH_VARARGS},
     {"traj_mode", (PyCFunction)set_traj_mode, METH_VARARGS},
-    {"wait_complete", (PyCFunction)wait_complete, METH_NOARGS},
+    {"wait_complete", (PyCFunction)wait_complete, METH_VARARGS},
     {"state", (PyCFunction)state, METH_VARARGS},
     {"mdi", (PyCFunction)mdi, METH_VARARGS},
     {"mode", (PyCFunction)mode, METH_VARARGS},
@@ -1675,10 +1690,11 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
 static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
     PyListObject *li;
     int for_selection = 0, is_lathe = 0, i, n;
+    double alpha;
     char *geometry;
     double delta = 0.015625;
 
-    if(!PyArg_ParseTuple(o, "sO!ii:draw_dwells", &geometry, &PyList_Type, &li, &for_selection, &is_lathe))
+    if(!PyArg_ParseTuple(o, "sO!dii:draw_dwells", &geometry, &PyList_Type, &li, &alpha, &for_selection, &is_lathe))
         return NULL;
 
     if (for_selection == 0)
@@ -1691,7 +1707,8 @@ static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
         if(!PyArg_ParseTuple(it, "i(ddd)dddi", &n, &red, &green, &blue, &x, &y, &z, &axis)) {
             return NULL;
         }
-        glColor3f(red, green, blue);
+        if (for_selection != 1)
+            glColor4d(red, green, blue, alpha);
         if (for_selection == 1) {
             glLoadName(n);
             glBegin(GL_LINES);
@@ -1981,7 +1998,7 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
 }
 
 static PyMemberDef Logger_members[] = {
-    {"npts", T_INT, offsetof(pyPositionLogger, npts), READONLY},
+    {(char*)"npts", T_INT, offsetof(pyPositionLogger, npts), READONLY},
     {0, 0, 0, 0},
 };
 
@@ -2074,7 +2091,7 @@ initemc(void) {
     PyType_Ready(&Command_Type);
     PyType_Ready(&Error_Type);
     PyType_Ready(&Ini_Type);
-    error = PyErr_NewException("emc.error", PyExc_RuntimeError, NULL);
+    error = PyErr_NewException((char*)"emc.error", PyExc_RuntimeError, NULL);
 
     PyModule_AddObject(m, "stat", (PyObject*)&Stat_Type);
     PyModule_AddObject(m, "command", (PyObject*)&Command_Type);
@@ -2168,6 +2185,10 @@ initemc(void) {
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO);
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_DELAY);
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD);
+
+    ENUM(RCS_DONE);
+    ENUM(RCS_EXEC);
+    ENUM(RCS_ERROR);
 }
 
 

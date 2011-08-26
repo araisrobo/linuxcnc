@@ -7,8 +7,8 @@ Build-Depends: debhelper (>> 4.0.0),
     tcl@TCLTK_VERSION@-dev, tk@TCLTK_VERSION@-dev, bwidget, cpio,
     libxaw7-dev, libncurses-dev, libreadline5-dev,
     xsltproc, groff, dvipng, 
-    lyx, ghostscript, imagemagick, texlive-latex-base, texlive-extra-utils,
-    texlive-font-utils, python, python-dev, python-tk,
+    lyx-qt | lyx, ghostscript, imagemagick, texlive-latex-base, texlive-extra-utils,
+    texlive-font-utils, python, python-dev, python-support, python-tk,
     libglu1-mesa-dev, libgl1-mesa-dev | libgl1-mesa-swx11-dev,
     libgtk2.0-dev, libgnomeprintui2.2-dev, libwou-dev (>= 0.1-9),
     gettext, autoconf
@@ -20,7 +20,7 @@ Provides: emc2-dev
 Depends: g++, @KERNEL_HEADERS@,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends},
-    @EMC2_PACKAGE_NAME@ (= ${Source-Version}), libwou-dev (>= 0.1-9),
+    @EMC2_PACKAGE_NAME@ (= ${binary:Version}), libwou-dev,
     yapps2-runtime
 Section: libs
 Description: PC based motion controller for real-time Linux
@@ -39,7 +39,7 @@ Architecture: any
 Recommends: hostmot2-firmware, emc2-doc-en | emc2-doc-fr
 Depends: ${shlibs:Depends}, @KERNEL_DEPENDS@,
     tcl@TCLTK_VERSION@, tk@TCLTK_VERSION@, bwidget (>= 1.7),
-    libreadline5, libwou (>= 0.1-9),
+    libreadline5, libwou,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends},
     python@PYTHON_VERSION@-tk,
@@ -47,13 +47,14 @@ Depends: ${shlibs:Depends}, @KERNEL_DEPENDS@,
     python@PYTHON_VERSION@-numpy | python-numpy,
     python@PYTHON_VERSION@-imaging,
     python@PYTHON_VERSION@-imaging-tk | python-imaging-tk,
+    python-xlib, python-gtkglext1, python-configobj,
 Description: PC based motion controller for real-time Linux
  EMC2 is the next-generation Enhanced Machine Controller which
  provides motion control for CNC machine tools and robotic
  applications (milling, cutting, routing, etc.).
 
 Package: emc2-doc-en
-Conflicts: emc2 (< 2.5.0~pre1)
+Conflicts: emc2 (<< 1:2.5.0~pre), emc2-sim (<< 1:2.5.0~pre)
 Architecture: all
 Suggests: pdf-viewer
 Description: PC based motion controller for real-time Linux
@@ -64,7 +65,7 @@ Description: PC based motion controller for real-time Linux
  This package contains the documentation in English.
 
 Package: emc2-doc-fr
-Conflicts: emc2 (< 2.5.0~pre1)
+Conflicts: emc2 (<< 1:2.5.0~pre), emc2-sim (<< 1:2.5.0~pre)
 Architecture: all
 Suggests: pdf-viewer
 Description: PC based motion controller for real-time Linux

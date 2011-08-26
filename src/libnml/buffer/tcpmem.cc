@@ -50,7 +50,7 @@ void tcpmem_sigpipe_handler(int sig)
     tcpmem_sigpipe_count++;
 }
 
-TCPMEM::TCPMEM(char *_bufline, char *_procline):CMS(_bufline, _procline)
+TCPMEM::TCPMEM(const char *_bufline, const char *_procline):CMS(_bufline, _procline)
 {
     max_consecutive_timeouts = DEFAULT_MAX_CONSECUTIVE_TIMEOUTS;
     char *max_consecutive_timeouts_string;
@@ -144,6 +144,21 @@ TCPMEM::TCPMEM(char *_bufline, char *_procline):CMS(_bufline, _procline)
     }
 }
 
+static void put32(char *addr, uint32_t val) {
+    memcpy(addr, &val, sizeof(val));
+}
+
+static void putbe32(char *addr, uint32_t val) {
+    val = htonl(val);
+    memcpy(addr, &val, sizeof(val));
+}
+
+static uint32_t getbe32(char *addr) {
+    uint32_t val;
+    memcpy(&val, addr, sizeof(val));
+    return ntohl(val);
+}
+
 void
   TCPMEM::send_diag_info()
 {
@@ -157,16 +172,15 @@ void
 
     set_socket_fds(read_socket_fd);
     memset(diag_info_buf, 0, 88);
-    *((u_long *) diag_info_buf) = htonl((u_long) serial_number);
-    *((u_long *) diag_info_buf + 1) =
-	htonl((u_long) REMOTE_CMS_SET_DIAG_INFO_REQUEST_TYPE);
-    *((u_long *) diag_info_buf + 2) = htonl((u_long) buffer_number);
+    putbe32(diag_info_buf, (uint32_t)serial_number);
+    putbe32(diag_info_buf + 4, REMOTE_CMS_SET_DIAG_INFO_REQUEST_TYPE);
+    putbe32(diag_info_buf + 8, buffer_number);
     strncpy(diag_info_buf + 20, dpi->name, 16);
     strncpy(diag_info_buf + 36, dpi->host_sysinfo, 32);
-    *((u_long *) (diag_info_buf + 68)) = htonl((u_long) dpi->pid);
-    *((u_long *) (diag_info_buf + 72)) = htonl((u_long) connection_number);
+    putbe32(diag_info_buf + 68, (uint32_t) dpi->pid);
+    putbe32(diag_info_buf + 72, (uint32_t) connection_number);
     memcpy(diag_info_buf + 76, &(dpi->rcslib_ver), 8);
-    *((u_long *) (diag_info_buf + 84)) = 0x11223344;
+    put32(diag_info_buf + 84, (uint32_t) 0x11223344);
     if (sendn(socket_fd, diag_info_buf, 88, 0, timeout) < 0) {
 	reconnect_needed = 1;
 	fatal_error_occurred = 1;
@@ -176,7 +190,7 @@ void
     }
     serial_number++;
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM sending request: fd = %d, serial_number=%d, request_type=%d, buffer_number=%d\n",
+	"TCPMEM sending request: fd = %d, serial_number=%ld, request_type=%d, buffer_number=%ld\n",
 	socket_fd, serial_number,
 	ntohl(*((u_long *) diag_info_buf + 1)), buffer_number);
     reenable_sigpipe();
@@ -192,10 +206,9 @@ void TCPMEM::verify_bufname()
 
     set_socket_fds(read_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_GET_BUF_NAME_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 1, REMOTE_CMS_GET_BUF_NAME_REQUEST_TYPE);
+    putbe32(temp_buffer + 2, buffer_number);
     if (sendn(socket_fd, temp_buffer, 20, 0, timeout) < 0) {
 	reconnect_needed = 1;
 	fatal_error_occurred = 1;
@@ -205,7 +218,7 @@ void TCPMEM::verify_bufname()
     }
     serial_number++;
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM sending request: fd = %d, serial_number=%d, request_type=%d, buffer_number=%d\n",
+	"TCPMEM sending request: fd = %d, serial_number=%ld, request_type=%d, buffer_number=%ld\n",
 	socket_fd, serial_number,
 	ntohl(*((u_long *) temp_buffer + 1)), buffer_number);
     if (recvn(socket_fd, temp_buffer, 40, 0, timeout, &recvd_bytes) < 0) {
@@ -214,13 +227,13 @@ void TCPMEM::verify_bufname()
 	    return;
 	}
     }
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reconnect_needed = 1;
 	fatal_error_occurred = 1;
@@ -234,7 +247,7 @@ void TCPMEM::verify_bufname()
     }
     if (strncmp(temp_buffer + 8, BufferName, 31)) {
 	rcs_print_error
-	    ("TCPMEM: The buffer (%s) is registered on TCP port %d of host %s with buffer number %d.\n",
+	    ("TCPMEM: The buffer (%s) is registered on TCP port %d of host %s with buffer number %ld.\n",
 	    ((char *) temp_buffer + 8), tcp_port_number, BufferHost,
 	    buffer_number);
 	rcs_print_error
@@ -260,10 +273,9 @@ CMS_DIAGNOSTICS_INFO *TCPMEM::get_diagnostics_info()
 
     set_socket_fds(read_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_GET_DIAG_INFO_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+    putbe32(temp_buffer, serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_GET_DIAG_INFO_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
     if (sendn(socket_fd, temp_buffer, 20, 0, timeout) < 0) {
 	reconnect_needed = 1;
 	fatal_error_occurred = 1;
@@ -274,7 +286,7 @@ CMS_DIAGNOSTICS_INFO *TCPMEM::get_diagnostics_info()
     memset(temp_buffer, 0, 0x2000);
     serial_number++;
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM sending request: fd = %d, serial_number=%d, request_type=%d, buffer_number=%d\n",
+	"TCPMEM sending request: fd = %d, serial_number=%ld, request_type=%d, buffer_number=%ld\n",
 	socket_fd, serial_number,
 	ntohl(*((u_long *) temp_buffer + 1)), buffer_number);
     if (recvn(socket_fd, temp_buffer, 32, 0, -1.0, &recvd_bytes) < 0) {
@@ -284,13 +296,13 @@ CMS_DIAGNOSTICS_INFO *TCPMEM::get_diagnostics_info()
 	return (NULL);
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reconnect_needed = 1;
 	fatal_error_occurred = 1;
@@ -502,19 +514,18 @@ void TCPMEM::reconnect()
 	    rcs_print_error("TCPMEM: verify_bufname() failed\n");
 	    return;
 	}
-	*((u_long *) temp_buffer) = htonl((u_long) serial_number);
-	*((u_long *) temp_buffer + 1) =
-	    htonl((u_long) REMOTE_CMS_SET_SUBSCRIPTION_REQUEST_TYPE);
-	*((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-	*((u_long *) temp_buffer + 3) = htonl((u_long) subscription_type);
-	*((u_long *) temp_buffer + 4) = htonl((u_long) poll_interval_millis);
+	putbe32(temp_buffer, (uint32_t) serial_number);
+	putbe32(temp_buffer + 4, REMOTE_CMS_SET_SUBSCRIPTION_REQUEST_TYPE);
+	putbe32(temp_buffer + 8, (uint32_t) buffer_number);
+	putbe32(temp_buffer + 12, (uint32_t) subscription_type);
+	putbe32(temp_buffer + 16, (uint32_t) poll_interval_millis);
 	if (sendn(socket_fd, temp_buffer, 20, 0, 30) < 0) {
 	    rcs_print_error("Can`t setup subscription.\n");
 	    subscription_type = CMS_NO_SUBSCRIPTION;
 	} else {
 	    serial_number++;
 	    rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-		"TCPMEM sending request: fd = %d, serial_number=%d, request_type=%d, buffer_number=%d\n",
+		"TCPMEM sending request: fd = %d, serial_number=%ld, request_type=%d, buffer_number=%ld\n",
 		socket_fd, serial_number,
 		ntohl(*((u_long *) temp_buffer + 1)), buffer_number);
 	    memset(temp_buffer, 0, 20);
@@ -523,7 +534,7 @@ void TCPMEM::reconnect()
 		rcs_print_error("Can`t setup subscription.\n");
 		subscription_type = CMS_NO_SUBSCRIPTION;
 	    }
-	    if (!ntohl(*((u_long *) temp_buffer) + 1)) {
+	    if (!getbe32(temp_buffer+4)) {
 		rcs_print_error("Can`t setup subscription.\n");
 		subscription_type = CMS_NO_SUBSCRIPTION;
 	    }
@@ -621,10 +632,9 @@ void TCPMEM::disconnect()
     if (write_socket_fd > 0 && write_socket_fd != socket_fd) {
 	if (status != CMS_CONFIG_ERROR && status != CMS_CREATE_ERROR) {
 	    if (delete_totally) {
-		*((u_long *) temp_buffer) = htonl((u_long) serial_number);
-		*((u_long *) temp_buffer + 1) =
-		    htonl((u_long) REMOTE_CMS_CLEAN_REQUEST_TYPE);
-		*((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+		putbe32(temp_buffer, (uint32_t) serial_number);
+		putbe32(temp_buffer + 4, REMOTE_CMS_CLEAN_REQUEST_TYPE);
+		putbe32(temp_buffer + 8, (uint32_t) buffer_number);
 		sendn(write_socket_fd, temp_buffer, 20, 0, -1);
 	    }
 	}
@@ -635,10 +645,9 @@ void TCPMEM::disconnect()
     if (socket_fd > 0) {
 	if (status != CMS_CONFIG_ERROR && status != CMS_CREATE_ERROR) {
 	    if (delete_totally) {
-		*((u_long *) temp_buffer) = htonl((u_long) serial_number);
-		*((u_long *) temp_buffer + 1) =
-		    htonl((u_long) REMOTE_CMS_CLEAN_REQUEST_TYPE);
-		*((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+		putbe32(temp_buffer, (uint32_t) serial_number);
+		putbe32(temp_buffer + 4, REMOTE_CMS_CLEAN_REQUEST_TYPE);
+		putbe32(temp_buffer + 8, (uint32_t) buffer_number);
 		sendn(socket_fd, temp_buffer, 20, 0, -1);
 	    }
 	}
@@ -681,13 +690,13 @@ CMS_STATUS TCPMEM::handle_old_replies()
 	    }
 	    recvd_bytes = 0;
 	    returned_serial_number =
-		(CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+		(CMS_STATUS) getbe32(temp_buffer);
 	    rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-		"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+		"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 		socket_fd, returned_serial_number, buffer_number);
 	    if (returned_serial_number != serial_number) {
 		rcs_print_error
-		    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+		    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 		    returned_serial_number, serial_number);
 		if (subscription_type == CMS_NO_SUBSCRIPTION) {
 		    fatal_error_occurred = 1;
@@ -782,13 +791,13 @@ CMS_STATUS TCPMEM::handle_old_replies()
 	}
 	recvd_bytes = 0;
 	returned_serial_number =
-	    (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+	    (CMS_STATUS) getbe32(temp_buffer);
 	rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	    "TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	    "TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	    socket_fd, returned_serial_number, buffer_number);
 	if (returned_serial_number != serial_number) {
 	    rcs_print_error
-		("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+		("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 		returned_serial_number, serial_number);
 	    reconnect_needed = 1;
 	    if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -818,13 +827,13 @@ CMS_STATUS TCPMEM::handle_old_replies()
 	}
 	recvd_bytes = 0;
 	returned_serial_number =
-	    (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+	    (CMS_STATUS) getbe32(temp_buffer);
 	rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	    "TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	    "TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	    socket_fd, returned_serial_number, buffer_number);
 	if (returned_serial_number != serial_number) {
 	    rcs_print_error
-		("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+		("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 		returned_serial_number, serial_number);
 	    reconnect_needed = 1;
 	    if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -938,12 +947,11 @@ CMS_STATUS TCPMEM::read()
     }
     set_socket_fds(read_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_READ_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-    *((u_long *) temp_buffer + 3) = htonl((u_long) CMS_READ_ACCESS);
-    *((u_long *) temp_buffer + 4) = htonl((u_long) in_buffer_id);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_READ_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
+    putbe32(temp_buffer + 12, CMS_READ_ACCESS);
+    putbe32(temp_buffer + 16, in_buffer_id);
 
     int send_header_size = 20;
     if (total_subdivisions > 1) {
@@ -959,7 +967,7 @@ CMS_STATUS TCPMEM::read()
     }
     serial_number++;
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM sending request: fd = %d, serial_number=%d, request_type=%d, buffer_number=%d\n",
+	"TCPMEM sending request: fd = %d, serial_number=%ld, request_type=%d, buffer_number=%ld\n",
 	socket_fd, serial_number,
 	ntohl(*((u_long *) temp_buffer + 1)), buffer_number);
 
@@ -982,14 +990,14 @@ CMS_STATUS TCPMEM::read()
 	}
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
 
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reconnect_needed = 1;
 	if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -1135,17 +1143,16 @@ CMS_STATUS TCPMEM::blocking_read(double _blocking_timeout)
     }
     set_socket_fds(read_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_BLOCKING_READ_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-    *((u_long *) temp_buffer + 3) = htonl((u_long) CMS_READ_ACCESS);
-    *((u_long *) temp_buffer + 4) = htonl((u_long) in_buffer_id);
-    *((u_long *) temp_buffer + 5) = htonl((u_long) timeout_millis);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_BLOCKING_READ_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
+    putbe32(temp_buffer + 12, CMS_READ_ACCESS);
+    putbe32(temp_buffer + 16, (uint32_t) in_buffer_id);
+    putbe32(temp_buffer + 20, (uint32_t) timeout_millis);
 
     int send_header_size = 24;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 6) = htonl((u_long) current_subdivision);
+        putbe32(temp_buffer + 24, (uint32_t) current_subdivision);
 	send_header_size = 28;
     }
     if (sendn(socket_fd, temp_buffer, send_header_size, 0, blocking_timeout) <
@@ -1160,8 +1167,8 @@ CMS_STATUS TCPMEM::blocking_read(double _blocking_timeout)
     }
     serial_number++;
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM sending request: fd = %d, serial_number=%d, "
-	"request_type=%d, buffer_number=%d\n",
+	"TCPMEM sending request: fd = %d, serial_number=%ld, "
+	"request_type=%d, buffer_number=%ld\n",
 	socket_fd, serial_number,
 	ntohl(*((u_long *) temp_buffer + 1)), buffer_number);
     if (recvn(socket_fd, temp_buffer, 20, 0, blocking_timeout, &recvd_bytes) <
@@ -1186,14 +1193,14 @@ CMS_STATUS TCPMEM::blocking_read(double _blocking_timeout)
     }
     print_recvn_timeout_errors = orig_print_recvn_timeout_errors;
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
 
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reconnect_needed = 1;
 	if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -1336,15 +1343,14 @@ CMS_STATUS TCPMEM::peek()
     }
     set_socket_fds(read_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_READ_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-    *((u_long *) temp_buffer + 3) = htonl((u_long) CMS_PEEK_ACCESS);
-    *((u_long *) temp_buffer + 4) = htonl((u_long) in_buffer_id);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_READ_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
+    putbe32(temp_buffer + 12, CMS_PEEK_ACCESS);
+    putbe32(temp_buffer + 16, (uint32_t) in_buffer_id);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 5) = htonl((u_long) current_subdivision);
+	*((u_long *) temp_buffer + 20) = htonl((u_long) current_subdivision);
 	send_header_size = 24;
     }
     if (sendn(socket_fd, temp_buffer, send_header_size, 0, timeout) < 0) {
@@ -1374,14 +1380,14 @@ CMS_STATUS TCPMEM::peek()
 	}
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
 
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reconnect_needed = 1;
 	if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -1475,15 +1481,14 @@ CMS_STATUS TCPMEM::write(void *user_data)
     }
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_WRITE_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-    *((u_long *) temp_buffer + 3) = htonl((u_long) CMS_WRITE_ACCESS);
-    *((u_long *) temp_buffer + 4) = htonl((u_long) header.in_buffer_size);
+    putbe32(temp_buffer, serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_WRITE_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (u_long) buffer_number);
+    putbe32(temp_buffer + 12, CMS_WRITE_ACCESS);
+    putbe32(temp_buffer + 16, (u_long) header.in_buffer_size);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 5) = htonl((u_long) current_subdivision);
+        putbe32(temp_buffer + 20,(u_long) current_subdivision);
 	send_header_size = 24;
     }
     if (header.in_buffer_size < 0x2000 - 20 && header.in_buffer_size > 0) {
@@ -1493,7 +1498,7 @@ CMS_STATUS TCPMEM::write(void *user_data)
 	    (socket_fd, temp_buffer, header.in_buffer_size + send_header_size,
 		0, timeout) < 0) {
 	    rcs_print_error
-		("TCPMEM: Failed to send message of size %d + header of size %d  to the server.\n",
+		("TCPMEM: Failed to send message of size %ld + header of size %d  to the server.\n",
 		header.in_buffer_size, send_header_size);
 	    reconnect_needed = 1;
 	    reenable_sigpipe();
@@ -1534,14 +1539,14 @@ CMS_STATUS TCPMEM::write(void *user_data)
 	}
 	recvd_bytes = 0;
 	returned_serial_number =
-	    (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+	    (CMS_STATUS) getbe32(temp_buffer);
 	rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	    "TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	    "TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	    socket_fd, returned_serial_number, buffer_number);
 
 	if (returned_serial_number != serial_number) {
 	    rcs_print_error
-		("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+		("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 		returned_serial_number, serial_number);
 	    reconnect_needed = 1;
 	    if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -1601,15 +1606,14 @@ CMS_STATUS TCPMEM::write_if_read(void *user_data)
 
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_WRITE_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-    *((u_long *) temp_buffer + 3) = htonl((u_long) CMS_WRITE_IF_READ_ACCESS);
-    *((u_long *) temp_buffer + 4) = htonl((u_long) header.in_buffer_size);
+    putbe32( temp_buffer, (uint32_t) serial_number);
+    putbe32( temp_buffer + 4, REMOTE_CMS_WRITE_REQUEST_TYPE);
+    putbe32( temp_buffer + 8, (uint32_t) buffer_number);
+    putbe32( temp_buffer + 12, CMS_WRITE_IF_READ_ACCESS);
+    putbe32( temp_buffer + 16, (uint32_t) header.in_buffer_size);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 5) = htonl((u_long) current_subdivision);
+        putbe32( temp_buffer + 20, (uint32_t) current_subdivision);
 	send_header_size = 24;
     }
     if (header.in_buffer_size < 0x2000 - 20 && header.in_buffer_size > 0) {
@@ -1655,13 +1659,13 @@ CMS_STATUS TCPMEM::write_if_read(void *user_data)
 	}
 	recvd_bytes = 0;
 	returned_serial_number =
-	    (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+	    (CMS_STATUS) getbe32(temp_buffer);
 	rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	    "TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	    "TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	    socket_fd, returned_serial_number, buffer_number);
 	if (returned_serial_number != serial_number) {
 	    rcs_print_error
-		("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+		("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 		returned_serial_number, serial_number);
 	    reconnect_needed = 1;
 	    if (subscription_type == CMS_NO_SUBSCRIPTION) {
@@ -1713,13 +1717,12 @@ int TCPMEM::check_if_read()
 
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_CHECK_IF_READ_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_CHECK_IF_READ_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 3) = htonl((u_long) current_subdivision);
+        putbe32(temp_buffer + 12, (uint32_t) current_subdivision);
     }
     if (sendn(socket_fd, temp_buffer, send_header_size, 0, timeout) < 0) {
 	status = CMS_MISC_ERROR;
@@ -1744,13 +1747,13 @@ int TCPMEM::check_if_read()
 	}
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reenable_sigpipe();
 	return (status = CMS_MISC_ERROR);
@@ -1794,13 +1797,12 @@ int TCPMEM::get_queue_length()
 
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_GET_QUEUE_LENGTH_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_GET_QUEUE_LENGTH_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 3) = htonl((u_long) current_subdivision);
+        putbe32(temp_buffer + 16, (uint32_t) current_subdivision);
     }
     if (sendn(socket_fd, temp_buffer, send_header_size, 0, timeout) < 0) {
 	status = CMS_MISC_ERROR;
@@ -1825,13 +1827,13 @@ int TCPMEM::get_queue_length()
 	}
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reenable_sigpipe();
 	return (status = CMS_MISC_ERROR);
@@ -1875,13 +1877,12 @@ int TCPMEM::get_msg_count()
 
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_GET_MSG_COUNT_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_GET_MSG_COUNT_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, (uint32_t) buffer_number);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 3) = htonl((u_long) current_subdivision);
+        putbe32(temp_buffer + 12, (uint32_t) current_subdivision);
     }
     if (sendn(socket_fd, temp_buffer, send_header_size, 0, timeout) < 0) {
 	status = CMS_MISC_ERROR;
@@ -1906,13 +1907,13 @@ int TCPMEM::get_msg_count()
 	}
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reenable_sigpipe();
 	return (status = CMS_MISC_ERROR);
@@ -1956,13 +1957,12 @@ int TCPMEM::get_space_available()
 
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_GET_SPACE_AVAILABLE_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_GET_SPACE_AVAILABLE_REQUEST_TYPE);
+    putbe32(temp_buffer + 8,buffer_number);
     int send_header_size = 20;
     if (total_subdivisions > 1) {
-	*((u_long *) temp_buffer + 3) = htonl((u_long) current_subdivision);
+        putbe32(temp_buffer + 12, current_subdivision);
     }
     if (sendn(socket_fd, temp_buffer, send_header_size, 0, timeout) < 0) {
 	status = CMS_MISC_ERROR;
@@ -1987,13 +1987,13 @@ int TCPMEM::get_space_available()
 	}
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reenable_sigpipe();
 	return (status = CMS_MISC_ERROR);
@@ -2032,11 +2032,10 @@ CMS_STATUS TCPMEM::clear()
 
     set_socket_fds(write_socket_fd);
 
-    *((u_long *) temp_buffer) = htonl((u_long) serial_number);
-    *((u_long *) temp_buffer + 1) =
-	htonl((u_long) REMOTE_CMS_CLEAR_REQUEST_TYPE);
-    *((u_long *) temp_buffer + 2) = htonl((u_long) buffer_number);
-    *((u_long *) temp_buffer + 3) = htonl((u_long) current_subdivision);
+    putbe32(temp_buffer, (uint32_t) serial_number);
+    putbe32(temp_buffer + 4, REMOTE_CMS_CLEAR_REQUEST_TYPE);
+    putbe32(temp_buffer + 8, buffer_number);
+    putbe32(temp_buffer + 12, current_subdivision);
 
     if (sendn(socket_fd, temp_buffer, 20, 0, timeout) < 0) {
 	reconnect_needed = 1;
@@ -2054,14 +2053,14 @@ CMS_STATUS TCPMEM::clear()
 	    return (status = CMS_MISC_ERROR);
 	}
     }
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
-	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
+	"TCPMEM recieved_reply: fd = %d, serial_number=%ld, buffer_number=%ld\n",
 	socket_fd, returned_serial_number, buffer_number);
 
     if (returned_serial_number != serial_number) {
 	rcs_print_error
-	    ("TCPMEM: Returned serial number(%d) does not match expected serial number(%d).\n",
+	    ("TCPMEM: Returned serial number(%ld) does not match expected serial number(%ld).\n",
 	    returned_serial_number, serial_number);
 	reconnect_needed = 1;
 	return (status = CMS_MISC_ERROR);
@@ -2111,7 +2110,7 @@ int TCPMEM::login(const char *name, const char *passwd)
 	return 0;
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
 	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
 	socket_fd, returned_serial_number, buffer_number);
@@ -2156,7 +2155,7 @@ int TCPMEM::login(const char *name, const char *passwd)
 	return 0;
     }
     recvd_bytes = 0;
-    returned_serial_number = (CMS_STATUS) ntohl(*((u_long *) temp_buffer));
+    returned_serial_number = (CMS_STATUS) getbe32(temp_buffer);
     rcs_print_debug(PRINT_ALL_SOCKET_REQUESTS,
 	"TCPMEM recieved_reply: fd = %d, serial_number=%d, buffer_number=%d\n",
 	socket_fd, returned_serial_number, buffer_number);

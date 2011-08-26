@@ -355,10 +355,9 @@ proc put_file_contents {f c} {
 
 proc prompt_copy configname {
 
-    set res [tk_dialog .d [msgcat::mc "Copy Configuration?"] [msgcat::mc "Would you like to copy the %s configuration to your home directory so you can customize it?" $configname] warning 0 [msgcat::mc "Yes"] [msgcat::mc "No"] [msgcat::mc "Cancel"]]
+    set res [tk_dialog .d [msgcat::mc "Copy Configuration?"] [msgcat::mc "Would you like to copy the %s configuration to your home directory so you can customize it?" $configname] warning 0 [msgcat::mc "Yes"] [msgcat::mc "Cancel"]]
 
-    if {$res == -1 || $res == 2} { return "" }
-    if {$res == 1} { return $configname }
+    if {$res == -1 || $res == 1} { return "" }
     set configdir [format %s [file dirname $configname]]
     set copydir [format %s [file join $emc::USER_CONFIG_DIR [file tail $configdir]]]
     set copybase $copydir
@@ -378,6 +377,7 @@ proc prompt_copy configname {
 
         eval file copy [glob -directory $configdir *] [list $copydir]
         foreach f [glob -directory $copydir *] {
+	    file attributes $f -permissions u+w
 	    if {[file extension $f] == ".ini"} {
 		set c [get_file_contents $f]
 		regsub {(?n)^(PROGRAM_PREFIX\s*=\s*).*$} $c "\\1$ncfiles" c
@@ -415,6 +415,7 @@ proc make_shortcut {inifile} {
 	set filename $filename0${i}.desktop
     }
     exec emcmkdesktop $inifile $name > $filename
+    file attributes $filename -permissions +x
     tk_dialog .d [msgcat::mc "Shortcut Created"] [msgcat::mc "A shortcut to this configuration file has been created on your desktop.  You can use it to automatically launch this configuration."] info 0 [msgcat::mc "OK"]
 }
 

@@ -158,6 +158,7 @@ static unsigned int compute_response_size(modbus_param_t *mb_param,
 	  (coil_count / 8) + ((coil_count % 8) ? 1 : 0);
     }	break;
     case 0x03:
+    case 0x04:
       /* Header + 2 * nb values */
       response_size_computed = 3 + 
 	  2 * (query[offset + 4] << 8 | query[offset + 5]);
@@ -416,13 +417,8 @@ static int check_crc16(modbus_param_t *mb_param,
   if (mb_param->type_com == RTU) {
     unsigned short crc_calc;
     unsigned short crc_received;
-    unsigned char recv_crc_hi;
-    unsigned char recv_crc_lo;
 		
     crc_calc = crc16(response, response_size - 2);
-		
-    recv_crc_hi = (unsigned) response[response_size - 2];
-    recv_crc_lo = (unsigned) response[response_size - 1];
 		
     crc_received = response[response_size - 2];
     crc_received = (unsigned) crc_received << 8;

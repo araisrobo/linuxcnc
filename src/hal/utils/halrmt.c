@@ -23,7 +23,7 @@
              --enablepw <password> --sessions <max sessions> -ini<inifile>}
 
   With -- --port Waits for socket connections (Telnet) on specified socket, without port
-            uses default port 5007.
+            uses default port 5006. (note: emcrsh uses 5007 as default)
   With -- --name <server name> Sets the server name to specified name for Hello.
   With -- --connectpw <password> Sets the connection password to 'password'. Default EMC
   With -- --enablepw <password> Sets the enable password to 'password'. Default EMCTOO
@@ -347,7 +347,7 @@ int done = 0;		/* used to break out of processing loop */
 int linenumber=0;	/* used to print linenumber on errors */
 int scriptmode = 0;	/* used to make output "script friendly" (suppress headers) */
 int prompt_mode = 0;	/* when getting input from stdin, print a prompt */
-char comp_name[HAL_NAME_LEN];	/* name for this instance of halrmt */
+char comp_name[HAL_NAME_LEN+1];	/* name for this instance of halrmt */
 
 char pwd[16] = "EMC\0";              // Connect password
 char enablePWD[16] = "EMCTOO\0";     // Enable password
@@ -404,7 +404,9 @@ struct option longopts[] = {
   {"name", 1, NULL, 'n'},
   {"sessions", 1, NULL, 's'},
   {"connectpw", 1, NULL, 'w'},
-  {"enablepw", 1, NULL, 'e'}};
+  {"enablepw", 1, NULL, 'e'},
+  {0,0,0,0}
+};
 
 const char *commands[] = {"HELLO", "SET", "GET", "QUIT", "SHUTDOWN", "HELP", ""};
 const char *halCommands[] = {
@@ -449,7 +451,10 @@ static void strupr(char *s)
 
 static int initSockets()
 {
+  int optval = 1;
+
   server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
   server_address.sin_family = AF_INET;
   server_address.sin_addr.s_addr = htonl(INADDR_ANY);
   server_address.sin_port = htons(port);
@@ -1252,8 +1257,11 @@ static int doDelsig(char *mod_name, connectionRecType *context)
       while (next != 0) {
         sig = SHMPTR(next);
         /* we want to unload this signal, remember it's name */
-        if (n < ( MAX_EXPECTED_SIGS - 1))
-          strncpy(sigs[n++], sig->name, HAL_NAME_LEN );
+        if (n < ( MAX_EXPECTED_SIGS - 1)) {
+          strncpy(sigs[n], sig->name, HAL_NAME_LEN );
+	  sigs[n][HAL_NAME_LEN] = '\0';
+	  n++;
+	  }
         next = sig->next_ptr;
 	}
       rtapi_mutex_give(&(hal_data->mutex));
@@ -1306,7 +1314,9 @@ static int doUnload(char *mod_name, connectionRecType *context)
 	    if ( all || ( strcmp(mod_name, comp->name) == 0 )) {
 		/* we want to unload this component, remember its name */
 		if ( n < 63 ) {
-		    strncpy(comps[n++], comp->name, HAL_NAME_LEN );
+		    strncpy(comps[n], comp->name, HAL_NAME_LEN );
+		    comps[n][HAL_NAME_LEN] = '\0';
+		    n++;
 		}
 	    }
 	}
@@ -3441,7 +3451,7 @@ int main(int argc, char **argv)
       }
     keep_going = 0;
     /* start parsing halcmd options */
-    n = 1;
+    n = optind;
     while ((n < argc) && (argv[n][0] == '-')) {
 	cp1 = argv[n++];
 	/* loop to parse grouped options */
@@ -3550,7 +3560,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
     /* at this point all options are parsed, connect to HAL */
     /* create a unique module name, to allow for multiple halrmt's */
-    snprintf(comp_name, HAL_NAME_LEN-1, "halrmt%d", getpid());
+    snprintf(comp_name, HAL_NAME_LEN, "halrmt%d", getpid());
     /* tell the signal handler that we might have the mutex */
     hal_flag = 1;
     /* connect to the HAL */

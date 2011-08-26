@@ -124,25 +124,27 @@ class PM_CARTESIAN;
 #define EMC_TRAJ_RESUME_TYPE                         ((NMLTYPE) 218)
 #define EMC_TRAJ_DELAY_TYPE                          ((NMLTYPE) 219)
 #define EMC_TRAJ_LINEAR_MOVE_TYPE                    ((NMLTYPE) 220)
+
 #define EMC_TRAJ_CIRCULAR_MOVE_TYPE                  ((NMLTYPE) 221)
 #define EMC_TRAJ_SET_TERM_COND_TYPE                  ((NMLTYPE) 222)
 #define EMC_TRAJ_SET_OFFSET_TYPE                     ((NMLTYPE) 223)
-#define EMC_TRAJ_SET_ORIGIN_TYPE                     ((NMLTYPE) 224)
+#define EMC_TRAJ_SET_G5X_TYPE                        ((NMLTYPE) 224)
 #define EMC_TRAJ_SET_HOME_TYPE                       ((NMLTYPE) 225)
 #define EMC_TRAJ_SET_ROTATION_TYPE                   ((NMLTYPE) 226)
-#define EMC_TRAJ_NURBS_MOVE_TYPE                    ((NMLTYPE) 227)
-/* gap because of removed messages */
-
+#define EMC_TRAJ_SET_G92_TYPE                        ((NMLTYPE) 227)
 #define EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE       ((NMLTYPE) 228)
 #define EMC_TRAJ_PROBE_TYPE                          ((NMLTYPE) 229)
 #define EMC_TRAJ_SET_TELEOP_ENABLE_TYPE              ((NMLTYPE) 230)
+
 /* gap because of removed message EMC_TRAJ_SET_TELEOP_VECTOR (now handled by regular jog commands) */
+#define EMC_TRAJ_NURBS_MOVE_TYPE                     ((NMLTYPE) 231)
 #define EMC_TRAJ_SET_SPINDLESYNC_TYPE                ((NMLTYPE) 232)
 #define EMC_TRAJ_SET_SPINDLE_SCALE_TYPE              ((NMLTYPE) 233)
 #define EMC_TRAJ_SET_FO_ENABLE_TYPE                  ((NMLTYPE) 234)
 #define EMC_TRAJ_SET_SO_ENABLE_TYPE                  ((NMLTYPE) 235)
 #define EMC_TRAJ_SET_FH_ENABLE_TYPE                  ((NMLTYPE) 236)
 #define EMC_TRAJ_RIGID_TAP_TYPE                      ((NMLTYPE) 237)
+
 
 #define EMC_TRAJ_STAT_TYPE                           ((NMLTYPE) 299)
 
@@ -371,13 +373,13 @@ extern char **Argv;
 // intended to be implemented in main() file, by writing to NML buffer
 
 // print an error
-extern int emcOperatorError(int id, const char *fmt, ...);
+extern int emcOperatorError(int id, const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // print general text
-extern int emcOperatorText(int id, const char *fmt, ...);
+extern int emcOperatorText(int id, const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // print note to operator
-extern int emcOperatorDisplay(int id, const char *fmt, ...);
+extern int emcOperatorDisplay(int id, const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // implementation functions for EMC_AXIS types
 
@@ -406,7 +408,7 @@ extern int emcJointSetMinFerror(int joint, double ferror);
 extern int emcJointSetHomingParams(int joint, double home, double offset, double home_vel,
                                   double search_vel, double latch_vel,
                                   int use_index, int ignore_limits,
-                                  int is_shared, int home_sequence, int volatile_home);
+				  int is_shared, int home_sequence, int volatile_home, int locking_indexer);
 extern int emcJointSetMaxVelocity(int joint, double vel);
 extern int emcJointSetMaxAcceleration(int joint, double acc);
 
@@ -459,7 +461,7 @@ extern int emcTrajStep();
 extern int emcTrajResume();
 extern int emcTrajDelay(double delay);
 extern int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel,
-        double acc, double jerk);
+                             double acc, double jerk, int indexrotary);
 extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block, double vel, double ini_maxvel,
                             double ini_maxacc,double ini_maxjerk);
 extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
@@ -513,8 +515,10 @@ extern int emcTaskPlanExecute(const char *command, int line_number); //used in c
 extern int emcTaskPlanPause();
 extern int emcTaskPlanResume();
 extern int emcTaskPlanClose();
+extern int emcTaskPlanReset();
 
 extern int emcTaskPlanLine();
+extern int emcTaskPlanLevel();
 extern int emcTaskPlanCommand(char *cmd);
 
 extern int emcTaskUpdate(EMC_TASK_STAT * stat);

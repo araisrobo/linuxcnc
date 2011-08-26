@@ -136,7 +136,7 @@ net ACOK hm2_5i20.0.gpio.035.in_not
 #net VFDOK hm2_5i20.0.gpio.031.in_not
 #net Ahome hm2_5i20.0.gpio.031.in joint.3.home-sw-in
 # Spindle Contactor - False when spindle contactor is energized
-net SOFF hm2_5i20.0.gpio.033.in motion.feed-hold
+net SOFF hm2_5i20.0.gpio.033.in halui.program.pause motion.feed-hold
 
 # Axis Drive Status Signals
 # True when YAKO stepper drive is on a full step position
@@ -158,7 +158,11 @@ net KA2 motion.spindle-on => hm2_5i20.0.gpio.042.out
 # Flood Coolant
 setp hm2_5i20.0.gpio.043.is_output TRUE
 setp hm2_5i20.0.gpio.043.invert_output TRUE
-net M7 hm2_5i20.0.gpio.043.out => iocontrol.0.coolant-flood
+net M8 hm2_5i20.0.gpio.043.out => iocontrol.0.coolant-flood
+# Mist Coolant
+setp hm2_5i20.0.gpio.045.is_output TRUE
+setp hm2_5i20.0.gpio.045.invert_output TRUE
+net M7 hm2_5i20.0.gpio.045.out => iocontrol.0.coolant-mist
 
 # hook the functions to threads
 # read inputs

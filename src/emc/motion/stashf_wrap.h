@@ -21,7 +21,6 @@
 
 const char *fmt, *efmt;
     int result;
-    int total=0;
 
     result = dbuf_get_string(o, &fmt);
     if(result < 0) return result;
@@ -38,7 +37,7 @@ const char *fmt, *efmt;
 
         switch(code) {
             case '%':
-                result = PRINT(block);
+                result = PRINT("%s", block);
                 break;
             case 'c': case 'd': case 'i': case 'x': case 'u': case 'X':
                 if(modifier_l)
@@ -74,14 +73,12 @@ const char *fmt, *efmt;
                 break;
         }
         if(result < 0) return SET_ERRNO(result);
-        total += result;
         EXTRA
         fmt = efmt;
     }
     if(*fmt) {
-        result = PRINT(fmt);
+        result = PRINT("%s", fmt);
         if(result < 0) return SET_ERRNO(result);
-        total += result;
         EXTRA
     }
 

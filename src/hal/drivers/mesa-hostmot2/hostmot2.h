@@ -28,6 +28,10 @@
 #include "hostmot2-lowlevel.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
+typedef unsigned long gfp_t;
+char *kstrdup(const char *s, gfp_t gpf);
+#endif
 void argv_free(char **argv);
 char **argv_split(gfp_t gfp, const char *str, int *argcp);
 #endif
@@ -100,6 +104,11 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp);
 #define HM2_GTAG_STEPGEN          (5)
 #define HM2_GTAG_PWMGEN           (6)
 #define HM2_GTAG_TRANSLATIONRAM  (11)
+#define HM2_GTAG_TPPWM           (19)
+#define HM2_GTAG_LED            (128)
+#define HM2_GTAG_MUXED_ENCODER   (12)
+#define HM2_GTAG_MUXED_ENCODER_SEL (13)
+#define HM2_GTAG_SMARTSERIAL    (193)
 
 
 
@@ -390,6 +399,178 @@ typedef struct {
 } hm2_pwmgen_t;
 
 
+//
+// 3-Phase pwmgen
+//
+
+
+typedef struct {
+
+    struct {
+
+        struct {
+            hal_float_t *Avalue;
+            hal_float_t *Bvalue;
+            hal_float_t *Cvalue;
+            hal_bit_t *fault;
+            hal_bit_t *enable;
+        } pin;
+
+        struct {
+            hal_float_t scale;
+            hal_float_t deadzone;
+            hal_bit_t faultpolarity;
+            hal_float_t sampletime;
+        } param;
+
+    } hal;
+
+    // these keep track of the written values of each register so we
+    // know if an update-write is needed
+    // enable is a little more complicated and is based on the read-back
+    // of the fault/enable register
+    float written_deadzone;
+    int written_faultpolarity;
+    float written_sampletime;
+} hm2_tp_pwmgen_instance_t;
+
+typedef struct {
+    struct {
+        hal_u32_t pwm_frequency; // One PWM rate for all instances
+    } param;
+} hm2_tp_pwmgen_global_hal_t;
+
+typedef struct {
+    int num_instances;
+
+    hm2_tp_pwmgen_instance_t *instance;
+
+    hm2_tp_pwmgen_global_hal_t *hal;
+
+    u32 clock_frequency;
+    u8 version;
+
+    // these keep track of the most recent hal->param.p{d,w}m_frequency
+    // that we've told the FPGA about, so we know if we need to update it
+    u32 written_pwm_frequency;
+
+    u32 pwm_value_addr; // All three phases share a register (10 bits each)
+    u32 *pwm_value_reg; // Pointer to a memory block that holds the set.
+
+    u32 setup_addr; // holds dead-time, fault polarity and ADC sample time
+    u32 *setup_reg;
+
+    u32 enable_addr; // a 32-bit enable register for each tp_pwmgen. Seems excessive
+    u32 *enable_reg;
+
+    u32 pwmgen_master_rate_dds_addr;
+    u32 pwmgen_master_rate_dds_reg;  // one register for the whole Function
+
+} hm2_tp_pwmgen_t;
+
+//
+// sserial (Smart Serial Interface)
+//
+
+#define HM2_SSERIAL_TYPE_8I20               0x80  // this is the magic cookie returned by this module type
+#define HM2_SSERIAL_TYPE_7I64               0x74  // More to be added later.
+
+
+typedef struct {
+    struct {
+        hal_float_t *hm2_phase_angle;
+        hal_float_t *hm2_current;
+        hal_float_t *hm2_bus_voltage;
+        hal_float_t *hm2_card_temp;
+        hal_u32_t   *hm2_fault;
+        hal_u32_t   *hm2_status;
+        hal_u32_t   *hm2_comms;
+        hal_bit_t   *enable;
+        hal_u32_t   *hm2_reg_cs;
+        hal_u32_t   *hm2_reg_0;
+        hal_u32_t   *hm2_reg_1;
+    }pin;
+    struct{
+        hal_float_t hm2_nv_max_current;
+        hal_float_t hm2_max_current;
+        hal_u32_t hm2_serialnumber;
+    }param;
+}hal_8i20_t;
+
+typedef struct {
+    struct{
+        hal_bit_t *digital_in[24];
+        hal_bit_t *digital_in_not[24];
+        hal_bit_t *digital_out[24];
+        hal_float_t *analogue_in[2];
+    }pin;
+    struct{
+        hal_bit_t invert[24];
+    }param;
+    hal_u32_t in_reg;
+    hal_u32_t out_reg;
+    hal_u32_t hm2_serialnumber;
+}hal_7i64_t;
+
+typedef struct {
+    u32 *reg_cs_read;
+    u32 *reg_cs_write;
+    u32 *reg_0_read;
+    u32 *reg_0_write;
+    u32 *reg_1_read;
+    u32 *reg_1_write;
+    u32 reg_cs_addr;
+    u32 reg_0_addr;
+    u32 reg_1_addr;
+    u32 tag;
+    u32 reg_command_addr; // a duplicate so that a single channel can be passed
+    u32 reg_data_addr;
+}hm2_sserial_tram_t;
+
+typedef struct {
+    int device_id;
+    int num_8i20;
+    unsigned char tag_8i20;
+    hal_8i20_t *hal_8i20;
+    hm2_sserial_tram_t *tram_8i20;
+    int num_7i64;
+    unsigned char tag_7i64;
+    hal_7i64_t *hal_7i64;
+    hm2_sserial_tram_t *tram_7i64;
+    int num_all;
+    unsigned char tag_all;
+
+    int num_channels;
+    int module_index;
+    u32 command_reg_addr;
+    u32 *command_reg_read;
+    u32 *command_reg_write;
+    u32 data_reg_addr;
+    u32 *data_reg_read;
+    u32 *data_reg_write;
+
+    hal_bit_t *run;
+    hal_u32_t *state;
+    u32 timer;
+} hm2_sserial_instance_t;
+
+typedef struct {
+    // global config pins
+    hal_u32_t *port;
+    hal_u32_t *channel;
+    hal_bit_t *read;
+    hal_bit_t *write;
+    hal_u32_t *parameter;
+    hal_u32_t *value;
+    hal_u32_t *state;
+} hm2_sserial_hal_t;
+
+typedef struct {
+    u8 version;
+    int num_instances; // number of active instances
+    hm2_sserial_instance_t *instance ;
+    hm2_sserial_hal_t *hal;
+} hm2_sserial_t;
 
 
 // 
@@ -566,7 +747,26 @@ typedef struct {
     u32 *reset_reg;
 } hm2_watchdog_t;
 
+//
+// On-board LEDs
+//
 
+typedef struct {
+        hal_bit_t *led;
+    } hm2_led_instance_t ;
+
+typedef struct {
+
+    int num_instances ;
+
+    hm2_led_instance_t *instance ;
+
+    u32 written_buff ;
+
+    u32 led_addr;
+    u32 *led_reg;
+
+} hm2_led_t ;
 
 
 // 
@@ -615,7 +815,11 @@ typedef struct {
     struct {
         int num_encoders;
         int num_pwmgens;
+        int num_tp_pwmgens;
         int num_stepgens;
+        int num_leds;
+        int num_sserials;
+        int num_sserial_chans[4];
         int enable_raw;
         char *firmware;
     } config;
@@ -643,9 +847,12 @@ typedef struct {
     // the hostmot2 "Functions"
     hm2_encoder_t encoder;
     hm2_pwmgen_t pwmgen;
+    hm2_tp_pwmgen_t tp_pwmgen;
     hm2_stepgen_t stepgen;
+    hm2_sserial_t sserial;
     hm2_ioport_t ioport;
     hm2_watchdog_t watchdog;
+    hm2_led_t led;
 
     hm2_raw_t *raw;
 
@@ -765,7 +972,45 @@ void hm2_pwmgen_force_write(hostmot2_t *hm2);
 void hm2_pwmgen_prepare_tram_write(hostmot2_t *hm2);
 
 
+//
+// Three Phase pwmgen functions
+//
 
+int  hm2_tp_pwmgen_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_tp_pwmgen_print_module(hostmot2_t *hm2);
+void hm2_tp_pwmgen_cleanup(hostmot2_t *hm2);
+void hm2_tp_pwmgen_write(hostmot2_t *hm2);
+void hm2_tp_pwmgen_force_write(hostmot2_t *hm2);
+void hm2_tp_pwmgen_prepare_tram_write(hostmot2_t *hm2);
+void hm2_tp_pwmgen_read(hostmot2_t *hm2);
+
+
+//
+// Smart Serial functions
+//
+
+int  hm2_sserial_parse_md(hostmot2_t *hm2, int md_index);
+int hm2_sserial_allocate_pins(hostmot2_t *hm2);
+void hm2_sserial_print_module(hostmot2_t *hm2);
+void hm2_sserial_force_write(hostmot2_t *hm2);
+void hm2_sserial_prepare_tram_write(hostmot2_t *hm2, long period);
+void hm2_sserial_process_tram_read(hostmot2_t *hm2, long period);
+void hm2_sserial_process_config(hostmot2_t *hm2, long period);
+u32 hm2_sserial_get_param(hostmot2_t *hm2, hm2_sserial_tram_t *channel, int param);
+int hm2_sserial_waitfor(hostmot2_t *hm2, u32 addr, u32 mask, int ms);
+void hm2_sserial_cleanup(hostmot2_t *hm2);
+int hm2_sserial_config_create(hostmot2_t *hm2);
+
+    // Smart-Serial functions in hm2_8i20.c
+    int hm2_8i20_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
+    void hm2_8i20_prepare_tram_write(hostmot2_t *hm2);
+    void hm2_8i20_process_tram_read(hostmot2_t *hm2);
+    int hm2_8i20_params(hostmot2_t *hm2);
+
+    // Smart-Serial functions in hm2_7i64.c
+    int hm2_7i64_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
+    void hm2_7i64_prepare_tram_write(hostmot2_t *hm2);
+    void hm2_7i64_process_tram_read(hostmot2_t *hm2);
 
 //
 // stepgen functions
@@ -797,6 +1042,14 @@ void hm2_watchdog_force_write(hostmot2_t *hm2);
 
 
 // 
+// LED functions
+//
+
+int hm2_led_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_led_write(hostmot2_t *hm2);
+void hm2_led_cleanup(hostmot2_t *hm2);
+
+//
 // the raw interface lets you peek and poke the hostmot2 instance from HAL
 //
 

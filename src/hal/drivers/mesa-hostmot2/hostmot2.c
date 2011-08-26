@@ -85,7 +85,9 @@ static void hm2_read(void *void_hm2, long period) {
     hm2_ioport_gpio_process_tram_read(hm2);
     hm2_encoder_process_tram_read(hm2, period);
     hm2_stepgen_process_tram_read(hm2, period);
+    hm2_sserial_process_tram_read(hm2, period);
 
+    hm2_tp_pwmgen_read(hm2); // check the status of the fault bit
     hm2_raw_read(hm2);
 }
 
@@ -101,7 +103,9 @@ static void hm2_write(void *void_hm2, long period) {
 
     hm2_ioport_gpio_prepare_tram_write(hm2);
     hm2_pwmgen_prepare_tram_write(hm2);
+    hm2_tp_pwmgen_prepare_tram_write(hm2);
     hm2_stepgen_prepare_tram_write(hm2, period);
+    hm2_sserial_prepare_tram_write(hm2, period);
     hm2_tram_write(hm2);
 
     // these usually do nothing
@@ -109,8 +113,10 @@ static void hm2_write(void *void_hm2, long period) {
     hm2_ioport_write(hm2);    // handles gpio.is_output but not gpio.out (that's done in tram_write() above)
     hm2_watchdog_write(hm2);  // in case the user has written to the watchdog.timeout_ns param
     hm2_pwmgen_write(hm2);    // update pwmgen registers if needed
+    hm2_tp_pwmgen_write(hm2); // update Three Phase PWM registers if needed
     hm2_stepgen_write(hm2);   // update stepgen registers if needed
     hm2_encoder_write(hm2);   // update ctrl register if needed
+    hm2_led_write(hm2);	      // Update on-board LEDs
 
     hm2_raw_write(hm2);
 }
@@ -171,6 +177,11 @@ const char *hm2_get_general_function_name(int gtag) {
         case HM2_GTAG_STEPGEN:         return "StepGen";
         case HM2_GTAG_PWMGEN:          return "PWMGen";
         case HM2_GTAG_TRANSLATIONRAM:  return "TranslationRAM";
+        case HM2_GTAG_TPPWM:           return "ThreePhasePWM";
+        case HM2_GTAG_LED:             return "LED";
+        case HM2_GTAG_MUXED_ENCODER:   return "Muxed Encoder";
+        case HM2_GTAG_MUXED_ENCODER_SEL: return "Muxed Encoder Select";
+        case HM2_GTAG_SMARTSERIAL:     return "Smart Serial Interface";
         default: {
             static char unknown[100];
             rtapi_snprintf(unknown, 100, "(unknown-gtag-%d)", gtag);
@@ -188,7 +199,14 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     // default is to enable everything in the firmware
     hm2->config.num_encoders = -1;
     hm2->config.num_pwmgens = -1;
+    hm2->config.num_tp_pwmgens = -1;
+    hm2->config.num_sserials = 0;
+    hm2->config.num_sserial_chans[0] = 0; // default to all-off to make probing safer
+    hm2->config.num_sserial_chans[1] = 0;
+    hm2->config.num_sserial_chans[2] = 0;
+    hm2->config.num_sserial_chans[3] = 0;
     hm2->config.num_stepgens = -1;
+    hm2->config.num_leds = -1;
     hm2->config.enable_raw = 0;
     hm2->config.firmware = NULL;
 
@@ -215,9 +233,28 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
             token += 12;
             hm2->config.num_pwmgens = simple_strtol(token, NULL, 0);
 
+        } else if (strncmp(token, "num_3pwmgens=", 13) == 0) {
+            token += 13;
+            hm2->config.num_tp_pwmgens = simple_strtol(token, NULL, 0);
+
+        } else if (strncmp(token, "num_sserials=", 13) == 0) {
+            hm2->config.num_sserials = 0;
+            token += 13;
+            for ( ; *token != 0; token++) {
+                if (*token >= '0' && *token <= '8') {
+                    hm2->config.num_sserial_chans[hm2->config.num_sserials] =
+                    *token - '0';
+                    hm2->config.num_sserials ++;
+                }
+            }
+
         } else if (strncmp(token, "num_stepgens=", 13) == 0) {
             token += 13;
             hm2->config.num_stepgens = simple_strtol(token, NULL, 0);
+
+        } else if (strncmp(token, "num_leds=", 9) == 0) {
+            token += 9;
+            hm2->config.num_leds = simple_strtol(token, NULL, 0);
 
         } else if (strncmp(token, "enable_raw", 10) == 0) {
             hm2->config.enable_raw = 1;
@@ -238,6 +275,10 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     HM2_DBG("final config:\n");
     HM2_DBG("    num_encoders=%d\n", hm2->config.num_encoders);
     HM2_DBG("    num_pwmgens=%d\n",  hm2->config.num_pwmgens);
+    HM2_DBG("    num_3pwmgens=%d\n", hm2->config.num_tp_pwmgens);
+    HM2_DBG("    num_sserials=%i.%i.%i.%i)\n", hm2->config.num_sserial_chans[0],
+            hm2->config.num_sserial_chans[1], hm2->config.num_sserial_chans[2],
+            hm2->config.num_sserial_chans[3]);
     HM2_DBG("    num_stepgens=%d\n", hm2->config.num_stepgens);
     HM2_DBG("    enable_raw=%d\n",   hm2->config.enable_raw);
     HM2_DBG("    firmware=%s\n",   hm2->config.firmware ? hm2->config.firmware : "(NULL)");
@@ -606,6 +647,7 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
                 break;
 
             case HM2_GTAG_ENCODER:
+            case HM2_GTAG_MUXED_ENCODER:
                 md_accepted = hm2_encoder_parse_md(hm2, md_index);
                 break;
 
@@ -619,6 +661,18 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
 
             case HM2_GTAG_WATCHDOG:
                 md_accepted = hm2_watchdog_parse_md(hm2, md_index);
+                break;
+
+            case HM2_GTAG_TPPWM:
+                md_accepted = hm2_tp_pwmgen_parse_md(hm2, md_index);
+                break;
+
+            case HM2_GTAG_SMARTSERIAL:
+                md_accepted = hm2_sserial_parse_md(hm2, md_index);
+                break;
+
+            case HM2_GTAG_LED:
+                md_accepted = hm2_led_parse_md(hm2, md_index);
                 break;
 
             default:
@@ -673,6 +727,9 @@ static void hm2_cleanup(hostmot2_t *hm2) {
     hm2_encoder_cleanup(hm2);
     hm2_watchdog_cleanup(hm2);
     hm2_pwmgen_cleanup(hm2);
+    hm2_tp_pwmgen_cleanup(hm2);
+    hm2_led_cleanup(hm2);
+    hm2_sserial_cleanup(hm2);
 
     // free all the tram entries
     hm2_tram_cleanup(hm2);
@@ -684,6 +741,8 @@ static void hm2_cleanup(hostmot2_t *hm2) {
 void hm2_print_modules(hostmot2_t *hm2) {
     hm2_encoder_print_module(hm2);
     hm2_pwmgen_print_module(hm2);
+    hm2_tp_pwmgen_print_module(hm2);
+    hm2_sserial_print_module(hm2);
     hm2_stepgen_print_module(hm2);
     hm2_ioport_print_module(hm2);
     hm2_watchdog_print_module(hm2);
@@ -726,14 +785,14 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
     {
         int i;
 
-        for (i = 0; i < HAL_NAME_LEN; i ++) {
+        for (i = 0; i < HAL_NAME_LEN+1; i ++) {
             if (llio->name[i] == '\0') break;
             if (!isprint(llio->name[i])) {
                 HM2_ERR_NO_LL("invalid llio name passed in (contains non-printable character)\n");
                 return -EINVAL;
             }
         }
-        if (i == HAL_NAME_LEN) {
+        if (i == HAL_NAME_LEN+1) {
             HM2_ERR_NO_LL("invalid llio name passed in (not NULL terminated)\n");
             return -EINVAL;
         }
@@ -764,14 +823,14 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
                 return -EINVAL;
             }
 
-            for (i = 0; i < HAL_NAME_LEN; i ++) {
+            for (i = 0; i < HAL_NAME_LEN+1; i ++) {
                 if (llio->ioport_connector_name[port][i] == '\0') break;
                 if (!isprint(llio->ioport_connector_name[port][i])) {
                     HM2_ERR_NO_LL("invalid llio ioport connector name %d passed in (contains non-printable character)\n", port);
                     return -EINVAL;
                 }
             }
-            if (i == HAL_NAME_LEN) {
+            if (i == HAL_NAME_LEN+1) {
                 HM2_ERR_NO_LL("invalid llio ioport connector name %d passed in (not NULL terminated)\n", port);
                 return -EINVAL;
             }
@@ -872,7 +931,7 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
         device_unregister(&dev);
         if (r == -ENOENT) {
             HM2_ERR("firmware %s not found\n", hm2->config.firmware);
-            HM2_ERR("install the package containing the firmware, or link your RIP sandbox into /lib/firmware manually\n");
+            HM2_ERR("install the package containing the firmware.\n");
             goto fail0;
         }
         if (r != 0) {
@@ -933,7 +992,7 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
 
     {
         int r;
-        char name[HAL_NAME_LEN + 2];
+        char name[HAL_NAME_LEN + 1];
 
         llio->io_error = (hal_bit_t *)hal_malloc(sizeof(hal_bit_t));
         if (llio->io_error == NULL) {
@@ -944,7 +1003,7 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
 
         (*llio->io_error) = 0;
 
-        rtapi_snprintf(name, HAL_NAME_LEN, "%s.io_error", llio->name);
+        rtapi_snprintf(name, sizeof(name), "%s.io_error", llio->name);
         r = hal_param_bit_new(name, HAL_RW, llio->io_error, llio->comp_id);
         if (r < 0) {
             HM2_ERR("error adding param '%s', aborting\n", name);
@@ -1160,9 +1219,9 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
     //
 
     {
-        char name[HAL_NAME_LEN + 2];
+        char name[HAL_NAME_LEN + 1];
 
-        rtapi_snprintf(name, HAL_NAME_LEN, "%s.read", hm2->llio->name);
+        rtapi_snprintf(name, sizeof(name), "%s.read", hm2->llio->name);
         r = hal_export_funct(name, hm2_read, hm2, 1, 0, hm2->llio->comp_id);
         if (r != 0) {
             HM2_ERR("error %d exporting read function %s\n", r, name);
@@ -1170,7 +1229,7 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
             goto fail1;
         }
 
-        rtapi_snprintf(name, HAL_NAME_LEN, "%s.write", hm2->llio->name);
+        rtapi_snprintf(name, sizeof(name), "%s.write", hm2->llio->name);
         r = hal_export_funct(name, hm2_write, hm2, 1, 0, hm2->llio->comp_id);
         if (r != 0) {
             HM2_ERR("error %d exporting write function %s\n", r, name);
@@ -1185,9 +1244,9 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
     //
 
     if (hm2->llio->threadsafe) {
-        char name[HAL_NAME_LEN + 2];
+        char name[HAL_NAME_LEN + 1];
 
-        rtapi_snprintf(name, HAL_NAME_LEN, "%s.read_gpio", hm2->llio->name);
+        rtapi_snprintf(name, sizeof(name), "%s.read_gpio", hm2->llio->name);
         r = hal_export_funct(name, hm2_read_gpio, hm2, 1, 0, hm2->llio->comp_id);
         if (r != 0) {
             HM2_ERR("error %d exporting gpio_read function %s\n", r, name);
@@ -1195,7 +1254,7 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
             goto fail1;
         }
 
-        rtapi_snprintf(name, HAL_NAME_LEN, "%s.write_gpio", hm2->llio->name);
+        rtapi_snprintf(name, sizeof(name), "%s.write_gpio", hm2->llio->name);
         r = hal_export_funct(name, hm2_write_gpio, hm2, 1, 0, hm2->llio->comp_id);
         if (r != 0) {
             HM2_ERR("error %d exporting gpio_write function %s\n", r, name);
@@ -1287,5 +1346,7 @@ void hm2_force_write(hostmot2_t *hm2) {
     hm2_encoder_force_write(hm2);
     hm2_pwmgen_force_write(hm2);
     hm2_stepgen_force_write(hm2);
+    hm2_tp_pwmgen_force_write(hm2);
+    hm2_sserial_force_write(hm2);
 }
 

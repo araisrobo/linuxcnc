@@ -33,6 +33,13 @@ try:
 except:
 	sys.exit(1)
 
+import atexit
+import tempfile
+
+empty_program = tempfile.NamedTemporaryFile()
+empty_program.write("%\n%\n")
+empty_program.flush()
+
 import gettext
 LOCALEDIR = os.path.join(BASE, "share", "locale")
 gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
@@ -74,7 +81,7 @@ pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
 invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
-	def __init__(self):
+        def __init__(self, inifile):
 		#Set the Glade file
 		self.gladefile = os.path.join(datadir, "touchy.glade")
 	        self.wTree = gtk.glade.XML(self.gladefile) 
@@ -98,9 +105,10 @@ class touchy:
 
                 self.fo_val = 100
                 self.so_val = 100
-                self.mv_val = 100
+                self.g10l11 = 0
 
                 self.prefs = preferences.preferences()
+                self.mv_val = self.prefs.getpref('maxvel', 100, int)
                 self.control_font_name = self.prefs.getpref('control_font', 'Sans 18', str)
                 self.dro_font_name = self.prefs.getpref('dro_font', 'Courier 10 Pitch Bold 16', str)
                 self.error_font_name = self.prefs.getpref('error_font', 'Sans Bold 10', str)
@@ -124,8 +132,6 @@ class touchy:
                 self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
                 self.listing_font = pango.FontDescription(self.listing_font_name)
 
-                self.setfont()
-
                 # interactive mdi command builder and issuer
                 mdi_labels = []
                 mdi_eventboxes = []
@@ -133,6 +139,14 @@ class touchy:
                         mdi_labels.append(self.wTree.get_widget("mdi%d" % i))
                         mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
                 self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)
+
+                if inifile:
+                    ini = emc.ini(inifile)
+                    self.mdi_control.mdi.add_macros(
+                        ini.findall("TOUCHY", "MACRO"))
+                    self.ini = ini
+                else:
+                    self.ini = None
 
                 listing_labels = []
                 listing_eventboxes = []
@@ -143,7 +157,8 @@ class touchy:
 
                 # emc interface
                 self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
-                self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control)
+                self.emc.continuous_jog_velocity(self.mv_val)
+                self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control, emc)
 
                 # silly file chooser
                 filechooser_labels = []
@@ -170,9 +185,10 @@ class touchy:
                 mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
                 spindles = ['forward', 'off', 'reverse']
                 spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
-                stats = ['file', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
+                stats = ['file', 'file_lines', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
                          'spindledir', 'spindlespeed', 'loadedtool', 'preppedtool',
-                         'xyrotation', 'tlo', 'activecodes', 'spindlespeed2']
+                         'xyrotation', 'tlo', 'activecodes', 'spindlespeed2',
+                         'label_g5xoffset', 'g5xoffset', 'g92offset', 'tooltable']
                 stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
                 prefs = ['actual', 'commanded', 'inch', 'mm']
                 prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
@@ -180,7 +196,6 @@ class touchy:
                 opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
                 blockdel = ['on', 'off']
                 blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
-
                 self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
                                                        self.wTree.get_widget("dro_table"),
                                                        self.wTree.get_widget("error"),
@@ -189,6 +204,29 @@ class touchy:
                                                        stats,
                                                        floods, mists, spindles, prefs,
                                                        opstop, blockdel)
+
+                # check the ini file if UNITS are set to mm"
+                inifile=self.emc.emc.ini(sys.argv[2])
+                # first check the global settings
+                units=inifile.find("TRAJ","LINEAR_UNITS")
+
+                if units==None:
+                        units=inifile.find("AXIS_0","UNITS")
+
+                if units=="mm" or units=="metric" or units == "1.0":
+                        self.machine_units_mm=1
+                        conversion=[1.0/25.4]*3+[1]*3+[1.0/25.4]*3
+                else:
+                        self.machine_units_mm=0
+                        conversion=[25.4]*3+[1]*3+[25.4]*3
+
+                self.status.set_machine_units(self.machine_units_mm,conversion)
+
+                if self.prefs.getpref('toolsetting_fixture', 0):
+                        self.g10l11 = 1
+                else:
+                        self.g10l11 = 0
+
                 if self.prefs.getpref('dro_mm', 0):
                         self.status.dro_mm(0)
                 else:
@@ -208,6 +246,8 @@ class touchy:
                         self.emc.opstop_on(0)
                 else:
                         self.emc.opstop_off(0)                        
+
+		self.emc.emccommand.program_open(empty_program.name)
 
                 self.emc.max_velocity(self.mv_val)
                                 
@@ -250,6 +290,7 @@ class touchy:
                         "on_mdi_select" : self.mdi_control.select,
                         "on_mdi_set_tool_clicked" : self.mdi_set_tool,
                         "on_mdi_set_origin_clicked" : self.mdi_set_origin,
+                        "on_mdi_macro_clicked" : self.mdi_macro,
                         "on_filechooser_select" : self.fileselect,
                         "on_filechooser_up_clicked" : self.filechooser.up,
                         "on_filechooser_down_clicked" : self.filechooser.down,
@@ -288,12 +329,22 @@ class touchy:
                         "on_spindle_reverse_clicked" : self.emc.spindle_reverse,
                         "on_spindle_slower_clicked" : self.emc.spindle_slower,
                         "on_spindle_faster_clicked" : self.emc.spindle_faster,
+                        "on_toolset_fixture_clicked" : self.toolset_fixture,
+                        "on_toolset_workpiece_clicked" : self.toolset_workpiece,
                         }
                 self.wTree.signal_autoconnect(dic)
 
 		for widget in self.wTree.get_widget_prefix(''):
 			if isinstance(widget, gtk.Button):
 				widget.connect_after('released',self.hack_leave)
+
+                self._dynamic_childs = {}
+                atexit.register(self.kill_dynamic_childs)
+                self.set_dynamic_tabs()
+
+                atexit.register(self.save_maxvel_pref)
+
+                self.setfont()
 
         def quit(self, unused):
                 gtk.main_quit()
@@ -428,6 +479,16 @@ class touchy:
                 self.emc.jogging(b)
                 self.jogsettings_activate(1)
 
+        def toolset_fixture(self, b):
+                if self.radiobutton_mask: return
+                self.prefs.putpref('toolsetting_fixture', 1)
+                self.g10l11 = 1
+
+        def toolset_workpiece(self, b):
+                if self.radiobutton_mask: return
+                self.prefs.putpref('toolsetting_fixture', 0)
+                self.g10l11 = 0
+
         def jogsettings_activate(self, active):
                 for i in ["wheelinc1", "wheelinc2", "wheelinc3"]:
                         w = self.wTree.get_widget(i)
@@ -463,7 +524,7 @@ class touchy:
                 for i in ["1", "2", "3", "4", "5", "6", "7",
                           "8", "9", "0", "minus", "decimal",
                           "flood_on", "flood_off", "mist_on", "mist_off",
-                          "g", "gp", "m", "t", "set_tool", "set_origin",
+                          "g", "gp", "m", "t", "set_tool", "set_origin", "macro",
                           "estop", "estop_reset", "machine_off", "machine_on",
                           "home_all", "unhome_all", "home_selected", "unhome_selected",
                           "fo", "so", "mv", "jogging", "wheelinc1", "wheelinc2", "wheelinc3",
@@ -475,11 +536,17 @@ class touchy:
                           "spindle_faster", "spindle_slower",
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
-                          "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show"]:
+                          "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show",
+                          "toolset_workpiece", "toolset_fixture"]:
                         w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
                                 w.modify_font(self.control_font)
+
+		notebook = self.wTree.get_widget('notebook1')
+		for i in range(notebook.get_n_pages()):
+			w = notebook.get_nth_page(i)
+			notebook.get_tab_label(w).modify_font(self.control_font)
 
                 # labels
                 for i in range(self.num_mdi_labels):
@@ -511,10 +578,13 @@ class touchy:
 		self.wTree.get_widget("MainWindow").window.maximize()
 
         def mdi_set_tool(self, b):
-                self.mdi_control.set_tool(self.status.get_current_tool())
+                self.mdi_control.set_tool(self.status.get_current_tool(), self.g10l11)
 
         def mdi_set_origin(self, b):
                 self.mdi_control.set_origin(self.status.get_current_system())
+
+        def mdi_macro(self, b):
+                self.mdi_control.o(b)
 
         def fileselect(self, eb, e):
                 if self.wheel == "jogging": self.wheel = "mv"
@@ -570,6 +640,8 @@ class touchy:
                 set_active(self.wTree.get_widget("jogging"), self.wheel == "jogging")
                 set_active(self.wTree.get_widget("pointer_show"), not self.invisible_cursor)
                 set_active(self.wTree.get_widget("pointer_hide"), self.invisible_cursor)
+                set_active(self.wTree.get_widget("toolset_workpiece"), not self.g10l11)
+                set_active(self.wTree.get_widget("toolset_fixture"), self.g10l11)
                 self.radiobutton_mask = 0
 
                 if self.wheel == "jogging":
@@ -577,7 +649,19 @@ class touchy:
                 else:
                         # disable all
                         self.hal.jogaxis(-1)
-                self.hal.jogincrement(self.wheelinc)
+
+                if self.wheelxyz == 3 or self.wheelxyz == 4 or self.wheelxyz == 5:
+                        incs = ["1.0", "0.1", "0.01"]
+                elif self.machine_units_mm:
+                        incs = ["0.1", "0.01", "0.001"]
+                else:
+                        incs = ["0.01", "0.001", "0.0001"]
+
+                set_label(self.wTree.get_widget("wheelinc1").child, incs[0])
+                set_label(self.wTree.get_widget("wheelinc2").child, incs[1])
+                set_label(self.wTree.get_widget("wheelinc3").child, incs[2])
+
+                self.hal.jogincrement(self.wheelinc, map(float,incs))
 
                 d = self.hal.wheel()
                 if self.wheel == "fo":
@@ -591,7 +675,10 @@ class touchy:
                         if d != 0: self.emc.spindle_override(self.so_val)
 
                 if self.wheel == "mv":
-                        self.mv_val += d
+                        if self.machine_units_mm:
+                                self.mv_val += 20 * d
+                        else:
+                                self.mv_val += d
                         if self.mv_val < 0: self.mv_val = 0
                         if d != 0:
                                 self.emc.max_velocity(self.mv_val)
@@ -613,9 +700,45 @@ class touchy:
 		x, y = w.get_origin()
 		d.warp_pointer(s, x, y)
 
+	def _dynamic_tab(self, notebook, text):
+		s = gtk.Socket()
+		notebook.append_page(s, gtk.Label(" " + text + " "))
+		return s.get_id()
+
+	def set_dynamic_tabs(self):
+		from subprocess import Popen
+
+		if not self.ini:
+			return
+
+		tab_names = self.ini.findall("DISPLAY", "EMBED_TAB_NAME")
+		tab_cmd   = self.ini.findall("DISPLAY", "EMBED_TAB_COMMAND")
+
+		if len(tab_names) != len(tab_cmd):
+			print "Invalid tab configuration" # Complain somehow
+
+		nb = self.wTree.get_widget('notebook1')
+		for t,c in zip(tab_names, tab_cmd):
+			xid = self._dynamic_tab(nb, t)
+			if not xid: continue
+			cmd = c.replace('{XID}', str(xid))
+			child = Popen(cmd.split())
+			self._dynamic_childs[xid] = child
+		nb.show_all()
+
+	def kill_dynamic_childs(self):
+		for c in self._dynamic_childs.values():
+			c.terminate()
+
+        def save_maxvel_pref(self):
+                self.prefs.putpref('maxvel', self.mv_val, int)
 
 if __name__ == "__main__":
-	hwg = touchy()
+        if len(sys.argv) > 2 and sys.argv[1] == '-ini':
+            print "ini", sys.argv[2]
+            hwg = touchy(sys.argv[2])
+        else:
+            hwg = touchy()
 	res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-f", "touchy.hal"])
 	if res: raise SystemExit, res
 	gtk.main()

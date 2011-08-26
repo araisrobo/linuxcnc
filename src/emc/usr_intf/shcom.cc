@@ -120,26 +120,24 @@ int emcErrorNmlGet()
     return retval;
 }
 
-int tryNml()
+int tryNml(double retry_time, double retry_interval)
 {
     double end;
     int good;
-#define RETRY_TIME 10.0		// seconds to wait for subsystems to come up
-#define RETRY_INTERVAL 1.0	// seconds between wait tries for a subsystem
 
     if ((EMC_DEBUG & EMC_DEBUG_NML) == 0) {
 	set_rcs_print_destination(RCS_PRINT_TO_NULL);	// inhibit diag
 	// messages
     }
-    end = RETRY_TIME;
+    end = retry_time;
     good = 0;
     do {
 	if (0 == emcTaskNmlGet()) {
 	    good = 1;
 	    break;
 	}
-	esleep(RETRY_INTERVAL);
-	end -= RETRY_INTERVAL;
+	esleep(retry_interval);
+	end -= retry_interval;
     } while (end > 0.0);
     if ((EMC_DEBUG & EMC_DEBUG_NML) == 0) {
 	set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// inhibit diag
@@ -153,15 +151,15 @@ int tryNml()
 	set_rcs_print_destination(RCS_PRINT_TO_NULL);	// inhibit diag
 	// messages
     }
-    end = RETRY_TIME;
+    end = retry_time;
     good = 0;
     do {
 	if (0 == emcErrorNmlGet()) {
 	    good = 1;
 	    break;
 	}
-	esleep(RETRY_INTERVAL);
-	end -= RETRY_INTERVAL;
+	esleep(retry_interval);
+	end -= retry_interval;
     } while (end > 0.0);
     if ((EMC_DEBUG & EMC_DEBUG_NML) == 0) {
 	set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// inhibit diag
@@ -172,9 +170,6 @@ int tryNml()
     }
 
     return 0;
-
-#undef RETRY_TIME
-#undef RETRY_INTERVAL
 }
 
 int updateStatus()
@@ -409,40 +404,11 @@ double convertLinearUnits(double u)
     return u;
 }
 
-/*! \todo Another #if 0 */
-#if 0
-static double convertAngularUnits(double u)
+double convertAngularUnits(double u)
 {
-    double in_deg;
-
-    /* convert u to deg */
-    in_deg = u / emcStatus->motion.traj.angularUnits;
-
-    /* convert u to display units */
-    switch (angularUnitConversion) {
-    case ANGULAR_UNITS_DEG:
-	return in_deg;
-	break;
-    case ANGULAR_UNITS_RAD:
-	return in_deg * RAD_PER_DEG;
-	break;
-    case ANGULAR_UNITS_GRAD:
-	return in_deg * GRAD_PER_DEG;
-	break;
-    case ANGULAR_UNITS_AUTO:
-	return in_deg;		/*! \todo FIXME-- program units always degrees now */
-	break;
-
-    case ANGULAR_UNITS_CUSTOM:
-	return u;
-	break;
-
-    }
-
-    /* should never get here */
+    // Angular units are always degrees
     return u;
 }
-#endif
 
 // polarities for axis jogging, from ini file
 static int jogPol[EMCMOT_MAX_JOINTS];
@@ -1349,6 +1315,12 @@ int iniLoad(const char *filename)
     // close it
     inifile.Close();
 
+    return 0;
+}
+
+int checkStatus ()
+{
+    if (emcStatus) return 1;    
     return 0;
 }
 

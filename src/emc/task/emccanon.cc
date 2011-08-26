@@ -136,79 +136,7 @@ static void flush_segments(void);
   defined here that are used for convenience but no longer have decls
   in the 6-axis canon.hh. So, we declare them here now.
 */
-extern void CANON_ERROR(const char *fmt, ...);
-
-static double offset_x(double x) {
-    return x + canon.programOrigin.x + canon.toolOffset.tran.x;
-}
-
-static double offset_y(double y) {
-    return y + canon.programOrigin.y + canon.toolOffset.tran.y;
-}
-
-static double offset_z(double z) {
-    return z + canon.programOrigin.z + canon.toolOffset.tran.z;
-}
-
-static double offset_a(double a) {
-    return a + canon.programOrigin.a + canon.toolOffset.a;
-}
-
-static double offset_b(double b) {
-    return b + canon.programOrigin.b + canon.toolOffset.b;
-}
-
-static double offset_c(double c) {
-    return c + canon.programOrigin.c + canon.toolOffset.c;
-}
-
-static double offset_u(double u) {
-    return u + canon.programOrigin.u + canon.toolOffset.u;
-}
-
-static double offset_v(double v) {
-    return v + canon.programOrigin.v + canon.toolOffset.v;
-}
-
-static double offset_w(double w) {
-    return w + canon.programOrigin.w + canon.toolOffset.w;
-}
-
-static double unoffset_x(double x) {
-    return x - canon.programOrigin.x - canon.toolOffset.tran.x;
-}
-
-static double unoffset_y(double y) {
-    return y - canon.programOrigin.y - canon.toolOffset.tran.y;
-}
-
-static double unoffset_z(double z) {
-    return z - canon.programOrigin.z - canon.toolOffset.tran.z;
-}
-
-static double unoffset_a(double a) {
-    return a - canon.programOrigin.a - canon.toolOffset.a;
-}
-
-static double unoffset_b(double b) {
-    return b - canon.programOrigin.b - canon.toolOffset.b;
-}
-
-static double unoffset_c(double c) {
-    return c - canon.programOrigin.c - canon.toolOffset.c;
-}
-
-static double unoffset_u(double u) {
-    return u - canon.programOrigin.u - canon.toolOffset.u;
-}
-
-static double unoffset_v(double v) {
-    return v - canon.programOrigin.v - canon.toolOffset.v;
-}
-
-static double unoffset_w(double w) {
-    return w - canon.programOrigin.w - canon.toolOffset.w;
-}
+extern void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 #ifndef D2R
 #define D2R(r) ((r)*M_PI/180.0)
@@ -223,46 +151,91 @@ static void rotate(double &x, double &y, double theta) {
 }
 
 static void rotate_and_offset_pos(double &x, double &y, double &z, double &a, double &b, double &c, double &u, double &v, double &w) {
+    x += canon.g92Offset.x;
+    y += canon.g92Offset.y;
+    z += canon.g92Offset.z;
+    a += canon.g92Offset.a;
+    b += canon.g92Offset.b;
+    c += canon.g92Offset.c;
+    u += canon.g92Offset.u;
+    v += canon.g92Offset.v;
+    w += canon.g92Offset.w;
+
     rotate(x, y, canon.xy_rotation);
-    x = offset_x(x);
-    y = offset_y(y);
-    z = offset_z(z);
-    a = offset_a(a);
-    b = offset_b(b);
-    c = offset_c(c);
-    u = offset_u(u);
-    v = offset_v(v);
-    w = offset_w(w);
+
+    x += canon.g5xOffset.x;
+    y += canon.g5xOffset.y;
+    z += canon.g5xOffset.z;
+    a += canon.g5xOffset.a;
+    b += canon.g5xOffset.b;
+    c += canon.g5xOffset.c;
+    u += canon.g5xOffset.u;
+    v += canon.g5xOffset.v;
+    w += canon.g5xOffset.w;
+
+    x += canon.toolOffset.tran.x;
+    y += canon.toolOffset.tran.y;
+    z += canon.toolOffset.tran.z;
+    a += canon.toolOffset.a;
+    b += canon.toolOffset.b;
+    c += canon.toolOffset.c;
+    u += canon.toolOffset.u;
+    v += canon.toolOffset.v;
+    w += canon.toolOffset.w;
 }
 
 static CANON_POSITION unoffset_and_unrotate_pos(const CANON_POSITION pos) {
-    CANON_POSITION res;
-    res.x = unoffset_x(pos.x);
-    res.y = unoffset_y(pos.y);
+    CANON_POSITION res = pos;
+
+    res.x -= canon.toolOffset.tran.x;
+    res.y -= canon.toolOffset.tran.y;
+    res.z -= canon.toolOffset.tran.z;
+    res.a -= canon.toolOffset.a;
+    res.b -= canon.toolOffset.b;
+    res.c -= canon.toolOffset.c;
+    res.u -= canon.toolOffset.u;
+    res.v -= canon.toolOffset.v;
+    res.w -= canon.toolOffset.w;
+    
+    res.x -= canon.g5xOffset.x;
+    res.y -= canon.g5xOffset.y;
+    res.z -= canon.g5xOffset.z;
+    res.a -= canon.g5xOffset.a;
+    res.b -= canon.g5xOffset.b;
+    res.c -= canon.g5xOffset.c;
+    res.u -= canon.g5xOffset.u;
+    res.v -= canon.g5xOffset.v;
+    res.w -= canon.g5xOffset.w;
+
     rotate(res.x, res.y, -canon.xy_rotation);
-    res.z = unoffset_z(pos.z);
-    res.a = unoffset_a(pos.a);
-    res.b = unoffset_b(pos.b);
-    res.c = unoffset_c(pos.c);
-    res.u = unoffset_u(pos.u);
-    res.v = unoffset_v(pos.v);
-    res.w = unoffset_w(pos.w);
+
+    res.x -= canon.g92Offset.x;
+    res.y -= canon.g92Offset.y;
+    res.z -= canon.g92Offset.z;
+    res.a -= canon.g92Offset.a;
+    res.b -= canon.g92Offset.b;
+    res.c -= canon.g92Offset.c;
+    res.u -= canon.g92Offset.u;
+    res.v -= canon.g92Offset.v;
+    res.w -= canon.g92Offset.w;
+
     return res;
 }
 
+
 static CANON_POSITION unoffset_and_unrotate_pos(const EmcPose pos) {
     CANON_POSITION res;
-    res.x = unoffset_x(pos.tran.x);
-    res.y = unoffset_y(pos.tran.y);
-    rotate(res.x, res.y, -canon.xy_rotation);
-    res.z = unoffset_z(pos.tran.z);
-    res.a = unoffset_a(pos.a);
-    res.b = unoffset_b(pos.b);
-    res.c = unoffset_c(pos.c);
-    res.u = unoffset_u(pos.u);
-    res.v = unoffset_v(pos.v);
-    res.w = unoffset_w(pos.w);
-    return res;
+    res.x = pos.tran.x;
+    res.y = pos.tran.y;
+    res.z = pos.tran.z;
+    res.a = pos.a;
+    res.b = pos.b;
+    res.c = pos.c;
+    res.u = pos.u;
+    res.v = pos.v;
+    res.w = pos.w;
+
+    return unoffset_and_unrotate_pos(res);
 }
 
 static void from_prog(double &x, double &y, double &z, double &a, double &b, double &c, double &u, double &v, double &w) {
@@ -363,36 +336,65 @@ static double toExtVel(double vel) {
 
 static double toExtAcc(double acc) { return toExtVel(acc); }
 
-static void send_origin_msg(void) {
+static void send_g5x_msg(int index) {
     flush_segments();
 
     /* append it to interp list so it gets updated at the right time, not at
        read-ahead time */
-    EMC_TRAJ_SET_ORIGIN set_origin_msg;
+    EMC_TRAJ_SET_G5X set_g5x_msg;
 
-    set_origin_msg.origin.tran.x = TO_EXT_LEN(canon.programOrigin.x);
-    set_origin_msg.origin.tran.y = TO_EXT_LEN(canon.programOrigin.y);
-    set_origin_msg.origin.tran.z = TO_EXT_LEN(canon.programOrigin.z);
+    set_g5x_msg.g5x_index = index;
 
-    set_origin_msg.origin.a = TO_EXT_ANG(canon.programOrigin.a);
-    set_origin_msg.origin.b = TO_EXT_ANG(canon.programOrigin.b);
-    set_origin_msg.origin.c = TO_EXT_ANG(canon.programOrigin.c);
+    set_g5x_msg.origin.tran.x = TO_EXT_LEN(canon.g5xOffset.x);
+    set_g5x_msg.origin.tran.y = TO_EXT_LEN(canon.g5xOffset.y);
+    set_g5x_msg.origin.tran.z = TO_EXT_LEN(canon.g5xOffset.z);
 
-    set_origin_msg.origin.u = TO_EXT_LEN(canon.programOrigin.u);
-    set_origin_msg.origin.v = TO_EXT_LEN(canon.programOrigin.v);
-    set_origin_msg.origin.w = TO_EXT_LEN(canon.programOrigin.w);
+    set_g5x_msg.origin.a = TO_EXT_ANG(canon.g5xOffset.a);
+    set_g5x_msg.origin.b = TO_EXT_ANG(canon.g5xOffset.b);
+    set_g5x_msg.origin.c = TO_EXT_ANG(canon.g5xOffset.c);
+
+    set_g5x_msg.origin.u = TO_EXT_LEN(canon.g5xOffset.u);
+    set_g5x_msg.origin.v = TO_EXT_LEN(canon.g5xOffset.v);
+    set_g5x_msg.origin.w = TO_EXT_LEN(canon.g5xOffset.w);
 
     if(canon.css_maximum) {
 	EMC_SPINDLE_SPEED emc_spindle_speed_msg;
 	emc_spindle_speed_msg.speed = canon.css_maximum;
 	emc_spindle_speed_msg.factor = canon.css_numerator;
-	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.programOrigin.x + canon.toolOffset.tran.x);
+	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
 	interp_list.append(emc_spindle_speed_msg);
     }
-    interp_list.append(set_origin_msg);
+    interp_list.append(set_g5x_msg);
 }
 
-/* Representation */
+static void send_g92_msg(void) {
+    flush_segments();
+
+    /* append it to interp list so it gets updated at the right time, not at
+       read-ahead time */
+    EMC_TRAJ_SET_G92 set_g92_msg;
+
+    set_g92_msg.origin.tran.x = TO_EXT_LEN(canon.g92Offset.x);
+    set_g92_msg.origin.tran.y = TO_EXT_LEN(canon.g92Offset.y);
+    set_g92_msg.origin.tran.z = TO_EXT_LEN(canon.g92Offset.z);
+
+    set_g92_msg.origin.a = TO_EXT_ANG(canon.g92Offset.a);
+    set_g92_msg.origin.b = TO_EXT_ANG(canon.g92Offset.b);
+    set_g92_msg.origin.c = TO_EXT_ANG(canon.g92Offset.c);
+
+    set_g92_msg.origin.u = TO_EXT_LEN(canon.g92Offset.u);
+    set_g92_msg.origin.v = TO_EXT_LEN(canon.g92Offset.v);
+    set_g92_msg.origin.w = TO_EXT_LEN(canon.g92Offset.w);
+
+    if(canon.css_maximum) {
+	EMC_SPINDLE_SPEED emc_spindle_speed_msg;
+	emc_spindle_speed_msg.speed = canon.css_maximum;
+	emc_spindle_speed_msg.factor = canon.css_numerator;
+	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
+	interp_list.append(emc_spindle_speed_msg);
+    }
+    interp_list.append(set_g92_msg);
+}
 
 void SET_XY_ROTATION(double t) {
     EMC_TRAJ_SET_ROTATION sr;
@@ -402,9 +404,10 @@ void SET_XY_ROTATION(double t) {
     canon.xy_rotation = t;
 }
 
-void SET_ORIGIN_OFFSETS(double x, double y, double z,
-                        double a, double b, double c,
-                        double u, double v, double w)
+void SET_G5X_OFFSET(int index,
+                    double x, double y, double z,
+                    double a, double b, double c,
+                    double u, double v, double w)
 {
     /* convert to mm units */
     x = FROM_PROG_LEN(x);
@@ -417,21 +420,49 @@ void SET_ORIGIN_OFFSETS(double x, double y, double z,
     v = FROM_PROG_LEN(v);
     w = FROM_PROG_LEN(w);
 
-    canon.programOrigin.x = x;
-    canon.programOrigin.y = y;
-    canon.programOrigin.z = z;
+    canon.g5xOffset.x = x;
+    canon.g5xOffset.y = y;
+    canon.g5xOffset.z = z;
     
-    canon.programOrigin.a = a;
-    canon.programOrigin.b = b;
-    canon.programOrigin.c = c;
+    canon.g5xOffset.a = a;
+    canon.g5xOffset.b = b;
+    canon.g5xOffset.c = c;
 
-    canon.programOrigin.u = u;
-    canon.programOrigin.v = v;
-    canon.programOrigin.w = w;
+    canon.g5xOffset.u = u;
+    canon.g5xOffset.v = v;
+    canon.g5xOffset.w = w;
 
-    send_origin_msg();
+    send_g5x_msg(index);
 }
 
+void SET_G92_OFFSET(double x, double y, double z,
+                    double a, double b, double c,
+                    double u, double v, double w) {
+    /* convert to mm units */
+    x = FROM_PROG_LEN(x);
+    y = FROM_PROG_LEN(y);
+    z = FROM_PROG_LEN(z);
+    a = FROM_PROG_ANG(a);
+    b = FROM_PROG_ANG(b);
+    c = FROM_PROG_ANG(c);
+    u = FROM_PROG_LEN(u);
+    v = FROM_PROG_LEN(v);
+    w = FROM_PROG_LEN(w);
+
+    canon.g92Offset.x = x;
+    canon.g92Offset.y = y;
+    canon.g92Offset.z = z;
+    
+    canon.g92Offset.a = a;
+    canon.g92Offset.b = b;
+    canon.g92Offset.c = c;
+
+    canon.g92Offset.u = u;
+    canon.g92Offset.v = v;
+    canon.g92Offset.w = w;
+
+    send_g92_msg();
+}
 
 void USE_LENGTH_UNITS(CANON_UNITS in_unit)
 {
@@ -982,6 +1013,7 @@ static void flush_segments(void)
     linearMoveMsg.acc = toExtAcc(acc);
 
     linearMoveMsg.type = EMC_MOTION_TYPE_FEED;
+    linearMoveMsg.indexrotary = -1;
     if ((vel && acc) || canon.synched) {
         interp_list.set_line_number(line_no);
         interp_list.append(linearMoveMsg);
@@ -1080,7 +1112,10 @@ void STRAIGHT_TRAVERSE(int line_number,
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
 
     linearMoveMsg.feed_mode = 0;
-    linearMoveMsg.type = EMC_MOTION_TYPE_TRAVERSE;
+    if (canon.rotary_unlock_for_traverse != -1)
+        linearMoveMsg.type = EMC_MOTION_TYPE_INDEXROTARY;
+    else
+        linearMoveMsg.type = EMC_MOTION_TYPE_TRAVERSE;
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
@@ -1091,6 +1126,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     linearMoveMsg.end = to_ext_pose(x,y,z,a,b,c,u,v,w);
     linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
     linearMoveMsg.acc = toExtAcc(acc);
+    linearMoveMsg.indexrotary = canon.rotary_unlock_for_traverse;
 
     int old_feed_mode = canon.feed_mode;
     if(canon.feed_mode)
@@ -1326,21 +1362,16 @@ arc(int lineno, double x0, double y0, double x1, double y1, double dx, double dy
     double small = 0.000001;
     double x = x1-x0, y=y1-y0;
     double den = 2 * (y*dx - x*dy);
-    double r = -(x*x+y*y)/den;
-    double i = dy*r, j = -dx*r;
-    double cx = x1+i, cy=y1+j;
+    CANON_POSITION p = unoffset_and_unrotate_pos(canon.endPoint);
+    to_prog(p);
     if (fabs(den) > small) {
+        double r = -(x*x+y*y)/den;
+        double i = dy*r, j = -dx*r;
+        double cx = x1+i, cy=y1+j;
         ARC_FEED(lineno, x1, y1, cx, cy, r<0 ? 1 : -1,
-               TO_PROG_LEN(canon.endPoint.z - canon.programOrigin.z), TO_PROG_ANG(canon.endPoint.a),
-               TO_PROG_ANG(canon.endPoint.b), TO_PROG_ANG(canon.endPoint.c),
-               TO_PROG_ANG(canon.endPoint.u),TO_PROG_ANG(canon.endPoint.v), 
-               TO_PROG_ANG(canon.endPoint.w));
+                 p.z, p.a, p.b, p.c, p.u, p.v, p.w);
     } else { 
-        STRAIGHT_FEED(lineno, x1,y1, 
-               TO_PROG_LEN(canon.endPoint.z), TO_PROG_ANG(canon.endPoint.a),
-               TO_PROG_ANG(canon.endPoint.b), TO_PROG_ANG(canon.endPoint.c),
-               TO_PROG_ANG(canon.endPoint.u),TO_PROG_ANG(canon.endPoint.v), 
-               TO_PROG_ANG(canon.endPoint.w));
+        STRAIGHT_FEED(lineno, x1, y1, p.z, p.a, p.b, p.c, p.u, p.v, p.w);
     }
 }
 
@@ -1663,120 +1694,25 @@ void NURBS_FEED_3D (
 
 void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) 
 {
-    double u = 0.0;
     unsigned int n = nurbs_control_points.size() - 1;
     double umax = n - k + 2;
     unsigned int div = nurbs_control_points.size()*4;
-    double dxs,dys,dxe,dye,alpha1,alpha2,alpha3,alphaM;
     std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
-    PLANE_POINT P0, P1, P2;
+    PLANE_POINT P0, P0T, P1, P1T;
 
-    P0 = nurbs_point(u,k,nurbs_control_points,knot_vector);
-    P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
+    P0 = nurbs_point(0,k,nurbs_control_points,knot_vector);
+    P0T = nurbs_tangent(0, k, nurbs_control_points, knot_vector);
 
-    dxs = nurbs_control_points[1].X-nurbs_control_points[0].X;
-    dys = nurbs_control_points[1].Y-nurbs_control_points[0].Y;
-    unit(&dxs,&dys);
-    u = u + umax/div;
-    while (u+umax/div <= umax) {
-        P2= nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-        alpha1 = atan2(P1.Y-P0.Y, P1.X-P0.X); // starting direction
-        alpha2 = atan2(P2.Y-P1.Y, P2.X-P1.X); // ending direction
-        alpha3 = atan2(P2.Y-P0.Y, P2.X-P0.X); // direction of startpoint->endpoint vector
-
-        // direction we'd like to be going at the middle of our biarc
-        alphaM = (alpha1 + alpha2) / 2.; 
-
-        // except if we have quadrant crossing, it'll be pointing backward.
-        // this is easy to see since it's contrary to alpha3
-        if(fabs(fabs(alpha3) - fabs(alphaM)) > M_PI/4.) {
-            // so flip it
-            alphaM += M_PI;
-        }
-        dxe = cos(alphaM);
-        dye = sin(alphaM);
-        biarc(lineno, P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
-        dxs = dxe;
-        dys = dye;
+    for(unsigned int i=1; i<=div; i++) {
+	double u = umax * i / div;
+        P1 = nurbs_point(u,k,nurbs_control_points,knot_vector);
+	P1T = nurbs_tangent(u,k,nurbs_control_points,knot_vector);
+        biarc(lineno, P0.X,P0.Y, P0T.X,P0T.Y, P1.X,P1.Y, P1T.X,P1T.Y);
         P0 = P1;
-        P1 = P2;   
-        u = u + umax/div;      
+        P0T = P1T;
     }
-    P1.X = nurbs_control_points[n].X;
-    P1.Y = nurbs_control_points[n].Y;	   
-    dxe = nurbs_control_points[n].X - nurbs_control_points[n-1].X;
-    dye = nurbs_control_points[n].Y - nurbs_control_points[n-1].Y;
-    unit(&dxe,&dye);
-    biarc(lineno, P0.X,P0.Y,dxs,dys,P1.X,P1.Y,dxe,dye);
     knot_vector.clear();
 }
-
-void SPLINE_FEED(int lineno, double x1, double y1, double x2, double y2) 
-{
-    flush_segments();
-
-    double x0 = TO_PROG_LEN(canon.endPoint.x);
-    double y0 = TO_PROG_LEN(canon.endPoint.y);
-    double xx0 = 2*(x1-x0), xx1 = 2*(x2-x1),
-           yy0 = 2*(y1-y0), yy1 = 2*(y2-y1),
-         ox = x0, oy = y0, odx = xx0, ody = yy0;
-
-#define N 2
-    for(int i=1; i<=N; i++) {
-      double t = i * 1. / N;
-      double u = 1. / N;
-      double t0 = (1-t)*(1-t);
-      double t1 = 2*t*(1-t);
-      double t2 = t*t;
-      double q0 = (1-t);
-      double q1 = t;
-
-perturb:
-      double x = x0*t0 + x1*t1 + x2*t2;
-      double y = y0*t0 + y1*t1 + y2*t2;
-      double dx = xx0*q0 + xx1*q1;
-      double dy = yy0*q0 + yy1*q1;
-      if(!biarc(lineno, ox, oy, odx, ody, x, y, dx, dy)) {
-          t = t - u; u /= -2; goto perturb;
-      }
-      ox = x; oy = y; odx = dx; ody = dy;
-    }
-}
-
-void SPLINE_FEED(int lineno, double x1, double y1, double x2, double y2, double x3, double y3) 
-{
-    flush_segments();
-
-    double x0 = TO_PROG_LEN(canon.endPoint.x);
-    double y0 = TO_PROG_LEN(canon.endPoint.y);
-    double xx0 = 3*(x1-x0), xx1 = 3*(x2-x1), xx2 = 3*(x3-x2),
-           yy0 = 3*(y1-y0), yy1 = 3*(y2-y1), yy2 = 3*(y3-y2),
-         ox = x0, oy = y0, odx = xx0, ody = yy0;
-
-//#define N 4
-    for(int i=1; i<=N; i++) {
-      double t = i * 1. / N;
-      double u = 1. / N;
-      double t3 = t*t*t;
-      double t2 = 3*t*t*(1-t);
-      double t1 = 3*t*(1-t)*(1-t);
-      double t0 = (1-t)*(1-t)*(1-t);
-      double q0 = (1-t)*(1-t);
-      double q1 = 2*t*(1-t);
-      double q2 = t*t;
-
-perturb:
-      double x = x0*t0 + x1*t1 + x2*t2 + x3*t3;
-      double y = y0*t0 + y1*t1 + y2*t2 + y3*t3;
-      double dx = xx0*q0 + xx1*q1 + xx2*q2;
-      double dy = yy0*q0 + yy1*q1 + yy2*q2;
-      if(!biarc(lineno, ox, oy, odx, ody, x, y, dx, dy)) {
-          t = t - u; u /= -2; goto perturb;
-      }
-      ox = x; oy = y; odx = dx; ody = dy;
-    }
-}
-
 
 void ARC_FEED(int line_number,
               double first_end, double second_end,
@@ -1789,79 +1725,17 @@ void ARC_FEED(int line_number,
     PM_CARTESIAN center, normal;
     EMC_TRAJ_CIRCULAR_MOVE circularMoveMsg;
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
-    double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel,
-			/* axial_maxvel=0.0, axial_acc, */ 
-                        circ_acc, acc=0.0;
+    double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel, axial_maxvel=0.0, circ_acc, axial_acc, acc=0.0;
     double j1, j2, ini_maxjerk;
-    double radius,  theta1, theta2, axis_len;//angle,
- //   double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
-    double du, dv, dw, da, db, dc;//tu, tv, tw,
+    double radius, angle, theta1, theta2, helical_length, axis_len;
+    double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
+    double tu, tv, tw, du, dv, dw;
     double mx, my;
     double axis_max_acc[EMCMOT_MAX_AXIS], axis_max_vel[EMCMOT_MAX_AXIS], axis_max_jerk[EMCMOT_MAX_AXIS];
     double lx, ly, lz;
     double unused=0;
     int i;
-    DP ("TODO: study this for non-triv-kins\n");
-
-    get_last_pos(lx, ly, lz);
-
-    // XXX rotation?
-    if( (canon.activePlane == CANON_PLANE_XY)
-            && canon.motionMode == CANON_CONTINUOUS
-            && chord_deviation(lx, ly,
-                offset_x(FROM_PROG_LEN(first_end)), offset_y(FROM_PROG_LEN(second_end)),
-                offset_x(FROM_PROG_LEN(first_axis)), offset_y(FROM_PROG_LEN(second_axis)),
-                rotation, mx, my) < canon.naivecamTolerance) {
-        double x=FROM_PROG_LEN(first_end), y=FROM_PROG_LEN(second_end), z=FROM_PROG_LEN(axis_end_point);
-        rotate_and_offset_pos(x, y, z, a, b, c, u, v, w);
-        see_segment(line_number, mx, my,
-                (lz + z)/2,
-                (canon.endPoint.a + a)/2,
-                (canon.endPoint.b + b)/2,
-                (canon.endPoint.c + c)/2,
-                (canon.endPoint.u + u)/2,
-                (canon.endPoint.v + v)/2,
-                (canon.endPoint.w + w)/2);
-        see_segment(line_number, x, y, z, a, b, c, u, v, w);
-        return;
-    }
-
-    // ini_maxvel = max vel defined by various ini constraints
-    // circ_maxvel = max vel defined by ini constraints in the circle plane (XY, YZ or XZ)
-    // axial_maxvel = max vel defined by ini constraints in the axial direction (Z, X or Y)
-
-    linearMoveMsg.feed_mode = canon.feed_mode;
-    circularMoveMsg.feed_mode = canon.feed_mode;
-    flush_segments();
-
-    a = FROM_PROG_ANG(a);
-    b = FROM_PROG_ANG(b);
-    c = FROM_PROG_ANG(c);
-    u = FROM_PROG_LEN(u);
-    v = FROM_PROG_LEN(v);
-    w = FROM_PROG_LEN(w);
-
-    rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
-
-    da = fabs(canon.endPoint.a - a);
-    db = fabs(canon.endPoint.b - b);
-    dc = fabs(canon.endPoint.c - c);
-
-    du = fabs(canon.endPoint.u - u);
-    dv = fabs(canon.endPoint.v - v);
-    dw = fabs(canon.endPoint.w - w);
-
-//     //     Since there's no default case here,
-//     //     we need to initialise vel to something safe!
-//     vel = ini_maxvel = canon.linearFeedRate;
-
-    // convert to absolute mm units
-    first_axis = FROM_PROG_LEN(first_axis);
-    second_axis = FROM_PROG_LEN(second_axis);
-    first_end = FROM_PROG_LEN(first_end);
-    second_end = FROM_PROG_LEN(second_end);
-    axis_end_point = FROM_PROG_LEN(axis_end_point);
-
+    
     for (i = 0; i < 3; i++) {
         axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
         axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
@@ -1878,459 +1752,34 @@ void ARC_FEED(int line_number,
         axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
     }
 
-
-    //     associate x with x, etc., offset by program origin, and set normals
-    switch (canon.activePlane) {
-    default: // to eliminate "uninitalized" warnings
-    case CANON_PLANE_XY:
-
-        // offset and align args properly
-        end.tran.x = first_end;
-        end.tran.y = second_end;
-        end.tran.z = axis_end_point;
-        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
-        center.x = first_axis;
-        center.y = second_axis;
-        center.z = end.tran.z;
-        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
-        normal.x = 0.0;
-        normal.y = 0.0;
-        normal.z = 1.0;
-
-        theta1 = atan2(canon.endPoint.y - center.y, canon.endPoint.x - center.x);
-        theta2 = atan2(end.tran.y - center.y, end.tran.x - center.x);
-        radius = hypot(canon.endPoint.x - center.x, canon.endPoint.y - center.y);
-        axis_len = fabs(end.tran.z - canon.endPoint.z);
-
-        v1 = axis_max_vel[0];
-        v2 = axis_max_vel[1];
-        a1 = axis_max_acc[0];
-        a2 = axis_max_acc[1];
-        circ_maxvel = ini_maxvel = MIN(v1, v2);
-        circ_acc = acc = MIN(a1, a2);
-
-        j1 = axis_max_jerk[0];
-        j2 = axis_max_jerk[1];
-        ini_maxjerk = MIN(j1, j2);
-
-        if(axis_valid(2) && axis_len > 0.001) {
-            // axial_maxvel = 
-            // axial_acc = 
-            // axial_jerk = 
-            v1 = axis_max_vel[2];
-            a1 = axis_max_acc[2];
-            j1 = axis_max_jerk[2];
-            ini_maxvel = MIN(ini_maxvel, v1);
-            acc = MIN(acc, a1);
-            ini_maxjerk = MIN(ini_maxjerk, j1);
-        }
-        break;
-
-    case CANON_PLANE_YZ:
-
-        // offset and align args properly
-        end.tran.y = first_end;
-        end.tran.z = second_end;
-        end.tran.x = axis_end_point;
-        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
-
-        center.y = first_axis;
-        center.z = second_axis;
-        center.x = end.tran.x;
-        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
-        normal.y = 0.0;
-        normal.z = 0.0;
-        normal.x = 1.0;
-        rotate(normal.x, normal.y, canon.xy_rotation);
-
-        theta1 = atan2(canon.endPoint.z - center.z, canon.endPoint.y - center.y);
-        theta2 = atan2(end.tran.z - center.z, end.tran.y - center.y);
-        radius = hypot(canon.endPoint.y - center.y, canon.endPoint.z - center.z);
-        axis_len = fabs(end.tran.x - canon.endPoint.x);
-
-        v1 = axis_max_vel[1];
-        v2 = axis_max_vel[2];
-        a1 = axis_max_acc[1];
-        a2 = axis_max_acc[2];
-        circ_maxvel = ini_maxvel = MIN(v1, v2);
-        circ_acc = acc = MIN(a1, a2);
-        
-        j1 = axis_max_jerk[1];
-        j2 = axis_max_jerk[2];
-        ini_maxjerk = MIN(j1, j2);
-
-        
-        if(axis_valid(0) && axis_len > 0.001) {
-            // axial_maxvel = 
-            // axial_acc = 
-            v1 = axis_max_vel[0];
-            a1 = axis_max_acc[0];
-            j1 = axis_max_jerk[0];
-            ini_maxvel = MIN(ini_maxvel, v1);
-            acc = MIN(acc, a1);
-            ini_maxjerk = MIN(ini_maxjerk, j1);
-        }
-
-        break;
-
-    case CANON_PLANE_XZ:
-
-        // offset and align args properly
-        end.tran.z = first_end;
-        end.tran.x = second_end;
-        end.tran.y = axis_end_point;
-        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
-
-        center.z = first_axis;
-        center.x = second_axis;
-        center.y = end.tran.y;
-        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
-        normal.z = 0.0;
-        normal.x = 0.0;
-        normal.y = 1.0;
-        rotate(normal.x, normal.y, canon.xy_rotation);
-
-        theta1 = atan2(canon.endPoint.x - center.x, canon.endPoint.z - center.z);
-        theta2 = atan2(end.tran.x - center.x, end.tran.z - center.z);
-        radius = hypot(canon.endPoint.x - center.x, canon.endPoint.z - center.z);
-        axis_len = fabs(end.tran.y - canon.endPoint.y);
-
-        v1 = axis_max_vel[0];
-        v2 = axis_max_vel[2];
-        a1 = axis_max_acc[0];
-        a2 = axis_max_acc[2];
-        circ_maxvel = ini_maxvel = MIN(v1, v2);
-        circ_acc = acc = MIN(a1, a2);
-        
-        j1 = axis_max_jerk[0];
-        j2 = axis_max_jerk[2];
-        ini_maxjerk = MIN(j1, j2);
-        
-        if(axis_valid(1) && axis_len > 0.001) {
-            // axial_maxvel = 
-            // axial_acc = 
-            v1 = axis_max_vel[1];
-            a1 = axis_max_acc[1];
-            j1 = axis_max_jerk[1];
-            ini_maxvel = MIN(ini_maxvel, v1);
-            acc = MIN(acc, a1);
-            ini_maxjerk = MIN(ini_maxjerk, j1);
-        }
-        break;
-    }
-
-//do not need this calculation:    if(rotation < 0) {
-//do not need this calculation:        if(theta2 >= theta1) theta2 -= M_PI * 2.0;
-//do not need this calculation:    } else {
-//do not need this calculation:        if(theta2 <= theta1) theta2 += M_PI * 2.0;
-//do not need this calculation:    }
-//do not need this calculation:    angle = theta2 - theta1;
-//do not need this calculation:    helical_length = hypot(angle * radius, axis_len);
-//do not need this calculation:
-//do not need this calculation:// COMPUTE VELOCITIES
-//do not need this calculation:    ta = (axis_valid(3) && da)? fabs(da / axis_max_vel[3]):0.0;
-//do not need this calculation:    tb = (axis_valid(4) && db)? fabs(db / axis_max_vel[4]):0.0;
-//do not need this calculation:    tc = (axis_valid(5) && dc)? fabs(dc / axis_max_vel[5]):0.0;
-//do not need this calculation:
-//do not need this calculation:    tu = (axis_valid(6) && du)? (du / axis_max_vel[6]): 0.0;
-//do not need this calculation:    tv = (axis_valid(7) && dv)? (dv / axis_max_vel[7]): 0.0;
-//do not need this calculation:    tw = (axis_valid(8) && dw)? (dw / axis_max_vel[8]): 0.0;
-//do not need this calculation:
-//do not need this calculation:    //we have accel, check what the max_vel is that doesn't violate the centripetal accel=accel
-//do not need this calculation:    v1 = sqrt(circ_acc * radius);
-//do not need this calculation:    circ_maxvel = MIN(v1, circ_maxvel);
-//do not need this calculation:
-//do not need this calculation:    // find out how long the arc takes at ini_maxvel
-//do not need this calculation:    tcircle = fabs(angle * radius / circ_maxvel);
-//do not need this calculation:
-//do not need this calculation:    if(axial_maxvel) {
-//do not need this calculation:        taxial = fabs(axis_len / axial_maxvel);
-//do not need this calculation:        tmax = MAX(taxial, tcircle);
-//do not need this calculation:    } else
-//do not need this calculation:        tmax = tcircle;
-//do not need this calculation:
-//do not need this calculation:    tmax = MAX4(tmax, ta, tb, tc);
-//do not need this calculation:    tmax = MAX4(tmax, tu, tv, tw);
-//do not need this calculation:
-//do not need this calculation:    if (tmax <= 0.0) {
-//do not need this calculation:        vel = canon.linearFeedRate;
-//do not need this calculation:    } else {
-//do not need this calculation:        ini_maxvel = helical_length / tmax; //compute the new maxvel based on all previous constraints
-//do not need this calculation:        vel = MIN(vel, ini_maxvel); //the programmed vel is either feedrate or machine_maxvel if lower
-//do not need this calculation:    }
-//do not need this calculation:
-//do not need this calculation:    // for arcs we always user linear move since there is no
-//do not need this calculation:    // arc possible with only ABC motion
-//do not need this calculation:
-//do not need this calculation:    canon.cartesian_move = 1;
-//do not need this calculation:
-//do not need this calculation:// COMPUTE ACCELS
-//do not need this calculation:
-//do not need this calculation:    // the next calcs are not really times.  the units are time^2, but
-//do not need this calculation:    // the division at the end gives the right units for accel.  if you
-//do not need this calculation:    // try to think of these in terms of any real-world value (time to
-//do not need this calculation:    // do what?), you're probably doomed.  think of them as a parametric
-//do not need this calculation:    // expression of the acceleration in the various directions.
-//do not need this calculation:
-//do not need this calculation:    thelix = (helical_length / acc);
-//do not need this calculation:    ta = (axis_valid(3) && da)? (da / axis_max_acc[3]): 0.0;
-//do not need this calculation:    tb = (axis_valid(4) && db)? (db / axis_max_acc[4]): 0.0;
-//do not need this calculation:    tc = (axis_valid(5) && dc)? (dc / axis_max_acc[5]): 0.0;
-//do not need this calculation:
-//do not need this calculation:    tu = (axis_valid(6) && du)? (du / axis_max_acc[6]): 0.0;
-//do not need this calculation:    tv = (axis_valid(7) && dv)? (dv / axis_max_acc[7]): 0.0;
-//do not need this calculation:    tw = (axis_valid(8) && dw)? (dw / axis_max_acc[8]): 0.0;
-//do not need this calculation:
-//do not need this calculation:    tmax = MAX4(thelix, ta, tb, tc);
-//do not need this calculation:    tmax = MAX4(tmax, tu, tv, tw);
-//do not need this calculation:
-//do not need this calculation:    if (tmax > 0.0) {
-//do not need this calculation:        acc = helical_length / tmax;
-//do not need this calculation:    }
-
-    if(!axis_valid(3) || da < tiny) da = 0.0;
-    if(!axis_valid(4) || db < tiny) db = 0.0;
-    if(!axis_valid(5) || dc < tiny) dc = 0.0;
-    if(!axis_valid(6) || du < tiny) du = 0.0;
-    if(!axis_valid(7) || dv < tiny) dv = 0.0;
-    if(!axis_valid(8) || dw < tiny) dw = 0.0;
-
-    canon.cartesian_move = 1;
-
-    // Combination angular and linear move:
-    j1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxJerk(6): 1e9),
-                           (dv?emcAxisGetMaxJerk(7): 1e9),
-                           (dw?emcAxisGetMaxJerk(8): 1e9)));
-    ini_maxjerk = MIN (ini_maxjerk, j1);
-
-    j1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxJerk(3): 1e9),
-                           (db?emcAxisGetMaxJerk(4): 1e9),
-                           (dc?emcAxisGetMaxJerk(5): 1e9)));
-    ini_maxjerk = MIN (ini_maxjerk, j1);
-
-    a1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxAcceleration(6): 1e9),
-                           (dv?emcAxisGetMaxAcceleration(7): 1e9),
-                           (dw?emcAxisGetMaxAcceleration(8): 1e9)));
-    acc = MIN (acc, a1);
-
-    a1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxAcceleration(3): 1e9),
-                           (db?emcAxisGetMaxAcceleration(4): 1e9),
-                           (dc?emcAxisGetMaxAcceleration(5): 1e9)));
-    acc = MIN(acc, a1);
-
-    v1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxVelocity(6): 1e9),
-                           (dv?emcAxisGetMaxVelocity(7): 1e9),
-                           (dw?emcAxisGetMaxVelocity(8): 1e9)));
-    ini_maxvel = MIN(ini_maxvel, v1);
-
-    v1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxVelocity(3): 1e9),
-                           (db?emcAxisGetMaxVelocity(4): 1e9),
-                           (dc?emcAxisGetMaxVelocity(5): 1e9)));
-    ini_maxvel = MIN(ini_maxvel, v1);
-
-    assert(ini_maxvel > 0);
-    assert(ini_maxjerk > 0);
-    assert(acc > 0);
-    
-    // ini_maxvel = vel;
-    ini_maxvel = MIN(ini_maxvel, canon.linearFeedRate);
-    vel = ini_maxvel;
-
-
-/*
-
-    double dx, dy, dz, du, dv, dw, da, db, dc;
-    double  jerk, vel, ini_maxvel, acc, ang_acc, ang_vel, ang_jerk;
-
-    jerk = 0.0; // if a move to nowhere
-
-    // Compute absolute travel distance for each axis:
-    dx = fabs(x - canon.endPoint.x);
-    dy = fabs(y - canon.endPoint.y);
-    dz = fabs(z - canon.endPoint.z);
-    da = fabs(a - canon.endPoint.a);
-    db = fabs(b - canon.endPoint.b);
-    dc = fabs(c - canon.endPoint.c);
-    du = fabs(u - canon.endPoint.u);
-    dv = fabs(v - canon.endPoint.v);
-    dw = fabs(w - canon.endPoint.w);
-
-    if(!axis_valid(0) || dx < tiny) dx = 0.0;
-    if(!axis_valid(1) || dy < tiny) dy = 0.0;
-    if(!axis_valid(2) || dz < tiny) dz = 0.0;
-    if(!axis_valid(3) || da < tiny) da = 0.0;
-    if(!axis_valid(4) || db < tiny) db = 0.0;
-    if(!axis_valid(5) || dc < tiny) dc = 0.0;
-    if(!axis_valid(6) || du < tiny) du = 0.0;
-    if(!axis_valid(7) || dv < tiny) dv = 0.0;
-    if(!axis_valid(8) || dw < tiny) dw = 0.0;
-
-    if(debug_velacc)
-        printf("ARC_FEED dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
-               dx, dy, dz, da, db, dc, du, dv, dw);
-
-    // Figure out what kind of move we're making.  This is used to determine
-    // the units of vel/acc.
-    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
-        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
-        canon.cartesian_move = 0;
-    } else {
-        canon.cartesian_move = 1;
-    }
-    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
-        canon.angular_move = 0;
-    } else {
-        canon.angular_move = 1;
-    }
-
-    // Pure linear move:
-    if (canon.cartesian_move && !canon.angular_move) {
-
-        jerk = MIN3((dx?emcAxisGetMaxJerk(0): 1e9),
-                    (dy?emcAxisGetMaxJerk(1): 1e9),
-                    (dz?emcAxisGetMaxJerk(2): 1e9));
-        jerk = FROM_EXT_LEN(MIN4((jerk),
-                        (du?emcAxisGetMaxJerk(6): 1e9),
-                        (dv?emcAxisGetMaxJerk(7): 1e9),
-                        (dw?emcAxisGetMaxJerk(8): 1e9)));
-        acc = MIN3((dx?emcAxisGetMaxAcceleration(0): 1e9),
-                            (dy?emcAxisGetMaxAcceleration(1): 1e9),
-                            (dz?emcAxisGetMaxAcceleration(2): 1e9));
-        acc = FROM_EXT_LEN(MIN4((acc),
-                        (du?emcAxisGetMaxAcceleration(6): 1e9),
-                        (dv?emcAxisGetMaxAcceleration(7): 1e9),
-                        (dw?emcAxisGetMaxAcceleration(8): 1e9)));
-
-        vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
-                    (dy?emcAxisGetMaxVelocity(1): 1e9),
-                    (dz?emcAxisGetMaxVelocity(2): 1e9));
-        vel = FROM_EXT_LEN(MIN4((vel),
-                        (du?emcAxisGetMaxVelocity(6): 1e9),
-                        (dv?emcAxisGetMaxVelocity(7): 1e9),
-                        (dw?emcAxisGetMaxVelocity(8): 1e9)));
-
-        assert(jerk > 0);
-        assert(acc > 0);
-        assert(vel > 0);
-    }
-    // Pure angular move:
-    else if (!canon.cartesian_move && canon.angular_move) {
-        jerk = FROM_EXT_ANG(MIN3(
-                    (da?emcAxisGetMaxJerk(3): 1e9),
-                    (db?emcAxisGetMaxJerk(4): 1e9),
-                    (dc?emcAxisGetMaxJerk(5): 1e9)));
-        acc = FROM_EXT_ANG(MIN3(
-                (da?emcAxisGetMaxAcceleration(3): 1e9),
-                (db?emcAxisGetMaxAcceleration(4): 1e9),
-                (dc?emcAxisGetMaxAcceleration(5): 1e9)));
-        vel = FROM_EXT_ANG(MIN3(
-                (da?emcAxisGetMaxVelocity(3): 1e9),
-                (db?emcAxisGetMaxVelocity(4): 1e9),
-                (dc?emcAxisGetMaxVelocity(5): 1e9)));
-        assert(jerk > 0);
-        assert(acc > 0);
-        assert(vel > 0);
-    }
-    // Combination angular and linear move:
-    else if (canon.cartesian_move && canon.angular_move) {
-
-        jerk = MIN3( (dx?emcAxisGetMaxJerk(0): 1e9),
-                    (dy?emcAxisGetMaxJerk(1): 1e9),
-                    (dz?emcAxisGetMaxJerk(2): 1e9));
-
-        jerk = FROM_EXT_LEN(MIN4( jerk,
-                                (du?emcAxisGetMaxJerk(6): 1e9),
-                                (dv?emcAxisGetMaxJerk(7): 1e9),
-                                (dw?emcAxisGetMaxJerk(8): 1e9)));
-
-        ang_jerk = FROM_EXT_ANG(MIN3(
-                                    (da?emcAxisGetMaxJerk(3): 1e9),
-                                    (db?emcAxisGetMaxJerk(4): 1e9),
-                                    (dc?emcAxisGetMaxJerk(5): 1e9)));
-
-        jerk = MIN(jerk, ang_jerk);
-
-        acc = MIN3( (dx?emcAxisGetMaxAcceleration(0): 1e9),
-                    (dy?emcAxisGetMaxAcceleration(1): 1e9),
-                    (dz?emcAxisGetMaxAcceleration(2): 1e9));
-
-        acc = FROM_EXT_LEN(MIN4( acc,
-                                (du?emcAxisGetMaxAcceleration(6): 1e9),
-                                (dv?emcAxisGetMaxAcceleration(7): 1e9),
-                                (dw?emcAxisGetMaxAcceleration(8): 1e9)));
-
-        ang_acc = FROM_EXT_ANG(MIN3(
-                            (da?emcAxisGetMaxAcceleration(3): 1e9),
-                            (db?emcAxisGetMaxAcceleration(4): 1e9),
-                            (dc?emcAxisGetMaxAcceleration(5): 1e9)));
-
-        acc = MIN(acc, ang_acc);
-
-        vel = MIN3( (dx?emcAxisGetMaxVelocity(0): 1e9),
-                    (dy?emcAxisGetMaxVelocity(1): 1e9),
-                    (dz?emcAxisGetMaxVelocity(2): 1e9));
-
-        vel = FROM_EXT_LEN(MIN4( vel,
-                                (du?emcAxisGetMaxVelocity(6): 1e9),
-                                (dv?emcAxisGetMaxVelocity(7): 1e9),
-                                (dw?emcAxisGetMaxVelocity(8): 1e9)));
-
-        ang_vel = FROM_EXT_ANG(MIN3(
-                            (da?emcAxisGetMaxVelocity(3): 1e9),
-                            (db?emcAxisGetMaxVelocity(4): 1e9),
-                            (dc?emcAxisGetMaxVelocity(5): 1e9)));
-
-        vel = MIN(vel, ang_vel);
-
-
-        assert(vel > 0);
-        assert(jerk > 0);
-        assert(acc > 0);
-    }
-    ini_maxvel = vel;
-    vel = MIN(vel, canon.linearFeedRate);
-*/
-
-
-//    for (i = 0; i < 3; i++) {
-//        axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
-//        axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
-//        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
-//    }
-//    for (i = 3; i < 6; i++) {
-//        axis_max_acc[i] = FROM_EXT_ANG(emcAxisGetMaxAcceleration(i));
-//        axis_max_vel[i] = FROM_EXT_ANG(emcAxisGetMaxVelocity(i));
-//        axis_max_jerk[i] = FROM_EXT_ANG(emcAxisGetMaxJerk(i));
-//    }
-//    for (i = 6; i < 9; i++) {
-//        axis_max_acc[i] = FROM_EXT_LEN(emcAxisGetMaxAcceleration(i));
-//        axis_max_vel[i] = FROM_EXT_LEN(emcAxisGetMaxVelocity(i));
-//        axis_max_jerk[i] = FROM_EXT_LEN(emcAxisGetMaxJerk(i));
-//    }
-
-/*
-
     get_last_pos(lx, ly, lz);
 
-    // XXX rotation?
-    if( (canon.activePlane == CANON_PLANE_XY)
-            && canon.motionMode == CANON_CONTINUOUS
-            && chord_deviation(lx, ly,
-                offset_x(FROM_PROG_LEN(first_end)), offset_y(FROM_PROG_LEN(second_end)),
-                offset_x(FROM_PROG_LEN(first_axis)), offset_y(FROM_PROG_LEN(second_axis)),
-                rotation, mx, my) < canon.naivecamTolerance) {
-        double x=FROM_PROG_LEN(first_end), y=FROM_PROG_LEN(second_end), z=FROM_PROG_LEN(axis_end_point);
-        rotate_and_offset_pos(x, y, z, a, b, c, u, v, w);
-        see_segment(line_number, mx, my,
-                (lz + z)/2, 
-                (canon.endPoint.a + a)/2, 
-                (canon.endPoint.b + b)/2, 
-                (canon.endPoint.c + c)/2, 
-                (canon.endPoint.u + u)/2, 
-                (canon.endPoint.v + v)/2, 
-                (canon.endPoint.w + w)/2);
-        see_segment(line_number, x, y, z, a, b, c, u, v, w);
-        return;
+    a = FROM_PROG_ANG(a);
+    b = FROM_PROG_ANG(b);
+    c = FROM_PROG_ANG(c);
+    u = FROM_PROG_LEN(u);
+    v = FROM_PROG_LEN(v);
+    w = FROM_PROG_LEN(w);
+
+    if( canon.activePlane == CANON_PLANE_XY && canon.motionMode == CANON_CONTINUOUS) {
+        double fe=FROM_PROG_LEN(first_end), se=FROM_PROG_LEN(second_end), ae=FROM_PROG_LEN(axis_end_point);
+        double fa=FROM_PROG_LEN(first_axis), sa=FROM_PROG_LEN(second_axis);
+        rotate_and_offset_pos(fe, se, ae, unused, unused, unused, unused, unused, unused);
+        rotate_and_offset_pos(fa, sa, unused, unused, unused, unused, unused, unused, unused);
+            
+        if (chord_deviation(lx, ly, fe, se, fa, sa, rotation, mx, my) < canon.naivecamTolerance) {
+            rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
+            see_segment(line_number, mx, my,
+                        (lz + ae)/2, 
+                        (canon.endPoint.a + a)/2, 
+                        (canon.endPoint.b + b)/2, 
+                        (canon.endPoint.c + c)/2, 
+                        (canon.endPoint.u + u)/2, 
+                        (canon.endPoint.v + v)/2, 
+                        (canon.endPoint.w + w)/2);
+            see_segment(line_number, fe, se, ae, a, b, c, u, v, w);
+            return;
+        }
     }
     //ini_maxvel = max vel defined by various ini constraints
     //circ_maxvel = max vel defined by ini constraints in the circle plane (XY, YZ or XZ)
@@ -2339,13 +1788,6 @@ void ARC_FEED(int line_number,
     linearMoveMsg.feed_mode = canon.feed_mode;
     circularMoveMsg.feed_mode = canon.feed_mode;
     flush_segments();
-
-    a = FROM_PROG_ANG(a);
-    b = FROM_PROG_ANG(b);
-    c = FROM_PROG_ANG(c);
-    u = FROM_PROG_LEN(u);
-    v = FROM_PROG_LEN(v);
-    w = FROM_PROG_LEN(w);
 
     rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
 
@@ -2357,8 +1799,8 @@ void ARC_FEED(int line_number,
     dv = fabs(canon.endPoint.v - v);
     dw = fabs(canon.endPoint.w - w);
 
-     Since there's no default case here,
-       we need to initialise vel to something safe!
+    /* Since there's no default case here,
+       we need to initialise vel to something safe! */
     vel = ini_maxvel = canon.linearFeedRate;
 
     // convert to absolute mm units
@@ -2368,7 +1810,7 @@ void ARC_FEED(int line_number,
     second_end = FROM_PROG_LEN(second_end);
     axis_end_point = FROM_PROG_LEN(axis_end_point);
 
-     associate x with x, etc., offset by program origin, and set normals
+    /* associate x with x, etc., offset by program origin, and set normals */
     switch (canon.activePlane) {
     default: // to eliminate "uninitalized" warnings
     case CANON_PLANE_XY:
@@ -2395,15 +1837,17 @@ void ARC_FEED(int line_number,
 	v2 = axis_max_vel[1];
 	a1 = axis_max_acc[0];
 	a2 = axis_max_acc[1];
-
         circ_maxvel = ini_maxvel = MIN(v1, v2);
         circ_acc = acc = MIN(a1, a2);
+        j1 = axis_max_jerk[0];
+        j2 = axis_max_jerk[1];
         ini_maxjerk = MIN(j1, j2);
         if(axis_valid(2) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[2];
             axial_acc = a1 = axis_max_acc[2];
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
+            ini_maxjerk = MIN(ini_maxjerk, j1);
         }
 	break;
 
@@ -2435,11 +1879,15 @@ void ARC_FEED(int line_number,
 	a2 = axis_max_acc[2];
         circ_maxvel = ini_maxvel = MIN(v1, v2);
         circ_acc = acc = MIN(a1, a2);
+        j1 = axis_max_jerk[1];
+        j2 = axis_max_jerk[2];
+        ini_maxjerk = MIN(j1, j2);
         if(axis_valid(0) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[0];
             axial_acc = a1 = axis_max_acc[0];
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
+            ini_maxjerk = MIN(ini_maxjerk, j1);
         }
 
 	break;
@@ -2472,11 +1920,15 @@ void ARC_FEED(int line_number,
 	a2 = axis_max_acc[2];
 	circ_maxvel = ini_maxvel = MIN(v1, v2);
         circ_acc = acc = MIN(a1, a2);
+        j1 = axis_max_jerk[0];
+        j2 = axis_max_jerk[2];
+        ini_maxjerk = MIN(j1, j2);
         if(axis_valid(1) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[1];
             axial_acc = a1 = axis_max_acc[1];
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
+            ini_maxjerk = MIN(ini_maxjerk, j1);
         }
 	break;
     }
@@ -2549,8 +2001,19 @@ void ARC_FEED(int line_number,
     if (tmax > 0.0) {
         acc = helical_length / tmax;
     }
+    
+// TODO: COMPUTE JERKS
+    j1 = FROM_EXT_LEN(MIN3((du?emcAxisGetMaxJerk(6): 1e9),
+                           (dv?emcAxisGetMaxJerk(7): 1e9),
+                           (dw?emcAxisGetMaxJerk(8): 1e9)));
+    ini_maxjerk = MIN (ini_maxjerk, j1);
 
+    j1 = FROM_EXT_ANG(MIN3((da?emcAxisGetMaxJerk(3): 1e9),
+                           (db?emcAxisGetMaxJerk(4): 1e9),
+                           (dc?emcAxisGetMaxJerk(5): 1e9)));
+    ini_maxjerk = MIN (ini_maxjerk, j1);
 
+    /* 
        mapping of rotation to turns:
 
        rotation turns 
@@ -2559,29 +2022,7 @@ void ARC_FEED(int line_number,
               1 0 
               2 1 
              -1 -1 
-             -2 -2
-// COMPUTE JERKS //TODO-eric do we consider motion type for jerk?.
-//    if ( canon.cartesian_move == 1) {
-//        for (i = 0; i < 3; i++ ) {
-//            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-//        }
-//        for (i = 6; i < 9; i++) {
-//            ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-//        }
-//    } else if ( canon.angular_move == 1) {
-//        for (i = 3; i < 6; i++) {
-//                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-//                }
-//
-//    } else if (canon.cartesian_move == 0 && canon.angular_move == 0) {
-//        for (i = 0; i < 3; i++ ) {
-//                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-//                }
-//                for (i = 6; i < 9; i++) {
-//                    ini_maxjerk = MAX(ini_maxjerk, axis_max_jerk[i]);
-//                }
-//    }
-*/
+             -2 -2 */
 
     if (rotation == 0) {
 	// linear move
@@ -2600,10 +2041,11 @@ void ARC_FEED(int line_number,
 	linearMoveMsg.end.w = TO_EXT_LEN(w);
 
         linearMoveMsg.type = EMC_MOTION_TYPE_ARC;
-        linearMoveMsg.vel = vel;//toExtVel(vel);
-        linearMoveMsg.ini_maxvel = ini_maxvel;//toExtVel(ini_maxvel);
-        linearMoveMsg.acc = acc;//toExtAcc(acc);
-        linearMoveMsg.ini_maxjerk = ini_maxjerk;//TO_EXT_LEN(ini_maxjerk);
+        linearMoveMsg.vel = toExtVel(vel);
+        linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
+        linearMoveMsg.acc = toExtAcc(acc);
+        linearMoveMsg.ini_maxjerk = ini_maxjerk;
+        linearMoveMsg.indexrotary = -1;
         if(vel && acc){
             interp_list.set_line_number(line_number);
             interp_list.append(linearMoveMsg);
@@ -2642,10 +2084,9 @@ void ARC_FEED(int line_number,
         // 0,0,0 to 1,1,1 on a machine with maxvel=1 and maxaccel=1 on
         // all axes.  The actual maximums will be near sqrt(3) but
         // we'll be using 1 instead.
-        circularMoveMsg.vel = vel;//toExtVel(vel);
-        circularMoveMsg.ini_maxvel = ini_maxvel;//toExtVel(ini_maxvel);
-        // circularMoveMsg.acc = toExtAcc(acc);
-        circularMoveMsg.acc = acc;
+        circularMoveMsg.vel = toExtVel(vel);
+        circularMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
+        circularMoveMsg.acc = toExtAcc(acc);
         circularMoveMsg.ini_maxjerk = ini_maxjerk;//TO_EXT_LEN(ini_maxjerk);
         if(vel && acc) {
             interp_list.set_line_number(line_number);
@@ -2691,7 +2132,7 @@ void START_SPINDLE_CLOCKWISE()
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
 	emc_spindle_on_msg.speed = canon.css_maximum;
 	emc_spindle_on_msg.factor = canon.css_numerator;
-	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.programOrigin.x + canon.toolOffset.tran.x);
+	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
 	emc_spindle_on_msg.speed = canon.spindleSpeed;
 	canon.css_numerator = 0;
@@ -2712,7 +2153,7 @@ void START_SPINDLE_COUNTERCLOCKWISE()
 	    canon.css_numerator = -1000 / (2 * M_PI) * canon.spindleSpeed;
 	emc_spindle_on_msg.speed = canon.css_maximum;
 	emc_spindle_on_msg.factor = canon.css_numerator;
-	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.programOrigin.x + canon.toolOffset.tran.x);
+	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
 	emc_spindle_on_msg.speed = -canon.spindleSpeed;
 	canon.css_numerator = 0;
@@ -2741,7 +2182,7 @@ void SET_SPINDLE_SPEED(double r)
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed;
 	emc_spindle_speed_msg.speed = canon.css_maximum;
 	emc_spindle_speed_msg.factor = canon.css_numerator;
-	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.programOrigin.x + canon.toolOffset.tran.x);
+	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
 	emc_spindle_speed_msg.speed = canon.spindleSpeed;
 	canon.css_numerator = 0;
@@ -2838,7 +2279,7 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
 	EMC_SPINDLE_SPEED emc_spindle_speed_msg;
 	emc_spindle_speed_msg.speed = canon.css_maximum;
 	emc_spindle_speed_msg.factor = canon.css_numerator;
-	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.programOrigin.x + canon.toolOffset.tran.x);
+	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
 	interp_list.append(emc_spindle_speed_msg);
     }
     interp_list.append(set_offset_msg);
@@ -2884,6 +2325,7 @@ void CHANGE_TOOL(int slot)
         linearMoveMsg.acc = toExtAcc(acc);
         linearMoveMsg.type = EMC_MOTION_TYPE_TOOLCHANGE;
 	linearMoveMsg.feed_mode = 0;
+        linearMoveMsg.indexrotary = -1;
 
 	int old_feed_mode = canon.feed_mode;
 	if(canon.feed_mode)
@@ -2970,13 +2412,13 @@ static char *addString(char *dst, const char *src, int maxlen)
 
 static FILE *probefile = NULL;
 
-void COMMENT(char *comment)
+void COMMENT(const char *comment)
 {
     // nothing need be done here, but you can play tricks with hot comments
 
     char msg[LINELEN];
     char probefilename[LINELEN];
-    char *ptr;
+    const char *ptr;
 
     // set RPY orientation for subsequent moves
     if (!strncmp(comment, "RPY", strlen("RPY"))) {
@@ -3147,6 +2589,13 @@ void LOGOPEN(char *name) {
     fprintf(stderr, "LOGOPEN(%s) -> %p\n", name, logfile);
 }
 
+void LOGAPPEND(char *name) {
+    if(logfile) fclose(logfile);
+    logfile = fopen(name, "at");
+    fprintf(stderr, "LOGAPPEND(%s) -> %p\n", name, logfile);
+}
+
+
 void LOGCLOSE() {
     if(logfile) fclose(logfile);
     logfile = NULL;
@@ -3302,19 +2751,29 @@ void INIT_CANON()
 
     // initialize locals to original values
     canon.xy_rotation = 0.0;
+    canon.rotary_unlock_for_traverse = -1;
     canon.css_maximum = 0.0;
     canon.css_numerator = 0.0;
     canon.feed_mode = 0;
     canon.synched = 0;
-    canon.programOrigin.x = 0.0;
-    canon.programOrigin.y = 0.0;
-    canon.programOrigin.z = 0.0;
-    canon.programOrigin.a = 0.0;
-    canon.programOrigin.b = 0.0;
-    canon.programOrigin.c = 0.0;
-    canon.programOrigin.u = 0.0;
-    canon.programOrigin.v = 0.0;
-    canon.programOrigin.w = 0.0;
+    canon.g5xOffset.x = 0.0;
+    canon.g5xOffset.y = 0.0;
+    canon.g5xOffset.z = 0.0;
+    canon.g5xOffset.a = 0.0;
+    canon.g5xOffset.b = 0.0;
+    canon.g5xOffset.c = 0.0;
+    canon.g5xOffset.u = 0.0;
+    canon.g5xOffset.v = 0.0;
+    canon.g5xOffset.w = 0.0;
+    canon.g92Offset.x = 0.0;
+    canon.g92Offset.y = 0.0;
+    canon.g92Offset.z = 0.0;
+    canon.g92Offset.a = 0.0;
+    canon.g92Offset.b = 0.0;
+    canon.g92Offset.c = 0.0;
+    canon.g92Offset.u = 0.0;
+    canon.g92Offset.v = 0.0;
+    canon.g92Offset.w = 0.0;
     SELECT_PLANE(CANON_PLANE_XY);
     canonUpdateEndPoint(0, 0, 0, 0, 0, 0, 0, 0, 0);
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
@@ -3783,9 +3242,9 @@ int GET_EXTERNAL_DIGITAL_INPUT(int index, int def)
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def)
 {
 /* returns current value of the analog input selected by index.*/
-//#ifdef INPUT_DEBUG
+#ifdef INPUT_DEBUG
     printf("GET_EXTERNAL_ANALOG_INPUT called\n ai[%d]=%g \n timeout=%d \n",index,emcStatus->motion.analog_input[index],emcStatus->task.input_timeout);
-//#endif
+#endif
     if ((index < 0) || (index >= EMCMOT_MAX_AIO))
 	return -1;
 
@@ -3988,6 +3447,37 @@ int WAIT(int index, /* index of the motion exported input */
  
  interp_list.append(wait_msg);
  return 0;
+}
+
+int UNLOCK_ROTARY(int line_number, int axis) {
+    EMC_TRAJ_LINEAR_MOVE m;
+    // first, set up a zero length move to interrupt blending and get to final position
+    m.type = EMC_MOTION_TYPE_TRAVERSE;
+    m.feed_mode = 0;
+    m.end = to_ext_pose(canon.endPoint.x, canon.endPoint.y, canon.endPoint.z,
+                        canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+                        canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+    m.vel = m.acc = 1; // nonzero but otherwise doesn't matter
+    m.indexrotary = -1;
+
+    // issue it
+    int old_feed_mode = canon.feed_mode;
+    if(canon.feed_mode)
+	STOP_SPEED_FEED_SYNCH();
+    interp_list.set_line_number(line_number);
+    interp_list.append(m);
+    // no need to update endpoint
+    if(old_feed_mode)
+	START_SPEED_FEED_SYNCH(canon.linearFeedRate, 1);
+
+    // now, the next move is the real indexing move, so be ready
+    canon.rotary_unlock_for_traverse = axis;
+    return 0;
+}
+
+int LOCK_ROTARY(int line_number, int axis) {
+    canon.rotary_unlock_for_traverse = -1;
+    return 0;
 }
 
 void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,

@@ -184,6 +184,7 @@ const int Interp::_required_parameters[] = {
  5181, 5182, 5183,   /* G30 home */
  5184, 5185, 5186, /* A, B, & C */
  5187, 5188, 5189, /* U, V, & W */
+ 5210, /* G92 is currently applied */
  5211, 5212, 5213,   /* G92 offsets */
  5214, 5215, 5216, /* A, B, & C */
  5217, 5218, 5219, /* U, V, & W */
@@ -242,6 +243,7 @@ const int Interp::_readonly_parameters[] = {
  5411, // tool frontangle
  5412, // tool backangle
  5413, // tool orientation
+ 5420, 5421, 5422, 5423, 5424, 5425, 5426, 5427, 5428, // current X Y ... W
 };
 const int Interp::_n_readonly_parameters = sizeof(_readonly_parameters)/sizeof(int);
 
