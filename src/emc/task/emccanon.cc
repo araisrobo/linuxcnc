@@ -3181,7 +3181,14 @@ CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE()
 int GET_EXTERNAL_QUEUE_EMPTY(void)
 {
     flush_segments();
-
+    
+    // need? if (0 != emcMotionUpdate(&emcStatus->motion)) {
+    // need?     // FIXME: this is a work-around for NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
+    // need?     printf ("debug: emccanon.cc: emcMotionUpdate() fail\n");
+    // need?     // TODO: remove this assertion
+    // need?     assert(0);
+    // need? }
+    
     return emcStatus->motion.traj.queue == 0 ? 1 : 0;
 }
 

@@ -173,9 +173,9 @@ endif
 # Compilation options.  Perhaps some of these should come from Makefile.inc?
 # original: OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
 # for debug: 
-OPT := -O0
+# OPT := -O0
 # for release: 
-# OPT := -O2
+OPT := -O2
 
 # for debug: 
 DEBUG := -g -Wall
