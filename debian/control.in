@@ -2,13 +2,12 @@ Source: emc2
 Section: misc
 Priority: extra
 Maintainer: Yi-Shin Li <ysli@araisrobo.com>
-Build-Depends: debhelper (>> 4.0.0),
+Build-Depends: debhelper (>= 6),
     @KERNEL_DEPENDS@, @KERNEL_HEADERS@, @EXTRA_BUILD@, g++, make, libc6-dev,
-    tcl@TCLTK_VERSION@-dev, tk@TCLTK_VERSION@-dev, bwidget, cpio,
-    libxaw7-dev, libncurses-dev, libreadline5-dev,
-    xsltproc, groff, dvipng, 
-    lyx-qt | lyx, ghostscript, imagemagick, texlive-latex-base, texlive-extra-utils,
-    texlive-font-utils, python, python-dev, python-support, python-tk,
+    tcl@TCLTK_VERSION@-dev, tk@TCLTK_VERSION@-dev, bwidget, blt, libtk-img, cpio,
+    libxaw7-dev, libncurses-dev, libreadline-dev,
+    asciidoc (>= 8.5), source-highlight, dblatex (>= 0.2.12), xsltproc, groff, 
+    python, python-dev, python-support, python-tk,
     libglu1-mesa-dev, libgl1-mesa-dev | libgl1-mesa-swx11-dev,
     libgtk2.0-dev, libgnomeprintui2.2-dev, libwou-dev (>= 0.1-9),
     gettext, autoconf
@@ -19,7 +18,7 @@ Architecture: any
 Provides: emc2-dev
 Depends: g++, @KERNEL_HEADERS@,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
-    ${python:Depends},
+    ${python:Depends}, ${misc:Depends},
     @EMC2_PACKAGE_NAME@ (= ${binary:Version}), libwou-dev,
     yapps2-runtime
 Section: libs
@@ -36,12 +35,12 @@ Replaces: emc2, emc2-axis
 Conflicts: emc2, emc2-axis
 Provides: emc2, emc2-axis
 Architecture: any
-Recommends: hostmot2-firmware, emc2-doc-en | emc2-doc-fr
+Recommends: hostmot2-firmware, emc2-doc-en | emc2-doc-fr | emc2-doc-de | emc2-doc-es
 Depends: ${shlibs:Depends}, @KERNEL_DEPENDS@,
-    tcl@TCLTK_VERSION@, tk@TCLTK_VERSION@, bwidget (>= 1.7),
-    libreadline5, libwou,
+    tcl@TCLTK_VERSION@, tk@TCLTK_VERSION@, bwidget (>= 1.7), libtk-img (>=1.13),
+    libwou,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
-    ${python:Depends},
+    ${python:Depends}, ${misc:Depends},
     python@PYTHON_VERSION@-tk,
     python@PYTHON_VERSION@-gnome2, python@PYTHON_VERSION@-glade2,
     python@PYTHON_VERSION@-numpy | python-numpy,
@@ -56,6 +55,7 @@ Description: PC based motion controller for real-time Linux
 Package: emc2-doc-en
 Conflicts: emc2 (<< 1:2.5.0~pre), emc2-sim (<< 1:2.5.0~pre)
 Architecture: all
+Depends: ${misc:Depends}
 Suggests: pdf-viewer
 Description: PC based motion controller for real-time Linux
  EMC2 is the next-generation Enhanced Machine Controller which
@@ -67,6 +67,7 @@ Description: PC based motion controller for real-time Linux
 Package: emc2-doc-fr
 Conflicts: emc2 (<< 1:2.5.0~pre), emc2-sim (<< 1:2.5.0~pre)
 Architecture: all
+Depends: ${misc:Depends}
 Suggests: pdf-viewer
 Description: PC based motion controller for real-time Linux
  EMC2 is the next-generation Enhanced Machine Controller which
@@ -74,4 +75,28 @@ Description: PC based motion controller for real-time Linux
  applications (milling, cutting, routing, etc.).
  .
  This package contains the documentation in French.
+
+Package: emc2-doc-de
+Conflicts: emc2 (<< 1:2.5.0~pre), emc2-sim (<< 1:2.5.0~pre)
+Architecture: all
+Depends: ${misc:Depends}
+Suggests: pdf-viewer
+Description: PC based motion controller for real-time Linux
+ EMC2 is the next-generation Enhanced Machine Controller which
+ provides motion control for CNC machine tools and robotic
+ applications (milling, cutting, routing, etc.).
+ .
+ This package contains the documentation in German.
+
+Package: emc2-doc-es
+Conflicts: emc2 (<< 1:2.5.0~pre), emc2-sim (<< 1:2.5.0~pre)
+Architecture: all
+Depends: ${misc:Depends}
+Suggests: pdf-viewer
+Description: PC based motion controller for real-time Linux
+ EMC2 is the next-generation Enhanced Machine Controller which
+ provides motion control for CNC machine tools and robotic
+ applications (milling, cutting, routing, etc.).
+ .
+ This package contains the documentation in Spanish.
 

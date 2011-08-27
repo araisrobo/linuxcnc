@@ -53,8 +53,9 @@ the board.
 Each I/O pin can be configured, at board-driver load time, to serve
 one of two purposes: either as a particular I/O pin of a particular
 Module instance (encoder, pwmgen, or stepgen), or as a general purpose
-digital I/O pin.  By default all Module instances are enabled, and all
-the board's pins are used by the Module instances.
+digital I/O pin.  By default all Module instances with the exception of 
+SmartSerial are enabled, and all the board's pins are used by the Module 
+instances.
 
 The user can disable Module instances at board-driver load time, by
 specifying a hostmot2 config string modparam.  Any pins which belong to
@@ -113,16 +114,8 @@ programmed, and had better have a valid configuration already.
 The requested firmware F is fetched by udev.  udev searches for the
 firmware in the system's firmware search path, usually /lib/firmware.
 F typically has the form "hm2/<BoardType>/file.bit"; a typical value
-for F might be "hm2/5i20/SVST8_4.BIT".  If EMC2 is installed by the
-Debian package (.deb), then the firmware files are already installed
-in /lib/firmware.  If EMC2 is compiled from source and configured for
-run-in-place, then the user must symlink the hostmot2 firmware into
-/lib/firmware manually, using a command like this:
-.P
-.RS
-\fBsudo ln -s $EMC2/src/hal/drivers/mesa-hostmot2/firmware
-/lib/firmware/hm2\fR
-.RE
+for F might be "hm2/5i20/SVST8_4.BIT".  The hostmot2 firmware files are
+supplied by the hostmot2-firmware packages, available from linuxcnc.org.
 .RE
 .TP
 \fBnum_encoders\fR [optional, default: -1]
@@ -154,17 +147,21 @@ The "." character is optional and any characters other than space and comma are
 OK. However, do not put a leading 0 in front of a digit or it will be read as a
 zero value.
 The ports and channels are numbered in the C-style, starting at 0, so
-num_sserial=8 will activate channels 0 to 7 of port 0.
+num_sserials=8 will activate channels 0 to 7 of port 0.
 The sserial driver will auto-detect the devices. This parameter determines which
 of the the 8 channels of each port should be searched for devices.
 The channels are activated in ascending order. Pins allocated
 to Smart Serial by the firmware but not connected to a Smart Serial device may
-be used for GPIO. pins activated but on which no devices are found can also be
+be used for GPIO. Pins activated but on which no devices are found can also be
 used for GPIO, but this is not recommended as the pin values and directions will
 change randomly during the device interogation stage.
 For this reason the feature defaults to all channels disabled.
 The parameter can also be used to disable specific channels and/
 or ports.
+.TP
+\fBnum_bspis\fR [optional, default: -1]
+Only enable the first N Buffered SPI drivers. If N is -1 then all the drivers 
+are enabled. Each BSPI driver can address 16 devices.
 .TP
 \fBnum_leds\fR [optional, default: -1]
 Only enable the first N of the LEDs on the FPGA board. If N is -1, then HAL
@@ -173,7 +170,6 @@ pins for all the LEDs will be created. If N=0 then no pins will be added.
 \fBenable_raw\fR [optional]
 If specified, this turns on a raw access mode, whereby a user can peek and
 poke the firmware from HAL.  See Raw Mode below.
-.TP
 .RE
 .SH encoder
 
@@ -475,11 +471,12 @@ The driver auto-detects the connected hardware port, channel and device type.
 Devices can be connected in any order to any active channel of an active port.
 (see the config modparam definition above).
 
-In addition to the per-channel/device pins detailed below there are two per-port
-pins and a further 7 pins shared between all ports used for setting on-device
-parameters.
+In addition to the per-channel/device pins detailed below there are three per-
+port pins, three parameters and a further 7 pins shared between all ports used 
+for changing on-device settings.
 
 Pins:
+
 (bit, in) .sserial.port-N.run: Enables the specific Smart Serial module.
 Setting this pin low will disable all boards on the port and puts the port in a
 pass-through mode where device parameter setting is possible.
@@ -487,9 +484,12 @@ This pin defaults to TRUE and can be left unconnected. However, toggling the pin
 low-to-high will re-enable a faulted drive so the pin could usefully be
 connected to the iocontrol.0.user-enable-out pin.
 
-(u32, ro) run_state: Shows the state of the sserial communications state-machine.
-This pin will generally show  value of 0x03 in normal operation, 0x07 in
+(u32, ro) .run_state: Shows the state of the sserial communications state-machine.
+This pin will generally show a value of 0x03 in normal operation, 0x07 in
 setup mode and 0x00 when the "run" pin is false.
+
+(u32, ro) .error-count: Indicates the state of the Smart Serial error handler, 
+see the parameters sections for more details. 
 
 (u32, in) .sserial.port: When programming device parameters, this pin sets the
 active port.
@@ -514,6 +514,25 @@ pin will return to zero (if not connected in HAL)
 (u32, out) .sserial.state: Shows the state of the read or write process (which
 typically takes many servo cycles). See the source code if the precise meanings
 are important to your application.
+
+Parameters:
+
+(u32 r/w) .fault-inc: Any over-run or handshaking error in the SmartSerial
+communications will increment the .fault-count pin by the amount specified by
+this parameter. Default = 10.
+
+(u32 r/w) .fault-dec: Every successful read/write cycle decrements the fault
+counter by this amount. Default = 1.
+
+(u32 r/w) .fault-lim: When the fault counter reaches this threshold the Smart
+Serial interface on the corresponding port will be stopped and an error printed 
+in dmesg. Together these three pins allow for control over the degree of fault-
+tolerance allowed in the interface. The default values mean that if more than
+one transaction in ten fails, more than 20 times, then a hard error will be
+raised. If the increment were to be set to zero then no error would ever be
+raised, and the system would carry on regardless. Conversely setting decrement to 
+zero, threshold to 1 and limit to 1 means that absolutely no errors will be
+tolerated. (This structure is copied directly from vehicle ECU practice)
 
 The other pins and parameters created in HAL depend on the devices detected.
 .TP
@@ -594,6 +613,21 @@ Parameters:
 the output value, such that writing 0 to .gpio.NN.out will enable the output
 and vice-versa.
 
+.SH BSPI
+The BSPI (Buffered SPI) driver is unusual in that it does not create any HAL
+pins. Instead the driver exports a set of functions that can be used by a sub
+-driver for the attached hardware. Typically these would be written in the "comp"
+pre-processing language: see http://linuxcnc.org/docs/html/hal_comp.html or man
+comp for further details. See man mesa_7i65 and the source of mesa_7i65.comp for
+details of a typical sub-driver.
+See man hm2_bspi_setup_chan, man hm2_bspi_write_chan, man hm2_tram_add_bspi_frame,
+man hm2_allocate_bspi_tram, man hm2_bspi_set_read_funtion and
+man hm2_bspi_set_write_function for the exported functions.
+
+The names of the available channels are printed to standard output during the
+driver loading process and take the form
+hm2_<board name>.<board index>.bspi.<index> For example hm2_5i23.0.bspi.0
+
 
 .SH General Purpose I/O
 
@@ -672,7 +706,8 @@ the led.
 .SH Watchdog
 
 The HostMot2 firmware may include a watchdog Module; if it does, the
-hostmot2 driver will use it.
+hostmot2 driver will use it.  The HAL representation of the watchdog is
+named "hm2_<BoardType>.<BoardNum>.watchdog".
 
 The watchdog must be petted by EMC2 periodically or it will bite.
 
@@ -710,9 +745,11 @@ postpones the watchdog biting until timeout_ns nanoseconds later.
 .SH Raw Mode
 
 If the "enable_raw" config keyword is specified, some extra debugging
-options are made available to HAL.  With Raw mode enabled, a user may
-peek and poke the firmware from HAL, and may dump the internal state of
-the hostmot2 driver to the syslog.
+pins are made available in HAL.  The raw mode HAL pin names begin with
+"hm2_<BoardType>.<BoardNum>.raw".
+
+With Raw mode enabled, a user may peek and poke the firmware from HAL,
+and may dump the internal state of the hostmot2 driver to the syslog.
 
 Pins:
 

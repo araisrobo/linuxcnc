@@ -1676,7 +1676,7 @@ frame ${pane_top}.feedoverride
 
 label ${pane_top}.feedoverride.foentry \
 	-textvariable feedrate \
-	-width 3 \
+	-width 4 \
         -anchor e
 setup_widget_accel ${pane_top}.feedoverride.foentry 0
 
@@ -2120,8 +2120,7 @@ bind . <Control-Tab> {
 foreach c {Entry Spinbox} {
         foreach b [bind $c] {
             switch -glob $b {
-                <Shift-Key-*> - <Control-Key-*> -
-                <Meta-Key-*> - <Alt-Key-*> {
+                <*-Key-*> {
                     bind $c $b {+if {[%W cget -state] == "normal"} break}
                 }
             }
@@ -2148,6 +2147,11 @@ foreach c {Entry Spinbox} {
         set b [bind $c <$k>]
         if {$b == {}} { set b $bb }
         bind $c <KeyPress-KP_$k> "if {%A == \"\"} { $b } { $bb; break }"
+        bind $c <KeyRelease-KP_$k> {+if {[%W cget -state] == "normal"} break}
+    }
+
+    foreach k {0 1 2 3 4 5 6 7 8 9} {
+        bind $c <KeyPress-KP_$k> "$bb; break"
         bind $c <KeyRelease-KP_$k> {+if {[%W cget -state] == "normal"} break}
     }
 

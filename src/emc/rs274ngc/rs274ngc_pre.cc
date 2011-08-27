@@ -97,9 +97,21 @@ extern char * _rs274ngc_errors[];
 
 #define LOG_FILE &_setup.log_file[0]
 
+const char *Interp::interp_status(int status) {
+    static char statustext[50];
+    static const char *msgs[] = { "INTERP_OK", "INTERP_EXIT",
+	    "INTERP_EXECUTE_FINISH", "INTERP_ENDFILE", "INTERP_FILE_NOT_OPEN",
+	    "INTERP_ERROR" };
+    sprintf(statustext, "%s%s%d", ((status >= INTERP_OK) && (status
+	    <= INTERP_ERROR)) ? msgs[status] : "unknown interpreter error",
+	    (status >= INTERP_MIN_ERROR) ? " - error: " : " - ", status);
+    return statustext;
+}
+
 Interp::Interp() 
     : log_file(0)
 {}
+
 
 Interp::~Interp() {
     if(log_file) {
@@ -141,6 +153,8 @@ void Interp::doLog(const char *fmt, ...)
     fflush(log_file);
 
     va_end(ap);
+#else
+    rcs_print("foo");
 #endif
 }
 
@@ -222,7 +236,7 @@ int Interp::execute(const char *command)
     }
   }
 
-  logDebug("MDImode = 1");
+  logDebug("MDImode = %d",MDImode);
   logDebug("Interp::execute(%s)", command);
   // process control functions -- will skip if skipping
   //  if (_setup.block1.o_number != 0)
@@ -512,7 +526,29 @@ int Interp::init()
           }
           logDebug("_setup.subroutines:%p:\n", _setup.subroutines);
 
-
+	  // find T and M6 oword sub replacements commands
+	  // T_COMMAND=O<t> call <pocketnumber>
+	  // M6_COMMAND=O<m6> call
+          if (NULL != (inistring = inifile.Find("T_COMMAND", "RS274NGC"))) {
+	      _setup.t_command = strdup(inistring);
+              logDebug("_setup.t_command=%s\n", _setup.t_command);
+          } else {
+                 _setup.t_command = NULL;
+          }
+          if (NULL != (inistring = inifile.Find("M6_COMMAND", "RS274NGC"))) {
+	      _setup.m6_command = strdup(inistring);
+              logDebug("_setup.m6_command=%s\n", _setup.m6_command);
+          } else {
+	      _setup.m6_command = NULL;
+          }
+          // subroutine to execute on aborts - for instance to retract
+          // toolchange HAL pins
+          if (NULL != (inistring = inifile.Find("ON_ABORT_COMMAND", "RS274NGC"))) {
+	      _setup.on_abort_command = strdup(inistring);
+              logDebug("_setup.on_abort_command=%s\n", _setup.on_abort_command);
+          } else {
+	      _setup.on_abort_command = NULL;
+          }
           // close it
           inifile.Close();
       }
@@ -653,6 +689,7 @@ int Interp::init()
   _setup.oword_labels = 0;
 
   _setup.lathe_diameter_mode = false;
+  _setup.parameters[5599] = 1.0; // enable (DEBUG, ) output
 
   memcpy(_readers, default_readers, sizeof(default_readers));
 
@@ -677,25 +714,6 @@ int Interp::init()
   init_tool_parameters();
   CHP(init_named_parameters());
   // Synch rest of settings to external world
-  return INTERP_OK;
-}
-
-int Interp::init_named_parameters()
-{
-// version       major   minor      Note
-// ------------ -------- ---------- -------------------------------------
-// M.N.m         M.N     0.m        normal format
-// M.N.m~xxx     M.N     0.m        pre-release format
-  const char *pkgversion = PACKAGE_VERSION;  //examples: 2.4.6, 2.5.0~pre
-  const char *version_major = "_vmajor";// named_parameter name (use lower case)
-  const char *version_minor = "_vminor";// named_parameter name (use lower case)
-  double vmajor=0.0, vminor=0.0;
-  sscanf(pkgversion, "%lf%lf", &vmajor, &vminor);
-  CHP( add_named_param((char*)version_major));
-  CHP(init_named_param((char*)version_major,vmajor));
-  CHP( add_named_param((char*)version_minor));
-  CHP(init_named_param((char*)version_minor,vminor));
-
   return INTERP_OK;
 }
 
@@ -894,6 +912,10 @@ int Interp::read(const char *command)  //!< may be NULL or a string to read
     load_tool_table();
     _setup.toolchange_flag = false;
   }
+  // always track toolchanger-fault and toolchanger-reason codesf
+  _setup.parameters[5600] = GET_EXTERNAL_TC_FAULT();
+  _setup.parameters[5601] = GET_EXTERNAL_TC_REASON();
+
   if (_setup.input_flag) {
     CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
         NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT);
@@ -1700,4 +1722,36 @@ int Interp::set_tool_parameters()
   _setup.parameters[5413] = _setup.tool_table[0].orientation;
 
   return 0;
+}
+
+
+int Interp::on_abort(int reason)
+{
+    int i;
+
+    // MSG("---- on_abort(call_level=%d)\n",_setup.call_level);
+
+    // invalidate all saved context except the top level one
+    for (i = _setup.call_level; i > 0; i--) {
+        _setup.sub_context[i].context_status = 0;
+        MSG("---- unwind context at level %d\n",i);
+    }
+
+    if (_setup.on_abort_command == NULL)
+	return -1;
+
+    char cmd[LINELEN];
+
+    sprintf(cmd,"%s [%d]",_setup.on_abort_command, reason);
+    // MSG("---- on_abort(%s)\n", cmd);
+    int status = Interp::execute(cmd); // NB: line_number??
+    while (status == INTERP_EXECUTE_FINISH) {
+	status = Interp::execute(0);
+    }
+    // MSG("------- on_abort(%s) returned %s, %s\n", cmd, interp_status(status), savedError);
+    FILE *fp = _setup.file_pointer;
+    _setup.file_pointer = fp;
+
+    CHP(status); 
+    return status;
 }

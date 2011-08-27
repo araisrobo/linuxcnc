@@ -108,6 +108,7 @@ public:
  int default_tool_parameters();
  int set_tool_parameters();
  int init_named_parameters();
+ int on_abort(int reason);
 
 private:
 
@@ -117,19 +118,21 @@ private:
                           double current_x, double current_y,
                           double end_x, double end_y,
                           int ij_absolute, double i_number, double j_number,
+                          int p_number,
                           double *center_x, double *center_y, int *turn,
                           double tolerance);
  int arc_data_comp_r(int move, int plane, int side, double tool_radius,
                         double current_x, double current_y, double end_x,
-                        double end_y, double big_radius, double *center_x,
+                        double end_y, double big_radius, int p_number, double *center_x,
                         double *center_y, int *turn, double tolerance);
  int arc_data_ijk(int move, int plane, double current_x, double current_y,
                      double end_x, double end_y,
                      int ij_absolute, double i_number, double j_number,
+                     int p_number,
                      double *center_x, double *center_y,
                      int *turn, double tolerance);
  int arc_data_r(int move, int plane, double current_x, double current_y,
-                      double end_x, double end_y, double radius,
+                      double end_x, double end_y, double radius, int p_number,
                       double *center_x, double *center_y, int *turn,
 		      double tolerance);
  int check_g_codes(block_pointer block, setup_pointer settings);
@@ -361,17 +364,26 @@ private:
                   double *parameters);
  int read_o(char *line, int *counter, block_pointer block,
                   double *parameters);
- int free_named_parameters(int level, setup_pointer settings);
+
+
  int read_one_item(char *line, int *counter, block_pointer block,
                    double *parameters);
  int read_operation(char *line, int *counter, int *operation);
  int read_operation_unary(char *line, int *counter, int *operation);
  int read_p(char *line, int *counter, block_pointer block,
                   double *parameters);
- int store_named_param(char *nameBuf, double value);
- int init_named_param(char *nameBuf, double value);
- int add_named_param(char *nameBuf);
+
+ int store_named_param(char *nameBuf, double value, int override_readonly = 0);
+ int add_named_param(char *nameBuf, int attr = 0);
+ int lookup_named_param(char *nameBuf, double index, double *value);
+ int init_readonly_param(const char *nameBuf, double value, int attr);
  int find_named_param(char *nameBuf, int *status, double *value);
+ int free_named_parameters(int level, setup_pointer settings);
+ int save_context(setup_pointer settings);
+ int restore_context(setup_pointer settings, int from_level);
+ int gen_settings(double *current, double *saved, char *cmd);
+ int gen_g_codes(int *current, int *saved, char *cmd);
+ int gen_m_codes(int *current, int *saved, char *cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           double *parameters, bool check_exists);
@@ -446,10 +458,13 @@ private:
   block_pointer block,       /* pointer to a block of RS274/NGC instructions */
   setup_pointer settings);   /* pointer to machine settings */
 
+ int unwind( setup_pointer settings);   /* pointer to machine settings */
  int convert_straight_indexer(int, block*, setup*);
  int issue_straight_index(int, double, int, setup*);
 
  void doLog(const char *fmt, ...) __attribute__((format(printf,2,3)));
+
+ const char *interp_status(int status);
 
  FILE *log_file;
 

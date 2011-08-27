@@ -219,7 +219,11 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define RS274NGC_PARAMETER_FILE_BACKUP_SUFFIX ".bak"
 
 // number of parameters in parameter table
-#define RS274NGC_MAX_PARAMETERS 5429
+
+// leave some room above 5428 for further introspection
+// 5599 = control DEBUG, output, 0=no output; default=1.0
+// 5600-5601 = toolchanger codes
+#define RS274NGC_MAX_PARAMETERS 5602
 
 // Subroutine parameters
 #define INTERP_SUB_PARAMS 30
@@ -319,7 +323,18 @@ struct named_parameters_struct {
   int named_parameter_used_size;
   char **named_parameters;
   double *named_param_values;
+  unsigned char *named_param_attr; // bitmap of attributes
   };
+#define PA_READONLY	1
+#define PA_GLOBAL	2
+#define PA_UNSET	4
+#define PA_USE_LOOKUP	8  // use lookup_named_param() to retrieve value
+
+// optional 3rd arg to store_named_param()
+// flag initialization of r/o parameter
+#define OVERRIDE_READONLY 1
+
+
 
 typedef struct context_struct {
   long position;       // location (ftell) in file
@@ -328,7 +343,14 @@ typedef struct context_struct {
   char *subName;       // name of the subroutine (oword)
   double saved_params[INTERP_SUB_PARAMS];
   struct named_parameters_struct named_parameters;
+  unsigned char context_status;		// see CONTEXT_ defines below
+  int saved_g_codes[ACTIVE_G_CODES];  // array of active G codes
+  int saved_m_codes[ACTIVE_M_CODES];  // array of active M codes
+  double saved_settings[ACTIVE_SETTINGS];     // array of feed, speed, etc.
 }context;
+
+#define CONTEXT_VALID   1 // this was stored by M7*
+#define CONTEXT_RESTORE_ON_RETURN 2 // automatically execute M71 on sub return
 
 
 // !!!KL ???use the index to this as a surrogate for the o-word text
@@ -493,10 +515,12 @@ typedef struct setup_struct
 
   bool lathe_diameter_mode;       //Lathe diameter mode (g07/G08)
   bool mdi_interrupt;
+  const char *t_command, *m6_command,*on_abort_command;
 }
 setup;
 
 typedef setup *setup_pointer;
+
 
 inline bool is_a_cycle(int motion) {
     return ((motion > G_80) && (motion < G_90)) || (motion == G_73);

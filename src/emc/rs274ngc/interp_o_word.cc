@@ -82,7 +82,6 @@ int Interp::findFile( // ARGUMENTS
     ERS(NCE_FILE_NOT_OPEN);
 }
 
-
 /************************************************************************/
 /*
    In the long run, this function will use a hash table or other
@@ -181,10 +180,10 @@ int Interp::control_back_to( /* ARGUMENTS                       */
       // if(settings->oword_offset[i].o_word == line)
       if(0 == strcmp(settings->oword_offset[i].o_word_name, block->o_name))
 	{
-          if(settings->file_pointer == NULL)
-          {
-            ERS(NCE_FILE_NOT_OPEN);
-          }
+	    if ((settings->filename[0] != 0) &
+		(settings->file_pointer == NULL))  {
+		ERS(NCE_FILE_NOT_OPEN);
+	    }
           if(0 != strcmp(settings->filename,
                          settings->oword_offset[i].filename))
           {
@@ -200,7 +199,8 @@ int Interp::control_back_to( /* ARGUMENTS                       */
               if(newFP)
               {
                   // close the old file...
-                  fclose(settings->file_pointer);
+		  if (settings->file_pointer) // only close if it was open
+		      fclose(settings->file_pointer);
                   settings->file_pointer = newFP;
               }
               else
@@ -209,8 +209,9 @@ int Interp::control_back_to( /* ARGUMENTS                       */
                   ERS(NCE_UNABLE_TO_OPEN_FILE,settings->filename);
               }
           }
-	  fseek(settings->file_pointer,
-		settings->oword_offset[i].offset, SEEK_SET);
+	  if (settings->file_pointer) // only seek if it was open
+	      fseek(settings->file_pointer,
+		    settings->oword_offset[i].offset, SEEK_SET);
 
 	  settings->sequence_number =
 	    settings->oword_offset[i].sequence_number;
@@ -269,7 +270,8 @@ int Interp::control_back_to( /* ARGUMENTS                       */
       logDebug("fopen: |%s| OK", newFileName);
 
       // close the old file...
-      fclose(settings->file_pointer);
+      if (settings->file_pointer)
+	  fclose(settings->file_pointer);
       settings->file_pointer = newFP;
 
       strcpy(settings->filename, newFileName);
@@ -293,6 +295,46 @@ int Interp::control_back_to( /* ARGUMENTS                       */
   //ERS(NCE_UNKNOWN_OWORD_NUMBER);
   return INTERP_OK;
 }
+
+// common code on executing an O_return or O_endsub 
+int Interp::unwind(setup_pointer settings)     /* pointer to machine settings */
+{
+    int i;
+
+    // free local variables
+    free_named_parameters(settings->call_level, settings);
+     
+    // free subroutine name
+    if(settings->sub_context[settings->call_level].subName) {
+	free(settings->sub_context[settings->call_level].subName);
+	settings->sub_context[settings->call_level].subName = 0;
+    }
+    // drop one call level.
+    settings->call_level--;
+
+    // a valid previous context was marked by an M73 as auto-restore
+    if ((settings->sub_context[settings->call_level+1].context_status &
+	 (CONTEXT_RESTORE_ON_RETURN|CONTEXT_VALID)) ==
+	(CONTEXT_RESTORE_ON_RETURN|CONTEXT_VALID)) {
+	// NB: this means an M71 invalidate context will prevent an 
+	// auto-restore on return/endsub
+	restore_context(settings, settings->call_level + 1);
+    }
+    // always invalidate on leaving a context so we dont accidentially
+    // 'run into' a valid context when calling the stack upwards again
+    settings->sub_context[settings->call_level+1].context_status &= 
+	~CONTEXT_VALID;
+
+    // restore subroutine parameters.
+    for(i = 0; i < INTERP_SUB_PARAMS; i++) {
+	settings->parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
+	    settings->sub_context[settings->call_level].saved_params[i];
+    }
+
+    return 0;
+}
+
+
 
 /************************************************************************/
 /* convert_control_functions
@@ -408,54 +450,43 @@ int Interp::convert_control_functions( /* ARGUMENTS           */
 	  free(settings->skipping_o);
           settings->skipping_o = 0;
 	}
-      if(settings->call_level != 0)
-	{
-	  // in a call -- must do a return
-          // restore old values of parameters
-          // restore file position from context
 
-          free_named_parameters(settings->call_level, settings);
-	  if(settings->sub_context[settings->call_level].subName)
-	    {
-	      free(settings->sub_context[settings->call_level].subName);
-	      settings->sub_context[settings->call_level].subName = 0;
-	    }
-          settings->call_level--;
+      if(settings->call_level != 0) {
+	  unwind(settings); // common code for return and endsub
 
-          for(i=0; i<INTERP_SUB_PARAMS; i++)
-	    {
-              settings->parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
-	        settings->sub_context[settings->call_level].saved_params[i];
-	    }
+	  // file at this level was marked as closed, so dont reopen.
+	  if (settings->sub_context[settings->call_level].position == -1) {
+	      settings->file_pointer = NULL;
+	      strcpy(settings->filename,"");
+	  } else {
+	      logDebug("seeking to: %ld",
+		       settings->sub_context[settings->call_level].position);
 
-	  logDebug("seeking to: %ld",
-		   settings->sub_context[settings->call_level].position);
+	      if(settings->file_pointer == NULL)
+		  {
+		      ERS(NCE_FILE_NOT_OPEN);
+		  }
 
-          if(settings->file_pointer == NULL)
-          {
-            ERS(NCE_FILE_NOT_OPEN);
-          }
+	      //!!!KL must open the new file, if changed
 
-          //!!!KL must open the new file, if changed
+	      if(0 != strcmp(settings->filename,
+			     settings->sub_context[settings->call_level].filename))
+		  {
+		      fclose(settings->file_pointer);
+		      settings->file_pointer = 
+			  fopen(settings->sub_context[settings->call_level].filename, "r");
 
-          if(0 != strcmp(settings->filename,
-                         settings->sub_context[settings->call_level].filename))
-          {
-              fclose(settings->file_pointer);
-              settings->file_pointer = 
-              fopen(settings->sub_context[settings->call_level].filename, "r");
-
-              strcpy(settings->filename,
-                     settings->sub_context[settings->call_level].filename);
-          }
+		      strcpy(settings->filename,
+			     settings->sub_context[settings->call_level].filename);
+		  }
           
-	  fseek(settings->file_pointer,
-		settings->sub_context[settings->call_level].position,
-		SEEK_SET);
+	      fseek(settings->file_pointer,
+		    settings->sub_context[settings->call_level].position,
+		    SEEK_SET);
 
-	  settings->sequence_number =
-	    settings->sub_context[settings->call_level].sequence_number;
-
+	      settings->sequence_number =
+		  settings->sub_context[settings->call_level].sequence_number;
+	  }
 	  if(settings->sub_name)
 	    {
 	      free(settings->sub_name);
@@ -516,23 +547,27 @@ int Interp::convert_control_functions( /* ARGUMENTS           */
 
 	}
 
-        if(settings->file_pointer == NULL)
-          {
-            ERS(NCE_FILE_NOT_OPEN);
-          }
-        settings->sub_context[settings->call_level].position =
-	    ftell(settings->file_pointer);
-        if(settings->sub_context[settings->call_level].filename)
+      // if the previous file was NULL, mark positon as -1 so as not to
+      // reopen it on return.
+      if (settings->file_pointer == NULL) {
+	  settings->sub_context[settings->call_level].position = -1;
+	  // MSG("---- marking as return to 'no file' - level=%d filename='%s' seqno=%d\n",settings->call_level,settings->filename,settings->sequence_number);
+      } else {
+	  // MSG("---- marking as return to valid file level=%d filename='%s' seqno=%d\n",settings->call_level,settings->filename,settings->sequence_number);
+	  settings->sub_context[settings->call_level].position = ftell(settings->file_pointer); 
+      }
+
+      if(settings->sub_context[settings->call_level].filename)
           {
               // if there is a string here, free it
               free(settings->sub_context[settings->call_level].filename);
           }
-        // save the previous filename
-	logDebug("Duping |%s|", settings->filename);
-        settings->sub_context[settings->call_level].filename =
+      // save the previous filename
+      logDebug("Duping |%s|", settings->filename);
+      settings->sub_context[settings->call_level].filename =
               strdup(settings->filename);
 
-	settings->sub_context[settings->call_level].sequence_number
+      settings->sub_context[settings->call_level].sequence_number
 	    = settings->sequence_number;
 
       logDebug("(in call)set params[%d] return file:%s offset:%ld",
@@ -548,6 +583,7 @@ int Interp::convert_control_functions( /* ARGUMENTS           */
 	strdup(block->o_name);
 
       if (control_back_to(block,settings) == INTERP_ERROR) {
+          settings->call_level--;
           ERS(NCE_UNABLE_TO_OPEN_FILE,block->o_name);
           return INTERP_ERROR;
       }
@@ -856,6 +892,7 @@ int Interp::convert_control_functions( /* ARGUMENTS           */
       break;
 
     case O_return:
+
       if(settings->call_level == 0)
       {
           // this is in the definition
@@ -867,36 +904,27 @@ int Interp::convert_control_functions( /* ARGUMENTS           */
       settings->skipping_o = 0;
 
       // in a call -- must do a return
-      // restore old values of parameters
-      // restore file position from context
+     unwind(settings); // common code for return and endsub
 
-      free_named_parameters(settings->call_level, settings);
-      if(settings->sub_context[settings->call_level].subName)
-	{
-	  free(settings->sub_context[settings->call_level].subName);
-	}
-
-      settings->call_level--;
-
-      for(i=0; i<INTERP_SUB_PARAMS; i++)
-	{
-	  settings->parameters[i + INTERP_FIRST_SUBROUTINE_PARAM] =
-	    settings->sub_context[settings->call_level].saved_params[i];
-	}
-
-      logDebug("seeking to: %ld",
+     logDebug("seeking to: %ld",
 	       settings->sub_context[settings->call_level].position);
 
-      if(settings->file_pointer == NULL)
-      {
-        ERS(NCE_FILE_NOT_OPEN);
-      }
-
       //!!!KL must open the new file, if changed
-      fseek(settings->file_pointer,
-	    settings->sub_context[settings->call_level].position, SEEK_SET);
 
-      settings->sequence_number =
+      // only seek if not marked as closed.
+     if (settings->sub_context[settings->call_level].position != -1) {
+	 if (settings->file_pointer == NULL)  {
+	     ERS(NCE_FILE_NOT_OPEN);
+	 } else {
+	     fseek(settings->file_pointer,
+		   settings->sub_context[settings->call_level].position, SEEK_SET);
+	 }
+     } else {
+	 settings->file_pointer = NULL;
+	 strcpy(settings->filename,"");
+     }
+
+     settings->sequence_number =
 	settings->sub_context[settings->call_level].sequence_number;
 
       break;

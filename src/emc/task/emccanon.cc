@@ -807,7 +807,7 @@ double getStraightVelocity(double x, double y, double z,
     DP ("dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g\n", 
         dx, dy, dz, da, db, dc, du, dv, dw);
     if(debug_velacc) 
-        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ", 
+        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making:
@@ -863,6 +863,11 @@ double getStraightVelocity(double x, double y, double z,
         vel = MIN(vel, ang_vel);
 
         assert(vel > 0);
+    } else {
+        vel = 0;
+        printf ("WARNING: not linear nor angular move\n");
+        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
+               dx, dy, dz, da, db, dc, du, dv, dw);
     }
 //    // Pure linear move:
 //    if (canon.cartesian_move && !canon.angular_move) {
@@ -2148,10 +2153,10 @@ void START_SPINDLE_COUNTERCLOCKWISE()
 
     if(canon.css_maximum) {
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
-	    canon.css_numerator = -12 / (2 * M_PI) * canon.spindleSpeed;
+	    canon.css_numerator = -12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
 	else
-	    canon.css_numerator = -1000 / (2 * M_PI) * canon.spindleSpeed;
-	emc_spindle_on_msg.speed = canon.css_maximum;
+	    canon.css_numerator = -1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
+	emc_spindle_on_msg.speed = -canon.css_maximum;
 	emc_spindle_on_msg.factor = canon.css_numerator;
 	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
@@ -2173,13 +2178,14 @@ void SET_SPINDLE_SPEED(double r)
     flush_segments();
 
     if(canon.css_maximum) {
-	if(canon.lengthUnits == CANON_UNITS_INCHES)
-	    // fix: numerator was wrong
+	if(canon.lengthUnits == CANON_UNITS_INCHES) 
+	    // fix: numerator was wrong	    
 	    //      factor = cs * 60 / 2pi
 	    //      factor = css / 2pi
 	    canon.css_numerator = 1 / (2 * M_PI) * canon.spindleSpeed;
+	    // css_numerator = 12 / (2 * M_PI) * spindleSpeed * TO_EXT_LEN(25.4);
 	else
-	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed;
+	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
 	emc_spindle_speed_msg.speed = canon.css_maximum;
 	emc_spindle_speed_msg.factor = canon.css_numerator;
 	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
@@ -2283,6 +2289,16 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
 	interp_list.append(emc_spindle_speed_msg);
     }
     interp_list.append(set_offset_msg);
+}
+
+/* issued at very start of an M6 command. Notification. */
+void START_CHANGE()
+{
+    EMC_TOOL_START_CHANGE emc_start_change_msg;
+
+    flush_segments();
+
+    interp_list.append(emc_start_change_msg);
 }
 
 /* CHANGE_TOOL results from M6, for example */
@@ -2817,7 +2833,7 @@ void CANON_ERROR(const char *fmt, ...)
     operator_error_msg.id = 0;
     if (fmt != NULL) {
 	va_start(ap, fmt);
-	vsprintf(operator_error_msg.error, fmt, ap);
+	vsnprintf(operator_error_msg.error,sizeof(operator_error_msg.error), fmt, ap);
 	va_end(ap);
     } else {
 	operator_error_msg.error[0] = 0;
@@ -3200,6 +3216,16 @@ int GET_EXTERNAL_TOOL_SLOT()
 int GET_EXTERNAL_SELECTED_TOOL_SLOT()
 {
     return emcStatus->io.tool.pocketPrepped;
+}
+
+int GET_EXTERNAL_TC_FAULT()
+{
+    return emcStatus->io.fault;
+}
+
+int GET_EXTERNAL_TC_REASON()
+{
+    return emcStatus->io.reason;
 }
 
 int GET_EXTERNAL_FEED_OVERRIDE_ENABLE()

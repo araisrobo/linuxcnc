@@ -43,7 +43,24 @@
 
 /*! \todo FIXME - all structure members beyond this point are in limbo */
 
+	double tMin, tMax, tAvg;	/* trajectory min, max, avg times */
+	double sMin, sMax, sAvg;	/* servo min, max, avg times */
+	double nMin, nMax, nAvg;	/* min, max, avg times in DISABLED
+					   mode */
+	double yMin, yMax, yAvg;	/* min, max, avg times cycle times
+					   rather than compute */
+	double fMin, fMax, fAvg;	/* min, max, avg times frequency */
+	double fyMin, fyMax, fyAvg;	/* min, max, avg times frequency
+					   cycle times rather than compute */
+
+	EMC_TELEOP_DATA teleop_data;
 	int split;		/* number of split command reads */
+	/* flag for enabling, disabling watchdog; multiple for down-stepping */
+	int wdEnabling;
+	int wdEnabled;
+	int wdWait;
+	int wdCount;
+	unsigned char wdToggle;
 
 	/* flag that all active axes are homed */
 	unsigned char allHomed;
@@ -53,6 +70,10 @@
 /* space for trajectory planner queues, plus 10 more for safety */
 /*! \todo FIXME-- default is used; dynamic is not honored */
 	TC_STRUCT queueTcSpace[DEFAULT_TC_QUEUE_SIZE + 10];
+
+	EmcPose oldPos;		/* last position, used for vel differencing */
+	EmcPose oldVel, newVel;	/* velocities, used for acc differencing */
+	EmcPose newAcc;		/* differenced acc */
 
 	int enabling;		/* starts up disabled */
 	int coordinating;	/* starts up in free mode */

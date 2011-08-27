@@ -21,3 +21,12 @@ $(call TOOBJSDEPS, $(RTAPI_APP_SRCS)): EXTRAFLAGS += $(PTH_CFLAGS) -DSIM
 	@$(CXX) -rdynamic $(LDFLAGS) -o $@ $^ -ldl $(PTH_LINK) -lpthread
 TARGETS += ../bin/rtapi_app
 endif
+
+#not for sim: TEST_RTAPI_VSNPRINTF_SRCS := rtapi/test_rtapi_vsnprintf.c
+#not for sim: USERSRCS += $(TEST_RTAPI_VSNPRINTF_SRCS)
+#not for sim: $(call TOOBJSDEPS, $(TEST_RTAPI_VSNPRINTF_SRCS)): EXTRAFLAGS += -DSIM
+#not for sim: ../bin/test_rtapi_vsnprintf: $(call TOOBJS, $(TEST_RTAPI_VSNPRINTF_SRCS))
+#not for sim: 	$(ECHO) Linking $(notdir $@)
+#not for sim: 	@$(CXX) -rdynamic $(LDFLAGS) -o $@ $^
+#not for sim: TARGETS += ../bin/test_rtapi_vsnprintf
+

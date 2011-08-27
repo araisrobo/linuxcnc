@@ -603,6 +603,7 @@ static void do_forward_kins(void)
 	joint_pos[joint_num] = joint->pos_fb;
     }
     switch (emcmotConfig->kinType) {
+    // switch (emcmotConfig->kinType)
 
     case KINEMATICS_IDENTITY:
 	kinematicsForward(joint_pos, &emcmotStatus->carte_pos_fb, &fflags,
@@ -971,7 +972,6 @@ static void set_operating_mode(void)
 {
     int joint_num;
     emcmot_joint_t *joint;
-    joint_hal_t *joint_data;
     double positions[EMCMOT_MAX_JOINTS];
 
     /* check for disabling */
@@ -980,7 +980,6 @@ static void set_operating_mode(void)
 	tpClear(&emcmotDebug->coord_tp);
 	for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
 	    /* point to joint data */
-	    joint_data = &(emcmot_hal_data->joint[joint_num]);
 	    joint = &joints[joint_num];
 	    /* disable free mode planner */
 	    joint->free_tp.enable = 0;
@@ -1005,7 +1004,6 @@ static void set_operating_mode(void)
 	tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd);
 	for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
 	    /* point to joint data */
-	    joint_data = &(emcmot_hal_data->joint[joint_num]);
 	    joint = &joints[joint_num];
 
 	    joint->free_tp.curr_pos = joint->pos_cmd;
@@ -1235,15 +1233,20 @@ static void handle_jogwheels(void)
 
 static void get_pos_cmds(long period)
 {
-    int joint_num, axis_num, all_homed, all_at_home, result, limit;
+    int joint_num, result;
+    // int joint_num, axis_num, all_homed, all_at_home, result, limit;
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
     double old_pos_cmd, new_pos_cmd, new_vel_cmd;
     // double vel_lim;
     /* used in teleop mode to compute the max accell requested */
+    double accell_mag;
     int onlimit = 0;
     int joint_limit[EMCMOT_MAX_JOINTS][2];
+    int num_joints;
+
+    num_joints = emcmotConfig->numJoints;
 
     /* copy joint position feedback to local array */
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
@@ -1251,13 +1254,6 @@ static void get_pos_cmds(long period)
 	joint = &joints[joint_num];
 	/* copy coarse command */
 	positions[joint_num] = joint->coarse_pos;
-	/* check for homed */
-	if (!GET_JOINT_HOMED_FLAG(joint)) {
-	    all_homed = 0;
-	    all_at_home = 0;
-	} else if (!GET_JOINT_AT_HOME_FLAG(joint)) {
-	    all_at_home = 0;
-	}
     }
     /* if less than a full complement of joints, zero out the rest */
 
@@ -1356,8 +1352,6 @@ static void get_pos_cmds(long period)
 	    emcmotDebug->overriding = 0;
 	}
 	/*! \todo FIXME - this should run at the traj rate */
-	all_homed = 1;
-	all_at_home = 1;
 	switch (emcmotConfig->kinType) {
 
 	case KINEMATICS_IDENTITY:
@@ -1464,30 +1458,120 @@ static void get_pos_cmds(long period)
 	break;
 
     case EMCMOT_MOTION_TELEOP:
-        limit = 0;
-        for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
-            axis = &axes[axis_num];
+	/* first the desired Accell's are computed based on
+	    desired Velocity, current velocity and period */
+	emcmotDebug->teleop_data.desiredAccell.tran.x =
+	    (emcmotDebug->teleop_data.desiredVel.tran.x -
+	    emcmotDebug->teleop_data.currentVel.tran.x) /
+	    servo_period;
+	emcmotDebug->teleop_data.desiredAccell.tran.y =
+	    (emcmotDebug->teleop_data.desiredVel.tran.y -
+	    emcmotDebug->teleop_data.currentVel.tran.y) /
+	    servo_period;
+	emcmotDebug->teleop_data.desiredAccell.tran.z =
+	    (emcmotDebug->teleop_data.desiredVel.tran.z -
+	    emcmotDebug->teleop_data.currentVel.tran.z) /
+	    servo_period;
 
-            /* compute the velocity limit for teleop motion */
-            /*axis->teleop_tp.max_vel = axis->vel_limit;*/
-            if (axis->teleop_tp.max_vel > axis->vel_limit) {
-                axis->teleop_tp.max_vel = axis->vel_limit;
-            }
+	/* a Carthesian Accell is computed */
+	pmCartMag(emcmotDebug->teleop_data.desiredAccell.tran,
+	    &accell_mag);
 
-            simple_tp_update(&(axis->teleop_tp), servo_period);
-            axis->vel_cmd = axis->teleop_tp.curr_vel;
-            axis->pos_cmd = axis->teleop_tp.curr_pos;
-        }
+	/* then the accells for the rotary axes */
+	emcmotDebug->teleop_data.desiredAccell.a =
+	    (emcmotDebug->teleop_data.desiredVel.a -
+	    emcmotDebug->teleop_data.currentVel.a) /
+	    servo_period;
+	emcmotDebug->teleop_data.desiredAccell.b =
+	    (emcmotDebug->teleop_data.desiredVel.b -
+	    emcmotDebug->teleop_data.currentVel.b) /
+	    servo_period;
+	emcmotDebug->teleop_data.desiredAccell.c =
+	    (emcmotDebug->teleop_data.desiredVel.c -
+	    emcmotDebug->teleop_data.currentVel.c) /
+	    servo_period;
+	if (emcmotDebug->teleop_data.desiredAccell.a > accell_mag) {
+	    accell_mag = emcmotDebug->teleop_data.desiredAccell.a;
+	}
+	if (emcmotDebug->teleop_data.desiredAccell.b > accell_mag) {
+	    accell_mag = emcmotDebug->teleop_data.desiredAccell.b;
+	}
+	if (emcmotDebug->teleop_data.desiredAccell.c > accell_mag) {
+	    accell_mag = emcmotDebug->teleop_data.desiredAccell.c;
+	}
+	
+	/* accell_mag should now hold the max accell */
+	
+	if (accell_mag > emcmotStatus->acc) {
+	    /* if accell_mag is too great, all need resizing */
+	    pmCartScalMult(emcmotDebug->teleop_data.desiredAccell.tran, 
+		emcmotStatus->acc / accell_mag,
+		&emcmotDebug->teleop_data.currentAccell.tran);
+	    emcmotDebug->teleop_data.currentAccell.a =
+		emcmotDebug->teleop_data.desiredAccell.a *
+		emcmotStatus->acc / accell_mag;
+	    emcmotDebug->teleop_data.currentAccell.b =
+		emcmotDebug->teleop_data.desiredAccell.b *
+		emcmotStatus->acc / accell_mag;
+	    emcmotDebug->teleop_data.currentAccell.c =
+		emcmotDebug->teleop_data.desiredAccell.c *
+		emcmotStatus->acc / accell_mag;
+	    emcmotDebug->teleop_data.currentVel.tran.x +=
+		emcmotDebug->teleop_data.currentAccell.tran.x *
+		servo_period;
+	    emcmotDebug->teleop_data.currentVel.tran.y +=
+		emcmotDebug->teleop_data.currentAccell.tran.y *
+		servo_period;
+	    emcmotDebug->teleop_data.currentVel.tran.z +=
+		emcmotDebug->teleop_data.currentAccell.tran.z *
+		servo_period;
+	    emcmotDebug->teleop_data.currentVel.a +=
+		emcmotDebug->teleop_data.currentAccell.a *
+		servo_period;
+	    emcmotDebug->teleop_data.currentVel.b +=
+		emcmotDebug->teleop_data.currentAccell.b *
+		servo_period;
+	    emcmotDebug->teleop_data.currentVel.c +=
+		emcmotDebug->teleop_data.currentAccell.c *
+		servo_period;
+	} else {
+	    /* if accell_mag is not greater, the computed accell's stay as is */
+	    emcmotDebug->teleop_data.currentAccell =
+		emcmotDebug->teleop_data.desiredAccell;
+	    emcmotDebug->teleop_data.currentVel =
+		emcmotDebug->teleop_data.desiredVel;
+	}
 
+
+	/* based on curent position, current vel and period, 
+	   the next position is computed */
+	emcmotStatus->carte_pos_cmd.tran.x +=
+	    emcmotDebug->teleop_data.currentVel.tran.x *
+	    servo_period;
+	emcmotStatus->carte_pos_cmd.tran.y +=
+	    emcmotDebug->teleop_data.currentVel.tran.y *
+	    servo_period;
+	emcmotStatus->carte_pos_cmd.tran.z +=
+	    emcmotDebug->teleop_data.currentVel.tran.z *
+	    servo_period;
+	emcmotStatus->carte_pos_cmd.a +=
+	    emcmotDebug->teleop_data.currentVel.a *
+	    servo_period;
+	emcmotStatus->carte_pos_cmd.b +=
+	    emcmotDebug->teleop_data.currentVel.b *
+	    servo_period;
+	emcmotStatus->carte_pos_cmd.c +=
+	    emcmotDebug->teleop_data.currentVel.c *
+	    servo_period;
 
 	/* the next position then gets run through the inverse kins,
 	    to compute the next positions of the joints */
 
 	/* OUTPUT KINEMATICS - convert to joints in local array */
-	result = kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions, &iflags, &fflags);
-	if (result != 0 ) return;
+	kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
+	    &iflags, &fflags);
 	/* copy to joint structures and spline them up */
-	for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
+	for (joint_num = 0; joint_num < num_joints; joint_num++) {
 	    /* point to joint struct */
 	    joint = &joints[joint_num];
 	    joint->coarse_pos = positions[joint_num];
@@ -1495,59 +1579,21 @@ static void get_pos_cmds(long period)
 		   that fail soft limits, but we'll abort at the end of
 		   this cycle so it doesn't really matter */
 	    cubicAddPoint(&(joint->cubic), joint->coarse_pos);
-	    old_pos_cmd = joint->pos_cmd;
-	    /* interpolate to get new one */
-	    /*joint->pos_cmd*/
-	    new_pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
-	    /*joint->vel_cmd*/
-	    new_vel_cmd = (/*joint->pos_cmd*/new_pos_cmd - old_pos_cmd) * servo_freq;
-	    /* Check the joint limit before write cmd */
-            refresh_jog_limits(joint);
-            if(new_vel_cmd > 0) {
-                if (new_pos_cmd  > joint->max_jog_limit) {
-                    joint->pos_cmd = joint->max_jog_limit;
-                    joint->vel_cmd = 0;//new_vel_cmd;
-                    limit = 1;
-                } else {
-                    joint->pos_cmd = new_pos_cmd;
-                    joint->vel_cmd = new_vel_cmd;
-                }
-            }
-            else {
-                if (new_pos_cmd < joint->min_jog_limit) {
-                    joint->pos_cmd = joint->min_jog_limit;
-                    joint->vel_cmd = 0;//tmp_vel[joint_num] = new_vel_cmd;
-                    limit = 1;
-                } else {
-                    joint->pos_cmd = new_pos_cmd;
-                    joint->vel_cmd = new_vel_cmd;
-                    /*tmp_pos[joint_num] = new_pos_cmd;
-                    tmp_vel[joint_num] = new_vel_cmd;*/
-                }
-            }
-            positions[joint_num] = joint->pos_cmd;
 	}
 	/* END OF OUTPUT KINS */
-	/* Update live plot position */
-	if( !limit ) {
-            emcmotStatus->carte_pos_cmd.tran.x = (&axes[0])->teleop_tp.curr_pos;
-            emcmotStatus->carte_pos_cmd.tran.y = (&axes[1])->teleop_tp.curr_pos;
-            emcmotStatus->carte_pos_cmd.tran.z = (&axes[2])->teleop_tp.curr_pos;
-            emcmotStatus->carte_pos_cmd.a = (&axes[3])->teleop_tp.curr_pos;
-            emcmotStatus->carte_pos_cmd.b = (&axes[4])->teleop_tp.curr_pos;
-            emcmotStatus->carte_pos_cmd.c = (&axes[5])->teleop_tp.curr_pos;
-	} else {
-	    // restore
-	    kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
 
-	    (&axes[0])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.tran.x;
-	    (&axes[1])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.tran.y;
-	    (&axes[2])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.tran.z;
-	    (&axes[3])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.a;
-	    (&axes[4])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.b;
-	    (&axes[5])->teleop_tp.curr_pos = emcmotStatus->carte_pos_cmd.c;
-
+	/* there is data in the interpolators */
+	/* run interpolation */
+	for (joint_num = 0; joint_num < num_joints; joint_num++) {
+	    /* point to joint struct */
+	    joint = &joints[joint_num];
+	    /* save old command */
+	    old_pos_cmd = joint->pos_cmd;
+	    /* interpolate to get new one */
+	    joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
+	    joint->vel_cmd = (joint->pos_cmd - old_pos_cmd) * servo_freq;
 	}
+
 	/* end of teleop mode */
 	break;
 
@@ -1920,16 +1966,18 @@ static void output_to_hal(void)
     if(emcmotStatus->spindle.css_factor) {
 	double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
 	double speed;
+        double maxpositive;
         if(denom > 0) speed = emcmotStatus->spindle.css_factor / denom;
 	else speed = emcmotStatus->spindle.speed;
 
 	speed = speed * emcmotStatus->net_spindle_scale;
 
+        maxpositive = fabs(emcmotStatus->spindle.speed);
         // cap speed to G96 D...
-        if(speed < -emcmotStatus->spindle.speed)
-            speed = -emcmotStatus->spindle.speed;
-        if(speed > emcmotStatus->spindle.speed)
-            speed = emcmotStatus->spindle.speed;
+        if(speed < -maxpositive)
+            speed = -maxpositive;
+        if(speed > maxpositive)
+            speed = maxpositive;
 
 	*(emcmot_hal_data->spindle_speed_out) = speed;
 	*(emcmot_hal_data->spindle_speed_out_rps) = speed/60.;

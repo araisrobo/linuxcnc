@@ -82,7 +82,6 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp);
 #define HM2_MAX_MODULE_DESCRIPTORS  (48)
 #define HM2_MAX_PIN_DESCRIPTORS     (1000)
 
-
 // 
 // Pin Descriptor constants
 // 
@@ -104,6 +103,7 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp);
 #define HM2_GTAG_STEPGEN          (5)
 #define HM2_GTAG_PWMGEN           (6)
 #define HM2_GTAG_TRANSLATIONRAM  (11)
+#define HM2_GTAG_BSPI            (14)
 #define HM2_GTAG_TPPWM           (19)
 #define HM2_GTAG_LED            (128)
 #define HM2_GTAG_MUXED_ENCODER   (12)
@@ -472,8 +472,8 @@ typedef struct {
 // sserial (Smart Serial Interface)
 //
 
-#define HM2_SSERIAL_TYPE_8I20               0x80  // this is the magic cookie returned by this module type
-#define HM2_SSERIAL_TYPE_7I64               0x74  // More to be added later.
+#define HM2_SSERIAL_TYPE_8I20               0x30324938  // '8i20' as 4 ascii
+#define HM2_SSERIAL_TYPE_7I64               0x34364937  // More to be added later.
 
 
 typedef struct {
@@ -513,15 +513,29 @@ typedef struct {
 }hal_7i64_t;
 
 typedef struct {
+    struct{
+        hal_u32_t *hm2_reg_0_read;
+        hal_u32_t *hm2_reg_1_read;
+        hal_u32_t *hm2_reg_0_write;
+        hal_u32_t *hm2_reg_1_write;
+    }pin;
+    int card_type;
+    hal_u32_t hm2_serialnumber;
+}hal_other_t;
+
+typedef struct {
     u32 *reg_cs_read;
     u32 *reg_cs_write;
     u32 *reg_0_read;
     u32 *reg_0_write;
     u32 *reg_1_read;
     u32 *reg_1_write;
+    u32 *reg_2_read;
+    u32 *reg_2_write;
     u32 reg_cs_addr;
     u32 reg_0_addr;
     u32 reg_1_addr;
+    u32 reg_2_addr;
     u32 tag;
     u32 reg_command_addr; // a duplicate so that a single channel can be passed
     u32 reg_data_addr;
@@ -537,6 +551,10 @@ typedef struct {
     unsigned char tag_7i64;
     hal_7i64_t *hal_7i64;
     hm2_sserial_tram_t *tram_7i64;
+    int num_other;
+    unsigned char tag_other;
+    hal_other_t *hal_other;
+    hm2_sserial_tram_t *tram_other;
     int num_all;
     unsigned char tag_all;
 
@@ -548,6 +566,10 @@ typedef struct {
     u32 data_reg_addr;
     u32 *data_reg_read;
     u32 *data_reg_write;
+    hal_u32_t *fault_count;
+    hal_u32_t fault_inc;
+    hal_u32_t fault_dec;
+    hal_u32_t fault_lim;
 
     hal_bit_t *run;
     hal_u32_t *state;
@@ -706,7 +728,35 @@ typedef struct {
     u32 master_dds_addr;
 } hm2_stepgen_t;
 
+//
+// Buffered SPI transciever
+// 
 
+typedef struct {
+    u32 cd[16];
+    u16 addr[16];
+    int conf_flag[16];
+    u16 cd_addr;
+    u16 count_addr;
+    hal_u32_t *count;
+    int num_frames;
+    u32 clock_freq;
+    u16 base_address;
+    u32 register_stride;
+    u32 instance_stride;
+    char name[HAL_NAME_LEN+1];
+    void *read_function;
+    void *write_function;
+    void *subdata;
+} hm2_bspi_instance_t;
+
+typedef struct {
+    int version;
+    int num_instances;
+    hm2_bspi_instance_t *instance;
+    u8 instances;
+    u8 num_registers;
+} hm2_bspi_t;
 
 
 // 
@@ -819,6 +869,7 @@ typedef struct {
         int num_stepgens;
         int num_leds;
         int num_sserials;
+        int num_bspis;
         int num_sserial_chans[4];
         int enable_raw;
         char *firmware;
@@ -850,6 +901,7 @@ typedef struct {
     hm2_tp_pwmgen_t tp_pwmgen;
     hm2_stepgen_t stepgen;
     hm2_sserial_t sserial;
+    hm2_bspi_t bspi;
     hm2_ioport_t ioport;
     hm2_watchdog_t watchdog;
     hm2_led_t led;
@@ -858,8 +910,6 @@ typedef struct {
 
     struct list_head list;
 } hostmot2_t;
-
-
 
 
 //
@@ -1012,6 +1062,11 @@ int hm2_sserial_config_create(hostmot2_t *hm2);
     void hm2_7i64_prepare_tram_write(hostmot2_t *hm2);
     void hm2_7i64_process_tram_read(hostmot2_t *hm2);
 
+    // Smart-Serial functions in hm2_other_sserial.c
+    int hm2_other_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
+    void hm2_other_prepare_tram_write(hostmot2_t *hm2);
+    void hm2_other_process_tram_read(hostmot2_t *hm2);
+
 //
 // stepgen functions
 //
@@ -1026,6 +1081,26 @@ void hm2_stepgen_process_tram_read(hostmot2_t *hm2, long period);
 void hm2_stepgen_allocate_pins(hostmot2_t *hm2);
 
 
+//
+// Buffered SPI functions
+//
+
+int  hm2_bspi_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_bspi_print_module(hostmot2_t *hm2);
+void hm2_bspi_cleanup(hostmot2_t *hm2);
+void hm2_bspi_write(hostmot2_t *hm2);
+void hm2_bspi_force_write(hostmot2_t *hm2);
+void hm2_bspi_prepare_tram_write(hostmot2_t *hm2, long period);
+void hm2_bspi_process_tram_read(hostmot2_t *hm2, long period);
+int hm2_allocate_bspi_tram(char* name);
+int hm2_bspi_write_chan(char* name, int chan, u32 val);
+int hm2_get_bspi(hostmot2_t **hm2, char *name); // actually in hostmot.c
+int hm2_allocate_bspi_tram(char* name);
+int hm2_tram_add_bspi_frame(char *name, int chan, u32 **wbuff, u32 **rbuff);
+int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz, 
+                        int delay, int cpol, int cpha, int clear, int echo);
+int hm2_bspi_set_read_function(char *name, void *func, void *subdata);
+int hm2_bspi_set_write_function(char *name, void *func, void *subdata);
 
 
 // 

@@ -28,7 +28,7 @@
 #include "interp_queue.hh"
 
 #include "units.h"
-#define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)==1)||((side)==RIGHT&&(turn)==-1))
+#define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
 #define DEBUG_EMC
 
 
@@ -693,11 +693,12 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
 
   if (block->r_flag) {
       CHP(arc_data_r(move, plane, *current1, *current2, end1, end2,
-                   block->r_number, &center1, &center2, &turn, tolerance));
+                     block->r_number, block->p_flag? round_to_int(block->p_number) : 1,
+                     &center1, &center2, &turn, tolerance));
   } else {
       CHP(arc_data_ijk(move, plane, *current1, *current2, end1, end2,
                        (settings->ijk_distance_mode == MODE_ABSOLUTE),
-                       offset1, offset2,
+                       offset1, offset2, block->p_flag? round_to_int(block->p_number) : 1,
                        &center1, &center2, &turn, tolerance));
   }
   inverse_time_rate_arc(*current1, *current2, *current3, center1, center2,
@@ -753,7 +754,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
                               double end_z,      //!< z-value at end of arc                           
                               double offset_x, double offset_y, 
                               double AA_end,     //!< a-value at end of arc                     
-                              double BB_end,     //!< b-value at end of arc                     
+                             double BB_end,     //!< b-value at end of arc
                               double CC_end,     //!< c-value at end of arc                     
                               double u_end, double v_end, double w_end) //!< uvw at end of arc
 {
@@ -777,12 +778,12 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 
     if (block->r_flag) {
         CHP(arc_data_comp_r(move, plane, side, tool_radius, cx, cy, end_x, end_y, 
-                            block->r_number,
+                            block->r_number, block->p_flag? round_to_int(block->p_number): 1,
                             &center_x, &center_y, &turn, tolerance));
     } else {
         CHP(arc_data_comp_ijk(move, plane, side, tool_radius, cx, cy, end_x, end_y,
                               (settings->ijk_distance_mode == MODE_ABSOLUTE),
-                              offset_x, offset_y,
+                              offset_x, offset_y, block->p_flag? round_to_int(block->p_number): 1,
                               &center_x, &center_y, &turn, tolerance));
     }
 
@@ -934,12 +935,13 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 
     if (block->r_flag) {
         CHP(arc_data_r(move, plane, opx, opy, end_x, end_y,
-                       block->r_number, &centerx, &centery, &turn, tolerance));
+                       block->r_number, block->p_flag? round_to_int(block->p_number): 1,
+                       &centerx, &centery, &turn, tolerance));
     } else {
         CHP(arc_data_ijk(move, plane,
                          opx, opy, end_x, end_y,
                          (settings->ijk_distance_mode == MODE_ABSOLUTE),
-                         offset_x, offset_y,
+                         offset_x, offset_y, block->p_flag? round_to_int(block->p_number): 1,
                          &centerx, &centery, &turn, tolerance));
     }
 
@@ -992,7 +994,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
                 toward_nominal = cy + tool_radius;
                 double l = toward_nominal / dist_from_center;
                 CHKS((l > 1.0 || l < -1.0), _("Arc move in concave corner cannot be reached by the tool without gouging"));
-                if(turn == 1) {
+                if(turn > 0) {
                     angle_from_center = theta + asin(l);
                 } else {
                     angle_from_center = theta - asin(l);
@@ -1002,7 +1004,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
                 toward_nominal = cy - tool_radius;
                 double l = toward_nominal / dist_from_center;
                 CHKS((l > 1.0 || l < -1.0), _("Arc move in concave corner cannot be reached by the tool without gouging"));
-                if(turn == 1) {
+                if(turn > 0) {
                     angle_from_center = theta + M_PIl - asin(l);
                 } else {
                     angle_from_center = theta + M_PIl + asin(l);
@@ -1036,12 +1038,12 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 
             double dir;
             if TOOL_INSIDE_ARC(side, prev.turn) {
-                if(turn == 1) 
+                if(turn > 0)
                     dir = cc_dir + pullback;
                 else
                     dir = cc_dir - pullback;
             } else {
-                if(turn == 1)
+                if(turn > 0)
                     dir = cc_dir - pullback;
                 else
                     dir = cc_dir + pullback;
@@ -1512,7 +1514,8 @@ int Interp::convert_comment(char *comment)       //!< string with comment
   {
       convert_param_comment(comment+start+strlen(DEBUG_STR), expanded,
                             EX_SIZE);
-      MESSAGE(expanded);
+      if (_setup.parameters[5599] > 0.0)
+	  MESSAGE(expanded);
       return INTERP_OK;
   }
   else if (startswith(lc, PRINT_STR)) 
@@ -2704,6 +2707,219 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
   return INTERP_OK;
 }
 
+
+/*
+ * given two double arrays representing interpreter settings as stored in
+ * _setup.active_settings, construct a G-code sequence to synchronize their state.
+ */
+int Interp::gen_settings(double *current, double *saved, char *cmd)
+{
+    int i;
+    char buf[LINELEN];
+    for (i = 0; i < ACTIVE_SETTINGS; i++) {
+	if (saved[i] != current[i]) {
+	    switch (i) {
+	    case 0: break; // FIXME - is sequence_number important?
+	    case 1:
+		snprintf(buf,sizeof(buf)," F%.1f", saved[i]);
+		strncat(cmd,buf,sizeof(buf));
+		break;
+	    case 2:
+		snprintf(buf,sizeof(buf)," S%.0f", saved[i]);
+		strncat(cmd,buf,sizeof(buf));
+		break;
+	    }
+	}
+    }
+    return INTERP_OK;
+}
+
+
+/*
+ * given two int arrays representing interpreter settings as stored in
+ * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
+ */
+int Interp::gen_g_codes(int *current, int *saved, char *cmd)
+{
+    int i, val;
+    char buf[LINELEN];
+    for (i = 0; i < ACTIVE_G_CODES; i++) {
+	val = saved[i];
+	if (val != current[i]) {
+
+	    switch (i) {
+	    case 0:
+		// FIXME - sequence_number: important?
+		break;
+	    case 2: // FIXME - I dont understand this:
+		//   gez[2] = ((block == NULL) ? -1 : block->g_modes[0]);
+		break;
+	    case 12:  // mystery slot
+		break;
+	    case 5: // - length units
+		// this is treated before all others - see convert_m()
+		break;
+	    case 1: // - motion_mode
+	    case 3: // - plane
+	    case 4: // - cutter compensation
+	    case 6: // - distance mode
+	    case 7: // - feed mode
+	    case 8: // - coordinate system
+	    case 9: // - tool offset (G43/G49)
+	    case 10: // - retract mode
+	    case 11: // - control mode
+	    case 13: // - spindle mode
+	    case 14: // - ijk distance mode
+	    case 15: // - lathe diameter mode
+
+		if (val != -1) { // FIXME not sure if this is correct!
+		    // if this was set in sub, and unset in caller, it will
+		    // not be reset
+		    if (val % 10) {
+			snprintf(buf,sizeof(buf)," G%d.%d", val / 10, val % 10);
+		    } else {
+			snprintf(buf,sizeof(buf)," G%d", val / 10);
+		    }
+		    strncat(cmd,buf,sizeof(buf));
+		} else {
+		    // so complain rather loudly
+		    MSG("------ gen_g_codes BUG: index %d = -1!!\n",i);
+		}
+		break;
+	    }
+	}
+    }
+    return INTERP_OK;
+}
+
+/*
+ * given two int arrays representing interpreter settings as stored in
+ * _setup.active_m_codes, construct a M-code sequence to synchronize their state.
+ */
+int Interp::gen_m_codes(int *current, int *saved, char *cmd)
+{
+    int i,val;
+    char buf[LINELEN];
+    for (i = 0; i < ACTIVE_M_CODES; i++) {
+	val = saved[i];
+	if (val != current[i]) {
+	    switch (i) {
+	    case 0: /* 0 seq number  */
+		// FIXME - is sequence_number important?
+		break;
+	    case 1: /* 1 stopping    */
+		// FIXME - is the next line needed at all?
+		// emz[1] = (block == NULL) ? -1 : block->m_modes[4];
+		break;
+	    case 3: /* 3 tool change */
+		// FIXME - dont know how to handle this.
+		// emz[3] =
+		//  (block == NULL) ? -1 : block->m_modes[6];
+		break;
+	    case 2: // spindle
+	    case 4: // mist
+	    case 5: // flood
+	    case 6: // speed/feed override
+	    case 7: // adaptive feed
+	    case 8: // feed hold
+		if (val != -1) {  // unsure..
+		    snprintf(buf,sizeof(buf)," M%d", val);
+		    strncat(cmd,buf,sizeof(buf));
+		} else {
+		    MSG("------ gen_m_codes: index %d = -1!!\n",i);
+		}
+		break;
+	    }
+	}
+    }
+    return INTERP_OK;
+}
+
+int Interp::save_context(setup_pointer settings)
+{
+      // the state is sprinkled all over _setup
+      // collate state in _setup.active_* arrays
+      write_g_codes((block_pointer) NULL, settings);
+      write_m_codes((block_pointer) NULL, settings);
+      write_settings(settings);
+
+      // save in the current call frame
+      active_g_codes((int *)settings->sub_context[settings->call_level].saved_g_codes);
+      active_m_codes((int *)settings->sub_context[settings->call_level].saved_m_codes);
+      active_settings((double *)settings->sub_context[settings->call_level].saved_settings);
+
+      // TBD: any other state deemed important to save/restore should be added here
+      // context_struct might need to be extended too.
+
+      return INTERP_OK;
+}
+
+/* restore global settings/gcodes/mcodes to current call level from a valid context
+ * used by:
+ *   M72 - restores context from same level
+ *       example: restore_context(settings->call_level)
+ *
+ *   an o-word return/endsub if auto-restore (M73) was issued
+ *       issue this like so - after call_level has been decremented:
+ *       restore_context(settings->call_level + 1)
+ */
+int Interp::restore_context(setup_pointer settings,
+			    int from_level)    //!< call level of context to restore from
+{
+    CHKS((from_level < settings->call_level),
+	 (_("BUG: cannot restore from a lower call level (%d) to a higher call level (%d)")),from_level,settings->call_level);
+    CHKS((from_level < 0), (_("BUG: restore from level %d !?")),from_level);
+    CHKS((settings->call_level < 0), (_("BUG: restore to level %d !?")),settings->call_level);
+
+    // linearize state
+    write_g_codes((block_pointer) NULL, settings);
+    write_m_codes((block_pointer) NULL, settings);
+    write_settings(settings);
+
+    char cmd[LINELEN];
+    memset(cmd, 0, LINELEN);
+
+    // construct gcode from the state difference and execute
+    // this assures appropriate canon commands are generated if needed -
+    // just restoring interp variables is not enough
+
+    // G20/G21 switching is special - it is executed beforehand
+    // so restoring feed lateron is interpreted in the correct context
+
+    if (settings->active_g_codes[5] != settings->sub_context[from_level].saved_g_codes[5]) {
+	snprintf(cmd,sizeof(cmd), "G%d",settings->sub_context[from_level].saved_g_codes[5]/10);
+	int status = Interp::execute(cmd);
+	if (status != INTERP_OK) {
+	    MSG("------- execute(%s) returned %s\n",
+		   cmd, interp_status(status));
+	}
+	memset(cmd, 0, LINELEN);
+    }
+    gen_settings((double *)settings->active_settings, (double *)settings->sub_context[from_level].saved_settings,cmd);
+    gen_m_codes((int *) settings->active_m_codes, (int *)settings->sub_context[from_level].saved_m_codes,cmd);
+    gen_g_codes((int *)settings->active_g_codes, (int *)settings->sub_context[from_level].saved_g_codes,cmd);
+
+    if (strlen(cmd) > 0) {
+	int status = Interp::execute(cmd);
+	if (status != INTERP_OK) {
+	    MSG("------- execute(%s) returned %s\n",
+		   cmd, interp_status(status));
+	}
+	while (status == INTERP_EXECUTE_FINISH) { // probably not needed
+	    status = Interp::execute(0);
+	}
+	write_g_codes((block_pointer) NULL, settings);
+	write_m_codes((block_pointer) NULL, settings);
+	write_settings(settings);
+    }
+
+    // TBD: any state deemed important to restore should be restored here
+    // NB: some state changes might generate canon commands so do that here
+    // if needed
+
+    return INTERP_OK;
+}
+
 /****************************************************************************/
 
 /*! convert_m
@@ -2857,9 +3073,45 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
   if (block->m_modes[6] != -1) {
     // when we have M6 do the actual toolchange
-    if (block->m_modes[6] == 6)
-	CHP(convert_tool_change(settings));
-	
+    if (block->m_modes[6] == 6) {
+	if (settings->m6_command) {
+
+	    // replicate preconditions form convert_tool_change
+	    if (settings->selected_pocket < 0) {
+	      ERS(NCE_TXX_MISSING_FOR_M6);
+	    }
+	    CHKS((settings->cutter_comp_side),
+	          (_("Cannot change tools with cutter radius compensation on")));
+	    // ignore tool_change_with_spindle_on, tool_change_quill_up,
+	    // tool_change_at_g30 - can be handled in g-code if needed
+	    char cmd[LINELEN];
+
+	    snprintf(cmd,sizeof(cmd),"%s [%d]",settings->m6_command,block->t_number);
+	    int status = Interp::execute(cmd, 0);
+	    if (status != INTERP_OK) {
+		MSG("------- convert_m(%s) returned %s\n",
+		       cmd, interp_status(status));
+	    }
+	    while (status == INTERP_EXECUTE_FINISH) {
+		status = Interp::execute(0);
+	    }
+	    FILE *fp = settings->file_pointer;
+	    settings->file_pointer = fp;
+
+	    CHANGE_TOOL(settings->selected_pocket);
+	    settings->current_pocket = settings->selected_pocket;
+	    // tool change can move the controlled point.  reread it:
+	    settings->toolchange_flag = true;
+	    set_tool_parameters();
+
+	    CHP(status);
+	} else {
+	    CHP(convert_tool_change(settings));
+	}
+    }
+    if (block->m_modes[6] == 69) {
+	    CHP(convert_tool_change(settings));
+    }
     // when we have M61 we only change the number of the loaded tool (for example on startup)
     if (block->m_modes[6] == 61) {
 	CHKS((round_to_int(block->q_number) < 0), (_("Need positive Q-word to specify tool number with M61")));
@@ -2901,6 +3153,45 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   } else if (block->m_modes[7] == 5) {
       enqueue_STOP_SPINDLE_TURNING();
       settings->spindle_turning = CANON_STOPPED;
+
+  } else if ((block->m_modes[7] == 70) || (block->m_modes[7] == 73)) {
+
+      // save state in current stack frame. We borrow the o-word call stack
+      // and extend it to hold modes & settings.
+
+      // MSG("---- M%d, call_level=%d)\n", block->m_modes[7],_setup.call_level);
+      // if (_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID) {
+      // 	  MSG("----- overwriting valid M70 context, call_level=%d\n",_setup.call_level);
+      // }
+
+      save_context(&_setup);
+
+      // flag this frame as containing a valid context
+      _setup.sub_context[_setup.call_level].context_status |= CONTEXT_VALID;
+
+      // mark as auto-restore context
+      if (block->m_modes[7] == 73) {
+	  if (_setup.call_level == 0) {
+	      MSG("----- Warning - M73 at top level: nothing to return to; storing context anyway\n");
+	  } else {
+	      _setup.sub_context[_setup.call_level].context_status |= CONTEXT_RESTORE_ON_RETURN;
+	  }
+      }
+
+  } else if (block->m_modes[7] == 71) {
+      // M72 - invalidate context at current level
+      // MSG("---- M71 - mark frame at level %d as invalid\n",_setup.call_level);
+      _setup.sub_context[_setup.call_level].context_status &= ~CONTEXT_VALID;
+
+  } else if (block->m_modes[7] == 72) {
+
+      // restore state from current stack frame.
+
+      CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
+           (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
+
+      // MSG("---- M72 restore context, call_level=%d)\n", _setup.call_level);
+      restore_context(&_setup, _setup.call_level);
   }
 
   if (block->m_modes[8] == 7) {
@@ -3330,6 +3621,12 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     CHP((find_tool_pocket(settings, toolno, &pocket)));
 
     settings->tool_table[pocket].toolno = toolno;
+    
+    CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
+	   block->a_flag || block->b_flag || block->c_flag ||
+	   block->u_flag || block->v_flag || block->w_flag ||
+	   block->r_flag || block->q_flag),
+	 _("G10 L1 without offsets has no effect"));
 
     if(direct) {
         if(block->x_flag)
@@ -3554,6 +3851,9 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   CHKS((block->l_number == 20 && block->c_flag && settings->c_axis_wrapped && 
         (block->c_number <= -360.0 || block->c_number >= 360.0)), 
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->c_number, 'C');
+
+  CHKS((settings->cutter_comp_side && p_int == settings->origin_index),
+       (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   find_current_in_system(settings, p_int,
                          &cx, &cy, &cz,
@@ -4616,8 +4916,8 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             concave = 1;
         } else if (beta > (M_PIl - small) && 
                    (!qc().empty() && qc().front().type == QARC_FEED && 
-                    ((side == RIGHT && qc().front().data.arc_feed.turn == 1) || 
-                     (side == LEFT && qc().front().data.arc_feed.turn == -1)))) {
+                    ((side == RIGHT && qc().front().data.arc_feed.turn > 0) ||
+                     (side == LEFT && qc().front().data.arc_feed.turn < 0)))) {
             // this is an "h" shape, tool on right, going right to left
             // over the hemispherical round part, then up next to the
             // vertical part (or, the mirror case).  there are two ways
@@ -4681,7 +4981,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 double theta;
                 double phi;
 
-                theta = (prev.turn == 1) ? base_dir + M_PI_2l : base_dir - M_PI_2l;
+                theta = (prev.turn > 0) ? base_dir + M_PI_2l : base_dir - M_PI_2l;
                 phi = atan2(prev.center2 - opy, prev.center1 - opx);
                 if TOOL_INSIDE_ARC(side, prev.turn) {
                     oldrad_uncomp = oldrad + radius;
@@ -4699,7 +4999,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                     d2 = d - radius;
                     double l = d2/oldrad;
                     CHKS((l > 1.0 || l < -1.0), _("Arc to straight motion makes a corner the compensated tool can't fit in without gouging"));
-                    if(prev.turn == 1) 
+                    if(prev.turn > 0)
                         angle_from_center = - acos(l) + theta + M_PIl;
                     else
                         angle_from_center = acos(l) + theta + M_PIl;
@@ -4707,7 +5007,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                     d2 = d + radius;
                     double l = d2/oldrad;
                     CHKS((l > 1.0 || l < -1.0), _("Arc to straight motion makes a corner the compensated tool can't fit in without gouging"));
-                    if(prev.turn == 1) 
+                    if(prev.turn > 0)
                         angle_from_center = acos(l) + theta + M_PIl;
                     else
                         angle_from_center = - acos(l) + theta + M_PIl;
@@ -4792,6 +5092,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
   CHKS((settings->cutter_comp_side),
        (_("Cannot change tools with cutter radius compensation on")));
 
+  START_CHANGE(); // indicate start of change operation
   if (!settings->tool_change_with_spindle_on) {
       STOP_SPINDLE_TURNING();
       settings->spindle_turning = CANON_STOPPED;
@@ -4837,6 +5138,15 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
                     &AA_end, &BB_end, &CC_end, 
                     &u_end, &v_end, &w_end, settings);
       COMMENT("AXIS,hide");
+
+      // move indexers first, one at a time
+      if (AA_end != settings->AA_current && settings->a_indexer)
+          issue_straight_index(3, AA_end, -1, settings);
+      if (BB_end != settings->BB_current && settings->b_indexer)
+          issue_straight_index(4, BB_end, -1, settings);
+      if (CC_end != settings->CC_current && settings->c_indexer)
+          issue_straight_index(5, CC_end, -1, settings);
+
       STRAIGHT_TRAVERSE(-1, end_x, end_y, end_z,
                         AA_end, BB_end, CC_end,
                         u_end, v_end, w_end);

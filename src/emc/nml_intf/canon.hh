@@ -612,6 +612,10 @@ to allow emc2 to safely restart knowing what tool is in the spindle.
 Using CHANGE_TOOL_NUMBER one can tell emc2 (without any physical action)
 to set the mapping of the currently loaded tool to a certain number */
 
+extern void START_CHANGE(void);
+/* executed at the very start of an M6 command before any movements,
+spindle stop or quill up have been issued, to speed up toolchanging
+process. Passed through to iocontrol to drive a pin. */
 
 /* Miscellaneous Functions */
 
@@ -938,6 +942,12 @@ extern int GET_EXTERNAL_SELECTED_TOOL_SLOT();
 // Returns the CANON_TOOL_TABLE structure associated with the tool
 // in the given pocket
 extern CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket);
+
+// return the value of iocontrol's toolchanger-fault pin
+extern int GET_EXTERNAL_TC_FAULT();
+
+// return the value of iocontrol's toolchanger-reason pin
+int GET_EXTERNAL_TC_REASON();
 
 // Returns the system traverse rate
 extern double GET_EXTERNAL_TRAVERSE_RATE();

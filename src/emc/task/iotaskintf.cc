@@ -288,12 +288,16 @@ int emcIoHalt()
     return 0;
 }
 
-int emcIoAbort()
+int emcIoAbort(int reason)
 {
     EMC_TOOL_ABORT ioAbortMsg;
 
+    ioAbortMsg.reason = reason;
     // send abort command to emcio
     sendCommand(&ioAbortMsg);
+
+    // call abort o-word sub handler if defined
+    emcAbortCleanup(reason);
 
     return 0;
 }
@@ -384,6 +388,17 @@ int emcToolPrepare(int tool)
 
     return 0;
 }
+
+
+int emcToolStartChange()
+{
+    EMC_TOOL_START_CHANGE toolStartChangeMsg;
+
+    sendCommand(&toolStartChangeMsg);
+
+    return 0;
+}
+
 
 int emcToolLoad()
 {

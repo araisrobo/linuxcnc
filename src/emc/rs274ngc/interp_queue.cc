@@ -352,6 +352,16 @@ void enqueue_M_USER_COMMAND (int index, double p_number, double q_number,
     qc().push_back(q);
 }
 
+void enqueue_START_CHANGE (void) {
+    queued_canon q;
+    q.type = QSTART_CHANGE;
+    if(debug_qc) printf("enqueue START_CHANGE\n");
+    qc().push_back(q);
+}
+
+
+
+
 void qc_scale(double scale) {
     
     if(qc().empty()) {
@@ -505,6 +515,12 @@ void dequeue_canons(setup_pointer settings) {
                                                     q.data.mcommand.l_number);
             }
             break;
+	case QSTART_CHANGE:
+            if(debug_qc) printf("issuing start_change\n");
+            START_CHANGE();
+            free(q.data.comment.comment);
+            break;
+
         }
     }
     qc().clear();
@@ -541,7 +557,7 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
                            q.data.arc_feed.center1, q.data.arc_feed.center2,
                            q.data.arc_feed.turn,
                            x, y);
-            if(debug_qc) printf("moving endpoint of arc lineno %d old sweep %f new speed %f\n", q.data.arc_feed.line_number, l1, l2);
+            if(debug_qc) printf("moving endpoint of arc lineno %d old sweep %f new sweep %f\n", q.data.arc_feed.line_number, l1, l2);
 
             if(fabs(r1-r2) > .01) 
                 ERS(_("BUG: cutter compensation has generated an invalid arc with mismatched radii r1 %f r2 %f\n"), r1, r2);

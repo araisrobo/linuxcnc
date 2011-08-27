@@ -194,6 +194,9 @@ class PM_CARTESIAN;
 #define EMC_TOOL_LOAD_TOOL_TABLE_TYPE                ((NMLTYPE) 1107)
 #define EMC_TOOL_SET_OFFSET_TYPE                     ((NMLTYPE) 1108)
 #define EMC_TOOL_SET_NUMBER_TYPE                     ((NMLTYPE) 1109)
+// the following message is sent to io at the very start of an M6
+// even before emccanon issues the move to toolchange position
+#define EMC_TOOL_START_CHANGE_TYPE                   ((NMLTYPE) 1110)
 
 #define EMC_TOOL_STAT_TYPE                           ((NMLTYPE) 1199)
 
@@ -349,6 +352,18 @@ enum EMC_TRAJ_MODE_ENUM {
     EMC_TRAJ_MODE_TELEOP = 3    // velocity based world coordinates motion,
 };
 
+// types for emcIoAbort() reasons
+enum EMC_IO_ABORT_REASON_ENUM {
+	EMC_ABORT_TASK_EXEC_ERROR = 1,
+	EMC_ABORT_AUX_ESTOP = 2,
+	EMC_ABORT_MOTION_OR_IO_RCS_ERROR = 3,
+	EMC_ABORT_TASK_STATE_OFF = 4,
+	EMC_ABORT_TASK_STATE_ESTOP_RESET = 5,
+	EMC_ABORT_TASK_STATE_ESTOP = 6,
+	EMC_ABORT_TASK_STATE_NOT_ON = 7,
+	EMC_ABORT_TASK_ABORT = 8,
+	EMC_ABORT_USER = 100  // user-defined abort codes start here
+};
 // --------------
 // EMC VOCABULARY
 // --------------
@@ -522,6 +537,7 @@ extern int emcTaskPlanLevel();
 extern int emcTaskPlanCommand(char *cmd);
 
 extern int emcTaskUpdate(EMC_TASK_STAT * stat);
+extern int emcAbortCleanup(int reason);
 
 // implementation functions for EMC_TOOL types
 
@@ -535,6 +551,7 @@ extern int emcToolLoadToolTable(const char *file);
 extern int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
                             double frontangle, double backangle, int orientation);
 extern int emcToolSetNumber(int number);
+extern int emcToolStartChange();
 
 extern int emcToolSetToolTableFile(const char *file);
 
@@ -583,7 +600,7 @@ extern int emcLubeUpdate(EMC_LUBE_STAT * stat);
 
 extern int emcIoInit();
 extern int emcIoHalt();
-extern int emcIoAbort();
+extern int emcIoAbort(int reason);
 extern int emcIoSetCycleTime(double cycleTime);
 extern int emcIoSetDebug(int debug);
 

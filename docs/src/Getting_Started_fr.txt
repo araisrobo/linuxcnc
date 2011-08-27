@@ -1,0 +1,39 @@
+Guide du Débutant V2.3, {localdate}
+===================================
+The EMC Team
+
+:language: fr
+
+:masterdir: {indir}
+
+:leveloffset: 1
+
+image::common/emc2-intro.*[]
+
+include::common/overleaf.txt[]
+
+include::common/outdated-notice_fr.txt[]
+
+include::common/System_Requirements_fr.txt[]
+
+include::common/Getting_EMC_fr.txt[]
+
+include::common/Updating_EMC_fr.txt[]
+
+include::quickstart/stepper_quickstart_fr.txt[]
+
+include::config/stepconf_fr.txt[]
+
+include::config/pncconf_fr.txt[]
+
+include::config/copy_and_run_fr.txt[]
+
+include::common/Linux_FAQ_fr.txt[]
+
+include::common/GPLD_Copyright.txt[]
+
+// = Index
+
+// vim: set syntax=asciidoc:
+
+

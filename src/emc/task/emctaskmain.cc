@@ -80,6 +80,12 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "nml_oi.hh"
 #include "task.hh"		// emcTaskCommand etc
 
+/* time after which the user interface is declared dead
+ * because it would'nt read any more messages
+ */
+#define DEFAULT_EMC_UI_TIMEOUT 5.0
+
+
 // command line args-- global so that other modules can access 
 int Argc;
 char **Argv;
@@ -126,6 +132,11 @@ NMLmsg *emcTaskCommand = 0;
 static int done;
 static int emctask_shutdown(void);
 static int pseudoMdiLineNumber = INT_MIN;
+char *t_command,*m6_command;
+
+// for operator display on iocontrol signalling a toolchanger fault if io.fault is set
+// %d receives io.reason
+static const char *io_error = "toolchanger error %d";
 
 static int all_homed(void) {
     for (int i = 0; i < emcStatus->motion.traj.joints; i++) {
@@ -144,16 +155,46 @@ static void emctask_quit(int sig)
     signal(sig, emctask_quit);
 }
 
+/* make sure at least space bytes are available on
+ * error channel; wait a bit to drain if needed
+ */
+int emcErrorBufferOKtoWrite(int space, const char *caller)
+{
+    // check channel for validity
+    if (emcErrorBuffer == NULL)
+	return -1;
+    if (!emcErrorBuffer->valid())
+	return -1;
+
+    double send_errorchan_timout = etime() + DEFAULT_EMC_UI_TIMEOUT;
+
+    while (etime() < send_errorchan_timout) {
+	if (emcErrorBuffer->get_space_available() < space) {
+	    esleep(0.01);
+	    continue;
+	} else {
+	    break;
+	}
+    }
+    if (etime() >= send_errorchan_timout) {
+	if (EMC_DEBUG & EMC_DEBUG_TASK_ISSUE) {
+	    rcs_print("timeout waiting for error channel to drain, caller=`%s' request=%d\n", caller,space);
+	}
+	return -1;
+    } else {
+	// printf("--- %d bytes available after %f seconds\n", space, etime() - send_errorchan_timout + DEFAULT_EMC_UI_TIMEOUT);
+    }
+    return 0;
+}
+
+
 // implementation of EMC error logger
 int emcOperatorError(int id, const char *fmt, ...)
 {
     EMC_OPERATOR_ERROR error_msg;
     va_list ap;
 
-    // check channel for validity
-    if (emcErrorBuffer == NULL)
-	return -1;
-    if (!emcErrorBuffer->valid())
+    if ( emcErrorBufferOKtoWrite(sizeof(error_msg) * 2, "emcOperatorError"))
 	return -1;
 
     if (NULL == fmt) {
@@ -165,11 +206,12 @@ int emcOperatorError(int id, const char *fmt, ...)
     // prepend error code, leave off 0 ad-hoc code
     error_msg.error[0] = 0;
     if (0 != id) {
-	sprintf(error_msg.error, "[%d] ", id);
+	snprintf(error_msg.error, sizeof(error_msg.error), "[%d] ", id);
     }
     // append error string
     va_start(ap, fmt);
-    vsprintf(&error_msg.error[strlen(error_msg.error)], fmt, ap);
+    vsnprintf(&error_msg.error[strlen(error_msg.error)], 
+	      sizeof(error_msg.error) - strlen(error_msg.error), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
@@ -185,15 +227,12 @@ int emcOperatorText(int id, const char *fmt, ...)
     EMC_OPERATOR_TEXT text_msg;
     va_list ap;
 
-    // check channel for validity
-    if (emcErrorBuffer == NULL)
-	return -1;
-    if (!emcErrorBuffer->valid())
+    if ( emcErrorBufferOKtoWrite(sizeof(text_msg) * 2, "emcOperatorText"))
 	return -1;
 
     // write args to NML message (ignore int text code)
     va_start(ap, fmt);
-    vsprintf(text_msg.text, fmt, ap);
+    vsnprintf(text_msg.text, sizeof(text_msg.text), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
@@ -208,15 +247,12 @@ int emcOperatorDisplay(int id, const char *fmt, ...)
     EMC_OPERATOR_DISPLAY display_msg;
     va_list ap;
 
-    // check channel for validity
-    if (emcErrorBuffer == NULL)
-	return -1;
-    if (!emcErrorBuffer->valid())
+    if ( emcErrorBufferOKtoWrite(sizeof(display_msg) * 2, "emcOperatorDisplay"))
 	return -1;
 
     // write args to NML message (ignore int display code)
     va_start(ap, fmt);
-    vsprintf(display_msg.display, fmt, ap);
+    vsnprintf(display_msg.display, sizeof(display_msg.display), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
@@ -642,7 +678,10 @@ interpret_again:
 						       emcStatus->motion.traj.actualPosition.u,
 						       emcStatus->motion.traj.actualPosition.v,
 						       emcStatus->motion.traj.actualPosition.w);
-				if (emcStatus->task.readLine + 1 == programStartLine) {
+
+				if ((emcStatus->task.readLine + 1 == programStartLine)  &&
+				    (emcTaskPlanLevel() == 0))  {
+
 				    emcTaskPlanSynch();
 
                                     // reset programStartLine so we don't fall into our stepping routines
@@ -1434,6 +1473,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 
     case EMC_TOOL_LOAD_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
+    case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_COOLANT_MIST_ON_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
     case EMC_COOLANT_FLOOD_ON_TYPE:
@@ -1818,6 +1858,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	if (emcAuxInputWaitMsg->timeout == WAIT_MODE_IMMEDIATE) { //nothing to do, CANON will get the needed value when asked by the interp
 	    emcStatus->task.input_timeout = 0; // no timeout can occur
 	    emcAuxInputWaitIndex = -1;
+	    taskExecDelayTimeout = 0.0;
 	} else {
 	    emcAuxInputWaitType = emcAuxInputWaitMsg->wait_type; // remember what we are waiting for 
 	    emcAuxInputWaitIndex = emcAuxInputWaitMsg->index; // remember the input to look at
@@ -1942,6 +1983,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	retval = emcToolPrepare(tool_prepare_msg->tool);
 	break;
 
+    case EMC_TOOL_START_CHANGE_TYPE:
+        retval = emcToolStartChange();
+	break;
+
     case EMC_TOOL_LOAD_TYPE:
 	retval = emcToolLoad();
 	break;
@@ -1980,7 +2025,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TASK_ABORT_TYPE:
 	// abort everything
 	emcTaskAbort();
-        emcIoAbort();
+        emcIoAbort(EMC_ABORT_TASK_ABORT);
         emcSpindleAbort();
 	mdi_execute_abort();
 	retval = 0;
@@ -2100,7 +2145,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 		    mdi_execute_level = -1;
 		} else if (level > 0) {
 		    // Still insude call. Need another execute(0) call
-		    mdi_execute_next = 1;
+		    // but only if we didnt encounter an error
+		    if (execRetval == INTERP_ERROR) {
+			mdi_execute_next = 0;
+		    } else {
+			mdi_execute_next = 1;
+		    }
 		}
 	    }
 	    if (execRetval == INTERP_EXECUTE_FINISH) {
@@ -2277,6 +2327,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TOOL_LOAD_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
+    case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_SET_OFFSET_TYPE:
     case EMC_TOOL_SET_NUMBER_TYPE:
     case EMC_SPINDLE_SPEED_TYPE:
@@ -2373,7 +2424,7 @@ static int emcTaskExecute(void)
 
 	// abort everything
 	emcTaskAbort();
-        emcIoAbort();
+        emcIoAbort(EMC_ABORT_TASK_EXEC_ERROR);
         emcSpindleAbort();
 	mdi_execute_abort();
 
@@ -3040,6 +3091,16 @@ static int iniLoad(const char *filename)
 	no_force_homing = 0;
     }
 
+    // configurable template for iocontrol reason display
+    if (NULL != (inistring = inifile.Find("IO_ERROR", "TASK"))) {
+	io_error = strdup(inistring);
+    }
+    if ((inistring = inifile.Find("T_COMMAND", "RS274NGC")) != NULL) {
+	t_command = strdup(inistring);
+    }
+    if ((inistring = inifile.Find("M6_COMMAND", "RS274NGC")) != NULL) {
+	m6_command = strdup(inistring);
+    }
     // close it
     inifile.Close();
 
@@ -3139,7 +3200,7 @@ int main(int argc, char *argv[])
 	    if (emcStatus->motion.traj.enabled) {
 		emcTrajDisable();
 		emcTaskAbort();
-                emcIoAbort();
+		emcIoAbort(EMC_ABORT_AUX_ESTOP);
                 emcSpindleAbort();
                 emcJointUnhome(-2); // only those joints which are volatile_home
 		mdi_execute_abort();
@@ -3159,17 +3220,46 @@ int main(int argc, char *argv[])
 	    }
 	}
 
+	// toolchanger indicated fault code > 0
+	if ((emcStatus->io.status == RCS_ERROR) &&
+	    emcStatus->io.fault) {
+	    static int reported = -1;
+	    if (emcStatus->io.reason > 0) {
+		if (reported ^ emcStatus->io.fault) {
+		    rcs_print("M6: toolchanger soft fault=%d, reason=%d\n",
+			      emcStatus->io.fault, emcStatus->io.reason);
+		    reported = emcStatus->io.fault;
+		}
+		emcStatus->io.status = RCS_DONE; // let program continue
+	    } else {
+		rcs_print("M6: toolchanger hard fault, reason=%d\n",
+			  emcStatus->io.reason);
+		// abort since io.status is RCS_ERROR
+	    }
+
+	}
 	// check for subordinate errors, and halt task if so
 	if (emcStatus->motion.status == RCS_ERROR ||
-	    emcStatus->io.status == RCS_ERROR) {
+	    ((emcStatus->io.status == RCS_ERROR) &&
+	     (emcStatus->io.reason <= 0))) {
 
 	    /*! \todo FIXME-- duplicate code for abort,
 	       also in emcTaskExecute()
 	       and in emcTaskIssueCommand() */
 
+	    if (emcStatus->io.status == RCS_ERROR) {
+		// this is an aborted M6.
+                if (EMC_DEBUG & EMC_DEBUG_RCS ) {
+                    rcs_print("io.status=RCS_ERROR, fault=%d reason=%d\n",
+			      emcStatus->io.fault, emcStatus->io.reason);
+                }
+                if (emcStatus->io.reason < 0) {
+			emcOperatorError(0, io_error, emcStatus->io.reason);
+                }
+	    }
             // abort everything
             emcTaskAbort();
-            emcIoAbort();
+            emcIoAbort(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
             emcSpindleAbort();
 	    mdi_execute_abort();
             // without emcTaskPlanClose(), a new run command resumes at

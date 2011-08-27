@@ -19,6 +19,12 @@
 python_version = @PYTHON_VERSION@
 kernel_version = @KERNEL_VERSION@
 
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    MAKEFLAGS += -j$(NUMJOBS)
+endif
+
+
 debian/control:
 	echo '# THIS FILE IS AUTO-GENERATED FROM control.in' > debian/control
 	sed -e 's/@@KVERSION@@/$(kernel_version)/g' \
@@ -36,7 +42,7 @@ ifeq "$(kernel_version)" "sim"
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=pdf
 endif
-	(cd src; $(MAKE))
+	(cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
 	touch build-stamp
 
 clean: debian/control
@@ -47,7 +53,8 @@ clean: debian/control
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
 	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
+	# master: cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh	
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version)
 endif
@@ -107,7 +114,6 @@ endif
 	dh_installdeb
 	cat debian/@EMC2_PACKAGE_NAME@/DEBIAN/shlibs debian/shlibs.pre > debian/shlibs.local
 	dh_shlibdeps -l debian/@EMC2_PACKAGE_NAME@/usr/lib
-	# dh_pysupport
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb

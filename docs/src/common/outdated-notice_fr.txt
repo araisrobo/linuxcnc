@@ -1,0 +1,37 @@
+[NOTE]
+.AVIS
+=================================================
+Au 2011-01-16, la version française 
+de la documentation EMC2 
+est de 2 ans à la date d'échéance pour 
+ne pas avoir un traducteur disponible.
+
+Il est recommandé d'utiliser la 
+documentation en anglais chaque fois que possible.
+
+Si vous souhaitez être 
+un rédacteur bénévole pour la
+Traduction française d'EMC2, 
+s'il vous plaît contactez-nous. 
+=================================================
+
+[NOTE]
+.NOTICE
+=================================================
+As of 2011-01-16, the French version 
+of the EMC2 documentation 
+is 2 years out of date due to 
+not having a translator available.
+
+It's recommended to use the 
+English documentation whenever possible.
+
+If you would like to be 
+a volunteer editor for the 
+French translation of EMC2, 
+please contact us.
+=================================================
+
+// vim: set syntax=asciidoc:
+
+

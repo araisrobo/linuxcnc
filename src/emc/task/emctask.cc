@@ -64,7 +64,7 @@ static void user_defined_add_m_code(int num, double arg1, double arg2, double ar
     FINISH();
     strcpy(fmt, user_defined_fmt[user_defined_function_dirindex[num]]);
     strcat(fmt, " %f %f %f %f %f %f %f");
-    sprintf(system_cmd.string, fmt, num, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+    snprintf(system_cmd.string, sizeof(system_cmd.string), fmt, num, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
     interp_list.append(system_cmd);
 }
 
@@ -114,13 +114,14 @@ int emcTaskInit()
     for (num = 0; num < USER_DEFINED_FUNCTION_NUM; num++) {
 	for (dct=0; dct < dmax; dct++) {
 	    if (!mdir[dct][0]) continue;
-	    sprintf(path,"%s/M1%02d",mdir[dct],num);
+	    snprintf(path, sizeof(path), "%s/M1%02d",mdir[dct],num);
 	    if (0 == stat(path, &buf)) {
 	        if (buf.st_mode & S_IXUSR) {
 		    // set the user_defined_fmt string with dirname
 		    // note the %%02d means 2 digits after the M code
 		    // and we need two % to get the literal %
-		    sprintf(user_defined_fmt[dct], "%s/M1%%02d", mdir[dct]); // update global
+		    snprintf(user_defined_fmt[dct], sizeof(user_defined_fmt[0]), 
+			     "%s/M1%%02d", mdir[dct]); // update global
 		    USER_DEFINED_FUNCTION_ADD(user_defined_add_m_code,num);
 		    if (EMC_DEBUG & EMC_DEBUG_CONFIG) {
 		        rcs_print("emcTaskInit: adding user-defined function %s\n",
@@ -230,7 +231,7 @@ int emcTaskSetState(int state)
 	    emcJointDisable(t);
 	}
 	emcTrajDisable();
-	emcIoAbort();
+	emcIoAbort(EMC_ABORT_TASK_STATE_OFF);
 	emcLubeOff();
 	emcTaskAbort();
         emcSpindleAbort();
@@ -252,7 +253,7 @@ int emcTaskSetState(int state)
 	emcAuxEstopOff();
 	emcLubeOff();
 	emcTaskAbort();
-        emcIoAbort();
+        emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP_RESET);
         emcSpindleAbort();
 	emcTaskPlanSynch();
 	break;
@@ -268,7 +269,7 @@ int emcTaskSetState(int state)
 	emcTrajDisable();
 	emcLubeOff();
 	emcTaskAbort();
-        emcIoAbort();
+        emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
         emcSpindleAbort();
         emcJointUnhome(-2); // only those joints which are volatile_home
 	emcTaskPlanSynch();
@@ -605,7 +606,7 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     if(oldstate == EMC_TASK_STATE_ON && oldstate != stat->state) {
 	emcTaskAbort();
         emcSpindleAbort();
-        emcIoAbort();
+        emcIoAbort(EMC_ABORT_TASK_STATE_NOT_ON);
     }
 
     // execState set in main
@@ -636,3 +637,10 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     return 0;
 }
 
+int emcAbortCleanup(int reason)
+{
+    int status = interp.on_abort(reason);
+    if (status > INTERP_MIN_ERROR) 
+	print_interp_error(status);    
+    return status;
+}

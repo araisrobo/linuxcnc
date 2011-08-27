@@ -4,6 +4,7 @@ and2.9
 biquad.9
 bldc_hall3.9
 bldc_sine.9
+bldc.9
 blend.9
 charge_pump.9
 clarke2.9
@@ -75,6 +76,7 @@ not.9
 offset.9
 oneshot.9
 or2.9
+pcl720.9
 pluto_step.9
 pluto_servo.9
 sample_hold.9

@@ -242,12 +242,15 @@ INFILES = \
 	../docs/man/man1/emc.1 ../scripts/emc ../scripts/realtime \
 	../scripts/haltcl ../scripts/rtapi.conf Makefile.inc Makefile.modinc \
 	../tcl/emc.tcl ../scripts/halrun ../scripts/emc-environment \
-	../scripts/emcmkdesktop ../scripts/latencyplot \
+	../scripts/emcmkdesktop \
 	 ../lib/python/nf.py \
 	../share/desktop-directories/cnc.directory ../share/menus/CNC.menu \
 	../share/applications/emc.desktop \
-	../share/applications/emc-latency.desktop \
-	../share/applications/emc-latencyplot.desktop
+	../share/applications/emc-latency.desktop
+
+ifeq ($(HAVE_WORKING_BLT),yes)
+INFILES += ../scripts/latencyplot ../share/applications/emc-latencyplot.desktop
+endif
 
 $(INFILES): %: %.in config.status
 	@./config.status --file=$@
@@ -290,6 +293,7 @@ HEADERS := \
     emc/rs274ngc/interp_internal.hh \
     emc/rs274ngc/rs274ngc.hh \
     hal/hal.h \
+    hal/hal_parport.h \
     libnml/buffer/locmem.hh \
     libnml/buffer/memsem.hh \
     libnml/buffer/phantom.hh \
@@ -338,8 +342,10 @@ HEADERS := \
     rtapi/rtapi.h \
     rtapi/rtapi_app.h \
     rtapi/rtapi_bitops.h \
+    rtapi/rtapi_byteorder.h \
     rtapi/rtapi_math.h \
     rtapi/rtapi_math_i386.h \
+    rtapi/rtapi_math64.h \
     rtapi/rtapi_common.h \
     rtapi/rtapi_ctype.h \
     rtapi/rtapi_errno.h \
@@ -351,6 +357,12 @@ TARGETS += $(patsubst %,../include/%,$(foreach h,$(HEADERS),$(notdir $h)))
 # Add converting of %.po files
 TARGETS += $(patsubst po/%.po, ../share/locale/%/LC_MESSAGES/emc2.mo, $(wildcard po/*.po))
 TARGETS += $(patsubst po/%.po, objects/%.msg, $(wildcard po/*.po))
+
+# ngcgui as standalone app:
+TARGETS += ../bin/ngcgui
+../bin/ngcgui: ../tcl/ngcgui.tcl
+	cp $< $@
+	chmod +x $@
 
 # And make userspace depend on $(TARGETS)
 userspace: $(TARGETS)
@@ -436,11 +448,17 @@ and rebuild
 endef
 install:
 	$(error $(ERROR_MESSAGE))
-install-menus install-menu: ../share/menus/CNC.menu \
-		../share/desktop-directories/cnc.directory \
-		../share/applications/emc.desktop \
-		../share/applications/emc-latency.desktop \
-		../share/applications/emc-latencyplot.desktop
+
+MENUS = ../share/menus/CNC.menu \
+    ../share/desktop-directories/cnc.directory \
+    ../share/applications/emc.desktop \
+    ../share/applications/emc-latency.desktop
+
+ifeq ($(HAVE_WORKING_BLT),yes)
+MENUS += ../share/applications/emc-latencyplot.desktop
+endif
+
+install-menus install-menu: $(MENUS)
 	mkdir -p $(HOME)/.config/menus/applications-merged
 	cp $< $(HOME)/.config/menus/applications-merged
 else
@@ -499,10 +517,12 @@ install-kernel-indep: install-dirs
 	$(DIR) $(DESTDIR)$(sampleconfsdir)
 	((cd ../configs && tar --exclude CVS --exclude .cvsignore --exclude .gitignore -cf - .) | (cd $(DESTDIR)$(sampleconfsdir) && tar -xf -))
 
-	$(EXE) $(filter-out ../bin/emc_module_helper ../bin/pci_write ../bin/pci_read, $(filter ../bin/%,$(TARGETS))) $(DESTDIR)$(bindir)
+	$(EXE) $(filter-out ../bin/emc_module_helper ../bin/pci_write ../bin/pci_read ../bin/test_rtapi_vsnprintf, $(filter ../bin/%,$(TARGETS))) $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/emc $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/latency-test $(DESTDIR)$(bindir)
+ifeq ($(HAVE_WORKING_BLT),yes)
 	$(EXE) ../scripts/latencyplot $(DESTDIR)$(bindir)
+endif
 	$(EXE) ../scripts/emcmkdesktop $(DESTDIR)$(bindir)
 	$(EXE) ../bin/tooledit $(DESTDIR)$(bindir)
 	$(FILE) $(filter ../lib/%.a ../lib/%.so.0,$(TARGETS)) $(DESTDIR)$(libdir)
@@ -511,7 +531,7 @@ install-kernel-indep: install-dirs
 	$(FILE) $(filter %.h %.hh,$(TARGETS)) $(DESTDIR)$(includedir)/emc2/
 	$(FILE) $(addprefix ../docs/,$(DOCS)) $(DESTDIR)$(docsdir)
 	$(FILE) $(DOCS_HELP) $(DESTDIR)$(docsdir)
-	$(FILE) $(NC_FILES) $(DESTDIR)$(ncfilesdir)
+	$(TREE) $(NC_FILES) $(DESTDIR)$(ncfilesdir)
 	$(EXE) ../nc_files/M101 $(DESTDIR)$(ncfilesdir)
 	$(FILE) ../tcl/TkEmc $(DESTDIR)/etc/X11/app-defaults
 	$(FILE) ../app-defaults/XEmc $(DESTDIR)/etc/X11/app-defaults
@@ -726,7 +746,9 @@ hostmot2-objs :=                          \
 	hal/drivers/mesa-hostmot2/sserial.o   \
 	hal/drivers/mesa-hostmot2/mesa_8i20.o \
 	hal/drivers/mesa-hostmot2/mesa_7i64.o \
+	hal/drivers/mesa-hostmot2/mesa_other_sserial.o \
     hal/drivers/mesa-hostmot2/stepgen.o   \
+	hal/drivers/mesa-hostmot2/bspi.o	  \
     hal/drivers/mesa-hostmot2/watchdog.o  \
     hal/drivers/mesa-hostmot2/pins.o      \
     hal/drivers/mesa-hostmot2/led.o       \
