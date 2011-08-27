@@ -3198,12 +3198,12 @@ int GET_EXTERNAL_QUEUE_EMPTY(void)
 {
     flush_segments();
     
-    // need? if (0 != emcMotionUpdate(&emcStatus->motion)) {
-    // need?     // FIXME: this is a work-around for NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
-    // need?     printf ("debug: emccanon.cc: emcMotionUpdate() fail\n");
-    // need?     // TODO: remove this assertion
-    // need?     assert(0);
-    // need? }
+    if (0 != emcMotionUpdate(&emcStatus->motion)) {
+        // force to update emcStatus before return
+        // FIXME: this is a workaround for NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
+        printf ("debug: emccanon.cc: emcMotionUpdate() fail\n");
+        // assert(0);
+    }
     
     return emcStatus->motion.traj.queue == 0 ? 1 : 0;
 }

@@ -895,11 +895,10 @@ int Interp::read(const char *command)  //!< may be NULL or a string to read
   int read_status;
 
   if (_setup.probe_flag) {
-    //TODO: remove this: while (GET_EXTERNAL_QUEUE_EMPTY() == 0) {
-    //TODO: remove this:     // FIXME: this is a work-around for NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
-    //TODO: remove this:     printf("emcStatus->motion.traj.queue != 0\n");
-    //TODO: remove this:     // assert(0);
-    //TODO: remove this: };
+    while (GET_EXTERNAL_QUEUE_EMPTY() == 0) {
+        // FIXME: this is a workaround for NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING
+        printf("emcStatus->motion.traj.queue != 0\n");
+    };
     CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
         NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
     set_probe_data(&_setup);
