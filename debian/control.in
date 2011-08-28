@@ -3,8 +3,8 @@ Section: misc
 Priority: extra
 Maintainer: Yi-Shin Li <ysli@araisrobo.com>
 Build-Depends: debhelper (>= 6),
-    @KERNEL_DEPENDS@, @KERNEL_HEADERS@, @EXTRA_BUILD@, g++, make, libc6-dev,
-    tcl@TCLTK_VERSION@-dev, tk@TCLTK_VERSION@-dev, bwidget, blt, libtk-img, cpio,
+    @KERNEL_DEPENDS@, @KERNEL_HEADERS@, @EXTRA_BUILD@,
+    tcl@TCLTK_VERSION@-dev, tk@TCLTK_VERSION@-dev, bwidget, blt,
     libxaw7-dev, libncurses-dev, libreadline-dev,
     asciidoc (>= 8.5), source-highlight, dblatex (>= 0.2.12), xsltproc, groff, 
     python, python-dev, python-support, python-tk,
