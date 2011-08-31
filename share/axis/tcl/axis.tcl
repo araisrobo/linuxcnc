@@ -412,19 +412,23 @@ setup_menu_accel .menu.help end [_ "Quick _Reference"]
 # ----------------------------------------------------------------------
 .menu add cascade \
 	-menu .menu.file
-setup_menu_accel .menu end [_ _File]
+setup_menu_accel .menu end [_ File]
+# disable hotkeys:  setup_menu_accel .menu end [_ _File]
 
 .menu add cascade \
 	-menu .menu.machine
-setup_menu_accel .menu end [_ _Machine]
+setup_menu_accel .menu end [_ Machine]
+# disable hotkeys: setup_menu_accel .menu end [_ _Machine]
 
 .menu add cascade \
 	-menu .menu.view
-setup_menu_accel .menu end [_ _View]
+setup_menu_accel .menu end [_ View]
+# disable hotkeys: setup_menu_accel .menu end [_ _View]
 
 .menu add cascade \
 	-menu .menu.help
-setup_menu_accel .menu end [_ _Help]
+setup_menu_accel .menu end [_ Help]
+# disable hotkeys: setup_menu_accel .menu end [_ _Help]
 
 frame .toolbar \
 	-borderwidth 1 \
