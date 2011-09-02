@@ -4,10 +4,10 @@ net home_j1       wou.gpio.in.03    =>  joint.1.home-sw-in
 net home_j2       wou.gpio.in.04    =>  joint.2.home-sw-in
 net home_j3       wou.gpio.in.05    =>  joint.3.home-sw-in
 
-net j0_index_en   joint.0.index_enable => wou.stepgen.0.index_enable
-net j1_index_en   joint.1.index_enable => wou.stepgen.1.index_enable
-net j2_index_en   joint.2.index_enable => wou.stepgen.2.index_enable
-net j3_index_en   joint.3.index_enable => wou.stepgen.3.index_enable
+net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
+net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
+net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
+net j3_index_en   joint.3.index-enable => wou.stepgen.3.index-enable
 
 # # net ccwl_j0_in    not.1.in          <=  wou.gpio.in.06 
 # # net ccwl_j0                         <=  not.1.out
