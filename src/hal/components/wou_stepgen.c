@@ -381,6 +381,7 @@ typedef struct {
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
+    hal_float_t *pos_scale_pin;  /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
     double vel_cmd;	        /* pin: velocity command (pos units/sec) */
@@ -464,7 +465,10 @@ typedef struct {
     hal_float_t *ahc_max_offset;
     hal_float_t *ahc_max_level;
     hal_float_t *ahc_min_level;
-
+    hal_u32_t   *control_mode;       // for state machine in risc
+    hal_float_t *probe_retract_dist; // for risc probing
+    hal_float_t *probe_vel;          // for risc probing
+    hal_float_t *probe_disct;        // for risc probing
     /* motion state tracker */
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
@@ -494,21 +498,10 @@ typedef struct {
     hal_s32_t *debug[8];
     /* tick */
     hal_u32_t *tick[14];
-//    hal_u32_t *total_tick;
-//    hal_u32_t *fun0_tick;
-//    hal_u32_t *fun1_tick;
-//    hal_u32_t *fun2_tick;
-//    hal_u32_t *fun3_tick;
-//    hal_u32_t *fun4_tick;
-//    hal_u32_t *fun5_tick;
-//    hal_u32_t *fun6_tick;
-//    hal_u32_t *fun7_tick;
-//    hal_u32_t *fun8_tick;
-//    hal_u32_t *fun9_tick;
-//    hal_u32_t *fun10_tick;
-//    hal_u32_t *fun11_tick;
-//    hal_u32_t *fun12_tick;
-
+    /* application parameter*/
+    hal_s32_t *app_param[8];
+    int32_t prev_app_param[8];
+    hal_bit_t *send_app_param; // IO: trigger parameters to be sent
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -698,39 +691,8 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
 
-        // DEBUG
-//        p += 1;
-//        *(machine_control->debug) = *p;
-//        // tick
-//
-//        p += 1;
-//        *(machine_control->total_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun0_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun1_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun2_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun3_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun4_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun5_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun6_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun7_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun8_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun9_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun10_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun11_tick) = *p;
-//        p += 1;
-//        *(machine_control->fun12_tick) = *p;
+        // DEBUG  : MOVE to MT_DEBUG
+
 #if (MBOX_LOG)
         if (din[0] != prev_din0) {
             prev_din0 = din[0];
@@ -907,18 +869,18 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         switch(machine_control->prev_wou_cmd) {
         case USB_CMD_PROBE_HIGH:
         case USB_CMD_PROBE_LOW:
-//            machine_control->a_cmd_on_going = 0;
+            // machine_control->a_cmd_on_going = 0;
             write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
     } else if (usb_cmd == USB_CMD_NOOP) {
         machine_control->a_cmd_on_going = 0;
-        write_machine_param(PROBE_CMD, USB_CMD_NOOP);
+        write_machine_param(PROBE_CMD, PROBE_STOP_REPORT);
         *machine_control->wou_status = USB_STATUS_READY;
     } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
-        // align prev pos cmd and pos cmd
-//        machine_control->a_cmd_on_going = 0;
+        // align prev pos cmd and pos cmd;
+        // machine_control->a_cmd_on_going = 0;
         stepgen = stepgen_array;
         for (i=0; i<num_chan; i++) {
             stepgen->prev_pos_cmd = *stepgen->pos_cmd;
@@ -1705,17 +1667,19 @@ static void update_freq(void *arg, long period)
     }
     /* end: process motion synchronized output */
 
-//    /* begin: wou_cmd */
-//    if (*machine_control->wou_cmd != machine_control->prev_wou_cmd) {
-//        // parsing command
-//        if (*machine_control->wou_cmd >= PROBE_HIGH && *machine_control->wou_cmd <= PROBE_END) {
-////            assert(0);
-//            write_machine_param (PROBE_CMD, *machine_control->wou_cmd);
-//        }
-//
-//    }
-//    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
-//    /* end: wou_cmd */
+    /* begin: send application parameters */
+    if (*machine_control->send_app_param == 1) {
+        *machine_control->send_app_param = 0; // clear trigger
+        for (i=0; i<8; i++) {
+            // PARAM0 to PARAM7
+            if (machine_control->prev_app_param[i] != (*machine_control->app_param[i])) {
+                fprintf(stderr, "send application parameters PARAM%d \n", i);
+                write_machine_param(PARAM0+i, (*machine_control->app_param[i]));
+                machine_control->prev_app_param[i] = *machine_control->app_param[i];
+            }
+        }
+    }
+    /* end: send application parameters */
 
     /* point at stepgen data */
     stepgen = arg;
@@ -1931,10 +1895,10 @@ static void update_freq(void *arg, long period)
     stepgen = arg;
     enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_chan; n++) {
-
-	*(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+        *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
+        *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-	if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
+        if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
             // update velocity-feedback only after encoder movement
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
                                   / (*machine_control->bp_tick - machine_control->prev_bp)
@@ -2366,6 +2330,13 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 	return retval;
     }
 
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->pos_scale_pin), comp_id,
+                  "wou.stepgen.%d.position-scale-pin", num);
+    if (retval != 0) {
+    return retval;
+    }
+
+
     /* export pin for pos/vel command */
     retval = hal_pin_float_newf(HAL_IN, &(addr->pos_cmd), comp_id,
 				    "wou.stepgen.%d.position-cmd", num);
@@ -2756,6 +2727,21 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->wou_bp_tick) = 0;
 
+    /* application parameters */
+    for (i=0; i<8; i++) {
+        retval = hal_pin_s32_newf(HAL_IN, &(machine_control->app_param[i]), comp_id,
+                                     "wou.app.param-%d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->app_param[i]) = 0;
+    }
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->send_app_param), comp_id,
+            "wou.app.send-param");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->send_app_param) = 0;
 
     machine_control->prev_out = 0;
 

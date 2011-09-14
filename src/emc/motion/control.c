@@ -673,6 +673,7 @@ static void process_probe_inputs(void)
     // don't error
     char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
                                            // motion would stop.
+    static int report_risc_probing_error = 0, counts;
 
     switch ( emcmotStatus->usb_status) {
     case USB_STATUS_PROBING:
@@ -810,15 +811,23 @@ static void process_probe_inputs(void)
             }
             emcmotStatus->usb_cmd = USB_CMD_NOOP;
         } else if (emcmotStatus->usb_cmd == USB_CMD_NOOP) {
-//            if (aborted) {
-
-//                aborted = 0;
-//            }
-        	aborted = 0;
-        	abort_reason = NO_REASON;
+            counts++;
+            if (counts > 100) {
+                aborted = 0;
+        	    abort_reason = NO_REASON;
+        	    report_risc_probing_error = 0;
+            }
         }
         break;
-
+    case USB_STATUS_RISC_PROBE_ERROR:
+        if (report_risc_probing_error == 0) {
+            report_risc_probing_error = 1;
+            aborted = 1;
+            SET_MOTION_ERROR_FLAG(1);
+            reportError("probing error.");
+            emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC;
+        }
+        break;
     default:
         // deal with PROBE related status only
         break;

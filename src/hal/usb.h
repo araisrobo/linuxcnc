@@ -7,6 +7,7 @@ typedef enum {
     USB_STATUS_PROBING,//2
     USB_STATUS_PROBE_ERROR,//3
     USB_STATUS_ERROR, // 4
+    USB_STATUS_RISC_PROBE_ERROR, // 5
 } usb_status_t;
 
 typedef enum {
