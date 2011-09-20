@@ -3051,7 +3051,6 @@ del sys.argv[1:3]
 # disable hotkey: root_window.bind("<KeyRelease-equal>", commands.jog_stop)
 
 
-
 opts, args = getopt.getopt(sys.argv[1:], 'd:')
 for i in range(9):
     if s.axis_mask & (1<<i): continue
