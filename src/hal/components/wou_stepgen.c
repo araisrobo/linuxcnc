@@ -463,6 +463,7 @@ typedef struct {
     double     prev_ahc_state;
     hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
     hal_float_t *ahc_level;
+    double prev_ahc_level;
     hal_float_t *ahc_max_offset;
     double      prev_ahc_max_level;
     hal_float_t *ahc_max_level;
@@ -1609,24 +1610,22 @@ static void update_freq(void *arg, long period)
     // remove thc_enable control bit: machine_control->prev_ahc_state = *machine_control->ahc_state;
 
     /* begin: handle AHC state, AHC level */
+    if (*machine_control->ahc_level != machine_control->prev_ahc_level) {
+        immediate_data = (uint32_t)(*(machine_control->ahc_level));
+        write_machine_param(AHC_LEVEL, immediate_data);
+        machine_control->prev_ahc_level = *(machine_control->ahc_level);
+        fprintf(stderr,"wou_stepgen.c: ahc_level(%d)\n",
+                        (uint32_t) *(machine_control->ahc_level));
+        machine_control->prev_ahc_level = *(machine_control->ahc_level);
+
+    }
     if (((uint32_t)*machine_control->ahc_state) !=
             ((uint32_t)machine_control->prev_ahc_state)) {
-        /* ahc level , ahc state */
-        immediate_data = (uint32_t)(*(machine_control->ahc_level));
-        for(j=0; j<sizeof(uint32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-            memcpy(data, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), data);
-        }
-        sync_cmd = SYNC_AHC |  AHC_STATE(((uint32_t)*(machine_control->ahc_state)));
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
+        immediate_data = (uint32_t)(*(machine_control->ahc_state));
+        write_machine_param(AHC_STATE, immediate_data);
+        fprintf(stderr,"wou_stepgen.c: ahc_state(%d)\n",
+                        (uint32_t)*(machine_control->ahc_state));
         machine_control->prev_ahc_state = *machine_control->ahc_state;
-        fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d)\n",
-                        (uint32_t)*(machine_control->ahc_state),(uint32_t) *
-                            (machine_control->ahc_level));
     }
     /* end: handle AHC state, AHC level */
 
@@ -2771,9 +2770,9 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->wou_bp_tick) = 0;
 
     /* application parameters */
-    for (i=0; i<11; i++) {
+    for (i=0; i<16; i++) {
         retval = hal_pin_s32_newf(HAL_IN, &(machine_control->app_param[i]), comp_id,
-                                     "wou.app.param-%d", i);
+                                     "wou.app.param-%02d", i);
         if (retval != 0) {
             return retval;
         }
