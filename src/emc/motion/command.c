@@ -1528,7 +1528,7 @@ check_stuff ( "before command_handler()" );
 		emcmotAioWrite(emcmotCommand->out, emcmotCommand->minLimit);
 	    } else { // we put it on the TP queue, warning: only room for one in there, any new ones will overwrite
 		tpSetAout(&emcmotDebug->coord_tp, emcmotCommand->out,
-		    emcmotCommand->start, emcmotCommand->end);
+		    emcmotCommand->minLimit, emcmotCommand->maxLimit);
 	    }
 	    break;
 
