@@ -93,6 +93,7 @@ class EMC_Action_Save(_EMC_Action, _EMC_FileChooser):
                     "Corresponding textview widget", gobject.PARAM_READWRITE),
     }
     def __init__(self, *a, **kw):
+        print "Debug: EMC_Action_Save::__init__() %s" % (self.textview)
         _EMC_Action.__init__(self, *a, **kw)
         self.textview = None
 
@@ -100,6 +101,7 @@ class EMC_Action_Save(_EMC_Action, _EMC_FileChooser):
         _EMC_Action._hal_init(self)
 
     def on_activate(self, w):
+        print "Debug: EMC_Action_Save::on_activate() %s" % (self.textview)
         if not self.textview or not self.textview.filename:
             return
         self.save(self.textview.filename)
@@ -134,7 +136,12 @@ class EMC_Action_SaveAs(EMC_Action_Save):
     def on_activate(self, w):
         if not self.textview:
             return
-        dialog = gtk.FileChooserDialog(buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+        dialog = gtk.FileChooserDialog(title="Save File ...",
+                                       action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                       buttons=(gtk.STOCK_CANCEL,
+                                                gtk.RESPONSE_CANCEL,
+                                                gtk.STOCK_SAVE,
+                                                gtk.RESPONSE_OK))
         dialog.set_do_overwrite_confirmation(True)
         if self.textview.filename:
             dialog.set_filename(self.textview.filename)
