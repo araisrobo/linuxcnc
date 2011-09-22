@@ -336,6 +336,10 @@ const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
                 "indicate probing level used by analog probing");
 
+const char *act_jnt_num="4";
+RTAPI_MP_STRING(act_jnt_num,
+               "actual joints controlled by risc");
+
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
 static const char *board = "7i43u";
@@ -502,9 +506,11 @@ typedef struct {
     /* tick */
     hal_u32_t *tick[14];
     /* application parameter*/
-    hal_s32_t *app_param[11];
-    int32_t prev_app_param[11];
+    hal_s32_t *app_param[16];
+    int32_t prev_app_param[16];
     hal_bit_t *send_app_param; // IO: trigger parameters to be sent
+    hal_s32_t *encoder_count[8]; // encoder count from risc
+    hal_s32_t *pulse_count[8];
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -512,6 +518,7 @@ static stepgen_t *stepgen_array;
 static gpio_t *gpio;
 static analog_t *analog;
 static machine_control_t *machine_control;
+static int32_t actual_joint_num;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -609,30 +616,57 @@ static void fetchmail(const uint8_t *buf_head)
         p = (uint32_t *) (buf_head + 4);
         bp_tick = *p;
         *machine_control->bp_tick = bp_tick;
-
+        assert(actual_joint_num>=num_chan);
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
-            // PULSE_POS
-            p += 1;
-            *(stepgen->pulse_pos) = *p;
-            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
-            // enc counter
-            p += 1;
-            *(stepgen->enc_pos) = *p;
-            // pid output
-            p +=1;
-            // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
-            *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
-            // cmd error
-            p += 1;
-            // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-            *(stepgen->cmd_error) = ((int32_t)*p)*(1.0);
-            
-            // joint_cmd of this BP
-            p += 1;
-            *(stepgen->joint_cmd) = ((int32_t)*p);
+        for (i=0; i<actual_joint_num; i++) {
+            if (i<num_chan) {
+                // PULSE_POS
+                p += 1;
+                *(stepgen->pulse_pos) = *p;
+                *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
+                *(machine_control->pulse_count[i]) = *p;
+                // enc counter
+                p += 1;
+                *(stepgen->enc_pos) = *p;
+                *(machine_control->encoder_count[i]) = *p;
+                // pid output
+                p +=1;
+                // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
+                *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
+                // cmd error
+                p += 1;
+                // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
+                *(stepgen->cmd_error) = ((int32_t)*p)*(1.0);
 
-            stepgen += 1;   // point to next joint
+                // joint_cmd of this BP
+                p += 1;
+                *(stepgen->joint_cmd) = ((int32_t)*p);
+
+                stepgen += 1;   // point to next joint
+            } else {
+                // PULSE_POS
+                p += 1;
+//                *(stepgen->pulse_pos) = *p;
+//                *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
+                *(machine_control->pulse_count[i]) = *p;
+                // enc counter
+                p += 1;
+//                *(stepgen->enc_pos) = *p;
+                *(machine_control->encoder_count[i]) = *p;
+                // pid output
+                p +=1;
+                // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
+//                *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
+                // cmd error
+                p += 1;
+                // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
+//                *(stepgen->cmd_error) = ((int32_t)*p)*(1.0);
+
+                // joint_cmd of this BP
+                p += 1;
+//                *(stepgen->joint_cmd) = ((int32_t)*p);
+            }
+            
         }
 
         // digital inpout
@@ -1334,6 +1368,7 @@ int rtapi_app_main(void)
         }
     }
 
+    actual_joint_num = atoi(act_jnt_num);
 
     /* to send position compensation velocity  of Z*/
 //    thc_vel = atof(thc_velocity);
@@ -2777,6 +2812,20 @@ static int export_machine_control(machine_control_t * machine_control)
             return retval;
         }
         *(machine_control->app_param[i]) = 0;
+    }
+
+    assert(actual_joint_num<=8);
+    for (i=0; i<actual_joint_num; i++) {
+        retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->encoder_count[i]), comp_id,
+                "wou.risc.joint.encoder-count-%02d", i);
+        *(machine_control->encoder_count[i]) = 0;
+
+    }
+    for (i=0; i<actual_joint_num; i++) {
+        retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->pulse_count[i]), comp_id,
+                "wou.risc.joint.pulse-count-%02d", i);
+        *(machine_control->pulse_count[i]) = 0;
+
     }
 
     machine_control->prev_out = 0;
