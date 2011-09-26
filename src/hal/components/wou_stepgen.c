@@ -1749,8 +1749,8 @@ static void update_freq(void *arg, long period)
 
     /* begin: send application parameters */
     // use carefully
-    for (i=0; i<11; i++) {
-        // PARAM0 to PARAM7
+    for (i=0; i<16; i++) {
+        // PARAM0 to PARAM15
         if (machine_control->prev_app_param[i] != (*machine_control->app_param[i])) {
             fprintf(stderr, "send application parameters PARAM%d (%d) \n", i, (*machine_control->app_param[i]));
             write_machine_param(PARAM0+i, (*machine_control->app_param[i]));
