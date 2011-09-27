@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.09.27) lucid; urgency=low
+
+  * RISC probing
+
+ -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 27 Sep 2011 15:34:36 +0800
+
 emc2 (1:2.4.0-nurbs-2011.08.31) lucid; urgency=low
 
   * Remove hotkeys for AXIS GUI
