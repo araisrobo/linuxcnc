@@ -45,6 +45,8 @@ class EMC_SourceView(gtksourceview.View, _EMC_ActionBase):
         self.set_highlight_current_line(True)
         self.set_mark_category_icon_from_icon_name('motion', 'gtk-forward')
         self.set_mark_category_background('motion', gtk.gdk.Color('#f44'))
+        # b = self.buf
+        # print "Debug: EMC_SourceView::__init__() buf(%s)" % (b.get_text(b.get_start_iter(), b.get_end_iter()))
 
     def _hal_init(self):
         _EMC_ActionBase._hal_init(self)
@@ -93,7 +95,6 @@ class EMC_Action_Save(_EMC_Action, _EMC_FileChooser):
                     "Corresponding textview widget", gobject.PARAM_READWRITE),
     }
     def __init__(self, *a, **kw):
-        print "Debug: EMC_Action_Save::__init__() %s" % (self.textview)
         _EMC_Action.__init__(self, *a, **kw)
         self.textview = None
 
@@ -101,7 +102,6 @@ class EMC_Action_Save(_EMC_Action, _EMC_FileChooser):
         _EMC_Action._hal_init(self)
 
     def on_activate(self, w):
-        print "Debug: EMC_Action_Save::on_activate() %s" % (self.textview)
         if not self.textview or not self.textview.filename:
             return
         self.save(self.textview.filename)
