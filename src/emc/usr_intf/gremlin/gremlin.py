@@ -62,6 +62,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             C('backplotprobing'),
             self.get_geometry()
         )
+        # + use self.logger.clear() to clean?
+        # + builder.get_object("hal_gremlin1").logger.clear()
         thread.start_new_thread(self.logger.start, (.01,))
 
         rs274.glcanon.GlCanonDraw.__init__(self, emc.stat(), self.logger)
