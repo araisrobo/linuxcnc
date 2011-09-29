@@ -83,8 +83,21 @@ invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
         def __init__(self, inifile):
+                # begin: read glade file name from ini file
+                if inifile:
+                    ini = emc.ini(inifile)
+                    self.ini = ini
+                else:
+                    self.ini = None
+                
 		#Set the Glade file
-		self.gladefile = os.path.join(datadir, "touchy.glade")
+		o = ini.find("DISPLAY", "GLADE_FILE")
+                if o == None:
+                    # default 
+		    self.gladefile = os.path.join(datadir, "touchy.glade")
+                else:
+                    self.gladefile = o
+                # end: read galde file name from ini file
 	        self.wTree = gtk.glade.XML(self.gladefile) 
                 
 		for widget in self.wTree.get_widget_prefix(''):
