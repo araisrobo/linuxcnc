@@ -1571,8 +1571,8 @@ static void update_freq(void *arg, long period)
     //    DP("before wou_update()\n");
     wou_update(&w_param);
     // read SSIF_INDEX_LOCK
-    memcpy(&r_index_lock,
-	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
+//     memcpy(&r_index_lock,
+// 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
     if (r_index_lock != prev_r_index_lock) {
 	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n",
 	                                r_index_lock, prev_r_index_lock);
@@ -1786,9 +1786,9 @@ static void update_freq(void *arg, long period)
 	    memcpy((void *) &switch_pos_tmp,
 		   wou_reg_ptr(&w_param,
 			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
-	    memcpy((void *) &index_pos_tmp,
-		   wou_reg_ptr(&w_param,
-			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
+//	    memcpy((void *) &index_pos_tmp,
+//		   wou_reg_ptr(&w_param,
+//			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
 
 	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
 	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
@@ -1933,11 +1933,11 @@ static void update_freq(void *arg, long period)
                 16,
                 data);
 
-        wou_cmd (&w_param,
-                WB_RD_CMD,
-                (SSIF_BASE | SSIF_INDEX_POS),
-                16,
-                data);
+//         wou_cmd (&w_param,
+//                 WB_RD_CMD,
+//                 (SSIF_BASE | SSIF_INDEX_POS),
+//                 16,
+//                 data);
 
         wou_flush(&w_param);
 
