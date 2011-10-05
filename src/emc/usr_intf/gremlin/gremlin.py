@@ -195,7 +195,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+            print filename, canon, unitcode, initcode
             self.load_preview(filename, canon, unitcode, initcode)
+
         finally:
             shutil.rmtree(td)
 
@@ -210,7 +212,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_show_limits(self): return True
     def get_show_live_plot(self): return True
     def get_show_machine_speed(self): return True
-    def get_show_metric(self): return True
+    def get_show_metric(self):
+        if (self.stat.linear_units == 1):
+            return True
+        else:
+            return False
     def get_show_program(self): return True
     def get_show_rapids(self): return True
     def get_show_relative(self): return True
