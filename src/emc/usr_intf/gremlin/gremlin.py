@@ -195,7 +195,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
-            print filename, canon, unitcode, initcode
             self.load_preview(filename, canon, unitcode, initcode)
 
         finally:
