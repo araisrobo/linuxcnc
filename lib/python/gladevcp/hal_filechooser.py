@@ -180,7 +180,11 @@ class EMC_Action_Open(_EMC_Action, _EMC_FileChooser):
 
     def on_activate(self, w):
         if self.fixed_file:
-            self._button.load_file(self.fixed_file)
+            # self._button.load_file(self.fixed_file)
+            dialog = EMC_FileChooserDialog(buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+            dialog.hide()
+            dialog.load_file(self.fixed_file)
+            dialog.destroy()
             return
         dialog = EMC_FileChooserDialog(buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
         dialog.show()
