@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STATE_DEBUG 1  // for state machine debug
+#define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include <stdint.h>
@@ -954,11 +954,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         EXIT_STATE(s0);
                         break;
                     }
-                } else {
-                    tc->reqvel = tc->ori_reqvel;
+                    tc->ori_reqvel = tc->reqvel;
                 }
             }
-            tc->ori_reqvel = tc->reqvel;
+
             assert(newvel >= 0);
             break;
         case ACCEL_S1:
@@ -1038,11 +1037,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         EXIT_STATE(s1);
                         break;
                     }
-                } else {
-                    tc->reqvel = tc->ori_reqvel;
+                    tc->ori_reqvel = tc->reqvel;
                 }
             }
-            tc->ori_reqvel = tc->reqvel;
+
             assert(newvel >= 0);
             break;
         case ACCEL_S2:
@@ -1139,11 +1137,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         EXIT_STATE(s2);
                         break;
                     }
-                } else {
-                    tc->reqvel = tc->ori_reqvel;
                 }
+                tc->ori_reqvel = tc->reqvel;
             }
-            tc->ori_reqvel = tc->reqvel;
+
             assert(newvel >= 0);
             break;
         case ACCEL_S3:
@@ -1153,8 +1150,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             // VT = V0 + A0T + 1/2 JT2
             // TODO: let currentvel be equal to  exactly.
             //       we would computate decel dist again in S3.`
-//            newvel = tc->currentvel;
-            newvel = tc->reqvel;
+            newvel = tc->currentvel;
+//            newvel = tc->reqvel;
             if (tc->decel_dist + (tc->currentvel) * tc->cycle_time > tc->target
                     - tc->progress) {
 //                tc->decel_dist = decel_dist;
@@ -1210,12 +1207,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         EXIT_STATE(s3);
                         break;
                     }
-                } else {
-                    // don't accept reqvel(0), it is possible to block state machine.
-                    tc->reqvel = tc->currentvel;
+                    tc->ori_reqvel = tc->reqvel;
                 }
             }
-            tc->ori_reqvel = tc->reqvel;
+
             assert(newvel >= 0);
             break;
         case ACCEL_S4:
