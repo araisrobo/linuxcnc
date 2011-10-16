@@ -935,7 +935,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s0);
                 break;
             } else if (tc->on_feed_change == 0) {
-                if (tc->reqvel != 0) {
+//                if (tc->reqvel != 0) {
                     if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel
                             - tc->ori_reqvel > VELOCITY_EPSTHON)) {
 
@@ -956,7 +956,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     }
                     tc->ori_reqvel = tc->reqvel;
                 }
-            }
+//            }
 
             assert(newvel >= 0);
             break;
@@ -1018,7 +1018,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s1);
                 break;
             } else if (tc->on_feed_change == 0) {
-                if (tc->reqvel != 0) {
+//                if (tc->reqvel != 0) {
                     if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel
                             - tc->ori_reqvel > VELOCITY_EPSTHON)) {
 
@@ -1038,7 +1038,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         break;
                     }
                     tc->ori_reqvel = tc->reqvel;
-                }
+//                }
             }
 
             assert(newvel >= 0);
@@ -1118,7 +1118,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 EXIT_STATE(s2);
                 break;
             } else if (tc->on_feed_change == 0) {
-                if (tc->reqvel != 0) {
+//                if (tc->reqvel != 0) {
                     if ((tc->feed_override > tc->ori_feed_override) || (tc->reqvel
                             - tc->ori_reqvel > VELOCITY_EPSTHON)) {
 
@@ -1137,7 +1137,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         EXIT_STATE(s2);
                         break;
                     }
-                }
+//                }
                 tc->ori_reqvel = tc->reqvel;
             }
 
@@ -1178,7 +1178,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             } else if (tc->on_feed_change == 0) {
                 // don't accept reqvel(0), it is possible to block state machine.
-                if (tc->reqvel != 0) {
+//                if (tc->reqvel != 0) {
                     if ((tc->feed_override > tc->ori_feed_override) ||
                         // bug fix: motion state not leave S3 when reqvel changed.
                         (tc->reqvel - tc->ori_reqvel > VELOCITY_EPSTHON)
@@ -1208,7 +1208,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                         break;
                     }
                     tc->ori_reqvel = tc->reqvel;
-                }
+//                }
             }
 
             assert(newvel >= 0);
