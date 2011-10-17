@@ -23,6 +23,7 @@ usr/share/doc/emc2/README
 usr/share/doc/emc2/tkemc.txt
 usr/share/doc/emc2/README.axis
 usr/share/doc/emc2/examples/sample-configs/*/*
+usr/share/doc/emc2/examples/sample-configs/*/.[a-z]*
 usr/share/emc/*
 usr/share/locale/*/LC_MESSAGES/*.mo
 usr/share/man/man1/*
