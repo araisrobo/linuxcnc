@@ -10,7 +10,7 @@
  *
  * Copyright (c) 2004 All rights reserved.
  ********************************************************************/
-
+//TODO: fix feedoverride become 0 while doing g33
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "rtapi_string.h"       /* NULL */
 #include "posemath.h"
@@ -35,6 +35,7 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 #define VELOCITY_EPSTHON 1e-6
+//#define VELOCITY_EPSTHON 0
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
@@ -928,7 +929,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             }
             tc->decel_dist = decel_dist;
             // handle speed up / down / pause
-            if ((tp->pausing == 1) || (/*tc->reqvel **/ tc->feed_override == 0)) {
+            if ((tp->pausing == 1) /*|| (tc->reqvel * tc->feed_override == 0)*/) {
+                printf("S0 into pausing: pausing(%d) feed_override(%f)\n", tp->pausing, tc->feed_override);
                 tc->accel_state = ACCEL_S10; // into pausing
                 tc->prev_state = ACCEL_S0;
                 immediate_state = 1;
@@ -1011,7 +1013,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             tc->decel_dist = decel_dist;
             // handle speed up / down
 
-            if ((tp->pausing == 1) || (/*tc->reqvel * */tc->feed_override == 0)) {
+            if ((tp->pausing == 1) /*|| (tc->reqvel * tc->feed_override == 0)*/) {
+                printf("S1 into pausing: pausing(%d) feed_override(%f)\n", tp->pausing, tc->feed_override);
+
                 tc->accel_state = ACCEL_S10; // into pausing
                 tc->prev_state = ACCEL_S1;
                 immediate_state = 1;
@@ -1150,7 +1154,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 break;
             }
             // handle speed up / down
-            if ((tp->pausing == 1) || (/*tc->reqvel **/ tc->feed_override == 0)) {
+            if ((tp->pausing == 1) /*|| (tc->reqvel * tc->feed_override == 0)*/) {
+                printf("S2 into pausing: pausing(%d) feed_override(%f)\n", tp->pausing, tc->feed_override);
+
                 tc->accel_state = ACCEL_S10; // into pausing
                 tc->prev_state = ACCEL_S2;
                 immediate_state = 1;
@@ -1207,9 +1213,11 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 }
             }
             // handle speed up / down
-            if ((tp->pausing == 1) || (/*tc->reqvel * */tc->feed_override == 0)) {
+            if ((tp->pausing == 1)/* || (tc->reqvel * tc->feed_override == 0)*/) {
                 // STOP: emit pausing = 1 and reqvel = 0
                 // PAUSE: emit pausing = 1 and reqvel = prev_reqvel
+                printf("S3 into pausing: pausing(%d) feed_override(%f)\n", tp->pausing, tc->feed_override);
+
                 tc->accel_state = ACCEL_S10; // into pausing
                 tc->prev_state = ACCEL_S3;
                 immediate_state = 1;
