@@ -491,8 +491,10 @@ typedef struct {
     hal_bit_t *spindle_index_enable;    // TODO: move spindle-index sync into motion
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
+    double   spindle_revs_integer;
 //    double  last_spindle_index_pos;
     int32_t last_spindle_index_pos;
+    double  last_spindle_index_pos_int;
     int32_t spindle_enc_count;          // predicted spindle-encoder count
 //    double  prev_spindle_irevs;         // to calculate index position
     int32_t prev_spindle_irevs;
@@ -2190,33 +2192,62 @@ static void update_freq(void *arg, long period)
 //                    double spindle_pos;
                     int32_t spindle_pos;
 //                    double spindle_irevs;
-                    int32_t spindle_irevs;
+                    int32_t spindle_irevs, pos_cmd, tmp;
                     double pos_scale;
                     pos_scale = stepgen->pos_scale;
+                    pos_cmd = integer_pos_cmd >> FRACTION_BITS;
+
                     // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
-                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
+//                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
+
+                    /* limit the spindle encoder count in a revolution and
+                     * keep tracking the revolution of the spindle cmd */
+                    tmp = pos_cmd + machine_control->spindle_enc_count;
+                    if (tmp >= (int32_t) abs(pos_scale)) {
+                        machine_control->spindle_enc_count = tmp - abs(pos_scale);
+                        machine_control->spindle_revs_integer += 1;
+                    } else if (tmp <-(int32_t)(abs(pos_scale))) {
+                        machine_control->spindle_enc_count = tmp + abs(pos_scale);
+                        machine_control->spindle_revs_integer -= 1;
+                    } else {
+                        machine_control->spindle_enc_count = tmp;
+                    }
+
                     spindle_pos = machine_control->spindle_enc_count;
                     spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
 
                     delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
 
-                    machine_control->prev_spindle_irevs = spindle_irevs;
-
+                    /* communicate with motion control */
                     if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
 
                         if (delta < -0.5) {
                             // ex.: 0.9 -> 0.1 (forward)
                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+                           machine_control->last_spindle_index_pos_int = machine_control->spindle_revs_integer;
                             *machine_control->spindle_index_enable = 0;
-
+//                            fprintf(stderr,"revs_int(%d)\n", machine_control->spindle_revs_integer);
                         } else if (delta > 0.5) {
                             // ex.: 0.1 -> 0.9 (backward)
                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+                           machine_control->last_spindle_index_pos_int = machine_control->spindle_revs_integer;
                             *machine_control->spindle_index_enable = 0;
+
                         }
                     }
-
-                   *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
+                    /* compute the absolute position of the spindle */
+                    *machine_control->spindle_revs = (spindle_pos -
+                                       machine_control->last_spindle_index_pos)/pos_scale +
+                                       machine_control->spindle_revs_integer -
+                                       machine_control->last_spindle_index_pos_int;
+                    if (*machine_control->spindle_revs < 0) {
+                       fprintf(stderr, "*spindle_index_enable(%d) spindle_at_speed(%d) delta(%f) irevs(%d) prev_irevs(%d) revs(%f) spindle_pos(%d) last_spindle_index_pos(%d)",
+                               *machine_control->spindle_index_enable, *machine_control->spindle_at_speed, delta, spindle_irevs, machine_control->prev_spindle_irevs,
+                               *machine_control->spindle_revs, spindle_pos,
+                               machine_control->last_spindle_index_pos);
+                       assert(0);
+                    }
+                   machine_control->prev_spindle_irevs = spindle_irevs;
             }
 
 	}
@@ -2244,7 +2275,7 @@ static void update_freq(void *arg, long period)
     if (*machine_control->motion_state != machine_control->prev_motion_state) {
         if (*machine_control->motion_state == ACCEL_S3) {
             sync_cmd = SYNC_VEL | 0x0001;
-             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
+//             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
         } else {
             sync_cmd = SYNC_VEL;
 //                 fprintf(stderr,"motion_state != ACCEL_S3\n");
@@ -2841,7 +2872,7 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->last_spindle_index_pos = 0;
     machine_control->prev_spindle_irevs = 0;
-
+    machine_control->spindle_revs_integer  = 0;
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
