@@ -1,8 +1,14 @@
+emc2 (1:2.4.0-nurbs-2011.10.21) lucid; urgency=low
+
+  * BUGFIX for CSS motion error
+
+ -- Yishin Li <ysli@araisrobo.com>  Fri, 21 Oct 2011 09:33:26 +0800
+
 emc2 (1:2.4.0-nurbs-2011.10.17) lucid; urgency=low
 
   * Fixed CSS error
 
- -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 17 Oct 2011 10:31:14 +0800
+ -- Yishin Li <ysli@araisrobo.com>  Mon, 17 Oct 2011 10:31:14 +0800
 
 emc2 (1:2.4.0-nurbs-2011.09.27) lucid; urgency=low
 
