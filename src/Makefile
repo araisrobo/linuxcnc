@@ -545,7 +545,6 @@ endif
 	$(EXE) ../tcl/scripts/Set_Coordinates.tcl $(DESTDIR)$(tcldir)/scripts
 	$(FILE) ../share/emc/stepconf.glade $(DESTDIR)$(prefix)/share/emc
 	$(FILE) ../share/emc/touchy.glade $(DESTDIR)$(prefix)/share/emc
-	$(FILE) ../share/emc/eTouchy.glade $(DESTDIR)$(prefix)/share/emc
 	$(FILE) ../share/emc/pncconf.glade $(DESTDIR)$(prefix)/share/emc
 	$(FILE) ../configs/common/emc.nml $(DESTDIR)$(prefix)/share/emc
 	$(FILE) ../src/emc/usr_intf/pncconf/pncconf-help/*.txt $(DESTDIR)$(prefix)/share/emc/pncconf/pncconf-help
