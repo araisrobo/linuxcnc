@@ -2240,13 +2240,6 @@ static void update_freq(void *arg, long period)
                                        machine_control->last_spindle_index_pos)/pos_scale +
                                        machine_control->spindle_revs_integer -
                                        machine_control->last_spindle_index_pos_int;
-                    if (*machine_control->spindle_revs < 0) {
-                       fprintf(stderr, "*spindle_index_enable(%d) spindle_at_speed(%d) delta(%f) irevs(%d) prev_irevs(%d) revs(%f) spindle_pos(%d) last_spindle_index_pos(%d)",
-                               *machine_control->spindle_index_enable, *machine_control->spindle_at_speed, delta, spindle_irevs, machine_control->prev_spindle_irevs,
-                               *machine_control->spindle_revs, spindle_pos,
-                               machine_control->last_spindle_index_pos);
-                       assert(0);
-                    }
                    machine_control->prev_spindle_irevs = spindle_irevs;
             }
 
