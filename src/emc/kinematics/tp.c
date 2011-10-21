@@ -34,7 +34,7 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
-#define VELOCITY_EPSTHON 1e-6
+#define VELOCITY_EPSTHON 0 
 //#define VELOCITY_EPSTHON 0
 #define EPSTHON 1e-6
 
@@ -828,6 +828,7 @@ s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
     double newvel, newaccel, target_vel, accel_vel, t, t1, t2, decel_dist, a,
             v1, prog;
+    target_vel = 0;
     newvel = 0;
     newaccel = 0;
     static int motion_ending = 0;  // dist comp computed only if this flag raised.
@@ -931,7 +932,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             tc->decel_dist = decel_dist;
             // handle speed up / down / pause
             if ((tp->pausing == 1) /*|| (tc->reqvel * tc->feed_override == 0)*/) {
-                printf("S0 into pausing: pausing(%d) feed_override(%f)\n", tp->pausing, tc->feed_override);
+                //printf("S0 into pausing: pausing(%d) feed_override(%f)\n", tp->pausing, tc->feed_override);
                 tc->accel_state = ACCEL_S10; // into pausing
                 tc->prev_state = ACCEL_S0;
                 immediate_state = 1;
@@ -1435,16 +1436,18 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                 if (motion_ending == 1) {
                     // move until process > target
                     newvel = tc->currentvel;
+                    newaccel = tc->cur_accel;
                 } else {
                     newvel = tc->target_vel;
                 }
             }
 
             if (/*tc->target_vel != 0 && */newaccel > 0) { //raise torrence for velocity check
-
+                
                 /* estimates decel_dist for S3*/
-                t = sqrt(tc->currentvel / tc->jerk); // time for deceleration to 0.5 currentvel
-                target_vel = tc->currentvel;
+                // t = sqrt(tc->currentvel / tc->jerk); // time for deceleration to 0.5 currentvel
+                t = sqrt(tc->target_vel / tc->jerk); // time for deceleration to 0.5 currentvel
+                // target_vel = tc->currentvel;
 
                 /* Use maxaccel as the rt_maxaccel to predicate decel_dist.
                  * Note: speed up or speed down may cause rt_maxaccel not correct for the new vel.*/
@@ -1452,8 +1455,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     // S4+S5+S6
                     t = tc->maxaccel / tc->jerk;
                     accel_vel = 0.5 * tc->jerk * pow(t, 2);
-                    target_vel = tc->currentvel; // possible S3 vel
-
+                    //target_vel = tc->currentvel; // possible S3 vel
+                   
+            
                     //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
                     decel_dist = target_vel * t - 1.0 / 6.0 * tc->jerk * pow(t,
                             3); // S4
@@ -1475,16 +1479,18 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                             * pow(t, 2) + 1.0 / 6.0 * tc->jerk * pow(t, 3);
                     //                  SP("exclude S5");
                 }
-                newvel = tc->currentvel;
+                // newvel = tc->currentvel;
+                // newvel = tc->target_vel;
+                tc->currentvel = newvel;  // ACCEL_S3 use this speed
                 newaccel = 0;
                 tc->decel_dist = decel_dist;
-                SP("decel_dist(%f) dtg(%f)\n",tc->decel_dist, tc->target-tc->progress);
                 tc->on_feed_change = 0;
                 tc->accel_state = ACCEL_S3;
                 tc->rt_jerk = 0;
                 tc->cur_accel = 0;
                 immediate_state = 1;
                 tc->ori_reqvel = tc->reqvel;
+                SP("decel_dist(%f) dtg(%f) newvel(%f) target_vel(%f)\n",tc->decel_dist, tc->target-tc->progress, newvel, tc->target_vel);
                 EXIT_STATE(s6);
                 break;
             }
@@ -1660,50 +1666,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
             } else {
                 // prediction distant when speed down
                 /* estimates decel_dist for S3->S4->S5->S6->S3 */
-// speed down always allowed:                 target_vel = (tc->currentvel + tc->reqvel * tc->feed_override)
-// speed down always allowed:                         / 2;
-// speed down always allowed:                 t = sqrt(2 * (tc->currentvel - target_vel) / tc->jerk); // time for deceleration to 0.5 currentvel
-// speed down always allowed:                 t = floor(t / tc->cycle_time) * tc->cycle_time;
-// speed down always allowed:                 SP("time_for_decel(%f)\n",t);
-// speed down always allowed:                 if (tc->jerk * t > tc->rt_maxaccel) {
-// speed down always allowed:                     // S4+S5+S6
-// speed down always allowed:                     t = tc->rt_maxaccel / tc->jerk;
-// speed down always allowed:                     accel_vel = 0.5 * tc->jerk * pow(t, 2);
-//
-// speed down always allowed:                     // accure predict S6 final speed
-// speed down always allowed:                     target_vel = tc->currentvel - accel_vel - (tc->reqvel
-// speed down always allowed:                             * tc->feed_override + accel_vel);
-// speed down always allowed:                     t1 = floor((target_vel / tc->rt_maxaccel) / tc->cycle_time)
-// speed down always allowed:                             * tc->cycle_time;
-// speed down always allowed:                     target_vel = tc->currentvel - accel_vel - tc->rt_maxaccel
-// speed down always allowed:                             * t1 - accel_vel;// possible vel before leaving S6
-//
-// speed down always allowed:                     //   PT = P0 + V0T + 1/2A0T2 + 1/6JT3
-// speed down always allowed:                     decel_dist = tc->currentvel * t - 1.0 / 6.0 * tc->jerk
-// speed down always allowed:                             * pow(t, 3); // S4
-// speed down always allowed:                     SP("expected d(s4)(%f) ",decel_dist);
-// speed down always allowed:                     decel_dist += (accel_vel + target_vel) * t - 0.5
-// speed down always allowed:                             * tc->rt_maxaccel * pow(t, 2) + 1.0 / 6.0
-// speed down always allowed:                             * tc->jerk * pow(t, 3); // S6
-// speed down always allowed:                     SP("d(s6)(%f) ",accel_vel*t-0.5*tc->rt_maxaccel*pow(t,2)+1.0/6.0*tc->jerk*pow(t,3));
-// speed down always allowed:                     t = t1;
-// speed down always allowed:                     decel_dist += (tc->currentvel - accel_vel) * t - 0.5
-// speed down always allowed:                             * tc->rt_maxaccel * pow(t, 2);
-// speed down always allowed:                     SP("d(s5)(%f) ",(target_vel - accel_vel)*t -0.5*tc->rt_maxaccel*pow(t,2));
-//
-// speed down always allowed:                 } else {
-// speed down always allowed:                     // consider deceleration progress exclude S5
-// speed down always allowed:                     //PT = P0 + V0T + 1/2A0T2 + 1/6JT3
-// speed down always allowed:                     t = floor(t / tc->cycle_time) * tc->cycle_time;
-// speed down always allowed:                     decel_dist = tc->currentvel * t - 1.0 / 6.0 * tc->jerk
-// speed down always allowed:                             * pow(t, 3);
-// speed down always allowed:                     accel_vel = 0.5 * tc->jerk * pow(t, 2);
-// speed down always allowed:                     target_vel = tc->currentvel - accel_vel;
-// speed down always allowed:                     decel_dist += target_vel * t - 0.5 * (tc->jerk * t) * pow(
-// speed down always allowed:                             t, 2) + 1.0 / 6.0 * tc->jerk * pow(t, 3);
-// speed down always allowed:                     //                  SP("exclude S5");
-// speed down always allowed:                 }
-// speed down always allowed:                 if (tc->decel_dist + decel_dist < tc->target - tc->progress) {
                     tc->accel_state = ACCEL_S4;
                     tc->accel_time = tc->currentvel;
                     tc->accel_dist = 0;
@@ -1713,12 +1675,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) {
                     immediate_state = 1;
                     EXIT_STATE(s9);
                     break;
-// speed down always allowed:                } else {
-// speed down always allowed:                    tc->accel_state = tc->prev_state;
-// speed down always allowed:                    tc->on_feed_change = 0;
-// speed down always allowed:                    //  immediate_state = 1;
-// speed down always allowed:                    EXIT_STATE(s9);
-// speed down always allowed:                }
             }
             break;
 
@@ -2192,6 +2148,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 revs = new_spindlepos;
 
             pos_error = (revs - spindleoffset) * tc->uu_per_rev - tc->progress;
+            //fprintf(stderr, "revs(%f) spindleoffset(%f) target_process(%f) tc_progress(%f) reqvel(%f)\n",
+            //    revs, spindleoffset,(revs - spindleoffset) * tc->uu_per_rev, tc->progress, tc->reqvel);
             if(nexttc) pos_error -= nexttc->progress;
 
             if (tc->sync_accel) {
@@ -2218,20 +2176,19 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
                 // we have to consider the pos_error (exceedness).
                 double errorvel;
-                spindle_vel = (revs - oldrevs) / tc->cycle_time;
-                target_vel = spindle_vel * tc->uu_per_rev;
+                 spindle_vel = (revs - oldrevs) / tc->cycle_time;
+                 target_vel = spindle_vel * tc->uu_per_rev;
                 // assume pos_error could be matched in a cycle.
-                // d = 1/2*(1/2*a*t^2)
-                // get acceleration a = sqrt(2*pos_error * 2/t) = 2*sqrt(pos_error/t)
-                // the velocity modular would be v = a*t
-                // FIX: errorvel makes tc->reqvel always evaluated that
-                //      current progress exceed expected.
-                errorvel = 2 * pmSqrt(fabs(pos_error/tc->cycle_time)) * tc->cycle_time;
-                // fprintf(stderr, "errorvel(%f) \n", errorvel);
-                // old: errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
-                if (pos_error < 0)
-                    errorvel = -errorvel;
-                tc->reqvel = target_vel + errorvel;
+                // d = 1/2*a*t^2
+                // get acceleration a = sqrt(pos_error * 2/t)
+                 // the velocity modular would be v = a*t
+                errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
+                //errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
+                 if (pos_error < 0)
+                     errorvel = -errorvel;
+                 tc->reqvel = target_vel + errorvel;
+                 // fprintf(stderr, "spindle_vel(%f) pos_error(%f) target_vel(%f) tc->reqvel(%f)\n", 
+                 //    spindle_vel, pos_error, target_vel, tc->reqvel);
             }
             tc->feed_override = 1.0;
         }
