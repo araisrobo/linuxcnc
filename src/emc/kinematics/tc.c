@@ -335,18 +335,12 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 
             // compute allowed feed
             if(!of_endpoint) {
-                curve_accel = (tc->currentvel * tc->currentvel)/D;
+                curve_accel = (tc->cur_vel * tc->cur_vel)/D;
                 if(curve_accel > tc->maxaccel) {
                     // modify req_vel
-//                    fprintf(stderr,"prev_req_vel(%f) ", tc->reqvel);
                     tc->reqvel = pmSqrt((tc->maxaccel * D));
-//                    fprintf(stderr,"new_reqvel(%f)\n",tc->reqvel);
                 }
             }
-            /*if(!of_endpoint) {
-                fprintf(stderr,"prog(%f) req_vel(%f) curvature(%f) cur_vel(%f) u(%f) Y(%f)\n",
-                        tc->progress, tc->reqvel ,D, tc->currentvel, u, Y);
-            }*/
 
 #if (TRACE != 0)
                 if(l == 0 && _dt == 0) {

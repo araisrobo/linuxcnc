@@ -70,22 +70,14 @@ typedef struct {
     RIGIDTAP_STATE state;
 } PmRigidTap;
 
-// S_10 for Pausing
-// S_9 for speed up
-// S_8 for speed down
-// S_X_1
 enum state_type {
-  ACCEL_S0=0,
-  ACCEL_S1, // 1
-  ACCEL_S2, ACCEL_S2_8, // 2, 3
-  ACCEL_S3,//4
-  ACCEL_S4, ACCEL_S4_8,//5,6
-  ACCEL_S5,//7
-  ACCEL_S6, ACCEL_S6_8,//8, 9
-  ACCEL_S7, // 10
-  ACCEL_S8, ACCEL_S0_8_3, ACCEL_S1_8_3,//11,12,13
-  ACCEL_S9, ACCEL_S4_9_3, ACCEL_S5_9_3, ACCEL_S6_9_3,//14,15,16,17
-  ACCEL_S10,  ACCEL_S2_10, ACCEL_S4_10, ACCEL_S5_10, ACCEL_S6_10// 18,19,20,21,22
+  ACCEL_S0 = 0, // 0
+  ACCEL_S1,     // 1
+  ACCEL_S2,     // 2
+  ACCEL_S3,     // 3
+  ACCEL_S4,     // 4
+  ACCEL_S5,     // 5
+  ACCEL_S6      // 6
 };
 
 typedef struct {
@@ -104,7 +96,7 @@ typedef struct {
     double jerk;            // the accelrate of accel
     double feed_override;   // feed override requested by user
     double maxvel;          // max possible vel (feed override stops here)
-    double currentvel;      // keep track of current step (vel * cycle_time)
+    double cur_vel;         // keep track of current step (vel * cycle_time)
     double cur_accel;       // keep track of current acceleration
     double accel_dist;      // keep track of acceleration distance
     double decel_dist;      // distance to start deceleration
@@ -135,11 +127,11 @@ typedef struct {
     int canon_motion_type;  // this motion is due to which canon function?
     int blend_with_next;    // gcode requests continuous feed at the end of 
                             // this segment (g64 mode)
-    // int blending;           // segment is being blended into following segment
-    // double blend_vel;       // velocity below which we should start blending
+    int blending;           // segment is being blended into following segment
+    double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move, 
                             // stay within this distance from the path.
-    // double vel_at_blend_start;
+    double vel_at_blend_start;
     // double nexttc_vel;
     
     int synchronized;       // spindle sync required for this move
