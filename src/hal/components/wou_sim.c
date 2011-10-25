@@ -2183,40 +2183,63 @@ static void update_freq(void *arg, long period)
             stepgen->prev_vel_cmd = stepgen->vel_cmd;
 
             if (stepgen->pos_mode == 0) {
-                    // TODO: find a better way for spindle control
-                    // TODO: let TRAJ-PLANNER judge the index/revolution
-                    // TODO: remove this section from wou_stepgen.c
-                    double delta;
-//                    double spindle_pos;
-                    int32_t spindle_pos;
-//                    double spindle_irevs;
-                    int32_t spindle_irevs;
-                    double pos_scale;
-                    pos_scale = stepgen->pos_scale;
-                    // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
-                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
-                    spindle_pos = machine_control->spindle_enc_count;
-                    spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
+                // TODO: find a better way for spindle control
+                // TODO: let TRAJ-PLANNER judge the index/revolution
+                // TODO: remove this section from wou_stepgen.c
+                double delta;
+                int32_t spindle_pos;
+                int32_t spindle_irevs;
+                double pos_scale;
+                pos_scale = stepgen->pos_scale;
+                // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
+                machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
+                spindle_pos = machine_control->spindle_enc_count;
+                spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
 
-                    delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
+                delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
 
-                    machine_control->prev_spindle_irevs = spindle_irevs;
+                machine_control->prev_spindle_irevs = spindle_irevs;
+
+                { 
+                    // 用 revs 記錄小數點以上的旋轉圈數
+                    // 用 rev 計算小數點以下的旋轉圈數
+                    // 超過一圈時，更新 index 點的 encoder 位置 (last_spindle_index_pos)
+                    // 超過一圈時，更新 revs
+                    static double revs;
+                    double rev;
 
                     if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
 
                         if (delta < -0.5) {
                             // ex.: 0.9 -> 0.1 (forward)
-                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
                             *machine_control->spindle_index_enable = 0;
+                            revs = 0;
 
                         } else if (delta > 0.5) {
                             // ex.: 0.1 -> 0.9 (backward)
-                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+                            machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
                             *machine_control->spindle_index_enable = 0;
+                            revs = 0;
                         }
                     }
 
-                   *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
+                    //orig: *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
+
+                    rev = ((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale;
+                    *machine_control->spindle_revs = revs + rev;
+                    if (rev < -1.0) {
+                        // rotate toward negative encoder position
+                        // and, larger than a full revolution (after passing index point)
+                        machine_control->last_spindle_index_pos -= (int32_t) pos_scale;
+                        revs -= 1.0;
+                    } else if (rev > 1.0){
+                        // rotate toward positive encoder position
+                        // and, larger than a full revolution (after passing index point)
+                        machine_control->last_spindle_index_pos += (int32_t) pos_scale;
+                        revs += 1.0;
+                    }
+                }
             }
 
 	}
