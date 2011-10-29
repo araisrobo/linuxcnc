@@ -85,6 +85,7 @@ typedef struct {
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
     double distance_to_go;  // distance to go for target target..0
+    int    hit_progress_limit;
     double motion_progress;
     double motion_target;
     double motion_distance_to_go;

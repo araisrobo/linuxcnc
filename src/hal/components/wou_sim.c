@@ -1973,28 +1973,31 @@ static void update_freq(void *arg, long period)
     stepgen = arg;
     enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_chan; n++) {
-        *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
-        *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
-//        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-        if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
-            // update velocity-feedback only after encoder movement
-            *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
-                                  / (*machine_control->bp_tick - machine_control->prev_bp)
-                                 );
-            stepgen->prev_pos_fb = *stepgen->pos_fb;
-            stepgen->prev_enc_pos = *stepgen->enc_pos;
-            if (n == (num_chan - 1)) {
-                // update bp_tick for the last joint
-                //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
-                //DEBUG:                 "WOU: j[%d] bp(%u) prev_bp(%u) vel_fb(%f)\n",
-                //DEBUG:                 n,
-                //DEBUG:                 machine_control->bp_tick,
-                //DEBUG:                 machine_control->prev_bp,
-                //DEBUG:                 *(stepgen->vel_fb)
-                //DEBUG:                );
-                machine_control->prev_bp = *machine_control->bp_tick;
-            }
-        }
+        /* for simulated signals: */
+        *(stepgen->pos_fb) = (*stepgen->pos_cmd);
+
+
+//         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
+//         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+//         if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
+//             // update velocity-feedback only after encoder movement
+//             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
+//                                   / (*machine_control->bp_tick - machine_control->prev_bp)
+//                                  );
+//             stepgen->prev_pos_fb = *stepgen->pos_fb;
+//             stepgen->prev_enc_pos = *stepgen->enc_pos;
+//             if (n == (num_chan - 1)) {
+//                 // update bp_tick for the last joint
+//                 //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
+//                 //DEBUG:                 "WOU: j[%d] bp(%u) prev_bp(%u) vel_fb(%f)\n",
+//                 //DEBUG:                 n,
+//                 //DEBUG:                 machine_control->bp_tick,
+//                 //DEBUG:                 machine_control->prev_bp,
+//                 //DEBUG:                 *(stepgen->vel_fb)
+//                 //DEBUG:                );
+//                 machine_control->prev_bp = *machine_control->bp_tick;
+//             }
+//         }
 
 	/* test for disabled stepgen */
 	if (enable == 0) {
@@ -2091,135 +2094,135 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
         
-	//
-	// first sanity-check our maxaccel and maxvel params
-	//
-
-
-	/* at this point, all scaling, limits, and other parameter
-	   changes hrawcount_diff_accumave been handled - time for the main control */
-
-	if (stepgen->pos_mode) {
-	    /* position command mode */
-	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
-	} else {
-	    /* velocity command mode */
-	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
-	        stepgen->prev_vel_cmd = 0;
-	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-	        // do more thing if necessary.
-	    }
-	    if (*stepgen->ctrl_type_switch == 0) {
-                stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
-
-                /* begin:  ramp up/down spindle */
-                maxvel = stepgen->maxvel;   /* unit/s */
-                if (stepgen->vel_cmd > maxvel) {
-                    stepgen->vel_cmd = maxvel;
-                } else if(stepgen->vel_cmd < -maxvel){
-                    stepgen->vel_cmd = -maxvel;
-                }
-                stepgen->accel_cmd = (stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
-
-                if (stepgen->accel_cmd > stepgen->maxaccel) {
-                    stepgen->accel_cmd = stepgen->maxaccel;
-                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
-                    stepgen->accel_cmd = -(stepgen->maxaccel);
-                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                }
-                /* end: ramp up/down spindle */
-//                fprintf(stderr,"prev_vel(%f) accel_cmd(%f) \n", stepgen->prev_vel_cmd, stepgen->accel_cmd);
-	    } else {
-	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
-	    }
-	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
-//obsolete:            if(*machine_control->spindle_enable)
-//obsolete:                stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
-//obsolete:            else
-//obsolete:                stepgen->vel_cmd = 0;
-	}
-	{
-            
-            //wou_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
-            integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
-
-            /* extract integer part of command */
-            wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
-            
-            if(wou_pos_cmd >= 8192) {
-                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",
-                        n ,
-                        (*stepgen->pos_cmd), 
-                        (stepgen->prev_pos_cmd), 
-                        *stepgen->home_state, 
-                        stepgen->vel_cmd);
-                fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
-                assert(0);
-            }
-            // SYNC_JNT: opcode for SYNC_JNT command
-            // DIR_P: Direction, (positive(1), negative(0))
-            // POS_MASK: relative position mask
-            
-            if (integer_pos_cmd >= 0) {
-                // wou_cmd_accum = wou_pos_cmd << FRACTION_BITS;
-                sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
-            } else {
-                // wou_cmd_accum = -(wou_pos_cmd << FRACTION_BITS);
-                sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
-            }
-            memcpy(data + (2 * n * sizeof(uint16_t)), &sync_cmd, sizeof(uint16_t));
-            
-            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
-
-
-            /* packing fraction part */
-            sync_cmd = (uint16_t) wou_pos_cmd;
-            memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
-                   sizeof(uint16_t));
-
-            // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
-            (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
-            stepgen->prev_vel_cmd = stepgen->vel_cmd;
-
-            if (stepgen->pos_mode == 0) {
-                    // TODO: find a better way for spindle control
-                    // TODO: let TRAJ-PLANNER judge the index/revolution
-                    // TODO: remove this section from wou_stepgen.c
-                    double delta;
-//                    double spindle_pos;
-                    int32_t spindle_pos;
-//                    double spindle_irevs;
-                    int32_t spindle_irevs;
-                    double pos_scale;
-                    pos_scale = stepgen->pos_scale;
-                    // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
-                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
-                    spindle_pos = machine_control->spindle_enc_count;
-                    spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
-
-                    delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
-
-                    machine_control->prev_spindle_irevs = spindle_irevs;
-
-                    if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
-
-                        if (delta < -0.5) {
-                            // ex.: 0.9 -> 0.1 (forward)
-                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
-                            *machine_control->spindle_index_enable = 0;
-
-                        } else if (delta > 0.5) {
-                            // ex.: 0.1 -> 0.9 (backward)
-                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
-                            *machine_control->spindle_index_enable = 0;
-                        }
-                    }
-
-                   *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
-            }
-
-	}
+//wou:	//
+//wou:	// first sanity-check our maxaccel and maxvel params
+//wou:	//
+//wou:
+//wou:
+//wou:	/* at this point, all scaling, limits, and other parameter
+//wou:	   changes hrawcount_diff_accumave been handled - time for the main control */
+//wou:
+//wou:	if (stepgen->pos_mode) {
+//wou:	    /* position command mode */
+//wou:	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+//wou:	} else {
+//wou:	    /* velocity command mode */
+//wou:	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
+//wou:	        stepgen->prev_vel_cmd = 0;
+//wou:	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+//wou:	        // do more thing if necessary.
+//wou:	    }
+//wou:	    if (*stepgen->ctrl_type_switch == 0) {
+//wou:                stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+//wou:
+//wou:                /* begin:  ramp up/down spindle */
+//wou:                maxvel = stepgen->maxvel;   /* unit/s */
+//wou:                if (stepgen->vel_cmd > maxvel) {
+//wou:                    stepgen->vel_cmd = maxvel;
+//wou:                } else if(stepgen->vel_cmd < -maxvel){
+//wou:                    stepgen->vel_cmd = -maxvel;
+//wou:                }
+//wou:                stepgen->accel_cmd = (stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
+//wou:
+//wou:                if (stepgen->accel_cmd > stepgen->maxaccel) {
+//wou:                    stepgen->accel_cmd = stepgen->maxaccel;
+//wou:                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+//wou:                } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
+//wou:                    stepgen->accel_cmd = -(stepgen->maxaccel);
+//wou:                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+//wou:                }
+//wou:                /* end: ramp up/down spindle */
+//wou://                fprintf(stderr,"prev_vel(%f) accel_cmd(%f) \n", stepgen->prev_vel_cmd, stepgen->accel_cmd);
+//wou:	    } else {
+//wou:	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+//wou:	    }
+//wou:	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
+//wou://obsolete:            if(*machine_control->spindle_enable)
+//wou://obsolete:                stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
+//wou://obsolete:            else
+//wou://obsolete:                stepgen->vel_cmd = 0;
+//wou:	}
+//wou:	{
+//wou:            
+//wou:            //wou_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
+//wou:            integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
+//wou:
+//wou:            /* extract integer part of command */
+//wou:            wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
+//wou:            
+//wou:            if(wou_pos_cmd >= 8192) {
+//wou:                fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",
+//wou:                        n ,
+//wou:                        (*stepgen->pos_cmd), 
+//wou:                        (stepgen->prev_pos_cmd), 
+//wou:                        *stepgen->home_state, 
+//wou:                        stepgen->vel_cmd);
+//wou:                fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
+//wou:                assert(0);
+//wou:            }
+//wou:            // SYNC_JNT: opcode for SYNC_JNT command
+//wou:            // DIR_P: Direction, (positive(1), negative(0))
+//wou:            // POS_MASK: relative position mask
+//wou:            
+//wou:            if (integer_pos_cmd >= 0) {
+//wou:                // wou_cmd_accum = wou_pos_cmd << FRACTION_BITS;
+//wou:                sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
+//wou:            } else {
+//wou:                // wou_cmd_accum = -(wou_pos_cmd << FRACTION_BITS);
+//wou:                sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
+//wou:            }
+//wou:            memcpy(data + (2 * n * sizeof(uint16_t)), &sync_cmd, sizeof(uint16_t));
+//wou:            
+//wou:            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
+//wou:
+//wou:
+//wou:            /* packing fraction part */
+//wou:            sync_cmd = (uint16_t) wou_pos_cmd;
+//wou:            memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
+//wou:                   sizeof(uint16_t));
+//wou:
+//wou:            // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
+//wou:            (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
+//wou:            stepgen->prev_vel_cmd = stepgen->vel_cmd;
+//wou:
+//wou:            if (stepgen->pos_mode == 0) {
+//wou:                    // TODO: find a better way for spindle control
+//wou:                    // TODO: let TRAJ-PLANNER judge the index/revolution
+//wou:                    // TODO: remove this section from wou_stepgen.c
+//wou:                    double delta;
+//wou://                    double spindle_pos;
+//wou:                    int32_t spindle_pos;
+//wou://                    double spindle_irevs;
+//wou:                    int32_t spindle_irevs;
+//wou:                    double pos_scale;
+//wou:                    pos_scale = stepgen->pos_scale;
+//wou:                    // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
+//wou:                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
+//wou:                    spindle_pos = machine_control->spindle_enc_count;
+//wou:                    spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
+//wou:
+//wou:                    delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
+//wou:
+//wou:                    machine_control->prev_spindle_irevs = spindle_irevs;
+//wou:
+//wou:                    if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
+//wou:
+//wou:                        if (delta < -0.5) {
+//wou:                            // ex.: 0.9 -> 0.1 (forward)
+//wou:                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+//wou:                            *machine_control->spindle_index_enable = 0;
+//wou:
+//wou:                        } else if (delta > 0.5) {
+//wou:                            // ex.: 0.1 -> 0.9 (backward)
+//wou:                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
+//wou:                            *machine_control->spindle_index_enable = 0;
+//wou:                        }
+//wou:                    }
+//wou:
+//wou:                   *machine_control->spindle_revs = (((int32_t)(spindle_pos - machine_control->last_spindle_index_pos))/pos_scale);
+//wou:            }
+//wou:
+//wou:	}
 
         if (n == (num_chan - 1)) {
             // send to WOU when all axes commands are generated
