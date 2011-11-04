@@ -16,7 +16,6 @@ import hal
 
 class hal_interface:
     def __init__(self, gui, emc_control, mdi_control, emc):
-        print "touchy.hal init ++++"
         self.gui = gui
         self.emc_control = emc_control
         self.emc = emc
@@ -109,7 +108,6 @@ class hal_interface:
         self.c.ready()
         self.active = 0
         self.jogaxis(0)
-        print "touchy.hal init -----"
 
     def wheel(self):# read the difference between now and last wheel count
         counts = self.c["wheel-counts"]/4
@@ -180,12 +178,10 @@ class hal_interface:
         self.sw_button_presented = 1
     def periodic(self, mdi_mode):
         # edge detection
-        # print "hal_interface periodic +++++"
         xp = self.c["jog.continuous.x.positive"]
         if self.sw_button_presented == 1:
             xp = self.xp_sw
         if xp ^ self.xp: 
-            print "run xp"
             self.emc_control.continuous_jog(0, xp)
         self.xp = xp
 
@@ -193,7 +189,6 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xn = self.xn_sw
         if xn ^ self.xn:
-            print "run xn" 
             self.emc_control.continuous_jog(0, -xn)
         self.xn = xn
 
@@ -306,15 +301,25 @@ class hal_interface:
         if cyclestart and not self.cyclestart:
             if self.gui.wheel == "jogging": self.gui.wheel = "mv"
             self.gui.jogsettings_activate(0)
+            # self.gui.wheel = "mv"
+            # self.gui.jogsettings_activate(0)
             if mdi_mode:
                 if not self.singleblock: self.mdi_control.ok(0)
             else:
                 self.emc_control.cycle_start()
+        elif not cyclestart:
+            # print self.emc_stat.interp_state
+            if self.emc_stat.interp_state == self.emc.INTERP_IDLE:
+                if self.emc_stat.task_mode != self.emc.MODE_MANUAL:
+                    if self.gui.force_jog == "TRUE":
+                        self.gui.wheel = "jogging"
+                        self.gui.jogsettings_activate(1)
+                        self.emc_control.jogging(1)
+            
         self.cyclestart = cyclestart
 
         abort = self.c["abort"]
         if abort and not self.abort:
-            print "allow abort" 
             self.emc_control.abort()
         self.abort = abort
 

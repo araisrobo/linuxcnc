@@ -89,8 +89,11 @@ class touchy:
                     self.ini = ini
                 else:
                     self.ini = None
-                
-		#Set the Glade file
+               
+                # check for for jog flag
+                self.foce_jog = "FALSE"
+                self.force_jog = ini.find("DISPLAY", "JOG_ALWAYS")
+		# Set the Glade file
 		o = ini.find("DISPLAY", "GLADE_FILE")
                 if o == None:
                     # default 
