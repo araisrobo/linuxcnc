@@ -15,7 +15,7 @@
 
 
 
-import sys, os
+import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
 datadir = os.path.join(BASE, "share", "emc")
@@ -805,9 +805,31 @@ class touchy:
 		return postgui_halfile,sys.argv[2]
         def power_off(self, w):
             # quit()
-	    w = self.wTree.get_widget("MainWindow").window
-            w.destroy()
-            quit()
+            label = gtk.Label("WARRNING: Click OK to Power off machine. \n It may take 5 seconds.")
+            dialog = gtk.Dialog("CAUTION",
+                               None,
+                               gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                               (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                                gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+            dialog.vbox.pack_start(label)
+            label.show()
+            response = dialog.run()
+            if response == gtk.RESPONSE_ACCEPT:
+                count = 5 
+                self.emc.machine_off(w)
+                s = emc.stat()
+                s.poll()
+                while emc.stat.task_state == emc.STATE_ON:
+                    s.poll()
+                while count > 0:
+                    time.sleep(1.0) # to make sure power off command sent
+                    count = count - 1
+
+                dialog.destroy()
+                w = self.wTree.get_widget("MainWindow").window
+                w.destroy()
+                quit()
+                  
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
             hwg = touchy(sys.argv[2])
