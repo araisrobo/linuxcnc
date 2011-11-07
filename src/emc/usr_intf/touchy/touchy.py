@@ -326,6 +326,7 @@ class touchy:
                         "on_estop_reset_clicked" : self.emc.estop_reset,
                         "on_machine_off_clicked" : self.emc.machine_off,
                         "on_machine_on_clicked" : self.emc.machine_on,
+                        "on_power_off_clicked" : self.power_off,
                         "on_mdi_clear_clicked" : self.mdi_control.clear,
                         "on_mdi_back_clicked" : self.mdi_control.back,
                         "on_mdi_next_clicked" : self.mdi_control.next,
@@ -583,7 +584,7 @@ class touchy:
                           "8", "9", "0", "minus", "decimal",
                           "flood_on", "flood_off", "mist_on", "mist_off",
                           "g", "gp", "m", "t", "set_tool", "set_origin", "macro",
-                          "estop", "estop_reset", "machine_off", "machine_on",
+                          "estop", "estop_reset", "machine_off", "machine_on","power_off",
                           "home_all", "unhome_all", "home_selected", "unhome_selected",
                           "fo", "so", "mv", "jogging", "wheelinc1", "wheelinc2", "wheelinc3",
                           "wheelx", "wheely", "wheelz",
@@ -802,7 +803,11 @@ class touchy:
 		inifile=self.emc.emc.ini(sys.argv[2])
 		postgui_halfile = inifile.find("HAL", "POSTGUI_HALFILE")
 		return postgui_halfile,sys.argv[2]
-
+        def power_off(self, w):
+            # quit()
+	    w = self.wTree.get_widget("MainWindow").window
+            w.destroy()
+            quit()
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
             hwg = touchy(sys.argv[2])
