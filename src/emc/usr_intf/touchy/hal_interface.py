@@ -301,8 +301,6 @@ class hal_interface:
         if cyclestart and not self.cyclestart:
             if self.gui.wheel == "jogging": self.gui.wheel = "mv"
             self.gui.jogsettings_activate(0)
-            # self.gui.wheel = "mv"
-            # self.gui.jogsettings_activate(0)
             if mdi_mode:
                 if not self.singleblock: self.mdi_control.ok(0)
             else:
@@ -310,12 +308,15 @@ class hal_interface:
         elif not cyclestart:
             # print self.emc_stat.interp_state
             if self.emc_stat.interp_state == self.emc.INTERP_IDLE:
+            # might be in MDI or JOG mode
                 if self.emc_stat.task_mode != self.emc.MODE_MANUAL:
-                    if self.gui.force_jog == "TRUE":
-                        self.gui.wheel = "jogging"
-                        self.gui.jogsettings_activate(1)
-                        self.emc_control.jogging(1)
-            
+		    if self.emc_stat.task_mode != self.emc.MODE_MDI:
+	                if self.gui.force_jog == "TRUE":
+	                    self.gui.wheel = "jogging"
+	                    self.gui.jogsettings_activate(1)
+	                    self.emc_control.jogging(1)
+                        
+                  
         self.cyclestart = cyclestart
 
         abort = self.c["abort"]

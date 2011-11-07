@@ -805,7 +805,6 @@ class touchy:
 
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
-            print "ini", sys.argv[2]
             hwg = touchy(sys.argv[2])
         else:
             hwg = touchy()
@@ -813,7 +812,6 @@ if __name__ == "__main__":
 	if res: raise SystemExit, res
 	# load a postgui file if one is present in the INI file
 	postgui_halfile,inifile = touchy.postgui(hwg)
-	print "TOUCHY postgui filename:",postgui_halfile
 	if postgui_halfile:
 		res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i",inifile,"-f", postgui_halfile])
 		if res: raise SystemExit, res
