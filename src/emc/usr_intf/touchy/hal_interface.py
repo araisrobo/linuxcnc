@@ -308,19 +308,21 @@ class hal_interface:
                 self.emc_control.cycle_start()
         elif not cyclestart:
             # print self.emc_stat.interp_state
-            if self.emc_stat.interp_state == self.emc.INTERP_IDLE:
-              if self.emc_stat.task_mode != self.emc.MODE_MANUAL:
-	        if self.emc_stat.task_mode != self.emc.MODE_MDI:
+            if self.emc_stat.interp_state == self.emc.INTERP_IDLE and \
+               self.emc_stat.task_state != self.emc.STATE_OFF and \
+               self.emc_stat.task_mode != self.emc.MODE_MANUAL and \
+	       self.emc_stat.task_mode != self.emc.MODE_MDI:
 	          if self.gui.force_jog == "TRUE":
                     
                     jog_mode_switch_counter = jog_mode_switch_counter + 1
-                    if jog_mode_switch_counter > 100:
+                    if jog_mode_switch_counter > 30:
                       self.gui.wheel = "jogging"
                       self.gui.jogsettings_activate(1)
                       self.emc_control.jogging(1)
                       jog_mode_switch_counter = 0
                    
-                  
+            else:
+              jog_mode_switch_counter = 0
         self.cyclestart = cyclestart
 
         abort = self.c["abort"]
