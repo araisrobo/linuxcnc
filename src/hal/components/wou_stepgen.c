@@ -902,6 +902,10 @@ static void parse_usb_cmd (uint32_t usb_cmd)
             machine_control->a_cmd_on_going = 1;
             write_machine_param(PROBE_CMD, PROBE_LOW);
             break;
+        case USB_CMD_ABORT:  // for risc probing
+            fprintf(stderr,"output PROBE_END\n");
+            write_machine_param(PROBE_CMD, PROBE_END);
+            break;
         }
     } else if (usb_cmd == USB_CMD_STATUS_ACK){
 
@@ -910,16 +914,17 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         case USB_CMD_PROBE_HIGH:
         case USB_CMD_PROBE_LOW:
 //            machine_control->a_cmd_on_going = 0;
+            fprintf(stderr,"output PROBE_END\n");
             write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
     } else if (usb_cmd == USB_CMD_ABORT) {
         switch(machine_control->prev_wou_cmd) {
-        case USB_CMD_PROBE_HIGH:
-        case USB_CMD_PROBE_LOW:
-            // machine_control->a_cmd_on_going = 0;
-            write_machine_param(PROBE_CMD, PROBE_END);
+            case USB_CMD_PROBE_HIGH:
+            case USB_CMD_PROBE_LOW:
+                machine_control->a_cmd_on_going = 0;
+                write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
