@@ -825,10 +825,14 @@ static void process_probe_inputs(void)
             report_risc_probing_error = 1;
             aborted = 1;
             abort_reason = NO_REASON;
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
+            tpAbort(&emcmotDebug->coord_tp);
             reportError("probing error.");
         }
         emcmotStatus->usb_cmd = USB_CMD_ABORT;//USB_CMD_NOOP; // use ACK?
+
+
         break;
     default:
         // deal with PROBE related status only
@@ -976,13 +980,13 @@ static void check_for_faults(void)
 	    }
 	    /* risc probe error */
 //        if (emcmotStatus->usb_status == USB_STATUS_RISC_PROBE_ERROR) {
-//	    if (abort_reason == RISC_PROBE_END) {
-//            fprintf(stderr, "enabling = 0 (USB_STATUS_RISC_PROBE_ERROR)\n");
-//            SET_MOTION_ERROR_FLAG(1);
-//            emcmotDebug->enabling = 0;
-//            abort_reason = NO_REASON;
-//
-//        }
+	    if (abort_reason == RISC_PROBE_END) {
+            fprintf(stderr, "enabling = 0 (USB_STATUS_RISC_PROBE_ERROR)\n");
+            SET_MOTION_ERROR_FLAG(1);
+            emcmotDebug->enabling = 0;
+            abort_reason = NO_REASON;
+
+        }
 	/* end of if JOINT_ACTIVE_FLAG(joint) */
 	}
     /* end of check for joint faults loop */

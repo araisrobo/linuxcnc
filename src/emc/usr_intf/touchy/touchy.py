@@ -829,6 +829,9 @@ class touchy:
                 w = self.wTree.get_widget("MainWindow").window
 #                w.destroy()
                 gtk.main_quit() 
+            else:
+                dialog.destroy()
+
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
             hwg = touchy(sys.argv[2])
