@@ -805,8 +805,8 @@ class touchy:
 		return postgui_halfile,sys.argv[2]
         def power_off(self, w):
             # quit()
-            label = gtk.Label("WARRNING: Click OK to Power off machine. \n It may take 5 seconds.")
-            dialog = gtk.Dialog("CAUTION",
+            label = gtk.Label("Click OK to Power off machine \nand quit program \nIt may take 5 seconds.")
+            dialog = gtk.Dialog("POWER OFF MACHINE",
                                None,
                                gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
                                (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
@@ -827,9 +827,8 @@ class touchy:
 
                 dialog.destroy()
                 w = self.wTree.get_widget("MainWindow").window
-                w.destroy()
-                quit()
-                  
+#                w.destroy()
+                gtk.main_quit() 
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
             hwg = touchy(sys.argv[2])
