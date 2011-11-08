@@ -1,3 +1,9 @@
+emc2 (1:2.4.0-nurbs-2011.11.08) lucid; urgency=low
+
+  * BUGFIX for RISC Probing
+
+ -- Yishin Li <ysli@araisrobo.com>  Tue, 08 Nov 2011 13:56:55 +0800
+
 emc2 (1:2.4.0-nurbs-2011.10.25) lucid; urgency=low
 
   * BUGFIX for S-curve motion profile
