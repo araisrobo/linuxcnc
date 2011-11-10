@@ -681,13 +681,14 @@ static void fetchmail(const uint8_t *buf_head)
 
         // update gpio_in[31:0]
         // compare if there's any GPIO.DIN bit got toggled
-        if (memcmp (&(machine_control->prev_in0), &din[0], sizeof(uint32_t))) {
-            // avoid for-loop to save CPU cycles
-            memcpy(&(machine_control->prev_in0), &din[0], sizeof(uint32_t));
-            for (i = 0; i < 32; i++) {
-                *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
-            }
-        }
+        // WOU_SIM
+//        if (memcmp (&(machine_control->prev_in0), &din[0], sizeof(uint32_t))) {
+//            // avoid for-loop to save CPU cycles
+//            memcpy(&(machine_control->prev_in0), &din[0], sizeof(uint32_t));
+//            for (i = 0; i < 32; i++) {
+//                *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
+//            }
+//        }
         // TODO: update gpio_in[63:32]
 
         // ADC_SPI (raw ADC value)
@@ -1771,119 +1772,126 @@ static void update_freq(void *arg, long period)
 
     // num_chan: 4, calculated from step_type;
     /* loop thru generators */
-
-    r_load_pos = 0;
-    r_switch_en = 0;
-    r_index_en = prev_r_index_en;
-    /* begin: homing logic */
-    for (n = 0; n < num_chan; n++) {
-	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
-	    static hal_s32_t prev_switch_pos;
-	    hal_s32_t switch_pos_tmp = 0;
-	    hal_s32_t index_pos_tmp = 0;
-	    /* update home switch and motor index position while homing */
-	    //TODO: to get switch pos and index pos from risc
-	    memcpy((void *) &switch_pos_tmp,
-		   wou_reg_ptr(&w_param,
-			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
-//	    memcpy((void *) &index_pos_tmp,
-//		   wou_reg_ptr(&w_param,
-//			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-
-	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
-	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
-	    if(prev_switch_pos != switch_pos_tmp) {
-//                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
-                prev_switch_pos = switch_pos_tmp;
-	    }
-
-	    /* check if we should wait for HOME Switch Toggle */
-	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
-		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
-		(*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
-		if (stepgen->prev_home_state != *stepgen->home_state) {
-		    // set r_switch_en to locate SWITCH_POS
-		    // r_switch_en is reset by HW
-		    r_switch_en |= (1 << n);
-
-		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
-                        immediate_data = SEARCH_HOME_HIGH;
-                    } else if((*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT)) {
-                        immediate_data = SEARCH_HOME_LOW;
-                    } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
-                        immediate_data = SEARCH_HOME_LOW;
-                    } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
-                        immediate_data = SEARCH_HOME_HIGH;
-                    } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
-                        immediate_data = SEARCH_HOME_LOW;
-                    } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
-                        immediate_data = SEARCH_INDEX;
-
-                    }
-                    write_mot_param (n, (MOTION_TYPE), immediate_data);
-
-		}
-
-	    } else if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
-	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
-                if(normal_move_flag[n] == 1) {
-                    immediate_data = NORMAL_MOVE;
-                    write_mot_param (n, (MOTION_TYPE), immediate_data);
-                    normal_move_flag[n] = 0;
-                }
-
-                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
-                (*stepgen->pos_cmd) = *(stepgen->pos_fb);
-            } else if(*stepgen->home_state == HOME_START) {
-                normal_move_flag[n] = 1;
-            }
-
-	    /* check if we should wait for Motor Index Toggle */
-	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
-		if (stepgen->prev_home_state != *stepgen->home_state) {
-		    // set r_index_en while getting into HOME_INDEX_SEARCH_WAIT state
-		    r_index_en |= (1 << n);
-		} else if (r_index_lock & (1 << n)) {
-		    // the motor index is locked
-		    // reset r_index_en by SW
-		    r_index_en &= (~(1 << n));	// reset index_en[n]
-		    *(stepgen->index_enable) = 0;
-//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
-//		                                    n, r_index_en, prev_r_index_en);
-//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
-//		                                    n, *(stepgen->index_pos), index_pos_tmp);
-//		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
-//		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
-		}
-//		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-	    }
-
-	    if (stepgen->prev_home_state == HOME_IDLE) {
-                /**
-                 * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
-                 * INDEX_POS with enc_counter at beginning of homing
-                 * (HOME_START state)
-                 *
-		 * reset to ZERO one cycle after setting this register
-                 **/
-		r_load_pos |= (1 << n);
-                if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
-                    /* accumulator gets a half step offset, so it will step half
-                       way between integer positions, not at the integer positions */
-                    stepgen->rawcount = *(stepgen->enc_pos);
-//                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
-                }
-                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
-                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-	    }
-	}
-        stepgen->prev_home_state = *stepgen->home_state;
-	/* move on to next channel */
-	stepgen++;
-    }
+// sim:
+// sim:    r_load_pos = 0;
+// sim:    r_switch_en = 0;
+// sim:    r_index_en = prev_r_index_en;
+// sim:    /* begin: homing logic */
+// sim:    for (n = 0; n < num_chan; n++) {
+// sim:	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
+// sim:	    static hal_s32_t prev_switch_pos;
+// sim:	    hal_s32_t switch_pos_tmp = 0;
+// sim:	    hal_s32_t index_pos_tmp = 0;
+// sim:	    /* update home switch and motor index position while homing */
+// sim:	    //TODO: to get switch pos and index pos from risc
+// sim:	    memcpy((void *) &switch_pos_tmp,
+// sim:		   wou_reg_ptr(&w_param,
+// sim:			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
+// sim://	    memcpy((void *) &index_pos_tmp,
+// sim://		   wou_reg_ptr(&w_param,
+// sim://			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
+// sim:
+// sim:	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
+// sim:	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
+// sim:	    if(prev_switch_pos != switch_pos_tmp) {
+// sim://                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
+// sim:                prev_switch_pos = switch_pos_tmp;
+// sim:	    }
+// sim:
+// sim:	    /* check if we should wait for HOME Switch Toggle */
+// sim:	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
+// sim:		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
+// sim:		(*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
+// sim:		(*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
+// sim:		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT) ||
+// sim:		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
+// sim:		if (stepgen->prev_home_state != *stepgen->home_state) {
+// sim:		    // set r_switch_en to locate SWITCH_POS
+// sim:		    // r_switch_en is reset by HW
+// sim://		    r_switch_en |= (1 << n);
+// sim:		    r_switch_en &= (1 << n); // reset by SW while SIM
+// sim:
+// sim:		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
+// sim:                        immediate_data = SEARCH_HOME_HIGH;
+// sim:                        machine_control->in[i+2] = 1;
+// sim:                    } else if((*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT)) {
+// sim:                        immediate_data = SEARCH_HOME_LOW;
+// sim:                        machine_control->in[i+2] = 0;
+// sim:                    } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
+// sim:                        immediate_data = SEARCH_HOME_LOW;
+// sim:                        machine_control->in[i+2] = 0;
+// sim:                    } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
+// sim:                        immediate_data = SEARCH_HOME_HIGH;
+// sim:                        machine_control->in[i+2] = 1;
+// sim:                    } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
+// sim:                        immediate_data = SEARCH_HOME_LOW;
+// sim:                        machine_control->in[i+2] = 0;
+// sim:                    } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
+// sim:                        immediate_data = SEARCH_INDEX;
+// sim:
+// sim:                    }
+// sim:                    write_mot_param (n, (MOTION_TYPE), immediate_data);
+// sim:
+// sim:
+// sim:		}
+// sim:
+// sim:	    } else if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
+// sim:	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
+// sim:                if(normal_move_flag[n] == 1) {
+// sim:                    immediate_data = NORMAL_MOVE;
+// sim:                    write_mot_param (n, (MOTION_TYPE), immediate_data);
+// sim:                    normal_move_flag[n] = 0;
+// sim:                }
+// sim:
+// sim:                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
+// sim:                (*stepgen->pos_cmd) = *(stepgen->pos_fb);
+// sim:            } else if(*stepgen->home_state == HOME_START) {
+// sim:                normal_move_flag[n] = 1;
+// sim:            }
+// sim:
+// sim:	    /* check if we should wait for Motor Index Toggle */
+// sim:	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
+// sim:		if (stepgen->prev_home_state != *stepgen->home_state) {
+// sim:		    // set r_index_en while getting into HOME_INDEX_SEARCH_WAIT state
+// sim:		    r_index_en |= (1 << n);
+// sim:		} else if (r_index_lock & (1 << n)) {
+// sim:		    // the motor index is locked
+// sim:		    // reset r_index_en by SW
+// sim:		    r_index_en &= (~(1 << n));	// reset index_en[n]
+// sim:		    *(stepgen->index_enable) = 0;
+// sim://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
+// sim://		                                    n, r_index_en, prev_r_index_en);
+// sim://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
+// sim://		                                    n, *(stepgen->index_pos), index_pos_tmp);
+// sim://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
+// sim://		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
+// sim:		}
+// sim://		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+// sim:	    }
+// sim:
+// sim:	    if (stepgen->prev_home_state == HOME_IDLE) {
+// sim:                /**
+// sim:                 * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
+// sim:                 * INDEX_POS with enc_counter at beginning of homing
+// sim:                 * (HOME_START state)
+// sim:                 *
+// sim:		 * reset to ZERO one cycle after setting this register
+// sim:                 **/
+// sim:		r_load_pos |= (1 << n);
+// sim:                if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
+// sim:                    /* accumulator gets a half step offset, so it will step half
+// sim:                       way between integer positions, not at the integer positions */
+// sim:                    stepgen->rawcount = *(stepgen->enc_pos);
+// sim://                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
+// sim:                }
+// sim:                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
+// sim:                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+// sim:	    }
+// sim:	}
+// sim:        stepgen->prev_home_state = *stepgen->home_state;
+// sim:	/* move on to next channel */
+// sim:	stepgen++;
+// sim:    }
     /* enc: homing logic */
     /* check if we should update SWITCH/INDEX positions for HOMING */
     if (r_load_pos != 0) {
@@ -1953,7 +1961,7 @@ static void update_freq(void *arg, long period)
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
                 immediate_data = NORMAL_MOVE;
-                write_mot_param (n, (MOTION_TYPE), immediate_data);
+                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
 
         } else {
@@ -1976,11 +1984,12 @@ static void update_freq(void *arg, long period)
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-        if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
+//        if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
             // update velocity-feedback only after encoder movement
-            *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
-                                  / (*machine_control->bp_tick - machine_control->prev_bp)
-                                 );
+//            *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
+//                                  / (*machine_control->bp_tick - machine_control->prev_bp)
+//                                 );
+            *(stepgen->vel_fb) = stepgen->vel_cmd;
             stepgen->prev_pos_fb = *stepgen->pos_fb;
             stepgen->prev_enc_pos = *stepgen->enc_pos;
             if (n == (num_chan - 1)) {
@@ -1992,8 +2001,8 @@ static void update_freq(void *arg, long period)
                 //DEBUG:                 machine_control->prev_bp,
                 //DEBUG:                 *(stepgen->vel_fb)
                 //DEBUG:                );
-                machine_control->prev_bp = *machine_control->bp_tick;
-            }
+//                machine_control->prev_bp = *machine_control->bp_tick;
+//            }
         }
 
 	/* test for disabled stepgen */
@@ -2180,8 +2189,9 @@ static void update_freq(void *arg, long period)
 
             // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
             (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
-            stepgen->prev_vel_cmd = stepgen->vel_cmd;
 
+            stepgen->prev_vel_cmd = stepgen->vel_cmd;
+            *(stepgen->enc_pos) =  (stepgen->prev_pos_cmd) * stepgen->pos_scale;  //SIM
             if (stepgen->pos_mode == 0) {
                 // TODO: find a better way for spindle control
                 // TODO: let TRAJ-PLANNER judge the index/revolution
@@ -2200,7 +2210,7 @@ static void update_freq(void *arg, long period)
 
                 machine_control->prev_spindle_irevs = spindle_irevs;
 
-                { 
+                {
                     // 用 revs 記錄小數點以上的旋轉圈數
                     // 用 rev 計算小數點以下的旋轉圈數
                     // 超過一圈時，更新 index 點的 encoder 位置 (last_spindle_index_pos)
