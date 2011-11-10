@@ -1960,7 +1960,7 @@ static void update_freq(void *arg, long period)
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
                 immediate_data = NORMAL_MOVE;
-                write_mot_param (n, (MOTION_TYPE), immediate_data);
+                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
 
         } else {
