@@ -25,9 +25,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STATE_DEBUG 1  // for state machine debug
+#define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -827,6 +827,11 @@ s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
  VT = VT + AT + 1/2JT
  AT = AT + JT
  */
+/**
+ * S-curve Velocity Profiler FSM
+ * Yishin Li <ysli@araisrobo.com>
+ * ARAIS ROBOT TECHNOLOGY, http://www.araisrobo.com/
+ **/
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) 
 {
     // double , accel_vel, t, t1, t2, decel_dist, a, v1, prog;
@@ -842,19 +847,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
-            tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
             tc->cur_accel = tc->cur_accel + tc->jerk;
+            tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
             
-            //DPS("tc->jerk(%f)\n", tc->jerk);
-            //DPS("tc->maxaccel(%f)\n", tc->maxaccel);
-            //DPS("tc->cur_accel(%f)\n", tc->cur_accel);
-            //DPS("tc->maxvel(%f)\n", tc->maxvel);
-            //DPS("tc->cur_vel(%f)\n", tc->cur_vel);
-            //DPS("tc->cycle_time(%f)\n", tc->cycle_time);
-
-            // check if we hit accel limit
-            if (tc->cur_accel >= tc->maxaccel) {
+            // check if we hit accel limit at next BP
+            if ((tc->cur_accel + tc->jerk) >= tc->maxaccel) {
                 tc->cur_accel = tc->maxaccel;
                 tc->accel_state = ACCEL_S1;
                 SP(" Leave S0 due to Acceleration limit\n");
@@ -873,7 +871,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             //DPS("req_vel(%f)\n", req_vel);
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
-                // tc->cur_vel = vel ;
                 tc->accel_state = ACCEL_S2;
                 SP(" Leave S0 due to velocity limit\n");
                 EXIT_STATE(s0);
@@ -937,14 +934,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             // check if we will hit velocity limit 假設從這一點開始減速到accel=0
             // AT = A0 + JT (let AT = 0 to calculate T)
             // VT = V0 + A0T + 1/2JT2
-            t = ceil(tc->cur_accel / tc->jerk);
+            // t = ceil(tc->cur_accel / tc->jerk);
+            t = tc->cur_accel / tc->jerk;
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
             if (req_vel > tc->maxvel) {
                 req_vel = tc->maxvel;
             }
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
-                // tc->cur_vel = vel ;
                 tc->accel_state = ACCEL_S2;
                 SP(" Leave S0 due to velocity limit\n");
                 EXIT_STATE(s0);
@@ -1004,14 +1001,24 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
 
             // check accel == 0
             if (tc->cur_accel <= 0) {
-                req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
-                DP ("req_vel(%f) cur_vel(%f)\n", req_vel, tc->cur_vel);
-                tc->cur_accel = 0;
                 tc->accel_state = ACCEL_S3;
                 DP(" Leave S2 due to Acceleration == 0\n");
                 EXIT_STATE(s2);
                 break;
             }
+
+            // check if we will hit velocity limit at next BP
+            req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
+            if (req_vel > tc->maxvel) {
+                req_vel = tc->maxvel;
+            }
+            // vel: velocity at next BP 
+            vel = tc->cur_vel + tc->cur_accel - 1.5 * tc->jerk;
+            if (vel > req_vel) {
+                tc->cur_vel = vel;
+                tc->accel_state = ACCEL_S3;
+                break;
+            } 
             
             // check if we will hit progress limit
             // refer to 2011-10-17 ysli design note
@@ -1047,7 +1054,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             }
 
             if (tc->target < dist) {
-                tc->cur_accel = 0;
                 tc->accel_state = ACCEL_S3;
                 DP(" Leave S2 due to progress limit\n");
                 break;
@@ -1060,6 +1066,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             
             // PT = PT + VT + 1/2AT + 1/6JT
             // , where (jerk == 0) and (accel == 0)
+            tc->cur_accel = 0;
             tc->progress = tc->progress + tc->cur_vel;
             
             // check if we will hit progress limit
@@ -1072,22 +1079,21 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             t1 = sqrt(vel/j)
             */
             vel = tc->cur_vel;
-            // t = floor(sqrt(vel/tc->jerk) - 0.5);
-            t = sqrt(vel/tc->jerk);
+            t = floor(sqrt(vel/tc->jerk) - 0.5);
+            // t = sqrt(vel/tc->jerk);
             //DPS("t1(%f)\n", t);
             //DPS("accel_1(%f)\n", t * tc->jerk);
             //DPS("decel position(%f)\n", dist);
             // AT = AT + JT
-            // t1 = floor(tc->maxaccel / tc->jerk - 0.5);   // max time for S4
-            t1 = tc->maxaccel / tc->jerk;   // max time for S4
+            t1 = floor(tc->maxaccel / tc->jerk - 0.5);   // max time for S4
+            // t1 = tc->maxaccel / tc->jerk;   // max time for S4
             if (t > t1) {
                 // S4 -> S5 -> S6
                 dist = tc->progress + t1 * vel;    // dist of (S4 + S6)
                 // calc decel.dist for ACCEL_S5
                 // t: time for S5
-                // t = floor((vel - 0.5 * tc->jerk * t1 * t1 - 0.5 * tc->maxaccel * t1) / tc->maxaccel - 0.5);
-                // t = floor((vel - tc->maxaccel * t1) / tc->maxaccel - 0.5);
-                t = (vel - tc->maxaccel * t1) / tc->maxaccel;
+                t = floor((vel - tc->maxaccel * t1) / tc->maxaccel - 0.5);
+                // t = (vel - tc->maxaccel * t1) / tc->maxaccel;
                 v1 = vel - 0.5 * tc->jerk * t1 * t1;
                 // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
                 dist += (v1 * t - 0.5 * tc->maxaccel * t * t);
@@ -1097,6 +1103,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             }
             tc->hit_progress_limit = 0;
             if (tc->target < (dist - vel)) {    // vel: compensate for 1 more S3
+            // if (tc->target < dist) {
                 tc->accel_state = ACCEL_S4;
                 tc->hit_progress_limit = 1;
                 DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
@@ -1112,17 +1119,18 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
                     req_vel = tc->maxvel;
                 }
                 if (tp->pausing == 0) {
-                    if (tc->cur_vel < req_vel) {
+                    if ((tc->cur_vel + tc->maxaccel) < req_vel) {
                         tc->accel_state = ACCEL_S0;
                         SP(" Leave S3 for acceleration\n");
                         EXIT_STATE(s3);
                         break;
-                    } else if (tc->cur_vel > req_vel) {
+                    } else if ((tc->cur_vel - tc->maxaccel) > req_vel) {
                         tc->accel_state = ACCEL_S4;
-                        SP(" Leave S3 for acceleration\n");
+                        SP(" Leave S3 for deceleration\n");
                         EXIT_STATE(s3);
                         break;
                     }
+                    tc->cur_vel = req_vel;
                 }
             }
             break;
@@ -1141,30 +1149,36 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             // (accel < 0) and (jerk < 0)
             assert (tc->cur_accel < 0);
             
-            // check if we hit accel limit
-            if (tc->cur_accel <= -tc->maxaccel) {
+            // check if we hit accel limit at next BP
+            if ((tc->cur_accel - tc->jerk) <= -tc->maxaccel) {
                 tc->cur_accel = -tc->maxaccel;
                 tc->accel_state = ACCEL_S5;
-                // DPS(" Leave S4 due to Acceleration limit\n");
                 break;
             }
-
+            
+            // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
+            t = - tc->cur_accel / tc->jerk - 0.5;
             if (tc->hit_progress_limit == 1) {
                 // hit_progress_limit flag has been set at ACCEL_S3
                 // has to decel until hitting the target
 
-                // 2011-10-18 ysli: 
-                // velocity for entering S6:
-                // t = a / jerk
-                // v = 0.5 * a * a / jerk = 0.5 * a * t
-                t = floor(tc->cur_accel / tc->jerk - 0.5);
-                vel = 0.5 * tc->cur_accel * t;
-                DP("decel to vel(%f) for S6\n", vel);
-                if (tc->cur_vel <= vel) {
-                    // go to S6 for "vel->0" at the end
+                // VT = V0 + A0T + 1/2JT2
+                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
+                // 讓 vel 比實際的值小 1.05 cur_accel (cur_accel 是負值)
+
+#if(TRACE!=0)
+                // dist = estimated_target - target 
+                //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+                //                 + 1.0 / 6.0 * jerk * t * t * t - target;
+                dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+                       + 1.0 / 6 * tc->jerk * t * t * t - tc->target;
+#endif
+                DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
+
+                if (vel <= 0) {
+                    // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
                     tc->accel_state = ACCEL_S6;
-                    // tc->cur_vel = vel; // compensate/increase vel for targeting
-                    DP(" go to S6 due to progress limit\n");
+                    DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
                 }
                 break;
             }
@@ -1174,7 +1188,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             //
             // AT = A0 + JT (let AT = 0 to calculate T)
             // VT = V0 + A0T + 1/2JT2
-            t = -1 * tc->cur_accel / tc->jerk;
+            // t = - tc->cur_accel / tc->jerk;
             //DPS("s4: velocity.t(%f)\n", t);
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
             if (req_vel > tc->maxvel) {
@@ -1201,24 +1215,32 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel;
             
             // t: cycles for accel to decel to 0
-            t = floor(tc->cur_accel / tc->jerk - 0.5);
+            // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
+            t = - tc->cur_accel / tc->jerk - 0.5;
 
             if (tc->hit_progress_limit == 1) {
                 // hit_progress_limit flag has been set at ACCEL_S3
                 // has to decel until hitting the target
 
-                // 2011-10-18 ysli: 
-                // velocity for entering S6:
-                // t = a / jerk
-                // v = 0.5 * a * a / jerk = 0.5 * a * t
-                vel = 0.5 * tc->cur_accel * t;
-                DP("decel to vel(%f) for S6\n", vel);
-                if (tc->cur_vel <= vel) {
-                    // go to S6 for "vel->0" at the end
+                // VT = V0 + A0T + 1/2JT2
+                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
+                // 讓 vel 比實際的值小 1.05 cur_accel (cur_accel 是負值)
+
+#if(TRACE!=0)
+                // dist = estimated_target - target 
+                //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+                //                 + 1.0 / 6.0 * jerk * t * t * t - target;
+                dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+                       + 1.0 / 6 * tc->jerk * t * t * t - tc->target;
+#endif
+                DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
+
+                if (vel <= 0) {
+                    // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
                     tc->accel_state = ACCEL_S6;
-                    // tc->cur_vel = vel; // compensate/increase vel for targeting
-                    DP(" go to S6 due to progress limit\n");
+                    DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
                 }
+
                 break;
             }
                 
@@ -1243,19 +1265,29 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
         
         case ACCEL_S6:
             ENTER_STATE(s6);
-            
+                
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
             tc->cur_accel = tc->cur_accel + tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
-            tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
+            if (tc->cur_vel <= 0) {
+                tc->cur_vel = 0;
+                tc->cur_accel = 0;
+            }
+            dist = tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
+            if (dist <= 0) {
+                tc->cur_accel = 0;
+                tc->cur_vel = 0;
+                dist = 0;
+            }
+            tc->progress = tc->progress + dist;
 
             if (tc->cur_accel >= 0) {
-                tc->cur_accel = 0;
                 if (tc->hit_progress_limit == 0) {
                     // hit_progress_limit flag has been set at ACCEL_S3
                     // has to decel until hitting the target
+                    tc->cur_accel = 0;
                     tc->accel_state = ACCEL_S3;
                     //DPS(" Leave S6 to S3 as approaching req_vel\n");
                     break;
@@ -1270,42 +1302,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
                 break;
             }
             
-            
-            // // check if we will hit progress limit
-            // // refer to 2011-10-17 ysli design note
-            // // AT = AT + JT
-            // // VT = V0 + A0T + 1/2 JT^2
-            // // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
-            // // distance for ACCEL_S6
-            // t = -1 * tc->cur_accel/tc->jerk;
-            // //DPS("s6: t(%f)\n", t);
-            // dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-            //        + 1.0/6.0 * tc->jerk * t * t * t;
-            // //DPS("s6: dist(%f)\n", dist);
-           
-            // if (tc->target < dist) {
-            //     tc->accel_state = ACCEL_S6;
-            //     //DPS(" stick with ACCEL_S6 while approaching target\n");
-            //     break;
-            // }
-            // 
-            // // check if we will approaching requested velocity
-            // // 從這一點開始加速到accel=0時, vel 不應超過 request velocity
-            // //
-            // // AT = A0 + JT (let AT = 0 to calculate T)
-            // // VT = V0 + A0T + 1/2JT2
-            // // t: already calculated, t = -1 * tc->cur_accel / tc->jerk;
-            // req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
-            // if (req_vel > tc->maxvel) {
-            //     req_vel = tc->maxvel;
-            // }
-            // //DPS("s6: req_vel(%f)\n", req_vel);
-            // if (tc->cur_vel <= req_vel) {
-            //     tc->accel_state = ACCEL_S3;
-            //     //DPS(" Leave S6 to S3 as approaching req_vel\n");
-            //     break;
-            // }
-
             break;
         
 
