@@ -12,11 +12,11 @@
 
 
 
+jog_mode_switch_counter = 0
 import hal
 
 class hal_interface:
     def __init__(self, gui, emc_control, mdi_control, emc):
-        print "touchy.hal init ++++"
         self.gui = gui
         self.emc_control = emc_control
         self.emc = emc
@@ -109,7 +109,6 @@ class hal_interface:
         self.c.ready()
         self.active = 0
         self.jogaxis(0)
-        print "touchy.hal init -----"
 
     def wheel(self):# read the difference between now and last wheel count
         counts = self.c["wheel-counts"]/4
@@ -179,13 +178,11 @@ class hal_interface:
         self.wn_sw = n == 8 
         self.sw_button_presented = 1
     def periodic(self, mdi_mode):
-        # edge detection
-        # print "hal_interface periodic +++++"
+        global jog_mode_switch_counter
         xp = self.c["jog.continuous.x.positive"]
         if self.sw_button_presented == 1:
             xp = self.xp_sw
         if xp ^ self.xp: 
-            print "run xp"
             self.emc_control.continuous_jog(0, xp)
         self.xp = xp
 
@@ -193,7 +190,6 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xn = self.xn_sw
         if xn ^ self.xn:
-            print "run xn" 
             self.emc_control.continuous_jog(0, -xn)
         self.xn = xn
 
@@ -310,11 +306,27 @@ class hal_interface:
                 if not self.singleblock: self.mdi_control.ok(0)
             else:
                 self.emc_control.cycle_start()
+        elif not cyclestart:
+            # print self.emc_stat.interp_state
+            if self.emc_stat.interp_state == self.emc.INTERP_IDLE and \
+               self.emc_stat.task_state != self.emc.STATE_OFF and \
+               self.emc_stat.task_mode != self.emc.MODE_MANUAL and \
+	       self.emc_stat.task_mode != self.emc.MODE_MDI:
+	          if self.gui.force_jog == "TRUE":
+                    
+                    jog_mode_switch_counter = jog_mode_switch_counter + 1
+                    if jog_mode_switch_counter > 30:
+                      self.gui.wheel = "jogging"
+                      self.gui.jogsettings_activate(1)
+                      self.emc_control.jogging(1)
+                      jog_mode_switch_counter = 0
+                   
+            else:
+              jog_mode_switch_counter = 0
         self.cyclestart = cyclestart
 
         abort = self.c["abort"]
         if abort and not self.abort:
-            print "allow abort" 
             self.emc_control.abort()
         self.abort = abort
 

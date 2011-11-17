@@ -902,6 +902,10 @@ static void parse_usb_cmd (uint32_t usb_cmd)
             machine_control->a_cmd_on_going = 1;
             write_machine_param(PROBE_CMD, PROBE_LOW);
             break;
+        case USB_CMD_ABORT:  // for risc probing
+            fprintf(stderr,"output PROBE_END\n");
+            write_machine_param(PROBE_CMD, PROBE_END);
+            break;
         }
     } else if (usb_cmd == USB_CMD_STATUS_ACK){
 
@@ -910,16 +914,17 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         case USB_CMD_PROBE_HIGH:
         case USB_CMD_PROBE_LOW:
 //            machine_control->a_cmd_on_going = 0;
+            fprintf(stderr,"output PROBE_END\n");
             write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
     } else if (usb_cmd == USB_CMD_ABORT) {
         switch(machine_control->prev_wou_cmd) {
-        case USB_CMD_PROBE_HIGH:
-        case USB_CMD_PROBE_LOW:
-            // machine_control->a_cmd_on_going = 0;
-            write_machine_param(PROBE_CMD, PROBE_END);
+            case USB_CMD_PROBE_HIGH:
+            case USB_CMD_PROBE_LOW:
+                machine_control->a_cmd_on_going = 0;
+                write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
@@ -1955,7 +1960,7 @@ static void update_freq(void *arg, long period)
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
                 immediate_data = NORMAL_MOVE;
-                write_mot_param (n, (MOTION_TYPE), immediate_data);
+                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
 
         } else {
@@ -2240,13 +2245,6 @@ static void update_freq(void *arg, long period)
                                        machine_control->last_spindle_index_pos)/pos_scale +
                                        machine_control->spindle_revs_integer -
                                        machine_control->last_spindle_index_pos_int;
-                    if (*machine_control->spindle_revs < 0) {
-                       fprintf(stderr, "*spindle_index_enable(%d) spindle_at_speed(%d) delta(%f) irevs(%d) prev_irevs(%d) revs(%f) spindle_pos(%d) last_spindle_index_pos(%d)",
-                               *machine_control->spindle_index_enable, *machine_control->spindle_at_speed, delta, spindle_irevs, machine_control->prev_spindle_irevs,
-                               *machine_control->spindle_revs, spindle_pos,
-                               machine_control->last_spindle_index_pos);
-                       assert(0);
-                    }
                    machine_control->prev_spindle_irevs = spindle_irevs;
             }
 

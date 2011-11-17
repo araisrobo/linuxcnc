@@ -660,13 +660,14 @@ typedef enum {
 	NO_REASON,
 	TP_END,
 	TIPPED_BEFORE_START,
+	RISC_PROBE_END,
 } abort_reason_t;
-
+static int aborted = 0, abort_reason = NO_REASON;
 static void process_probe_inputs(void)
 {
     //obsolete: static int old_probeVal = 0;
     // TODO: detect probe trigger if not doing probe (should be handled by risc)
-    static int aborted = 0, abort_reason = NO_REASON;
+
     unsigned char probe_type = emcmotStatus->probe_type;
     int i;
     emcmot_joint_status_t *joint_status;
@@ -786,6 +787,8 @@ static void process_probe_inputs(void)
         	} else if (abort_reason == TP_END) {
         		reportError("G38.X probe move finished without tripping probe");
 
+        	} else {
+        	    abort_reason = RISC_PROBE_END;
         	}
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
@@ -811,22 +814,25 @@ static void process_probe_inputs(void)
             }
             emcmotStatus->usb_cmd = USB_CMD_NOOP;
         } else if (emcmotStatus->usb_cmd == USB_CMD_NOOP) {
-            counts++;
-            if (counts > 100) {
-                aborted = 0;
-        	    abort_reason = NO_REASON;
-        	    report_risc_probing_error = 0;
-            }
+
+            aborted = 0;
+            abort_reason = NO_REASON;
+            report_risc_probing_error = 0;
         }
         break;
     case USB_STATUS_RISC_PROBE_ERROR:
         if (report_risc_probing_error == 0) {
             report_risc_probing_error = 1;
             aborted = 1;
+            abort_reason = NO_REASON;
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
+            tpAbort(&emcmotDebug->coord_tp);
             reportError("probing error.");
-            emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC;
         }
+        emcmotStatus->usb_cmd = USB_CMD_ABORT;//USB_CMD_NOOP; // use ACK?
+
+
         break;
     default:
         // deal with PROBE related status only
@@ -970,7 +976,17 @@ static void check_for_faults(void)
 		}
 		SET_JOINT_ERROR_FLAG(joint, 1);
 		emcmotDebug->enabling = 0;
+
 	    }
+	    /* risc probe error */
+//        if (emcmotStatus->usb_status == USB_STATUS_RISC_PROBE_ERROR) {
+	    if (abort_reason == RISC_PROBE_END) {
+            fprintf(stderr, "enabling = 0 (USB_STATUS_RISC_PROBE_ERROR)\n");
+            SET_MOTION_ERROR_FLAG(1);
+            emcmotDebug->enabling = 0;
+            abort_reason = NO_REASON;
+
+        }
 	/* end of if JOINT_ACTIVE_FLAG(joint) */
 	}
     /* end of check for joint faults loop */

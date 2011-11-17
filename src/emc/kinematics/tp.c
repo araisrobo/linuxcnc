@@ -34,7 +34,6 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
-#define VELOCITY_EPSTHON 0
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
@@ -1680,6 +1679,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 revs = new_spindlepos;
 
             pos_error = (revs - spindleoffset) * tc->uu_per_rev - tc->progress;
+            //fprintf(stderr, "revs(%f) spindleoffset(%f) target_process(%f) tc_progress(%f) reqvel(%f)\n",
+            //    revs, spindleoffset,(revs - spindleoffset) * tc->uu_per_rev, tc->progress, tc->reqvel);
             if(nexttc) pos_error -= nexttc->progress;
 
             if (tc->sync_accel) {
@@ -1706,20 +1707,19 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
                 // we have to consider the pos_error (exceedness).
                 double errorvel;
-                spindle_vel = (revs - oldrevs) / tc->cycle_time;
-                target_vel = spindle_vel * tc->uu_per_rev;
+                 spindle_vel = (revs - oldrevs) / tc->cycle_time;
+                 target_vel = spindle_vel * tc->uu_per_rev;
                 // assume pos_error could be matched in a cycle.
-                // d = 1/2*(1/2*a*t^2)
-                // get acceleration a = sqrt(2*pos_error * 2/t) = 2*sqrt(pos_error/t)
-                // the velocity modular would be v = a*t
-                // FIX: errorvel makes tc->reqvel always evaluated that
-                //      current progress exceed expected.
-                errorvel = 2 * pmSqrt(fabs(pos_error/tc->cycle_time)) * tc->cycle_time;
-                // fprintf(stderr, "errorvel(%f) \n", errorvel);
-                // old: errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
-                if (pos_error < 0)
-                    errorvel = -errorvel;
-                tc->reqvel = target_vel + errorvel;
+                // d = 1/2*a*t^2
+                // get acceleration a = sqrt(pos_error * 2/t)
+                 // the velocity modular would be v = a*t
+                errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
+                //errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
+                 if (pos_error < 0)
+                     errorvel = -errorvel;
+                 tc->reqvel = target_vel + errorvel;
+                 // fprintf(stderr, "spindle_vel(%f) pos_error(%f) target_vel(%f) tc->reqvel(%f)\n", 
+                 //    spindle_vel, pos_error, target_vel, tc->reqvel);
             }
             tc->feed_override = 1.0;
         }

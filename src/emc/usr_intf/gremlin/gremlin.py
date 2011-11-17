@@ -206,7 +206,13 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_num_joints(self): return self.num_joints
     def get_geometry(self): return 'XYZ'
     def get_joints_mode(self): return False
-    def get_show_commanded(self): return True
+    def get_show_commanded(self): 
+        #return True
+        show_type = self.inifile.find("DISPLAY", "POSITION_FEEDBACK")
+        if show_type != "ACTUAL":
+          return True
+        else:
+          return False
     def get_show_extents(self): return True
     def get_show_limits(self): return True
     def get_show_live_plot(self): return True

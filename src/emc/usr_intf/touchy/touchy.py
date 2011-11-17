@@ -15,7 +15,7 @@
 
 
 
-import sys, os
+import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
 datadir = os.path.join(BASE, "share", "emc")
@@ -89,8 +89,11 @@ class touchy:
                     self.ini = ini
                 else:
                     self.ini = None
-                
-		#Set the Glade file
+               
+                # check for for jog flag
+                self.foce_jog = "FALSE"
+                self.force_jog = ini.find("DISPLAY", "JOG_ALWAYS")
+		# Set the Glade file
 		o = ini.find("DISPLAY", "GLADE_FILE")
                 if o == None:
                     # default 
@@ -323,6 +326,7 @@ class touchy:
                         "on_estop_reset_clicked" : self.emc.estop_reset,
                         "on_machine_off_clicked" : self.emc.machine_off,
                         "on_machine_on_clicked" : self.emc.machine_on,
+                        "on_power_off_clicked" : self.power_off,
                         "on_mdi_clear_clicked" : self.mdi_control.clear,
                         "on_mdi_back_clicked" : self.mdi_control.back,
                         "on_mdi_next_clicked" : self.mdi_control.next,
@@ -580,7 +584,7 @@ class touchy:
                           "8", "9", "0", "minus", "decimal",
                           "flood_on", "flood_off", "mist_on", "mist_off",
                           "g", "gp", "m", "t", "set_tool", "set_origin", "macro",
-                          "estop", "estop_reset", "machine_off", "machine_on",
+                          "estop", "estop_reset", "machine_off", "machine_on","power_off",
                           "home_all", "unhome_all", "home_selected", "unhome_selected",
                           "fo", "so", "mv", "jogging", "wheelinc1", "wheelinc2", "wheelinc3",
                           "wheelx", "wheely", "wheelz",
@@ -799,10 +803,37 @@ class touchy:
 		inifile=self.emc.emc.ini(sys.argv[2])
 		postgui_halfile = inifile.find("HAL", "POSTGUI_HALFILE")
 		return postgui_halfile,sys.argv[2]
+        def power_off(self, w):
+            # quit()
+            label = gtk.Label("Click OK to Power off machine \nand quit program \nIt may take 5 seconds.")
+            dialog = gtk.Dialog("POWER OFF MACHINE",
+                               None,
+                               gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                               (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                                gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+            dialog.vbox.pack_start(label)
+            label.show()
+            response = dialog.run()
+            if response == gtk.RESPONSE_ACCEPT:
+                count = 5 
+                self.emc.machine_off(w)
+                s = emc.stat()
+                s.poll()
+                while emc.stat.task_state == emc.STATE_ON:
+                    s.poll()
+                while count > 0:
+                    time.sleep(1.0) # to make sure power off command sent
+                    count = count - 1
+
+                dialog.destroy()
+                w = self.wTree.get_widget("MainWindow").window
+#                w.destroy()
+                gtk.main_quit() 
+            else:
+                dialog.destroy()
 
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
-            print "ini", sys.argv[2]
             hwg = touchy(sys.argv[2])
         else:
             hwg = touchy()
@@ -810,7 +841,6 @@ if __name__ == "__main__":
 	if res: raise SystemExit, res
 	# load a postgui file if one is present in the INI file
 	postgui_halfile,inifile = touchy.postgui(hwg)
-	print "TOUCHY postgui filename:",postgui_halfile
 	if postgui_halfile:
 		res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i",inifile,"-f", postgui_halfile])
 		if res: raise SystemExit, res
