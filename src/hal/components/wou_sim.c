@@ -2628,7 +2628,8 @@ static int export_machine_control(machine_control_t * machine_control)
          }
          *(machine_control->in[i]) = 0;
      }
-
+    // ESTOP active
+     *(machine_control->in[0]) = 1;
     retval =
 	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
 			 "wou.sync.in.trigger");
