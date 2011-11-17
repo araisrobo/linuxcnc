@@ -1,3 +1,11 @@
+emc2 (1:2.4.0-nurbs-2011.11.17) lucid; urgency=low
+
+  * Add power-off callback
+  * Add auto-jogging mechanism
+  * update wou_sim
+
+ -- Yishin Li <ysli@araisrobo.com>  Thu, 17 Nov 2011 11:36:19 +0800
+
 emc2 (1:2.4.0-nurbs-2011.11.08) lucid; urgency=low
 
   * BUGFIX for RISC Probing
