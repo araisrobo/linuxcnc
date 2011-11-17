@@ -1079,20 +1079,23 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             t1 = sqrt(vel/j)
             */
             vel = tc->cur_vel;
-            t = floor(sqrt(vel/tc->jerk) - 0.5);
+            // t = floor(sqrt(vel/tc->jerk) - 0.5);
+            t = sqrt(vel/tc->jerk) - 0.5;
             // t = sqrt(vel/tc->jerk);
             //DPS("t1(%f)\n", t);
             //DPS("accel_1(%f)\n", t * tc->jerk);
             //DPS("decel position(%f)\n", dist);
             // AT = AT + JT
-            t1 = floor(tc->maxaccel / tc->jerk - 0.5);   // max time for S4
+            // t1 = floor(tc->maxaccel / tc->jerk - 0.5);   // max time for S4
+            t1 = tc->maxaccel / tc->jerk - 0.5;   // max time for S4
             // t1 = tc->maxaccel / tc->jerk;   // max time for S4
             if (t > t1) {
                 // S4 -> S5 -> S6
                 dist = tc->progress + t1 * vel;    // dist of (S4 + S6)
                 // calc decel.dist for ACCEL_S5
                 // t: time for S5
-                t = floor((vel - tc->maxaccel * t1) / tc->maxaccel - 0.5);
+                // t = floor((vel - tc->maxaccel * t1) / tc->maxaccel - 0.5);
+                t = (vel - tc->maxaccel * t1) / tc->maxaccel - 0.5;
                 // t = (vel - tc->maxaccel * t1) / tc->maxaccel;
                 v1 = vel - 0.5 * tc->jerk * t1 * t1;
                 // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
@@ -1163,8 +1166,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
                 // has to decel until hitting the target
 
                 // VT = V0 + A0T + 1/2JT2
-                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
-                // 讓 vel 比實際的值小 1.05 cur_accel (cur_accel 是負值)
+                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * t + tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
+                // 讓 vel 比實際的值小 (cur_accel - 0.5 * tc->jerk) (cur_accel 是負值)
 
 #if(TRACE!=0)
                 // dist = estimated_target - target 
@@ -1223,8 +1226,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
                 // has to decel until hitting the target
 
                 // VT = V0 + A0T + 1/2JT2
-                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
+                // vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
                 // 讓 vel 比實際的值小 1.05 cur_accel (cur_accel 是負值)
+                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * t + tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
+                // 讓 vel 比實際的值小 (cur_accel - 0.5 * tc->jerk) (cur_accel 是負值)
 
 #if(TRACE!=0)
                 // dist = estimated_target - target 
@@ -1272,15 +1277,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             tc->cur_accel = tc->cur_accel + tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
             if (tc->cur_vel <= 0) {
-                tc->cur_vel = 0;
                 tc->cur_accel = 0;
+                tc->cur_vel = 0.5 * tc->jerk;
             }
             dist = tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
-            if (dist <= 0) {
-                tc->cur_accel = 0;
-                tc->cur_vel = 0;
-                dist = 0;
-            }
+            // never: if (dist <= 0) {
+            // never:     tc->cur_accel = 0;
+            // never:     tc->cur_vel = 0;
+            // never:     dist = 0;
+            // never: }
             tc->progress = tc->progress + dist;
 
             if (tc->cur_accel >= 0) {
@@ -1835,7 +1840,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             emcmotStatus->requested_vel = nexttc->reqvel;
         }
 
-        emcmotStatus->current_vel = tc->cur_vel + nexttc->cur_vel;
+        emcmotStatus->current_vel = (tc->cur_vel + nexttc->cur_vel) / tc->cycle_time;
 
         secondary_before = tcGetPos(nexttc);
         save_vel = nexttc->reqvel;
@@ -1873,7 +1878,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tp->motionType = tc->canon_motion_type;
 	emcmotStatus->distance_to_go = tc->target - tc->progress;
         tp->currentPos = primary_after;
-        emcmotStatus->current_vel = tc->cur_vel;
+        emcmotStatus->current_vel = (tc->cur_vel) / tc->cycle_time;
         emcmotStatus->requested_vel = tc->reqvel;
 	emcmotStatus->enables_queued = tc->enables;
 	// report our line number to the guis
