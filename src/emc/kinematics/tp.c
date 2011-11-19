@@ -1298,14 +1298,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
                 }
             }
             
-            if (tc->progress > tc->target) {
-                DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
-                // finished
-                tc->progress = tc->target;
-                //DPS(" Leave S6 to S3 as approaching req_vel\n");
-                break;
-            }
-            
             break;
         
 
@@ -1314,9 +1306,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             assert(0);
         } // switch (tc->accel_state)
     } while (immediate_state);
+            
+    if (tc->progress > tc->target) {
+        // finished
+        DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
+        tc->progress = tc->target;
+    }
 
     tc->motion_progress = tc->progress;
-    assert (tc->progress <= tc->target);
+    // assert (tc->progress <= tc->target);
     assert (tc->cur_vel >= 0);
 
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
