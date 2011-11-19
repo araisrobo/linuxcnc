@@ -2324,16 +2324,6 @@ static int export_gpio(gpio_t * addr)
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
- /*   // export Digital IN
-    for (i = 0; i < 16; i++) {
-	retval = hal_pin_bit_newf(HAL_OUT, &(addr->in[i]), comp_id,
-				  "wou.gpio.in.%02d", i);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->in[i]) = 0;
-    }
-*/
     // export Analog IN
     for (i = 0; i < 1; i++) {
         retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
