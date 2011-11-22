@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -64,8 +64,9 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
         /* prepare header for gnuplot */
         DPS ("%11s%6s%15s%15s%15s%15s%15s%15s%15s\n",
                 "#dt", "state", "req_vel", "cur_accel", "cur_vel", "progress%", "target", "dist_to_go", "tolerance");
+        _dt = 0;
     }
-    _dt += 1;
+    // _dt += 1;
 #endif
 
     /* init the rest of our data */
@@ -831,7 +832,7 @@ s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
  * Yishin Li <ysli@araisrobo.com>
  * ARAIS ROBOT TECHNOLOGY, http://www.araisrobo.com/
  **/
-void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel) 
+void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_final_decel*/) 
 {
     // double , accel_vel, t, t1, t2, decel_dist, a, v1, prog;
     double t, t1, vel, v1, dist, req_vel;
@@ -1103,11 +1104,11 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
                 // S4 -> S6
                 dist = tc->progress + t * vel;    // dist of (S4 + S6)
             }
-            tc->hit_progress_limit = 0;
+            tc->on_final_decel = 0;
             if (tc->target < (dist - vel)) {    // vel: compensate for 1 more S3
             // if (tc->target < dist) {
                 tc->accel_state = ACCEL_S4;
-                tc->hit_progress_limit = 1;
+                tc->on_final_decel = 1;
                 DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
                 DP(" Leave S3 due to progress limit\n");
                 EXIT_STATE(s3);
@@ -1160,8 +1161,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             
             // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
             t = - tc->cur_accel / tc->jerk - 0.5;
-            if (tc->hit_progress_limit == 1) {
-                // hit_progress_limit flag has been set at ACCEL_S3
+            if (tc->on_final_decel == 1) {
+                // on_final_decel flag has been set at ACCEL_S3
                 // has to decel until hitting the target
 
                 // VT = V0 + A0T + 1/2JT2
@@ -1220,8 +1221,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
             t = - tc->cur_accel / tc->jerk - 0.5;
 
-            if (tc->hit_progress_limit == 1) {
-                // hit_progress_limit flag has been set at ACCEL_S3
+            if (tc->on_final_decel == 1) {
+                // on_final_decel flag has been set at ACCEL_S3
                 // has to decel until hitting the target
 
                 // VT = V0 + A0T + 1/2JT2
@@ -1288,8 +1289,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
             tc->progress = tc->progress + dist;
 
             if (tc->cur_accel >= 0) {
-                if (tc->hit_progress_limit == 0) {
-                    // hit_progress_limit flag has been set at ACCEL_S3
+                if (tc->on_final_decel == 0) {
+                    // on_final_decel flag has been set at ACCEL_S3
                     // has to decel until hitting the target
                     tc->cur_accel = 0;
                     tc->accel_state = ACCEL_S3;
@@ -1321,9 +1322,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v, int *on_final_decel)
         _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time, 
         tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
         tc->distance_to_go, tc->tolerance);
-#if (TRACE!=0)
-    _dt += 1;
-#endif
     tc->distance_to_go = tc->target - tc->progress;
     tc->motion_distance_to_go = tc->motion_target - tc->motion_progress;
     if (v)
@@ -1375,9 +1373,13 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     // acc = (new vel - old vel) / cycle time
     // (three position points required)
 
+#if (TRACE!=0)
+    _dt += 1;
+#endif
+
     TC_STRUCT *tc, *nexttc;
     double primary_vel;
-    int on_final_decel;
+    // int on_final_decel;
     EmcPose primary_before, primary_after;
     EmcPose secondary_before, secondary_after;
     EmcPose primary_displacement, secondary_displacement;
@@ -1751,12 +1753,11 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     // we know to start blending it in when the current tc goes below
     // this velocity...
     if(nexttc && nexttc->maxaccel) {
-        tc->blend_vel = nexttc->maxaccel * 
-            pmSqrt(nexttc->target / nexttc->maxaccel);
-        if(tc->blend_vel > nexttc->reqvel * nexttc->feed_override) {
+        tc->blend_vel = nexttc->maxaccel * pmSqrt(nexttc->target / nexttc->maxaccel);
+        if(tc->blend_vel > nexttc->reqvel * nexttc->feed_override * tc->cycle_time) {
             // segment has a cruise phase so let's blend over the 
             // whole accel period if possible
-            tc->blend_vel = nexttc->reqvel * nexttc->feed_override;
+            tc->blend_vel = nexttc->reqvel * nexttc->feed_override * tc->cycle_time;
         }
         if(tc->maxaccel < nexttc->maxaccel)
             tc->blend_vel *= tc->maxaccel/nexttc->maxaccel;
@@ -1787,7 +1788,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
             theta = acos(-dot)/2.0; 
             if(cos(theta) > 0.001) {
-                tblend_vel = 2.0 * pmSqrt(tc->maxaccel * tc->tolerance / cos(theta));
+                tblend_vel = 2.0 * pmSqrt(tc->maxaccel * tc->tolerance / cos(theta)) * tc->cycle_time;
                 if(tblend_vel < tc->blend_vel)
                     tc->blend_vel = tblend_vel;
             }
@@ -1795,7 +1796,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     }
 
     primary_before = tcGetPos(tc);
-    tcRunCycle(tp, tc, &primary_vel, &on_final_decel);
+    tcRunCycle(tp, tc, &primary_vel/*, &on_final_decel*/);
     primary_after = tcGetPos(tc);
     pmCartCartSub(primary_after.tran, primary_before.tran, 
             &primary_displacement.tran);
@@ -1809,9 +1810,17 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
     emcmotStatus->motionState = tc->accel_state;
 
+    if (nexttc) {
+        DPS("nexttc->maxaccel(%f) primary_vel(%f) blend_vel(%f)\n", 
+             nexttc->maxaccel, primary_vel, tc->blend_vel);
+    } else {
+        DPS("nexttc(%p) primary_vel(%f) blend_vel(%f)\n", 
+             nexttc, primary_vel, tc->blend_vel);
+    }
+
     // blend criteria
     if((tc->blending && nexttc) || 
-            (nexttc && on_final_decel && primary_vel < tc->blend_vel)) {
+            (nexttc && tc->on_final_decel && primary_vel < tc->blend_vel)) {
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)
         tc->blending = 1;
@@ -1845,7 +1854,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         nexttc->reqvel = nexttc->feed_override > 0.0 ? 
             ((tc->vel_at_blend_start - primary_vel) / nexttc->feed_override) :
             0.0;
-        tcRunCycle(tp, nexttc, NULL, NULL);
+        tcRunCycle(tp, nexttc, NULL/*, NULL*/);
         nexttc->reqvel = save_vel;
 
         secondary_after = tcGetPos(nexttc);
