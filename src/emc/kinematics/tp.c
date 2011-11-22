@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -837,6 +837,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
     // double , accel_vel, t, t1, t2, decel_dist, a, v1, prog;
     double t, t1, vel, v1, dist, req_vel;
     int immediate_state;
+    
+    if(!tc->blending) tc->vel_at_blend_start = tc->cur_vel;
 
     immediate_state = 0;
     do {
@@ -1788,7 +1790,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
             theta = acos(-dot)/2.0; 
             if(cos(theta) > 0.001) {
-                tblend_vel = 2.0 * pmSqrt(tc->maxaccel * tc->tolerance / cos(theta)) * tc->cycle_time;
+                tblend_vel = 2.0 * pmSqrt(tc->maxaccel * tc->tolerance / cos(theta));
                 if(tblend_vel < tc->blend_vel)
                     tc->blend_vel = tblend_vel;
             }
@@ -1809,21 +1811,15 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     primary_displacement.w = primary_after.w - primary_before.w;
 
     emcmotStatus->motionState = tc->accel_state;
-
-    if (nexttc) {
-        DPS("nexttc->maxaccel(%f) primary_vel(%f) blend_vel(%f)\n", 
-             nexttc->maxaccel, primary_vel, tc->blend_vel);
-    } else {
-        DPS("nexttc(%p) primary_vel(%f) blend_vel(%f)\n", 
-             nexttc, primary_vel, tc->blend_vel);
-    }
-
+        
     // blend criteria
     if((tc->blending && nexttc) || 
-            (nexttc && tc->on_final_decel && primary_vel < tc->blend_vel)) {
+            (nexttc && tc->on_final_decel && (primary_vel < tc->blend_vel))) {
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)
         tc->blending = 1;
+    
+        DPS("primary_vel(%f) blend_vel(%f)\n", primary_vel, tc->blend_vel);
 
         // hack to show blends in axis
         // tp->motionType = 0;
@@ -1852,7 +1848,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         secondary_before = tcGetPos(nexttc);
         save_vel = nexttc->reqvel;
         nexttc->reqvel = nexttc->feed_override > 0.0 ? 
-            ((tc->vel_at_blend_start - primary_vel) / nexttc->feed_override) :
+            ((tc->vel_at_blend_start - primary_vel) / (nexttc->feed_override * tc->cycle_time)) :
             0.0;
         tcRunCycle(tp, nexttc, NULL/*, NULL*/);
         nexttc->reqvel = save_vel;
@@ -1880,6 +1876,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tp->currentPos.v += primary_displacement.v + secondary_displacement.v;
         tp->currentPos.w += primary_displacement.w + secondary_displacement.w;
     } else {
+        // not blending
 	tpToggleDIOs(tc); //check and do DIO changes
         target = tcGetEndpoint(tc);
         tp->motionType = tc->canon_motion_type;
