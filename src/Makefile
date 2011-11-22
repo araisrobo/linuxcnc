@@ -847,6 +847,9 @@ art_scarakins-objs := emc/kinematics/art_scarakins.o
 art_scarakins-objs += libnml/posemath/_posemath.o
 art_scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
+obj-m += alignmentkins.o
+alignmentkins-objs := emc/kinematics/alignmentkins.o
+
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o 
 motmod-objs += emc/kinematics/tc.o 
@@ -973,6 +976,7 @@ endif
 ../rtlib/pumakins$(MODULE_EXT): $(addprefix objects/rt,$(pumakins-objs))
 ../rtlib/scarakins$(MODULE_EXT): $(addprefix objects/rt,$(scarakins-objs))
 ../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
+../rtlib/alignmentkins$(MODULE_EXT): $(addprefix objects/rt,$(alignmentkins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))
