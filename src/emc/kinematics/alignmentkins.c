@@ -28,12 +28,12 @@ static FILE *dptrace;
 #endif
 
 typedef struct {
-    hal_float_t theta; // unit: rad
-} align_params_t;
+    hal_float_t *theta; // unit: rad
+} align_pins_t;
 
-static align_params_t *align_params;
+static align_pins_t *align_pins;
 
-#define THETA (align_params->theta)
+#define THETA (*(align_pins->theta))
 
 int kinematicsForward(const double *joints,
 		      EmcPose * pos,
@@ -116,12 +116,13 @@ int rtapi_app_main(void)
         return comp_id;
     }
     
-    align_params = hal_malloc(sizeof(align_params_t));
-    if (!align_params) goto error;
-    if ((res = hal_param_float_new("alignmentkins.theta", HAL_RW, &(align_params->theta), comp_id)) < 0) goto error;
+    align_pins = hal_malloc(sizeof(align_pins_t));
+    if (!align_pins) goto error;
+    if ((res = hal_pin_float_new("alignmentkins.theta", HAL_IO, &(align_pins->theta), comp_id)) < 0) goto error;
     
-    // align_params->theta = 0;
-    align_params->theta = 0.78539815;   // 45 degree
+    THETA = 0;
+    // align_pins->theta = 0;
+    // align_pins->theta = 0.78539815;   // 45 degree
 
     hal_ready(comp_id);
     DP ("success\n");
