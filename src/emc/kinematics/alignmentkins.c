@@ -118,7 +118,7 @@ int rtapi_app_main(void)
     
     align_pins = hal_malloc(sizeof(align_pins_t));
     if (!align_pins) goto error;
-    if ((res = hal_pin_float_new("alignmentkins.theta", HAL_IO, &(align_pins->theta), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("alignmentkins.theta", HAL_IN, &(align_pins->theta), comp_id)) < 0) goto error;
     
     THETA = 0;
     // align_pins->theta = 0;
