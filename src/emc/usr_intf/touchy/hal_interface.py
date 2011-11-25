@@ -12,7 +12,6 @@
 
 
 
-jog_mode_switch_counter = 0
 import hal
 
 class hal_interface:
@@ -178,7 +177,30 @@ class hal_interface:
         self.wn_sw = n == 8 
         self.sw_button_presented = 1
     def periodic(self, mdi_mode):
-        global jog_mode_switch_counter
+          # check if MANUAL mode
+        jog_on = self.c["jog.continuous.x.positive"] + \
+                 self.c["jog.continuous.x.negative"] + \
+                 self.c["jog.continuous.y.positive"] + \
+                 self.c["jog.continuous.y.negative"] + \
+                 self.c["jog.continuous.z.positive"] + \
+                 self.c["jog.continuous.z.negative"] + \
+                 self.c["jog.continuous.a.positive"] + \
+                 self.c["jog.continuous.a.negative"] + \
+                 self.c["jog.continuous.b.positive"] + \
+                 self.c["jog.continuous.b.negative"] + \
+                 self.c["jog.continuous.c.positive"] + \
+                 self.c["jog.continuous.c.negative"] + \
+                 self.c["jog.continuous.u.positive"] + \
+                 self.c["jog.continuous.u.negative"] + \
+                 self.c["jog.continuous.v.positive"] + \
+                 self.c["jog.continuous.v.positive"] + \
+                 self.c["jog.continuous.w.positive"] + \
+                 self.c["jog.continuous.w.negative"]
+        if jog_on is not 0:
+            if self.emc_stat.task_mode != self.emc.MODE_MANUAL:
+                self.gui.wheel = "jogging"
+                self.gui.jogsettings_activate(1)
+                self.emc_control.jogging(1)  
         xp = self.c["jog.continuous.x.positive"]
         if self.sw_button_presented == 1:
             xp = self.xp_sw
@@ -306,23 +328,6 @@ class hal_interface:
                 if not self.singleblock: self.mdi_control.ok(0)
             else:
                 self.emc_control.cycle_start()
-        elif not cyclestart:
-            # print self.emc_stat.interp_state
-            if self.emc_stat.interp_state == self.emc.INTERP_IDLE and \
-               self.emc_stat.task_state != self.emc.STATE_OFF and \
-               self.emc_stat.task_mode != self.emc.MODE_MANUAL and \
-	       self.emc_stat.task_mode != self.emc.MODE_MDI:
-	          if self.gui.force_jog == "TRUE":
-                    
-                    jog_mode_switch_counter = jog_mode_switch_counter + 1
-                    if jog_mode_switch_counter > 30:
-                      self.gui.wheel = "jogging"
-                      self.gui.jogsettings_activate(1)
-                      self.emc_control.jogging(1)
-                      jog_mode_switch_counter = 0
-                   
-            else:
-              jog_mode_switch_counter = 0
         self.cyclestart = cyclestart
 
         abort = self.c["abort"]
