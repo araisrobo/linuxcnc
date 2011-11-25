@@ -29,20 +29,27 @@ static FILE *dptrace;
 
 typedef struct {
     hal_float_t *theta; // unit: rad
+    hal_bit_t *theta_changed;
+    double prev_theta;
 } align_pins_t;
 
 static align_pins_t *align_pins;
 
 #define THETA (*(align_pins->theta))
-
+#define PREV_THETA (align_pins->prev_theta)
+#define THETA_CHANGED (*(align_pins->theta_changed))
 int kinematicsForward(const double *joints,
 		      EmcPose * pos,
 		      const KINEMATICS_FORWARD_FLAGS * fflags,
 		      KINEMATICS_INVERSE_FLAGS * iflags)
 {
     // double c_rad = -joints[5]*M_PI/180;
-    pos->tran.x = joints[0] * cos(THETA) - joints[1] * sin(THETA);
-    pos->tran.y = joints[0] * sin(THETA) + joints[1] * cos(THETA);
+    if (THETA != PREV_THETA) {
+        THETA_CHANGED = 1; // hal pin to acknowledge theta changing.
+        PREV_THETA = THETA;
+    }
+    pos->tran.x  = joints[0] * cos(THETA) + joints[1] * sin(THETA);
+    pos->tran.y  = -joints[0] * sin(THETA) + joints[1] * cos(THETA);
     pos->tran.z = joints[2];
     pos->a = joints[3];
     pos->b = joints[4];
@@ -63,6 +70,10 @@ int kinematicsInverse(const EmcPose * pos,
 		      KINEMATICS_FORWARD_FLAGS * fflags)
 {
     // double c_rad = pos->c*M_PI/180;
+    if (THETA != PREV_THETA) {
+        THETA_CHANGED = 1; // hal pin to acknowledge theta changing.
+        PREV_THETA = THETA;
+    }
     joints[0] = pos->tran.x * cos(THETA) - pos->tran.y * sin(THETA);
     joints[1] = pos->tran.x * sin(THETA) + pos->tran.y * cos(THETA);
     joints[2] = pos->tran.z;
@@ -119,7 +130,8 @@ int rtapi_app_main(void)
     align_pins = hal_malloc(sizeof(align_pins_t));
     if (!align_pins) goto error;
     if ((res = hal_pin_float_new("alignmentkins.theta", HAL_IN, &(align_pins->theta), comp_id)) < 0) goto error;
-    
+    if ((res = hal_pin_bit_new("alignmentkins.theta-changed", HAL_IO, &(align_pins->theta_changed), comp_id)) < 0) goto error;
+    *align_pins->theta_changed = 0;
     THETA = 0;
     // align_pins->theta = 0;
     // align_pins->theta = 0.78539815;   // 45 degree
