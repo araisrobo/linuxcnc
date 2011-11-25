@@ -15,6 +15,7 @@
 
 
 
+from gladevcp.gladebuilder import GladeBuilder
 import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
@@ -102,7 +103,7 @@ class touchy:
                     self.gladefile = o
                 # end: read galde file name from ini file
 	        self.wTree = gtk.glade.XML(self.gladefile) 
-                
+                self.wGladevcp = GladeBuilder(self.wTree)
 		for widget in self.wTree.get_widget_prefix(''):
 			widget.unset_flags(gtk.CAN_FOCUS)
 		self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
