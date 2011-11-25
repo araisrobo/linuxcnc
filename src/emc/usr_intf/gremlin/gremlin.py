@@ -88,7 +88,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.add_events(gtk.gdk.BUTTON_MOTION_MASK)
         self.add_events(gtk.gdk.BUTTON_PRESS_MASK)
         self.add_events(gtk.gdk.BUTTON_RELEASE_MASK)
-
+        
         self.fingerprint = ()
 
         self.lat = 0
@@ -265,6 +265,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         button1 = event.button == 1
         button2 = event.button == 2
         button3 = event.button == 3
+        if event.type == gtk.gdk._2BUTTON_PRESS:
+          self.logger.clear()
         if button1:
             self.select_prime(event.x, event.y)
             self.recordMouse(event.x, event.y)
