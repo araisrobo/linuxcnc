@@ -103,12 +103,10 @@ class touchy:
                     self.gladefile = o
                 # end: read galde file name from ini file
 	        self.wTree = gtk.glade.XML(self.gladefile) 
-                self.wGladevcp = GladeBuilder(self.wTree)
 		for widget in self.wTree.get_widget_prefix(''):
 			widget.unset_flags(gtk.CAN_FOCUS)
 		self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
-		self.wTree.get_widget('MainWindow').grab_focus()
-
+                self.wTree.get_widget('MainWindow').grab_focus()
                 self.num_mdi_labels = 11
                 self.num_filechooser_labels = 11
                 self.num_listing_labels = 20
@@ -397,6 +395,10 @@ class touchy:
                 atexit.register(self.save_maxvel_pref)
 
                 self.setfont()
+                try:
+                  self.wGladevcp = GladeBuilder(self.wTree)
+                except:
+                  pass
 
         def quit(self, unused):
                 gtk.main_quit()
