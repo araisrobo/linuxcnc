@@ -787,14 +787,24 @@ class touchy:
 			print "Invalid tab configuration" # Complain somehow
 
 		nb = self.wTree.get_widget('notebook1')
+                nb2 = self.wTree.get_widget('notebook2')
 		for t,c in zip(tab_names, tab_cmd):
-			xid = self._dynamic_tab(nb, t)
-			if not xid: continue
-			cmd = c.replace('{XID}', str(xid))
-			child = Popen(cmd.split())
-			self._dynamic_childs[xid] = child
+                        if '{XID}' in c:
+		  	  xid = self._dynamic_tab(nb, t)
+                        if '{XID2}' in c:
+                          xid2 = self._dynamic_tab(nb2, t)
+			if not xid and not xid2: continue
+                        if '{XID}' in c:
+  			  cmd = c.replace('{XID}', str(xid))
+                          child = Popen(cmd.split())
+                          self._dynamic_childs[xid] = child
+                        if '{XID2}' in c:
+  			  cmd = c.replace('{XID2}', str(xid2))
+                          child = Popen(cmd.split())
+                          self._dynamic_childs[xid2] = child
+                        print cmd
 		nb.show_all()
-
+                nb2.show_all()
 	def kill_dynamic_childs(self):
 		for c in self._dynamic_childs.values():
 			c.terminate()
