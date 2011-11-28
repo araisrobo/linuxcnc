@@ -29,24 +29,36 @@ static FILE *dptrace;
 
 typedef struct {
     hal_float_t *theta; // unit: rad
-    hal_bit_t *theta_changed;
+    hal_float_t *x_cent;
+    hal_float_t *y_cent;
+    hal_float_t * x_offset;
+    hal_float_t * y_offset;
     double prev_theta;
 } align_pins_t;
 
 static align_pins_t *align_pins;
 
 #define THETA (*(align_pins->theta))
-#define PREV_THETA (align_pins->prev_theta)
-#define THETA_CHANGED (*(align_pins->theta_changed))
+#define PREV_THETA  (align_pins->prev_theta)
+#define X_OFFSET    (*(align_pins->x_offset))
+#define Y_OFFSET    (*(align_pins->y_offset))
+#define X_CENT      (*(align_pins->x_cent))
+#define Y_CENT      (*(align_pins->y_cent))
 
 void theta_change_handler(EmcPose * pos, double  * joints) {
     // update cord to avoid offset of joint position
     if (THETA != PREV_THETA) {
-        THETA_CHANGED = 1; // hal pin to acknowledge theta changing.
+        fprintf(stderr, "1:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
+                        joints[0], joints[1]);
+        pos->tran.x  = (joints[0] - X_CENT - X_OFFSET) * cos(THETA) +
+                       (joints[1] - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
+        pos->tran.y  = -(joints[0] - X_CENT - X_OFFSET)* sin(THETA) +
+                        (joints[1] - Y_CENT - Y_OFFSET) * cos(THETA) + Y_OFFSET + Y_CENT;
+        fprintf(stderr, "2:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
+                joints[0], joints[1]);
         PREV_THETA = THETA;
-        pos->tran.x  = joints[0] * cos(THETA) + joints[1] * sin(THETA);
-        pos->tran.y  = -joints[0] * sin(THETA) + joints[1] * cos(THETA);
     }
+
 }
 int kinematicsForward(const double *joints,
 		      EmcPose * pos,
@@ -55,8 +67,14 @@ int kinematicsForward(const double *joints,
 {
     // double c_rad = -joints[5]*M_PI/180;
     theta_change_handler((EmcPose *)pos, (double *)joints);
-    pos->tran.x  = joints[0] * cos(THETA) + joints[1] * sin(THETA);
-    pos->tran.y  = -joints[0] * sin(THETA) + joints[1] * cos(THETA);
+    pos->tran.x  = (joints[0] - X_CENT - X_OFFSET) * cos(THETA) +
+                   (joints[1] - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
+    pos->tran.y  = -(joints[0] - X_CENT - X_OFFSET)* sin(THETA) +
+                    (joints[1] - Y_CENT - Y_OFFSET) * cos(THETA) + Y_OFFSET + Y_CENT;
+//    pos->tran.x  = (joints[0] - X_OFFSET) * cos(THETA) + (joints[1] - Y_OFFSET) * sin(THETA) ;
+//    pos->tran.y  = -(joints[0] - X_OFFSET)* sin(THETA) + (joints[1] - Y_OFFSET) * cos(THETA);
+//    pos->tran.x = joints[0] * cos(THETA) - joints[1] * sin(THETA);
+//    pos->tran.y =joints[0] * sin(THETA) + joints[1] * cos(THETA);
     pos->tran.z = joints[2];
     pos->a = joints[3];
     pos->b = joints[4];
@@ -78,8 +96,11 @@ int kinematicsInverse(const EmcPose * pos,
 {
     // double c_rad = pos->c*M_PI/180;
     theta_change_handler((EmcPose *)pos, (double *)joints);
-    joints[0] = pos->tran.x * cos(THETA) - pos->tran.y * sin(THETA);
-    joints[1] = pos->tran.x * sin(THETA) + pos->tran.y * cos(THETA);
+
+    joints[0] = (pos->tran.x - X_CENT - X_OFFSET) * cos(THETA) -
+            (pos->tran.y - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
+    joints[1] = (pos->tran.x - X_CENT - X_OFFSET) * sin(THETA) +
+            (pos->tran.y - Y_CENT - Y_OFFSET) * cos(THETA) + Y_OFFSET + Y_CENT;
     joints[2] = pos->tran.z;
     joints[3] = pos->a;
     joints[4] = pos->b;
@@ -134,9 +155,17 @@ int rtapi_app_main(void)
     align_pins = hal_malloc(sizeof(align_pins_t));
     if (!align_pins) goto error;
     if ((res = hal_pin_float_new("alignmentkins.theta", HAL_IN, &(align_pins->theta), comp_id)) < 0) goto error;
-    if ((res = hal_pin_bit_new("alignmentkins.theta-changed", HAL_IO, &(align_pins->theta_changed), comp_id)) < 0) goto error;
-    *align_pins->theta_changed = 0;
     THETA = 0;
+    // center based on g5x coordinate
+    if ((res = hal_pin_float_new("alignmentkins.x-cent", HAL_IN, &(align_pins->x_cent), comp_id)) < 0) goto error;
+    X_CENT = 0;
+    if ((res = hal_pin_float_new("alignmentkins.y-cent", HAL_IN, &(align_pins->y_cent), comp_id)) < 0) goto error;
+    Y_CENT = 0;
+    if ((res = hal_pin_float_new("alignmentkins.x-offset", HAL_IN, &(align_pins->x_offset), comp_id)) < 0) goto error;
+    // g5x offset
+    X_OFFSET = 0;
+    if ((res = hal_pin_float_new("alignmentkins.y-offset", HAL_IN, &(align_pins->y_offset), comp_id)) < 0) goto error;
+    Y_OFFSET = 0;
     // align_pins->theta = 0;
     // align_pins->theta = 0.78539815;   // 45 degree
 
