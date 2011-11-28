@@ -38,16 +38,23 @@ static align_pins_t *align_pins;
 #define THETA (*(align_pins->theta))
 #define PREV_THETA (align_pins->prev_theta)
 #define THETA_CHANGED (*(align_pins->theta_changed))
+
+void theta_change_handler(EmcPose * pos, double  * joints) {
+    // update cord to avoid offset of joint position
+    if (THETA != PREV_THETA) {
+        THETA_CHANGED = 1; // hal pin to acknowledge theta changing.
+        PREV_THETA = THETA;
+        pos->tran.x  = joints[0] * cos(THETA) + joints[1] * sin(THETA);
+        pos->tran.y  = -joints[0] * sin(THETA) + joints[1] * cos(THETA);
+    }
+}
 int kinematicsForward(const double *joints,
 		      EmcPose * pos,
 		      const KINEMATICS_FORWARD_FLAGS * fflags,
 		      KINEMATICS_INVERSE_FLAGS * iflags)
 {
     // double c_rad = -joints[5]*M_PI/180;
-    if (THETA != PREV_THETA) {
-        THETA_CHANGED = 1; // hal pin to acknowledge theta changing.
-        PREV_THETA = THETA;
-    }
+    theta_change_handler((EmcPose *)pos, (double *)joints);
     pos->tran.x  = joints[0] * cos(THETA) + joints[1] * sin(THETA);
     pos->tran.y  = -joints[0] * sin(THETA) + joints[1] * cos(THETA);
     pos->tran.z = joints[2];
@@ -70,10 +77,7 @@ int kinematicsInverse(const EmcPose * pos,
 		      KINEMATICS_FORWARD_FLAGS * fflags)
 {
     // double c_rad = pos->c*M_PI/180;
-    if (THETA != PREV_THETA) {
-        THETA_CHANGED = 1; // hal pin to acknowledge theta changing.
-        PREV_THETA = THETA;
-    }
+    theta_change_handler((EmcPose *)pos, (double *)joints);
     joints[0] = pos->tran.x * cos(THETA) - pos->tran.y * sin(THETA);
     joints[1] = pos->tran.x * sin(THETA) + pos->tran.y * cos(THETA);
     joints[2] = pos->tran.z;

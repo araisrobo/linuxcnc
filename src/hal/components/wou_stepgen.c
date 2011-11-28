@@ -514,7 +514,6 @@ typedef struct {
     hal_s32_t *encoder_count[8]; // encoder count from risc
     hal_s32_t *pulse_count[8];
     hal_s32_t *ferror[8];
-    hal_bit_t *cord_changed;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -2099,10 +2098,6 @@ static void update_freq(void *arg, long period)
 	    continue;
 	}
         
-
-	if (*machine_control->cord_changed) {
-	    (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
-	}
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
@@ -2260,7 +2255,6 @@ static void update_freq(void *arg, long period)
             wou_cmd(&w_param,
                     WB_WR_CMD,
                     (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_chan, data);
-
         }
 	DPS("  0x%13X%15.7f%15.7f%3d",
 	    integer_pos_cmd, 
@@ -2271,8 +2265,7 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
-    if (*machine_control->cord_changed)
-                        *machine_control->cord_changed = 0;
+
     DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
 //    if(*machine_control->ahc_state == 1) {
@@ -2846,33 +2839,19 @@ static int export_machine_control(machine_control_t * machine_control)
         retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->encoder_count[i]), comp_id,
                 "wou.risc.motion.joint.encoder-count.%02d", i);
         *(machine_control->encoder_count[i]) = 0;
-        if (retval != 0) {
-            return retval;
-        }
 
     }
     for (i=0; i<actual_joint_num; i++) {
         retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->pulse_count[i]), comp_id,
                 "wou.risc.motion.joint.pulse-count.%02d", i);
         *(machine_control->pulse_count[i]) = 0;
-        if (retval != 0) {
-            return retval;
-        }
 
     }
     for (i=0; i<actual_joint_num; i++) {
         retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->ferror[i]), comp_id,
                 "wou.risc.motion.joint.ferror.%02d", i);
         *(machine_control->ferror[i]) = 0;
-        if (retval != 0) {
-            return retval;
-        }
-    }
-    retval = hal_pin_bit_newf
-            (HAL_IO, &(machine_control->cord_changed), comp_id, "wou.cord-changed");
 
-    if (retval != 0) {
-        return retval;
     }
 
     machine_control->prev_out = 0;
