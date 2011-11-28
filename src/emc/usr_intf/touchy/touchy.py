@@ -802,9 +802,9 @@ class touchy:
   			  cmd = c.replace('{XID2}', str(xid2))
                           child = Popen(cmd.split())
                           self._dynamic_childs[xid2] = child
-                        print cmd
 		nb.show_all()
-                nb2.show_all()
+                if nb2:
+                  nb2.show_all()
 	def kill_dynamic_childs(self):
 		for c in self._dynamic_childs.values():
 			c.terminate()
