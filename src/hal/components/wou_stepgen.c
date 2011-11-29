@@ -440,6 +440,7 @@ typedef struct {
     hal_bit_t *plasma_enable;
     /* sync input pins (input to motmod) */
     hal_bit_t   *in[64];
+    hal_bit_t   *in_n[64];
     uint32_t    prev_in0;
     uint32_t    prev_in1;
     hal_u32_t   *dout0; // dout reg 0
@@ -688,6 +689,7 @@ static void fetchmail(const uint8_t *buf_head)
             memcpy(&(machine_control->prev_in0), &din[0], sizeof(uint32_t));
             for (i = 0; i < 32; i++) {
                 *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
+                *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
             }
         }
         // TODO: update gpio_in[63:32]
@@ -2613,6 +2615,13 @@ static int export_machine_control(machine_control_t * machine_control)
              return retval;
          }
          *(machine_control->in[i]) = 0;
+         
+         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in_n[i]), comp_id,
+                                   "wou.gpio.in.%02d.not", i);
+         if (retval != 0) {
+             return retval;
+         }
+         *(machine_control->in_n[i]) = 0;
      }
 
     retval =
