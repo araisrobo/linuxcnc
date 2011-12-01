@@ -259,7 +259,8 @@ int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance) {
 // the current position AND the goal position to be the same.  
 // Used only at TP initialization and when switching modes.
 
-int tpSetPos(TP_STRUCT * tp, EmcPose pos) {
+int tpSetPos(TP_STRUCT * tp, EmcPose pos) 
+{
     if (0 == tp) {
         return -1;
     }
@@ -1108,7 +1109,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             }
             tc->on_final_decel = 0;
             if (tc->target < (dist - vel)) {    // vel: compensate for 1 more S3
-            // if (tc->target < dist) {
+            // if (tc->target < dist) 
                 tc->accel_state = ACCEL_S4;
                 tc->on_final_decel = 1;
                 DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
@@ -1330,7 +1331,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
         *v = tc->cur_vel;
 }
 
-void tpToggleDIOs(TC_STRUCT * tc) {
+void tpToggleDIOs(TC_STRUCT * tc) 
+{
     int i = 0;
     if (tc->syncdio.anychanged != 0) { // we have DIO's to turn on or off
 	for (i=0; i < emcmotConfig->numDIO; i++) {
@@ -1692,16 +1694,17 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 //      sync_accel: use max reqvel to match the actual req_vel sync with spindle.
                 //                     when reach the req vel.
                 //      spindleoffset: record the spindle offset before reach the reqested vel.
-                spindle_vel = revs / (tc->cycle_time * tc->sync_accel++);
+                // spindle_vel = revs / (tc->cycle_time * tc->sync_accel++);
+                spindle_vel = revs / (tc->sync_accel++);
                 target_vel = spindle_vel * tc->uu_per_rev;
                 if (tc->cur_vel >= target_vel) {
                     // move target so as to drive pos_error to 0 next cycle;
                     spindleoffset = revs - tc->progress / tc->uu_per_rev;
                     tc->sync_accel = 0;
-                    tc->reqvel = target_vel;
+                    tc->reqvel = target_vel / tc->cycle_time;
                 } else {
                     // beginning of move and we are behind: accel as fast as we can
-                    tc->reqvel = tc->maxvel;
+                    tc->reqvel = tc->maxvel / tc->cycle_time;
                 }
             } else {
                 // we have synced the beginning of the move as best we can -
@@ -1709,19 +1712,20 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
                 // we have to consider the pos_error (exceedness).
                 double errorvel;
-                 spindle_vel = (revs - oldrevs) / tc->cycle_time;
-                 target_vel = spindle_vel * tc->uu_per_rev;
+                // spindle_vel = (revs - oldrevs) / tc->cycle_time;
+                spindle_vel = (revs - oldrevs);
+                target_vel = spindle_vel * tc->uu_per_rev;
                 // assume pos_error could be matched in a cycle.
                 // d = 1/2*a*t^2
                 // get acceleration a = sqrt(pos_error * 2/t)
-                 // the velocity modular would be v = a*t
-                errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
-                //errorvel = pmSqrt(fabs(pos_error) * tc->maxaccel);
-                 if (pos_error < 0)
-                     errorvel = -errorvel;
-                 tc->reqvel = target_vel + errorvel;
-                 // fprintf(stderr, "spindle_vel(%f) pos_error(%f) target_vel(%f) tc->reqvel(%f)\n", 
-                 //    spindle_vel, pos_error, target_vel, tc->reqvel);
+                // the velocity modular would be v = a*t
+                // errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
+                errorvel = pmSqrt(fabs(pos_error*2));
+                if (pos_error < 0)
+                    errorvel = -errorvel;
+                tc->reqvel = (target_vel + errorvel) / tc->cycle_time;
+                // fprintf(stderr, "spindle_vel(%f) pos_error(%f) target_vel(%f) tc->reqvel(%f)\n", 
+                //    spindle_vel, pos_error, target_vel, tc->reqvel);
             }
             tc->feed_override = 1.0;
         }
