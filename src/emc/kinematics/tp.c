@@ -1120,25 +1120,21 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
 
             // feed_override 有可能動態改變, 在 S3 檢查
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
-            if (req_vel > 0) {
-                if (req_vel > tc->maxvel) {
-                    req_vel = tc->maxvel;
-                }
-                if (tp->pausing == 0) {
-                    if ((tc->cur_vel + tc->maxaccel) < req_vel) {
-                        tc->accel_state = ACCEL_S0;
-                        SP(" Leave S3 for acceleration\n");
-                        EXIT_STATE(s3);
-                        break;
-                    } else if ((tc->cur_vel - tc->maxaccel) > req_vel) {
-                        tc->accel_state = ACCEL_S4;
-                        SP(" Leave S3 for deceleration\n");
-                        EXIT_STATE(s3);
-                        break;
-                    }
-                    tc->cur_vel = req_vel;
-                }
+            if (req_vel > tc->maxvel) {
+                req_vel = tc->maxvel;
             }
+            if ((tc->cur_vel + 1.5 * tc->jerk) < req_vel) {
+                tc->accel_state = ACCEL_S0;
+                DP(" Leave S3 for acceleration\n");
+                DP("cur_vel(%.15f) req_vel(%.15f)\n", tc->cur_vel, req_vel);
+                break;
+            } else if ((tc->cur_vel - 1.5 * tc->jerk) > req_vel) {
+                tc->accel_state = ACCEL_S4;
+                DP(" Leave S3 for deceleration\n");
+                DP("cur_vel(%.15f) req_vel(%.15f)\n", tc->cur_vel, req_vel);
+                break;
+            }
+            tc->cur_vel = req_vel;
             break;
 
 
@@ -1150,6 +1146,11 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // PT = PT + VT + 1/2AT + 1/6JT
             tc->cur_accel = tc->cur_accel - tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
+            if (tc->cur_vel < 0) {
+                tc->cur_vel = 0;
+                tc->accel_state = ACCEL_S3;
+                break;
+            }
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel - 1.0/6.0 * tc->jerk;
 
             // (accel < 0) and (jerk < 0)
@@ -1207,7 +1208,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 // DPS(" Leave S4 due to velocity limit\n");
                 break;
             }
-
             break;
         
         case ACCEL_S5:
@@ -1281,7 +1281,13 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
             if (tc->cur_vel <= 0) {
                 tc->cur_accel = 0;
-                tc->cur_vel = 0.5 * tc->jerk;
+                if (tc->on_final_decel == 1) {
+                    tc->cur_vel = 0.5 * tc->jerk;   // give some velocity for approaching target
+                } else {
+                    tc->cur_vel = 0;
+                    tc->accel_state = ACCEL_S3;
+                    break;
+                }
             }
             dist = tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
             // never: if (dist <= 0) {
@@ -1658,9 +1664,12 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     }
 
 
+
     if(tc->synchronized) {
         double pos_error;
         double oldrevs = revs;
+    
+        DP("tc->uu_per_rev(%f)\n", tc->uu_per_rev);
 
         if(tc->velocity_mode) {
             pos_error = fabs(emcmotStatus->spindleSpeedIn) * tc->uu_per_rev;
@@ -1683,10 +1692,14 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 revs = new_spindlepos;
 
             pos_error = (revs - spindleoffset) * tc->uu_per_rev - tc->progress;
-            //fprintf(stderr, "revs(%f) spindleoffset(%f) target_process(%f) tc_progress(%f) reqvel(%f)\n",
-            //    revs, spindleoffset,(revs - spindleoffset) * tc->uu_per_rev, tc->progress, tc->reqvel);
             if(nexttc) pos_error -= nexttc->progress;
 
+            DPS("revs(%f) spindleoffset(%f) tc_progress(%f) reqvel(%f) tc(%p)\n",
+                revs, spindleoffset, tc->progress, tc->reqvel, tc);
+            DPS("pos_error(%f) sync_accel(%d)\n", pos_error, tc->sync_accel);
+
+            // tc->reqvel = pos_error / tc->cycle_time;
+            
             if (tc->sync_accel) {
                 // NOTE(eric):
                 //      detect when velocities match, and move the target accordingly.
@@ -1706,6 +1719,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                     // beginning of move and we are behind: accel as fast as we can
                     tc->reqvel = tc->maxvel / tc->cycle_time;
                 }
+                DPS("spindle_vel(%f) target_vel(%f)\n", 
+                    spindle_vel, target_vel);
             } else {
                 // we have synced the beginning of the move as best we can -
                 // track position (minimize pos_error).
@@ -1720,13 +1735,21 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 // get acceleration a = sqrt(pos_error * 2/t)
                 // the velocity modular would be v = a*t
                 // errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
-                errorvel = pmSqrt(fabs(pos_error*2));
-                if (pos_error < 0)
-                    errorvel = -errorvel;
-                tc->reqvel = (target_vel + errorvel) / tc->cycle_time;
+                //orig: errorvel = pmSqrt(fabs(pos_error*2)*tc->maxaccel);
+                //orig: if (pos_error < 0)
+                //orig:     errorvel = -errorvel;
+                //orig: tc->reqvel = (target_vel + errorvel) / tc->cycle_time;
+
+                tc->reqvel = (target_vel + pos_error) / tc->cycle_time;
+
                 // fprintf(stderr, "spindle_vel(%f) pos_error(%f) target_vel(%f) tc->reqvel(%f)\n", 
                 //    spindle_vel, pos_error, target_vel, tc->reqvel);
+                DPS("spindle_vel(%f) pos_error(%f) target_vel(%f) errorvel(%f)\n", 
+                    spindle_vel, pos_error, target_vel, errorvel);
             }
+
+            DPS("revs(%f) spindleoffset(%f) tc_progress(%f) reqvel(%f)\n",
+                revs, spindleoffset, tc->progress, tc->reqvel);
             tc->feed_override = 1.0;
         }
         if (tc->reqvel < 0.0)
@@ -1747,6 +1770,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 	    nexttc->feed_override = emcmotStatus->net_feed_scale;
 	}
     }
+
     /* handle pausing */
     if(tp->pausing && (!tc->synchronized || tc->velocity_mode)) {
         tc->feed_override = 0.0;
@@ -1919,6 +1943,7 @@ int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode) {
 
 int tpPause(TP_STRUCT * tp)
 {
+    DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
@@ -1928,6 +1953,7 @@ int tpPause(TP_STRUCT * tp)
 
 int tpResume(TP_STRUCT * tp)
 {
+    DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
@@ -1937,6 +1963,7 @@ int tpResume(TP_STRUCT * tp)
 
 int tpAbort(TP_STRUCT * tp)
 {
+    DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
