@@ -200,7 +200,12 @@ class hal_interface:
             if self.emc_stat.task_mode != self.emc.MODE_MANUAL:
                 self.gui.wheel = "jogging"
                 self.gui.jogsettings_activate(1)
-                self.emc_control.jogging(1)  
+                self.emc_control.jogging(1) 
+                self.gui.wheel = "mv"
+        else:
+            if self.emc_stat.task_mode == self.emc.MODE_AUTO:
+                # self.gui.fo()
+                self.gui.wheel = "fo"
         xp = self.c["jog.continuous.x.positive"]
         if self.sw_button_presented == 1:
             xp = self.xp_sw
