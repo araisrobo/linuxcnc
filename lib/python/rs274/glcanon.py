@@ -344,6 +344,7 @@ class GlCanonDraw:
         glLoadIdentity()
 
     def select(self, x, y):
+        selected_line = 0
         if self.canon is None: return
         pmatrix = glGetDoublev(GL_PROJECTION_MATRIX)
         glMatrixMode(GL_PROJECTION)
@@ -363,7 +364,6 @@ class GlCanonDraw:
             if self.get_show_rapids():
                 glCallList(self.dlist('select_rapids', gen=self.make_selection_list))
             glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
-
             try:
                 buffer = list(glRenderMode(GL_RENDER))
             except OverflowError:
@@ -374,13 +374,15 @@ class GlCanonDraw:
         if buffer:
             min_depth, max_depth, names = min(buffer)
             self.set_highlight_line(names[0])
+            selected_line = int(names[0])
         else:
             self.set_highlight_line(None)
+            selected_line = None
 
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-
+        return selected_line 
     def dlist(self, name, n=1, gen=lambda n: None):
         if name not in self._dlists:
             base = glGenLists(n)
