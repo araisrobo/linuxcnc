@@ -182,8 +182,15 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.dwell_time += arg
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
-
-
+    
+    def start_spindle_counterclockwise(self, arg):
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+    def start_spindle_clockwise(self, arg):
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
     def highlight(self, lineno, geometry):
         glLineWidth(3)
         c = self.colors['selected']
@@ -1347,10 +1354,10 @@ class GlCanonDraw:
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
         #debug: print "after gcode.parse(), result=", result, ", seq=", seq
-
+        print "after gcode.parse(), result=", result, ", seq=", seq
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
-            canon.calc_extents()
+            canon.calc_extents() # so that the milling path will fit to the screen
             self.stale_dlist('program_rapids')
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
