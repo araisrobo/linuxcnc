@@ -39,7 +39,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
               rs274.glcanon.GlCanonDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
+    __gsignals__ = {'line-selected': (gobject.SIGNAL_RUN_FIRST, gobject.TYPE_NONE, (gobject.TYPE_INT,))}
     def __init__(self, inifile):
+        gobject.GObject.__init__(self)
 
         display_mode = ( gtk.gdkgl.MODE_RGB | gtk.gdkgl.MODE_DEPTH |
                          gtk.gdkgl.MODE_DOUBLE )
@@ -250,14 +252,15 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     def select_prime(self, x, y):
         self.select_primed = x, y
-
     @rs274.glcanon.with_context
     def select_fire(self, widget, event):
         if not self.select_primed: return
         x, y = self.select_primed
         self.select_primed = None
-        self.select(x, y)
-
+        self.highlight_line = self.select(x, y)
+        # emit line-select
+        if self.highlight_line is not None:
+            self.emit('line-selected', self.highlight_line)
     def select_cancel(self, widget=None, event=None):
         self.select_primed = None
 

@@ -182,8 +182,15 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.dwell_time += arg
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
-
-
+    
+    def start_spindle_counterclockwise(self, arg):
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+    def start_spindle_clockwise(self, arg):
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
     def highlight(self, lineno, geometry):
         glLineWidth(3)
         c = self.colors['selected']
@@ -344,6 +351,7 @@ class GlCanonDraw:
         glLoadIdentity()
 
     def select(self, x, y):
+        selected_line = 0
         if self.canon is None: return
         pmatrix = glGetDoublev(GL_PROJECTION_MATRIX)
         glMatrixMode(GL_PROJECTION)
@@ -363,7 +371,6 @@ class GlCanonDraw:
             if self.get_show_rapids():
                 glCallList(self.dlist('select_rapids', gen=self.make_selection_list))
             glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
-
             try:
                 buffer = list(glRenderMode(GL_RENDER))
             except OverflowError:
@@ -374,13 +381,15 @@ class GlCanonDraw:
         if buffer:
             min_depth, max_depth, names = min(buffer)
             self.set_highlight_line(names[0])
+            selected_line = int(names[0])
         else:
             self.set_highlight_line(None)
+            selected_line = None
 
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-
+        return selected_line 
     def dlist(self, name, n=1, gen=lambda n: None):
         if name not in self._dlists:
             base = glGenLists(n)
@@ -1345,10 +1354,10 @@ class GlCanonDraw:
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
         #debug: print "after gcode.parse(), result=", result, ", seq=", seq
-
+        print "after gcode.parse(), result=", result, ", seq=", seq
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
-            canon.calc_extents()
+            canon.calc_extents() # so that the milling path will fit to the screen
             self.stale_dlist('program_rapids')
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
