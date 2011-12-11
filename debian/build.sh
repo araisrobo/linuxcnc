@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #usage: source ./build.sh
-RELEASE=2.4.0-nurbs-2011.11.17
+RELEASE=2.4.0-nurbs-2011.12.11
 ./configure sim
 nice debuild -S
 sudo nice pbuilder build ../../emc2_${RELEASE}.dsc

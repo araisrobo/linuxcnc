@@ -1,3 +1,15 @@
+emc2 (1:2.4.0-nurbs-2011.12.11) lucid; urgency=low
+
+  * new algorighm for CSS request velocity calculation
+
+ -- Yishin Li <ysli@araisrobo.com>  Sun, 11 Dec 2011 15:15:42 +0800
+
+emc2 (1:2.4.0-nurbs-2011.12.06) lucid; urgency=low
+
+  * enable new s-curve velocity profile
+
+ -- Yishin Li <ysli@araisrobo.com>  Tue, 06 Dec 2011 10:18:18 +0800
+
 emc2 (1:2.4.0-nurbs-2011.11.17) lucid; urgency=low
 
   * Add power-off callback
