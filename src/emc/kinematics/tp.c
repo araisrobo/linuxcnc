@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -280,6 +280,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
     rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
+    rtapi_print_msg(RTAPI_MSG_ERR, "TODO: new CSS implementation breaks Rigid-Tapping\n");
     assert(0);
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
@@ -1129,13 +1130,13 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             }
             if ((tc->cur_vel + 1.5 * tc->jerk) < req_vel) {
                 tc->accel_state = ACCEL_S0;
-                DP(" Leave S3 for acceleration\n");
-                DP("cur_vel(%.15f) req_vel(%.15f)\n", tc->cur_vel, req_vel);
+                // DP("Leave S3 for acceleration\n");
+                // DP("cur_vel(%.15f) req_vel(%.15f)\n", tc->cur_vel, req_vel);
                 break;
             } else if ((tc->cur_vel - 1.5 * tc->jerk) > req_vel) {
                 tc->accel_state = ACCEL_S4;
-                DP(" Leave S3 for deceleration\n");
-                DP("cur_vel(%.15f) req_vel(%.15f)\n", tc->cur_vel, req_vel);
+                // DP(" Leave S3 for deceleration\n");
+                // DP("cur_vel(%.15f) req_vel(%.15f)\n", tc->cur_vel, req_vel);
                 break;
             }
             tc->cur_vel = req_vel;
@@ -1184,12 +1185,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
                        + 1.0 / 6 * tc->jerk * t * t * t - tc->target;
 #endif
-                DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
+                // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
 
                 if (vel <= 0) {
                     // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
                     tc->accel_state = ACCEL_S6;
-                    DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
+                    // DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
                 }
                 break;
             }
@@ -1673,6 +1674,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         // NOTE: TC_RIGIDTAP is broken 
         // for CSS motion only
         double css_progress_cmd;
+        double pos_error;
         double new_spindlepos = emcmotStatus->spindleRevs;
 
         tc->feed_override = 1.0;
@@ -1682,7 +1684,15 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         
         // feed-forward reqvel calculation for CSS motion
         css_progress_cmd = (revs - spindleoffset) * tc->uu_per_rev;
-        tc->reqvel = (css_progress_cmd - tc->css_progress_cmd) / tc->cycle_time;
+        
+        pos_error = tc->css_progress_cmd - tc->progress;
+        if (pos_error > tc->jerk) {
+            pos_error = tc->jerk;
+        } else if (pos_error < -tc->jerk) {
+            pos_error = -tc->jerk;
+        }
+
+        tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
         tc->css_progress_cmd = css_progress_cmd;
         
 //        double pos_error;
@@ -1966,7 +1976,7 @@ int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode) {
 
 int tpPause(TP_STRUCT * tp)
 {
-    DP("begin\n");
+    // DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
@@ -1976,7 +1986,6 @@ int tpPause(TP_STRUCT * tp)
 
 int tpResume(TP_STRUCT * tp)
 {
-    DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
@@ -1986,7 +1995,6 @@ int tpResume(TP_STRUCT * tp)
 
 int tpAbort(TP_STRUCT * tp)
 {
-    DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
