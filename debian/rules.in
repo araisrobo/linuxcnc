@@ -19,10 +19,11 @@
 python_version = @PYTHON_VERSION@
 kernel_version = @KERNEL_VERSION@
 
-ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-    MAKEFLAGS += -j$(NUMJOBS)
-endif
+# ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+#     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+#     MAKEFLAGS += -j$(NUMJOBS)
+# endif
+MAKEFLAGS += -j5
 
 
 debian/control:
@@ -38,11 +39,12 @@ build-stamp:
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
 	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=pdf --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=pdf
 endif
-	(cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
+	# (cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
+	(cd src; $(MAKE) $(MAKEFLAGS))
 	touch build-stamp
 
 clean: debian/control
@@ -54,7 +56,8 @@ clean: debian/control
 ifeq "$(kernel_version)" "sim"
 	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
 	# master: cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh	
+	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh	
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version)
 endif
@@ -76,14 +79,14 @@ install: build
 	mkdir -p debian/tmp/usr/lib debian/tmp/usr/include/emc2
 	cp lib/*.a debian/tmp/usr/lib
 	mkdir -p debian/tmp/usr/share/doc/emc2-dev
-	mv debian/tmp/usr/share/doc/emc2/EMC2_Developer_Manual.pdf \
-		debian/tmp/usr/share/doc/emc2-dev/
-	cp docs/html/gcode*.html debian/tmp/usr/share/doc/emc2/
-	rm debian/tmp/usr/share/doc/emc2/EMC2_Manual_Pages.pdf 
+	# mv debian/tmp/usr/share/doc/emc2/EMC2_Developer_Manual.pdf debian/tmp/usr/share/doc/emc2-dev/
+	# cp docs/html/gcode*.html debian/tmp/usr/share/doc/emc2/
+	# rm debian/tmp/usr/share/doc/emc2/EMC2_Manual_Pages.pdf 
 	rm -rf debian/tmp/usr/share/doc/emc2/html
 	-rm -f debian/tmp/emc2*.files
 	-rm -f debian/tmp/usr/share/doc/emc2/examples/sample-configs/*/*position*.txt
 	dh_movefiles
+	rm -rf debian/tmp/usr/share/applications/emc2*desktop
 	if [ `find debian/tmp -type f | wc -c` != 0 ]; then \
 		echo "Files exist in debian/tmp, but should not:"; \
 		find debian/tmp -type f; \
