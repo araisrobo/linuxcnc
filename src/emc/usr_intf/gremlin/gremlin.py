@@ -108,7 +108,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 	    if self.stat.axis_mask & (1<<i) == 0: continue
 	    live_axis_count += 1
 	self.num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
-
+      
+        self.highlight_mode = 'line'
+        self.highlight_mode = inifile.find("DISPLAY", "HIGHLIGHT_MODE")
+        print 'gremlin.py highlight_mode', self.highlight_mode 
     def activate(self):
         glcontext = gtk.gtkgl.widget_get_gl_context(self)
         gldrawable = gtk.gtkgl.widget_get_gl_drawable(self)
@@ -172,7 +175,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.font_linespace = linespace
         self.font_charwidth = width
         rs274.glcanon.GlCanonDraw.realize(self)
-
         if s.file: self.load(s.file)
 
     def set_current_view(self):
@@ -189,6 +191,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             canon = StatCanon(self.colors, self.get_geometry(), s, random)
+            canon.set_highlight_mode(self.highlight_mode)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             temp_parameter = os.path.join(td, os.path.basename(parameter or "emc.var"))
             if parameter:
@@ -198,12 +201,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             self.load_preview(filename, canon, unitcode, initcode)
-
+             
         finally:
             shutil.rmtree(td)
 
         self.set_current_view()
-
     def get_program_alpha(self): return False
     def get_num_joints(self): return self.num_joints
     def get_geometry(self): return 'XYZ'
@@ -260,6 +262,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.highlight_line = self.select(x, y)
         # emit line-select
         if self.highlight_line is not None:
+            # highlight_line become block no in 'block' mode
             self.emit('line-selected', self.highlight_line)
     def select_cancel(self, widget=None, event=None):
         self.select_primed = None

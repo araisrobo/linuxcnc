@@ -539,7 +539,7 @@ void START_SPEED_FEED_SYNCH(double sync, bool vel) {}
 void STOP_SPEED_FEED_SYNCH() {}
 void START_SPINDLE_COUNTERCLOCKWISE()
 {
-    printf("start spindle counterclockwise\n");
+// DEBUG:    printf("start spindle counterclockwise\n");
     maybe_new_line();   
     if(interp_error) return;
     PyObject *result =
@@ -549,7 +549,7 @@ void START_SPINDLE_COUNTERCLOCKWISE()
 }
 void START_SPINDLE_CLOCKWISE()
 {
-    printf("start spindle clockwise\n");
+// DEBUG:    printf("start spindle clockwise\n");
     maybe_new_line();   
     if(interp_error) return;
     PyObject *result =
