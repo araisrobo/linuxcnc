@@ -14,3 +14,6 @@
 #             --enable-build-documentation=pdf
 ./configure --enable-simulator \
             --enable-build-documentation=no
+
+CONCURRENCY_LEVEL=`getconf _NPROCESSORS_ONLN`
+echo "make -j${CONCURRENCY_LEVEL}"

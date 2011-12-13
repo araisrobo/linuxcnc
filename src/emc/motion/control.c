@@ -2092,6 +2092,8 @@ static void output_to_hal(void)
     }
 
     if(!*emcmot_hal_data->spindle_index_enable && old_hal_index) {
+        // cur.index_enable == 0 .and. old.index_enable == 1
+        // to let kinematics/tp.c to set "waiting_for_index" as 0
         emcmotStatus->spindle_index_enable = 0;
     }
 

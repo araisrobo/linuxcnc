@@ -1711,6 +1711,9 @@ static void update_freq(void *arg, long period)
         *(machine_control->sync_in_trigger) = 0;
     }
     /* end: process motion synchronized input */
+    
+    // ESTOP active
+    *(machine_control->in[0]) = 1;
 
     /* begin: process motion synchronized output */
     sync_io_data = 0;
@@ -2328,16 +2331,6 @@ static int export_gpio(gpio_t * addr)
     // rtapi_set_msg_level(RTAPI_MSG_WARN);
     rtapi_set_msg_level(RTAPI_MSG_ALL);
 
- /*   // export Digital IN
-    for (i = 0; i < 16; i++) {
-	retval = hal_pin_bit_newf(HAL_OUT, &(addr->in[i]), comp_id,
-				  "wou.gpio.in.%02d", i);
-	if (retval != 0) {
-	    return retval;
-	}
-	*(addr->in[i]) = 0;
-    }
-*/
     // export Analog IN
     for (i = 0; i < 1; i++) {
         retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
@@ -2620,16 +2613,15 @@ static int export_machine_control(machine_control_t * machine_control)
     machine_control->num_gpio_out = num_gpio_out;
 
     // export input status pin
-     for (i = 0; i < machine_control->num_gpio_in; i++) {
-         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
-                                   "wou.gpio.in.%02d", i);
-         if (retval != 0) {
-             return retval;
-         }
-         *(machine_control->in[i]) = 0;
-     }
-    // ESTOP active
-     *(machine_control->in[0]) = 1;
+    for (i = 0; i < machine_control->num_gpio_in; i++) {
+        retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
+                                  "wou.gpio.in.%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->in[i]) = 0;
+    }
+
     retval =
 	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
 			 "wou.sync.in.trigger");

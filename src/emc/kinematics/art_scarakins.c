@@ -17,7 +17,7 @@
 
 #include "posemath.h"
 #include "rtapi_math.h"
-#include "kinematics.h"             /* decls for kinematicsForward, etc. */
+#include "kinematics.h"         /* decls for kinematicsForward, etc. */
 #include "art_scarakins.h"
 
 #ifdef RTAPI
@@ -336,7 +336,13 @@ error:
     return res;
 }
 
-void rtapi_app_exit(void) { hal_exit(comp_id); }
+void rtapi_app_exit(void) 
+{ 
+#if (TRACE!=0)
+    fclose(dptrace);
+#endif
+    hal_exit(comp_id); 
+}
 #endif
 
 // vim:sw=4:sts=4:et:

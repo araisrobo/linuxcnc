@@ -39,12 +39,20 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def __init__(self, colors, geometry):
         # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
         self.traverse = []; self.traverse_append = self.traverse.append
-        # feed list - [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
+        # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.feed = []; self.feed_append = self.feed.append
-        # arcfeed list - [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
+        # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
         # dwell list - [line number, color, pos x, pos y, pos z, plane]
         self.dwells = []; self.dwells_append = self.dwells.append
+        # block path list - [start line, end line, [pos x, pos y, pos z],
+        # feedrate]
+        self.blocks = []; self.blocks_append = self.blocks.append
+        self.block_start = None
+        self.highlight_mode = 'line'
+        self.selected_block = None
+        self.block_pos = []
+        self.block_feed = 0
         self.choice = None
         self.feedrate = 1
         self.lo = (0,) * 9
@@ -130,7 +138,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if self.suppress > 0: return
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         if not self.first_move:
-                self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+            self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
         self.lo = l
 
     def rigid_tap(self, x, y, z):
@@ -169,6 +177,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+
         self.lo = l
     straight_probe = straight_feed
 
@@ -182,9 +191,89 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.dwell_time += arg
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
-
-
+    
+    def start_spindle_clockwise(self, arg):
+        # M3
+        # DEBUG: print 'M3'
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+        self.block_start = self.lineno 
+        self.block_pos = [self.lo[0], self.lo[1], self.lo[2]]
+        self.block_feed = self.feedrate
+    def start_spindle_counterclockwise(self, arg):
+        # M4
+        # DEBUG: print 'M4'
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+        if self.block_start != None:
+            self.blocks_append((self.block_start, self.lineno, 
+                self.block_pos[0], self.block_pos[1],
+                self.block_pos[2],self.block_feed))
+        self.block_start = None
+        self.block_pos = []
+        print list(self.blocks)
+    
+    def highlight2(self, lineno, geometry):
+        glLineWidth(3)
+        c = self.colors['selected']
+        glColor3f(*c)
+        glBegin(GL_LINES)
+        coords = []
+        for i in range(0,len(self.blocks)):
+            if lineno >= self.blocks[i][0]  and lineno <= self.blocks[i][1]:
+                # DEBUG: print 'block(%d) selected start(%d) end(%d)' % (i, self.blocks[i][0], self.blocks[i][1])
+                self.selected_block = i
+                for j in range(self.blocks[i][0], self.blocks[i][1]):
+                    for line in self.traverse:
+                        if line[0] != j: continue
+                        coords.append(line[1][:3])
+                        coords.append(line[2][:3])
+                    for line in self.arcfeed:
+                        emc.line9(geometry, line[1], line[2])
+                        coords.append(line[1][:3])
+                        coords.append(line[2][:3])
+                    for line in self.arcfeed:
+                        if line[0] != j: continue
+                        emc.line9(geometry, line[1], line[2])
+                        coords.append(line[1][:3])
+                        coords.append(line[2][:3])
+                    for line in self.feed:
+                        if line[0] != j: continue
+                        emc.line9(geometry, line[1], line[2])
+                        coords.append(line[1][:3])
+                        coords.append(line[2][:3])
+                glEnd()
+                for j in range(self.blocks[i][0], self.blocks[i][1]):
+                    for line in self.dwells: 
+                        if line[0] != j: continue
+                        self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
+                        coords.append(line[2:5])
+                glLineWidth(1)
+                if coords:
+                    x = reduce(lambda x,y:x+y, [c[0] for c in coords]) / len(coords)
+                    y = reduce(lambda x,y:x+y, [c[1] for c in coords]) / len(coords)
+                    z = reduce(lambda x,y:x+y, [c[2] for c in coords]) / len(coords)
+                else:
+                    x = (self.min_extents[0] + self.max_extents[0])/2
+                    y = (self.min_extents[1] + self.max_extents[1])/2
+                    z = (self.min_extents[2] + self.max_extents[2])/2
+                return x, y, z
+    def get_start_line_of_block(self, lineno = None):
+        for i in range(0, len(self.blocks)):
+            if lineno >= self.blocks[i][0] and lineno <= self.blocks[i][1]:
+                return self.blocks[i][0] # return start line of block
+    def set_highlight_mode(self, mode=None):
+        mode = mode.lower()
+        if mode == "block":
+            print 'HIGHLIGHT MODE block detected'
+            self.highlight_mode = 'block'
+        else:
+            self.highlight_mode = 'line'
     def highlight(self, lineno, geometry):
+        if self.highlight_mode is 'block':
+            return self.highlight2(lineno, geometry)
         glLineWidth(3)
         c = self.colors['selected']
         glColor3f(*c)
@@ -192,6 +281,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         coords = []
         for line in self.traverse:
             if line[0] != lineno: continue
+            coords.append(line[1][:3])
+            coords.append(line[2][:3])
+        for line in self.arcfeed:
             emc.line9(geometry, line[1], line[2])
             coords.append(line[1][:3])
             coords.append(line[2][:3])
@@ -206,7 +298,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             coords.append(line[1][:3])
             coords.append(line[2][:3])
         glEnd()
-        for line in self.dwells:
+        for line in self.dwells: 
             if line[0] != lineno: continue
             self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
             coords.append(line[2:5])
@@ -344,6 +436,7 @@ class GlCanonDraw:
         glLoadIdentity()
 
     def select(self, x, y):
+        selected_line = 0
         if self.canon is None: return
         pmatrix = glGetDoublev(GL_PROJECTION_MATRIX)
         glMatrixMode(GL_PROJECTION)
@@ -363,7 +456,6 @@ class GlCanonDraw:
             if self.get_show_rapids():
                 glCallList(self.dlist('select_rapids', gen=self.make_selection_list))
             glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
-
             try:
                 buffer = list(glRenderMode(GL_RENDER))
             except OverflowError:
@@ -373,14 +465,21 @@ class GlCanonDraw:
 
         if buffer:
             min_depth, max_depth, names = min(buffer)
-            self.set_highlight_line(names[0])
+            # call to draw highlight line
+            self.set_highlight_line(names[0]) # input lineno to find block
+            if self.canon.highlight_mode is 'block':
+                print self.canon.selected_block
+                selected_line = self.canon.selected_block
+            else:
+                selected_line = int(names[0])
         else:
             self.set_highlight_line(None)
+            selected_line = None
 
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-
+        return selected_line 
     def dlist(self, name, n=1, gen=lambda n: None):
         if name not in self._dlists:
             base = glGenLists(n)
@@ -1345,10 +1444,10 @@ class GlCanonDraw:
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
         #debug: print "after gcode.parse(), result=", result, ", seq=", seq
-
+        print "after gcode.parse(), result=", result, ", seq=", seq
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
-            canon.calc_extents()
+            canon.calc_extents() # so that the milling path will fit to the screen
             self.stale_dlist('program_rapids')
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
