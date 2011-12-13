@@ -108,6 +108,7 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp);
 #define HM2_GTAG_LED            (128)
 #define HM2_GTAG_MUXED_ENCODER   (12)
 #define HM2_GTAG_MUXED_ENCODER_SEL (13)
+#define HM2_GTAG_RESOLVER       (192)
 #define HM2_GTAG_SMARTSERIAL    (193)
 
 
@@ -186,6 +187,9 @@ typedef struct {
     u8 sec_tag;
     u8 sec_unit;
     u8 primary_tag;
+    u8 port_num;
+    u8 port_pin;
+    u8 bit_num;
 
 
     //
@@ -315,7 +319,73 @@ typedef struct {
     u32 filter_rate_addr;
 } hm2_encoder_t;
 
+//
+// resolver
+//
 
+typedef struct {
+
+    struct {
+
+        struct {
+            hal_s32_t *rawcounts;
+            hal_s32_t *count;
+            hal_float_t *angle;
+            hal_float_t *position;
+            hal_float_t *velocity;
+            hal_bit_t *reset;
+            hal_bit_t *index_enable;
+            hal_bit_t *error;
+        } pin;
+
+        struct {
+            hal_float_t scale;
+            hal_float_t vel_scale;
+        } param;
+
+    } hal;
+    
+    long long accum;
+    long long offset;
+    u32 old_reg;
+
+} hm2_resolver_instance_t;
+
+typedef struct {
+    struct {
+        hal_float_t excitation_khz;
+    } param;
+} hm2_resolver_global_t;
+
+typedef struct {
+    int num_instances;
+    int num_resolvers;
+
+    hm2_resolver_global_t *hal;
+    hm2_resolver_instance_t *instance;
+
+    u32 stride;
+    u32 clock_frequency;
+    u8 version;
+
+    // hw registers
+    u32 status_addr;
+    u32 *status_reg;
+    
+    u32 command_addr;
+    
+    u32 data_addr;
+    
+    u32 position_addr;
+    u32 *position_reg;
+
+    u32 velocity_addr;
+    s32 *velocity_reg;
+    
+    hal_float_t written_khz;
+    hal_float_t kHz;
+    
+} hm2_resolver_t;
 
 
 //
@@ -474,7 +544,7 @@ typedef struct {
 
 #define HM2_SSERIAL_TYPE_8I20               0x30324938  // '8i20' as 4 ascii
 #define HM2_SSERIAL_TYPE_7I64               0x34364937  // More to be added later.
-
+#define HM2_SSERIAL_MAX_STRING_LENGTH       32
 
 typedef struct {
     struct {
@@ -513,15 +583,50 @@ typedef struct {
 }hal_7i64_t;
 
 typedef struct {
-    struct{
-        hal_u32_t *hm2_reg_0_read;
-        hal_u32_t *hm2_reg_1_read;
-        hal_u32_t *hm2_reg_0_write;
-        hal_u32_t *hm2_reg_1_write;
-    }pin;
-    int card_type;
+    unsigned char RecordType;
+    unsigned char DataLength;
+    unsigned char DataType;
+    unsigned char DataDir;
+    float ParmMin;
+    float ParmMax;
+    short ParmAddr;
+    char UnitString[HM2_SSERIAL_MAX_STRING_LENGTH+1];
+    char NameString[HM2_SSERIAL_MAX_STRING_LENGTH+1];
+}hm2_sserial_data_t;
+
+typedef struct {
+    unsigned char RecordType;
+    unsigned char ModeIndex;
+    unsigned char ModeType;
+    unsigned char Unused;
+    char NameString[HM2_SSERIAL_MAX_STRING_LENGTH+1];
+}hm2_sserial_mode_t;
+
+typedef struct {
+    hal_u32_t *u32_pin;
+    hal_s32_t *s32_pin;
+    hal_float_t *float_pin;
+    hal_bit_t **bit_pins;
+    hal_bit_t **bit_pins_not;
+    hal_bit_t *invert;
+    hal_bit_t *boolean;
+    hal_bit_t *boolean_not;
+    hal_float_t maxlim;
+    hal_float_t minlim;
+    hal_float_t fullscale;
+    s32 oldval;
+}hm2_sserial_pins_t;
+
+typedef struct {
+    int num_confs;
+    int num_modes;
+    int num_pins;
+    hm2_sserial_mode_t *modes;
+    hm2_sserial_data_t *conf;
+    hm2_sserial_pins_t *pins;
     hal_u32_t hm2_serialnumber;
-}hal_other_t;
+    hal_u32_t status;
+}hal_sserial_auto_t;
 
 typedef struct {
     u32 *reg_cs_read;
@@ -536,9 +641,10 @@ typedef struct {
     u32 reg_0_addr;
     u32 reg_1_addr;
     u32 reg_2_addr;
-    u32 tag;
+    int index;
     u32 reg_command_addr; // a duplicate so that a single channel can be passed
     u32 reg_data_addr;
+    char name[10];
 }hm2_sserial_tram_t;
 
 typedef struct {
@@ -551,10 +657,10 @@ typedef struct {
     unsigned char tag_7i64;
     hal_7i64_t *hal_7i64;
     hm2_sserial_tram_t *tram_7i64;
-    int num_other;
-    unsigned char tag_other;
-    hal_other_t *hal_other;
-    hm2_sserial_tram_t *tram_other;
+    int num_auto;
+    unsigned char tag_auto;
+    hal_sserial_auto_t *hal_auto;
+    hm2_sserial_tram_t *tram_auto;
     int num_all;
     unsigned char tag_all;
 
@@ -864,13 +970,14 @@ typedef struct {
 
     struct {
         int num_encoders;
+        int num_resolvers;
         int num_pwmgens;
         int num_tp_pwmgens;
         int num_stepgens;
         int num_leds;
         int num_sserials;
         int num_bspis;
-        int num_sserial_chans[4];
+        char sserial_modes[4][8];
         int enable_raw;
         char *firmware;
     } config;
@@ -897,6 +1004,7 @@ typedef struct {
 
     // the hostmot2 "Functions"
     hm2_encoder_t encoder;
+    hm2_resolver_t resolver;
     hm2_pwmgen_t pwmgen;
     hm2_tp_pwmgen_t tp_pwmgen;
     hm2_stepgen_t stepgen;
@@ -1007,8 +1115,16 @@ void hm2_encoder_cleanup(hostmot2_t *hm2);
 void hm2_encoder_print_module(hostmot2_t *hm2);
 void hm2_encoder_force_write(hostmot2_t *hm2);
 
+//
+// resolver functions
+//
 
 
+int hm2_resolver_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_resolver_process_tram_read(hostmot2_t *hm2, long period);
+void hm2_resolver_cleanup(hostmot2_t *hm2);
+void hm2_resolver_print_module(hostmot2_t *hm2);
+void hm2_resolver_write(hostmot2_t *hm2, long period);
 
 //
 // pwmgen functions
@@ -1047,25 +1163,38 @@ void hm2_sserial_prepare_tram_write(hostmot2_t *hm2, long period);
 void hm2_sserial_process_tram_read(hostmot2_t *hm2, long period);
 void hm2_sserial_process_config(hostmot2_t *hm2, long period);
 u32 hm2_sserial_get_param(hostmot2_t *hm2, hm2_sserial_tram_t *channel, int param);
+int hm2_sserial_get_bytes(hostmot2_t *hm2, hm2_sserial_tram_t *chan, void *buffer, int addr, int size);
 int hm2_sserial_waitfor(hostmot2_t *hm2, u32 addr, u32 mask, int ms);
 void hm2_sserial_cleanup(hostmot2_t *hm2);
 int hm2_sserial_config_create(hostmot2_t *hm2);
+int hm2_sserial_check_errors(hostmot2_t *hm2, hm2_sserial_tram_t *tram);
 
     // Smart-Serial functions in hm2_8i20.c
     int hm2_8i20_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
     void hm2_8i20_prepare_tram_write(hostmot2_t *hm2);
     void hm2_8i20_process_tram_read(hostmot2_t *hm2);
     int hm2_8i20_params(hostmot2_t *hm2);
+    void hm2_8i20_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+    void hm2_sserial_8i20_cleanup(hostmot2_t *hm2);
+    int hm2_sserial_8i20_check(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
 
     // Smart-Serial functions in hm2_7i64.c
     int hm2_7i64_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
     void hm2_7i64_prepare_tram_write(hostmot2_t *hm2);
     void hm2_7i64_process_tram_read(hostmot2_t *hm2);
+    void hm2_7i64_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+    void hm2_sserial_7i64_cleanup(hostmot2_t *hm2);
+    int hm2_sserial_7i64_check(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
 
-    // Smart-Serial functions in hm2_other_sserial.c
-    int hm2_other_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
-    void hm2_other_prepare_tram_write(hostmot2_t *hm2);
-    void hm2_other_process_tram_read(hostmot2_t *hm2);
+    // Smart-Serial functions in hm2_sserial_auto.c
+    int hm2_auto_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
+    void hm2_sserial_auto_print_conf(hostmot2_t *hm2, hm2_sserial_data_t *chan);
+    void hm2_sserial_auto_print_modes(hostmot2_t *hm2, hm2_sserial_mode_t *conf);
+    void hm2_auto_process_tram_read(hostmot2_t *hm2);
+    void hm2_auto_prepare_tram_write(hostmot2_t *hm2);
+    void hm2_sserial_auto_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+    void hm2_sserial_auto_cleanup(hostmot2_t *hm2);
+    int hm2_sserial_auto_check(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
 
 //
 // stepgen functions

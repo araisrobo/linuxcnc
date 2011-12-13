@@ -40,6 +40,8 @@ class EmcIniFile : public IniFile {
 public:
                                 EmcIniFile(int errMask=0):IniFile(errMask){}
 
+    ErrorCode                   Find(EmcAxisType *result, const char *tag,
+                                     const char *section=NULL, int num = 1);
     ErrorCode                   Find(EmcJointType *result, const char *tag,
                                      const char *section=NULL, int num = 1);
     ErrorCode                   Find(bool *result, const char *tag,
@@ -82,6 +84,7 @@ public:
                                 }
 
 private:
+    static StrIntPair           axisTypeMap[];
     static StrIntPair           jointTypeMap[];
     static StrIntPair           boolMap[];
     static StrDoublePair        linearUnitsMap[];

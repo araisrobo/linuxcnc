@@ -107,7 +107,7 @@ SUBDIRS := \
     emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
     emc/usr_intf/gremlin \
     emc/usr_intf emc/nml_intf emc/task emc/iotask emc/kinematics emc/canterp \
-    emc/motion emc/ini emc/rs274ngc emc/sai emc \
+    emc/motion emc/ini emc/rs274ngc emc/sai emc emc/pythonplugin \
     \
     module_helper \
     \
@@ -290,6 +290,7 @@ HEADERS := \
     emc/nml_intf/interp_return.hh \
     emc/nml_intf/interpl.hh \
     emc/nml_intf/motion_types.h \
+    emc/nml_intf/debugflags.h \
     emc/rs274ngc/interp_internal.hh \
     emc/rs274ngc/rs274ngc.hh \
     hal/hal.h \
@@ -747,12 +748,13 @@ hostmot2-objs :=                          \
     hal/drivers/mesa-hostmot2/backported-strings.o  \
     hal/drivers/mesa-hostmot2/ioport.o    \
     hal/drivers/mesa-hostmot2/encoder.o   \
+	hal/drivers/mesa-hostmot2/resolver.o  \
     hal/drivers/mesa-hostmot2/pwmgen.o    \
     hal/drivers/mesa-hostmot2/tp_pwmgen.o \
 	hal/drivers/mesa-hostmot2/sserial.o   \
+	hal/drivers/mesa-hostmot2/mesa_autoconf.o   \
 	hal/drivers/mesa-hostmot2/mesa_8i20.o \
 	hal/drivers/mesa-hostmot2/mesa_7i64.o \
-	hal/drivers/mesa-hostmot2/mesa_other_sserial.o \
     hal/drivers/mesa-hostmot2/stepgen.o   \
 	hal/drivers/mesa-hostmot2/bspi.o	  \
     hal/drivers/mesa-hostmot2/watchdog.o  \
@@ -997,6 +999,18 @@ tags:
 	find . -type f -name '*.[ch]' |xargs etags -l c --append
 	find . -type f -name '*.cc' |xargs etags -l c++ --append
 	find . -type f -name '*.hh' |xargs etags -l c++ --append
+
+etags:
+	etags 	--extra=+fq \
+		--exclude=depends --exclude=objects --exclude=.mod.c \
+		'--langmap=make:+(Submakefile),make:+(Makefile.inc),c:+.comp' \
+		-I EXPORT_SYMBOL+,RTAPI_MP_INT+,RTAPI_MP_LONG+,RTAPI_MP_STRING+ \
+		-I RTAPI_MP_ARRAY_INT+,RTAPI_MP_ARRAY_LONG+,RTAPI_MP_ARRAY_STRING+ \
+                -I MODULE_AUTHOR+,MODULE_DESCRIPTION+,MODULE_LICENSE+ \
+		-R . ../tcl ../scripts ../share/axis/tcl 
+        find . -type f -name '*.[ch]' |xargs etags --language-force=C --append
+        find . -type f -name '*.cc' |xargs etags --language-force=C++ --append
+        find . -type f -name '*.hh' |xargs etags --language-force=C++ --append
 
 .PHONY: swish
 swish:

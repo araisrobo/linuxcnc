@@ -29,3 +29,5 @@ share/desktop-directories/cnc.directory
 *.swp
 run.sh
 debian/*.debhelper.log
+src/modules.order
+docs/html/drivers

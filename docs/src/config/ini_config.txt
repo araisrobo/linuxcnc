@@ -261,7 +261,9 @@ Machine Unit::
 
 == INI File Sections[[sec:INI-Detail]]
 
-=== [EMC] Section[[sub:[EMC]-section]](((EMC (inifile section))))
+=== [EMC] Section[[sub:[EMC]-section]]
+
+(((EMC (inifile section))))
 
 VERSION = $Revision: 1.3 $::
     The version number for the INI file. The value shown here looks odd 
@@ -280,7 +282,9 @@ DEBUG = 0::
     terminal. Debug flags are usually only useful to developers. See
     src/emc/nml_intf/emcglb.h for other settings. 
 
-=== [DISPLAY] Section[[sub:[DISPLAY]-section]](((DISPLAY (inifile section))))
+=== [DISPLAY] Section[[sub:[DISPLAY]-section]]
+
+(((DISPLAY (inifile section))))
 
 Different user interface programs use different options, and not every
 option is supported by every user interface. The main two interfaces
@@ -426,7 +430,9 @@ user interface program.
 HELP_FILE = tkemc.txt::
     Path to help file (not used in AXIS).
 
-=== [FILTER] Section (((ini [FILTER] Section)))[[sub:[FILTER]-Section]] 
+=== [FILTER] Section[[sub:[FILTER]-Section]]
+
+(((ini [FILTER] Section)))
 
 AXIS has the ability to send loaded files through a filter program.
 This filter can do any desired task: Something as simple as making sure
@@ -475,14 +481,21 @@ written to stderr of the form
 sets the AXIS progress bar to the given percentage. This feature
 should be used by any filter that runs for a long time.
 
-=== [RS274NGC] Section[[sub:[RS274NGC]-section]](((RS274NGC (inifile section))))
+=== [RS274NGC] Section[[sub:[RS274NGC]-section]]
+
+(((RS274NGC (inifile section))))
 
 PARAMETER_FILE = myfile.var::
     (((PARAMETER FILE))) The file located in the same directory as the ini
     file which contains the parameters used by the interpreter (saved
     between runs). 
 
-RS274NGC_STARTUP_CODE = G01 G17 G20 G40 G49 G64.1 P0.001 G80 G90 G92 G94 G97 G98::
+ORIENT_OFFSET = 0::
+    (((ORIENT OFFSET ))) A float value added to the R word parameter
+    of an <<sec:M19,M19 Orient Spindle> operation. Used to define an arbitrary
+    zero position regardless of encoder mount orientation.
+
+RS274NGC_STARTUP_CODE = G17 G20 G40 G49 G54 G64 P0.001 G80 G90 G94 G97 G98::
     (((RS274NGC STARTUP CODE))) A string of NC codes that the interpreter
     is initialized with. This is not a substitute for specifying modal
     g-codes at the top of each ngc file, because the modal codes of
@@ -517,7 +530,8 @@ A search is made for each possible user defined function, typically
 The first executable M1xx found in the search is used for each M1xx.
 
 === [EMCMOT] Section[[sub:[EMCMOT]-section]]
-    (((EMCMOT (inifile section))))
+
+(((EMCMOT (inifile section))))
 
 You may find other entries in this section and they should not be
 changed.
@@ -556,6 +570,7 @@ TRAJ_PERIOD = 100000::
     no reason to make this value larger than *SERVO_PERIOD*.
 
 === [TASK] Section[[sub:[TASK]-section]]
+
 (((TASK (inifile section))))
 
 TASK = milltask::
@@ -574,6 +589,7 @@ CYCLE_TIME = 0.010::
     interface. There is usually no need to change this number.
 
 === [HAL] section[[sub:[HAL]-section]]
+
 (((HAL (inifile section))))
 
 TWOPASS=ON::
@@ -607,11 +623,12 @@ SHUTDOWN = shutdown.hal::
 
 POSTGUI_HALFILE = example2.hal::
 
-'(Only with the AXIS GUI)' Execute 'example2.hal' after the GUI has
+'(Only with the TOUCHY and AXIS GUI)' Execute 'example2.hal' after the GUI has
 created its HAL pins. See
 section <<sec:pyvcp-with-axis>> for more information.
     
 === [HALUI] section[[sub:[HALUI]-section]]
+
 (((HALUI (inifile section))))
 
 MDI_COMMAND = G53 G0 X0 Y0 Z0::
@@ -619,6 +636,7 @@ MDI_COMMAND = G53 G0 X0 Y0 Z0::
     the number for each command listed in the [HALUI] section.
 
 === [TRAJ] Section[[sub:[TRAJ]-section]]
+
 (((TRAJ (inifile section))))
 
 The [TRAJ] section contains general parameters for the trajectory
@@ -698,7 +716,9 @@ Using this will allow the machine to go beyond the soft limits
 while in operation. +
 It is not generally desirable to allow this. 
 
-=== [AXIS_<num>] Section[[sub:[AXIS]-section]](((AXIS (inifile section))))
+=== [AXIS_<num>] Section[[sub:[AXIS]-section]]
+
+(((AXIS (inifile section))))
 
 The [AXIS_0], [AXIS_1], etc. sections contains general parameters for
 the individual components in the axis control module. The axis section
@@ -1014,6 +1034,7 @@ MAX_OUTPUT = 10::
     both the plus and the minus side.
 
 INPUT_SCALE = 20000::
+(or ENCODER_SCALE = 20000 Used in PNCconf built configs)::
 (((INPUT SCALE))) (in HAL) Specifies the number of pulses that
 corresponds to a move of one machine unit as set in the [TRAJ] section. 
 For a linear axis one machine unit will be equal to 
@@ -1033,6 +1054,7 @@ latexmath:[ INPUT\_SCALE =
 The following items are Stepper related items.
 
 SCALE = 4000::
+(or STEP_SCALE = 4000 Used in PNCconf built configs)::
 (((INPUT SCALE))) (in HAL) Specifies the number of pulses that corresponds to a 
 move of one machine unit as set in the [TRAJ] section. 
 For stepper systems, this is
@@ -1050,7 +1072,21 @@ latexmath:[ scale =
 \frac{2\, steps}{1.8\, degree} \times \frac{360\, degree}{rev} \times \frac{10\, rev}{inch} = 
 \frac{4000\, steps}{inch} ]
 
-(Older stepper .ini and .hal used INPUT_SCALE for this value.)
+ENCODER_SCALE = 20000 (Optionally used in PNCconf built configs)::
+(in HAL) Specifies the number of pulses that
+corresponds to a move of one machine unit as set in the [TRAJ] section. 
+For a linear axis one machine unit will be equal to 
+the setting of LINEAR_UNITS. 
+For an angular axis one unit is equal to the setting in ANGULAR_UNITS. 
+A second number, if specified, is ignored. 
+For example, on a 2000 counts per rev encoder(((encoder))), and 10
+revs/inch gearing, and desired units of inch, we
+have: 
+
+latexmath:[ ENCODER\_SCALE = 
+\frac{2000\, counts}{rev} \times \frac{10\, rev}{inch} = 
+\frac{20000\, counts}{inch} ]
+
 
 STEPGEN_MAXACCEL = 21.0::
     (in HAL) Acceleration limit for the step generator. This should
@@ -1067,7 +1103,9 @@ STEPGEN_MAXVEL = 1.4::
     than the axis MAX_VELOCITY. Subsequent testing has shown that use of
     STEPGEN_MAXVEL does not improve the tuning of stepgen's position loop. 
 
-=== [EMCIO] Section[[sub:[EMCIO]-Section]](((EMCIO (inifile section))))
+=== [EMCIO] Section[[sub:[EMCIO]-Section]]
+
+(((EMCIO (inifile section))))
 
 CYCLE_TIME = 0.100::
     The period, in seconds, at which EMCIO will run. Making

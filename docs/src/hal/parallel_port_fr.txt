@@ -1,6 +1,7 @@
 = Parallel Port
 
-== Parport[[sec:Parport]](((parallel port)))
+== Parport[[sec:Parport]]
+(((parallel port)))
 
 Parport is a driver for the traditional PC parallel port. The port has
 a total of 17 physical pins. The original parallel port divided those
