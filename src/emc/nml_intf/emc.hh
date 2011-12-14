@@ -198,6 +198,8 @@ class PM_CARTESIAN;
 // even before emccanon issues the move to toolchange position
 #define EMC_TOOL_START_CHANGE_TYPE                   ((NMLTYPE) 1110)
 
+#define EMC_EXEC_PLUGIN_CALL_TYPE                   ((NMLTYPE) 1112)
+#define EMC_IO_PLUGIN_CALL_TYPE                   ((NMLTYPE) 1113)
 #define EMC_TOOL_STAT_TYPE                           ((NMLTYPE) 1199)
 
 // EMC_AUX type declarations
@@ -232,6 +234,8 @@ class PM_CARTESIAN;
 /* removed #define EMC_SPINDLE_ENABLE_TYPE                      ((NMLTYPE) 1314) */
 /* removed #define EMC_SPINDLE_DISABLE_TYPE                     ((NMLTYPE) 1315) */
 #define EMC_SPINDLE_SPEED_TYPE                       ((NMLTYPE) 1316)
+#define EMC_SPINDLE_ORIENT_TYPE                      ((NMLTYPE) 1317)
+#define EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE        ((NMLTYPE) 1318)
 
 #define EMC_SPINDLE_STAT_TYPE                        ((NMLTYPE) 1399)
 
@@ -334,7 +338,8 @@ enum EMC_TASK_EXEC_ENUM {
     EMC_TASK_EXEC_WAITING_FOR_PAUSE = 6,
     EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO = 7,
     EMC_TASK_EXEC_WAITING_FOR_DELAY = 8,
-    EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD = 9
+    EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD = 9,
+    EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED = 10
 };
 
 // types for EMC_TASK interpState
@@ -362,6 +367,7 @@ enum EMC_IO_ABORT_REASON_ENUM {
 	EMC_ABORT_TASK_STATE_ESTOP = 6,
 	EMC_ABORT_TASK_STATE_NOT_ON = 7,
 	EMC_ABORT_TASK_ABORT = 8,
+	EMC_ABORT_INTERPRETER_ERROR = 9,	// interpreter failed during readahead
 	EMC_ABORT_USER = 100  // user-defined abort codes start here
 };
 // --------------
@@ -537,14 +543,14 @@ extern int emcTaskPlanLevel();
 extern int emcTaskPlanCommand(char *cmd);
 
 extern int emcTaskUpdate(EMC_TASK_STAT * stat);
-extern int emcAbortCleanup(int reason);
+extern int emcAbortCleanup(int reason,const char *message = "");
 
 // implementation functions for EMC_TOOL types
 
 extern int emcToolInit();
 extern int emcToolHalt();
 extern int emcToolAbort();
-extern int emcToolPrepare(int tool);
+extern int emcToolPrepare(int pocket, int tool);
 extern int emcToolLoad();
 extern int emcToolUnload();
 extern int emcToolLoadToolTable(const char *file);
@@ -569,6 +575,8 @@ extern int emcAuxUpdate(EMC_AUX_STAT * stat);
 extern int emcSpindleAbort();
 extern int emcSpindleSpeed(double speed, double factor, double xoffset);
 extern int emcSpindleOn(double speed, double factor, double xoffset);
+extern int emcSpindleOrient(double orientation, int direction);
+extern int emcSpindleWaitOrientComplete(double timout);
 extern int emcSpindleOff();
 extern int emcSpindleIncrease();
 extern int emcSpindleDecrease();
@@ -628,9 +636,16 @@ extern EMC_MOTION_STAT *emcMotionStatus;
 
 // values for EMC_JOINT_SET_JOINT, jointType
 enum EmcJointType {
-    EMC_LINEAR             = 1,
-    EMC_ANGULAR            = 2,
+    EMC_LINEAR                  = 1,
+    EMC_ANGULAR                 = 2,
 };
+
+// values for EMC_AXIS_SET_AXIS, axisType
+enum EmcAxisType {
+    EMC_AXIS_LINEAR             = 1,
+    EMC_AXIS_ANGULAR            = 2,
+};
+
 
 /**
  * Set the units conversion factor.

@@ -558,7 +558,8 @@ extern void STOP_SPINDLE_TURNING();
 command may be given, but it will have no effect. */
 
 extern void SPINDLE_RETRACT();
-extern void ORIENT_SPINDLE(double orientation, CANON_DIRECTION direction);
+extern void ORIENT_SPINDLE(double orientation, int mode);
+extern void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout);
 extern void LOCK_SPINDLE_Z();
 extern void USE_SPINDLE_FORCE();
 extern void USE_NO_SPINDLE_FORCE();
@@ -601,7 +602,8 @@ a change_tool command, the select_tool command must have been given
 before the change_tool command, and the value of slot must be the slot
 number of the selected tool. */
 
-extern void SELECT_POCKET(int i);	/* i is slot number */
+// extern void SELECT_POCKET(int i);	/* i is slot number */
+extern void SELECT_POCKET(int i, int tool);	/* i is slot number, tool is tool number */
 
 extern void CHANGE_TOOL_NUMBER(int number);
 
@@ -990,5 +992,15 @@ extern int USER_DEFINED_FUNCTION_ADD(USER_DEFINED_FUNCTION_TYPE func,
 /* to be called by emcTaskPlanExecute when done interpreting.  This causes the
  * last segment to be output, if it has been held to do segment merging */
 extern void FINISH(void);
+
+// expose CANON_ERROR
+extern void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
+
+// queue a call to a task-time Python plugin method
+// call is expected to be a tuple of (method,pickled posargs,pickled kwargs)
+extern void PLUGIN_CALL(int len, const char *call);
+
+// same for IoTask context
+extern void IO_PLUGIN_CALL(int len, const char *call);
 
 #endif				/* ifndef CANON_HH */

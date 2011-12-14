@@ -113,15 +113,29 @@ extern "C" {
 	EMCMOT_AF_ENABLE,	/* enable/disable adaptive feedrate */
 	EMCMOT_OVERRIDE_LIMITS,	/* temporarily ignore limits until jog done */
 
+	EMCMOT_HOME,		/* home a joint or all joints */
+	EMCMOT_UNHOME,		/* unhome a joint or all joints*/
+	EMCMOT_JOG_CONT,	/* continuous jog */
+	EMCMOT_JOG_INCR,	/* incremental jog */
+	EMCMOT_JOG_ABS,		/* absolute jog */
+
 	EMCMOT_SET_LINE,	/* queue up a linear move */
 	EMCMOT_SET_CIRCLE,	/* queue up a circular move */
 	EMCMOT_SET_NURBS,       /* queue up a nurbs move */
+	EMCMOT_SET_TELEOP_VECTOR,	/* Move at a given velocity but in
+					   world cartesian coordinates, not
+					   in joint space like EMCMOT_JOG_* */
+
 	EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
 	EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
 	EMCMOT_RIGID_TAP,	/* go to pos, with sync to spindle speed, 
 				   then return to initial pos */
 
+	EMCMOT_SET_POSITION_LIMITS,	/* set the joint position +/- limits */
+	EMCMOT_SET_BACKLASH,	/* set the joint backlash */
+	EMCMOT_SET_MIN_FERROR,	/* minimum following error, input units */
+	EMCMOT_SET_MAX_FERROR,	/* maximum following error, input units */
 	EMCMOT_SET_VEL,		/* set the velocity for subsequent moves */
 	EMCMOT_SET_VEL_LIMIT,	/* set the max vel for all moves (tooltip) */
 	EMCMOT_SET_ACC,		/* set the max accel for moves (tooltip) */
@@ -142,11 +156,9 @@ extern "C" {
 	EMCMOT_SPINDLE_DECREASE,	/* spindle slower */
 	EMCMOT_SPINDLE_BRAKE_ENGAGE,	/* engage the spindle brake */
 	EMCMOT_SPINDLE_BRAKE_RELEASE,	/* release the spindle brake */
+	EMCMOT_SPINDLE_ORIENT,          /* orient the spindle */
+	EMCMOT_SET_MOTOR_OFFSET,	/* set the offset between joint and motor */
         EMCMOT_SET_OFFSET, /* set tool offsets */
-
-	EMCMOT_JOG_CONT,	/* continuous jog */
-	EMCMOT_JOG_INCR,	/* incremental jog */
-	EMCMOT_JOG_ABS,		/* absolute jog */
 
 	EMCMOT_JOINT_ABORT,             /* abort one joint */
 	EMCMOT_JOINT_ACTIVATE,          /* make joint active */
@@ -231,8 +243,6 @@ extern "C" {
 	int wdWait;		/* cycle to wait before toggling wd */
 	int debug;		/* debug level, from DEBUG in .ini file */
 	unsigned char now, out, start, end;	/* these are related to synched AOUT/DOUT. now=wether now or synched, out = which gets set, start=start value, end=end value */
-	int wait_type;
-	double timeout;
 	unsigned char mode;	/* used for turning overrides etc. on/off */
 	double comp_nominal, comp_forward, comp_reverse; /* compensation triplet, nominal, forward, reverse */
         unsigned char probe_type; /* ~1 = error if probe operation is unsuccessful (ngc default)
@@ -241,7 +251,11 @@ extern "C" {
                                      |2 = move until probe clears */
         EmcPose tool_offset;        /* TLO */
         nurbs_block_t nurbs_block;
+	double  orientation;    /* angle for spindle orient */
+	char    direction;      /* CANON_DIRECTION flag for spindle orient */
+	double  timeout;        /* of wait for spindle orient to complete or sync_in to timeout */
 	unsigned char tail;	/* flag count for mutex detect */
+	int wait_type;          /* wait type for sync_in command */
     } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -432,6 +446,13 @@ Suggestion: Split this in to an Error and a Status flag register..
 	HOME_SEQUENCE_WAIT_JOINTS,
     } home_sequence_state_t;
 
+    typedef enum {
+	EMCMOT_ORIENT_NONE = 0,
+	EMCMOT_ORIENT_IN_PROGRESS,
+	EMCMOT_ORIENT_COMPLETE,
+	EMCMOT_ORIENT_FAULTED,
+    } orient_state_t;
+
 /* flags for homing */
 #define HOME_IGNORE_LIMITS	1
 #define HOME_USE_INDEX		2
@@ -558,6 +579,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double xoffset;
 	int direction;		// 0 stopped, 1 forward, -1 reverse
 	int brake;		// 0 released, 1 engaged
+	int locked;             // spindle lock engaged after orient
+	int orient_fault;       // fault code from motion.spindle-orient-fault
+	int orient_state;       // orient_state_t
     } spindle_status;
     
     typedef struct {

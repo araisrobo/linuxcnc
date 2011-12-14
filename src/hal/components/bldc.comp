@@ -27,7 +27,7 @@ pin in float initvalue = 0.2 if personality & 0x04 """The current to be used for
 the homing sequence in applications where an incremental encoder is used with no
 hall-sensor feedback""";
 
-pin in signed rawcounts if personality & 0x06
+pin in signed rawcounts = 0 if personality & 0x06
 """Encoder counts input. This must be linked to the encoder rawcounts pin or
 encoder index resets will cause the motor commutation to fail""";
 
@@ -522,7 +522,8 @@ FUNCTION(_) {
                 return;
             }
 
-            i  = (pattern << 3) + (hall1 << 2) + (hall2 << 1) + hall3;
+            i  = (pattern << 3) + ((hall1 != 0) << 2) 
+                    + ((hall2 != 0) << 1) + (hall3 != 0);
             ph = P[i];
 
             // calculate angle. This looks at transitions between motor field
@@ -568,7 +569,8 @@ FUNCTION(_) {
         case 0x10: // Fanuc-style Gray-code input
         case 0x14: // incremental encoder homing to gray-code transition
         case 0x1C: // incremental encoder homing to index.
-            ph = C1 | (C2 << 1) | (C4 << 2) | (C8 << 3);
+            ph = (C1 != 0) | ((C2 != 0) << 1) 
+                    | ((C4 != 0) << 2) | ((C8 != 0) << 3);
 
             for (i = 0 ; gray_b[i] != ph && i<16 ; i++) {}
             rotor_angle = gray_a[i] + 0.03125;
@@ -662,7 +664,7 @@ FUNCTION(_) {
             } else {
                 lead = lead_angle / 360.0;
             }
-            rotor_angle = (double)((long_rawcounts-offset) * poles/2)/scale;
+            rotor_angle = (double)((long_rawcounts-encoder_offset) * poles/2)/scale;
             rotor_angle -= floor(rotor_angle);
             phase_angle = rotor_angle + lead;
             phase_angle -= floor(phase_angle);

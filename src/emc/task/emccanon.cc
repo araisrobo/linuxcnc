@@ -28,7 +28,8 @@
   The interpreter does not subtract off tool length offsets. It calls
   USE_TOOL_LENGTH_OFFSETS(length), which we record here and apply to
   all appropriate values subsequently.
-  */
+*/
+
 
 #include "config.h"
 #include <stdio.h>
@@ -703,68 +704,7 @@ double getStraightAcceleration(double x, double y, double z,
 
         assert(acc > 0);
     }
- /*   // Pure linear move:
-    if (canon.cartesian_move && !canon.angular_move) {
-	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
-	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
-	tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
-	tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
-	tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
-	tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
-        tmax = MAX3(tx, ty ,tz);
-        tmax = MAX4(tu, tv, tw, tmax);
 
-        if(dx || dy || dz)
-            dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            dtot = sqrt(du * du + dv * dv + dw * dw);
-        
-	if (tmax > 0.0) {
-	    acc = dtot / tmax;
-	}
-    }
-    // Pure angular move:
-    else if (!canon.cartesian_move && canon.angular_move) {
-	ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
-	tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
-	tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
-        tmax = MAX3(ta, tb, tc);
-
-	dtot = sqrt(da * da + db * db + dc * dc);
-	if (tmax > 0.0) {
-	    acc = dtot / tmax;
-	}
-    }
-    // Combination angular and linear move:
-    else if (canon.cartesian_move && canon.angular_move) {
-	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
-	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
-	tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
-	ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
-	tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
-	tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
-	tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
-	tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
-	tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
-        tmax = MAX9(tx, ty, tz,
-                    ta, tb, tc,
-                    tu, tv, tw);
-
-  According to NIST IR6556 Section 2.1.2.5 Paragraph A
-    a combnation move is handled like a linear move, except
-    that the angular axes are allowed sufficient time to
-    complete their motion coordinated with the motion of
-    the linear axes.
-
-        if(dx || dy || dz)
-            dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            dtot = sqrt(du * du + dv * dv + dw * dw);
-
-	if (tmax > 0.0) {
-	    acc = dtot / tmax;
-	}
-    }*/
     if(debug_velacc) 
         printf("cartesian %d ang %d acc %g\n", canon.cartesian_move, canon.angular_move, acc);
     return acc;
@@ -869,75 +809,6 @@ double getStraightVelocity(double x, double y, double z,
         printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
                dx, dy, dz, da, db, dc, du, dv, dw);
     }
-//    // Pure linear move:
-//    if (canon.cartesian_move && !canon.angular_move) {
-//        tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
-//	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
-//	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
-//	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
-//	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
-//	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
-//        tmax = MAX3(tx, ty ,tz);
-//        tmax = MAX4(tu, tv, tw, tmax);
-//
-//        if(dx || dy || dz)
-//            dtot = sqrt(dx * dx + dy * dy + dz * dz);
-//        else
-//            dtot = sqrt(du * du + dv * dv + dw * dw);
-//
-//	if (tmax <= 0.0) {
-//	    vel = canon.linearFeedRate;
-//	} else {
-//	    vel = dtot / tmax;
-//	}
-//    }
-//    // Pure angular move:
-//    else if (!canon.cartesian_move && canon.angular_move) {
-//	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
-//	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
-//	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
-//        tmax = MAX3(ta, tb, tc);
-//
-//	dtot = sqrt(da * da + db * db + dc * dc);
-//	if (tmax <= 0.0) {
-//	    vel = canon.angularFeedRate;
-//	} else {
-//	    vel = dtot / tmax;
-//	}
-//    }
-//    // Combination angular and linear move:
-//    else if (canon.cartesian_move && canon.angular_move) {
-//	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
-//	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
-//	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
-//	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
-//	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
-//	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
-//	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
-//	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
-//	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
-//        tmax = MAX9(tx, ty, tz,
-//                    ta, tb, tc,
-//                    tu, tv, tw);
-//
-///*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
-//    a combnation move is handled like a linear move, except
-//    that the angular axes are allowed sufficient time to
-//    complete their motion coordinated with the motion of
-//    the linear axes.
-//*/
-//        if(dx || dy || dz)
-//            dtot = sqrt(dx * dx + dy * dy + dz * dz);
-//        else
-//            dtot = sqrt(du * du + dv * dv + dw * dw);
-//
-//	if (tmax <= 0.0) {
-//	    vel = canon.linearFeedRate;
-//	} else {
-//	    vel = dtot / tmax;
-//	}
-//    }
-//
     vel = MIN(vel, canon.linearFeedRate);
 
     DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
@@ -2211,9 +2082,23 @@ void SPINDLE_RETRACT()
     /*! \todo FIXME-- unimplemented */
 }
 
-void ORIENT_SPINDLE(double orientation, CANON_DIRECTION direction)
+void ORIENT_SPINDLE(double orientation, int mode)
 {
-    /*! \todo FIXME-- unimplemented */
+    EMC_SPINDLE_ORIENT o;
+
+    flush_segments();
+    o.orientation = orientation;
+    o.mode = mode;
+    interp_list.append(o);
+}
+
+void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout)
+{
+    EMC_SPINDLE_WAIT_ORIENT_COMPLETE o;
+
+    flush_segments();
+    o.timeout = timeout;
+    interp_list.append(o);
 }
 
 void USE_SPINDLE_FORCE(void)
@@ -2318,18 +2203,18 @@ void CHANGE_TOOL(int slot)
      * move to a particular coordinate before the tool change
      * is called.  */
     
-    if (HAVE_TOOL_CHANGE_POSITION) {
+    if (have_tool_change_position) {
         double vel, acc, x, y, z, a, b, c, u, v, w;
 
-        x = FROM_EXT_LEN(TOOL_CHANGE_POSITION.tran.x);
-        y = FROM_EXT_LEN(TOOL_CHANGE_POSITION.tran.y);
-        z = FROM_EXT_LEN(TOOL_CHANGE_POSITION.tran.z);
-        a = FROM_EXT_ANG(TOOL_CHANGE_POSITION.a);
-        b = FROM_EXT_ANG(TOOL_CHANGE_POSITION.b);
-        c = FROM_EXT_ANG(TOOL_CHANGE_POSITION.c);
-        u = FROM_EXT_LEN(TOOL_CHANGE_POSITION.u);
-        v = FROM_EXT_LEN(TOOL_CHANGE_POSITION.v);
-        w = FROM_EXT_LEN(TOOL_CHANGE_POSITION.w);
+        x = FROM_EXT_LEN(tool_change_position.tran.x);
+        y = FROM_EXT_LEN(tool_change_position.tran.y);
+        z = FROM_EXT_LEN(tool_change_position.tran.z);
+        a = FROM_EXT_ANG(tool_change_position.a);
+        b = FROM_EXT_ANG(tool_change_position.b);
+        c = FROM_EXT_ANG(tool_change_position.c);
+        u = FROM_EXT_LEN(tool_change_position.u);
+        v = FROM_EXT_LEN(tool_change_position.v);
+        w = FROM_EXT_LEN(tool_change_position.w);
 
 
         vel = getStraightVelocity(x, y, z, a, b, c, u, v, w);
@@ -2362,11 +2247,12 @@ void CHANGE_TOOL(int slot)
 }
 
 /* SELECT_POCKET results from T1, for example */
-void SELECT_POCKET(int slot)
+void SELECT_POCKET(int slot , int tool)
 {
     EMC_TOOL_PREPARE prep_for_tool_msg;
 
-    prep_for_tool_msg.tool = slot;
+    prep_for_tool_msg.pocket = slot;
+    prep_for_tool_msg.tool = tool;
 
     interp_list.append(prep_for_tool_msg);
 }
@@ -2582,11 +2468,9 @@ void MESSAGE(char *s)
     EMC_OPERATOR_DISPLAY operator_display_msg;
 
     flush_segments();
-
     operator_display_msg.id = 0;
     strncpy(operator_display_msg.display, s, LINELEN);
     operator_display_msg.display[LINELEN - 1] = 0;
-
     interp_list.append(operator_display_msg);
 }
 
@@ -3458,7 +3342,7 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
 
 int WAIT(int index, /* index of the motion exported input */
          int input_type, /*DIGITAL_INPUT or ANALOG_INPUT */
-	 int wait_type, /* 0 - rise, 1 - fall, 2 - be high, 3 - be low */
+	 int wait_type,  /* 0 - immediate, 1 - rise, 2 - fall, 3 - be high, 4 - be low */
 	 double timeout) /* time to wait [in seconds], if the input didn't change the value -1 is returned */
 {
   if (input_type == DIGITAL_INPUT) {
@@ -3530,5 +3414,40 @@ void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
     return;
 }
 
-// vim:sw=4:sts=4:et:
+/* PLUGIN_CALL queues a Python tuple for execution by task
+ * the tuple is expected to be already pickled
+ * The tuple format is: (callable,tupleargs,keywordargs)
+ */
+void PLUGIN_CALL(int len, const char *call)
+{
+    EMC_EXEC_PLUGIN_CALL call_msg;
+    if (len > (int) sizeof(call_msg.call)) {
+	// really should call it quits here, this is going to fail
+	printf("PLUGIN_CALL: message size exceeded actual=%d max=%zd\n",len,sizeof(call_msg.call));
+    }
+    memset(call_msg.call, 0, sizeof(call_msg.call));
+    memcpy(call_msg.call, call, len > (int) sizeof(call_msg.call) ? sizeof(call_msg.call) : len);
+    call_msg.len = len;
 
+    printf("canon: PLUGIN_CALL(arglen=%zd)\n",strlen(call));
+
+    interp_list.append(call_msg);
+}
+
+void IO_PLUGIN_CALL(int len, const char *call)
+{
+    EMC_IO_PLUGIN_CALL call_msg;
+    if (len > (int) sizeof(call_msg.call)) {
+	// really should call it quits here, this is going to fail
+	printf("IO_PLUGIN_CALL: message size exceeded actual=%d max=%zd\n",len,sizeof(call_msg.call));
+    }
+    memset(call_msg.call, 0, sizeof(call_msg.call));
+    memcpy(call_msg.call, call, len > (int) sizeof(call_msg.call) ? sizeof(call_msg.call) : len);
+    call_msg.len = len;
+
+    printf("canon: IO_PLUGIN_CALL(arglen=%d)\n",len);
+
+    interp_list.append(call_msg);
+}
+
+// vim:sw=4:sts=4:et:
