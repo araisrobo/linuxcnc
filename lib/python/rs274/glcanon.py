@@ -265,6 +265,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             if lineno >= self.blocks[i][0] and lineno <= self.blocks[i][1]:
                 return self.blocks[i][0] # return start line of block
     def set_highlight_mode(self, mode=None):
+        if mode is None:
+            self.highlight_mode = 'line'
+            return
         mode = mode.lower()
         if mode == "block":
             print 'HIGHLIGHT MODE block detected'
