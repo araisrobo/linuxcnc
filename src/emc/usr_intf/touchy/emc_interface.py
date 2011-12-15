@@ -55,18 +55,22 @@ class emc_control:
                 self.emccommand.flood(0)
 
         def estop(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ESTOP)
 
         def estop_reset(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ESTOP_RESET)
 
         def machine_off(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_OFF)
 
         def machine_on(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ON)
 
