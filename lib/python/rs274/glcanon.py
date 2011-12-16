@@ -213,7 +213,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                 self.block_pos[2],self.block_feed))
         self.block_start = None
         self.block_pos = []
-        print list(self.blocks)
     
     def highlight2(self, lineno, geometry):
         glLineWidth(3)
@@ -260,17 +259,51 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                     y = (self.min_extents[1] + self.max_extents[1])/2
                     z = (self.min_extents[2] + self.max_extents[2])/2
                 return x, y, z
+        for line in self.traverse:
+            if line[0] != lineno: continue
+            coords.append(line[1][:3])
+            coords.append(line[2][:3])
+        for line in self.arcfeed:
+            emc.line9(geometry, line[1], line[2])
+            coords.append(line[1][:3])
+            coords.append(line[2][:3])
+        for line in self.arcfeed:
+            if line[0] != lineno: continue
+            emc.line9(geometry, line[1], line[2])
+            coords.append(line[1][:3])
+            coords.append(line[2][:3])
+        for line in self.feed:
+            if line[0] != lineno: continue
+            emc.line9(geometry, line[1], line[2])
+            coords.append(line[1][:3])
+            coords.append(line[2][:3])
+        glEnd()
+        for line in self.dwells: 
+            if line[0] != lineno: continue
+            self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
+            coords.append(line[2:5])
+        glLineWidth(1)
+        if coords:
+            x = reduce(lambda x,y:x+y, [c[0] for c in coords]) / len(coords)
+            y = reduce(lambda x,y:x+y, [c[1] for c in coords]) / len(coords)
+            z = reduce(lambda x,y:x+y, [c[2] for c in coords]) / len(coords)
+        else:
+            x = (self.min_extents[0] + self.max_extents[0])/2
+            y = (self.min_extents[1] + self.max_extents[1])/2
+            z = (self.min_extents[2] + self.max_extents[2])/2
+        return x, y, z
+                
     def get_start_line_of_block(self, lineno = None):
         for i in range(0, len(self.blocks)):
             if lineno >= self.blocks[i][0] and lineno <= self.blocks[i][1]:
                 return self.blocks[i][0] # return start line of block
+        return lineno
     def set_highlight_mode(self, mode=None):
         if mode is None:
             self.highlight_mode = 'line'
             return
         mode = mode.lower()
         if mode == "block":
-            print 'HIGHLIGHT MODE block detected'
             self.highlight_mode = 'block'
         else:
             self.highlight_mode = 'line'
@@ -471,7 +504,6 @@ class GlCanonDraw:
             # call to draw highlight line
             self.set_highlight_line(names[0]) # input lineno to find block
             if self.canon.highlight_mode is 'block':
-                print self.canon.selected_block
                 selected_line = self.canon.selected_block
             else:
                 selected_line = int(names[0])
@@ -1446,8 +1478,6 @@ class GlCanonDraw:
     def load_preview(self, f, canon, unitcode, initcode):
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
-        #debug: print "after gcode.parse(), result=", result, ", seq=", seq
-        print "after gcode.parse(), result=", result, ", seq=", seq
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents() # so that the milling path will fit to the screen

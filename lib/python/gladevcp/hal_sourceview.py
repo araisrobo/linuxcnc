@@ -62,7 +62,8 @@ class EMC_SourceView(gtksourceview.View, _EMC_ActionBase):
         self.set_line(self.gstat, self.gstat.stat.motion_line)
 
     def set_line(self, w, l):
-        if not l:
+        if not l and l != 0: # workaround source view can not make mark on
+                             # line 1
             if self.mark:
                 self.buf.delete_mark(self.mark)
                 self.mark = None
