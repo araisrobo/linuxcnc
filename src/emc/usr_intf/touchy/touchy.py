@@ -15,6 +15,7 @@
 
 
 
+from injector import InjectorClass 
 from gladevcp.gladebuilder import GladeBuilder
 import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
@@ -101,9 +102,10 @@ class touchy:
 		    self.gladefile = os.path.join(datadir, "touchy.glade")
                 else:
                     self.gladefile = o
-                # end: read galde file name from ini file
                 self.wTree = gtk.Builder()
                 self.wTree.add_from_file(self.gladefile)
+
+
 
 	        # self.wTree = gtk.glade.XML(self.gladefile) 
 	# 	for widget in self.wTree.get_widget_prefix(''):
@@ -340,7 +342,14 @@ class touchy:
                                 
                 gobject.timeout_add(50, self.periodic_status)
                 gobject.timeout_add(100, self.periodic_radiobuttons)
+               
                 
+                self.injector = None
+                o = ini.find("DISPLAY", "USE_INJECTION")
+                if o is not None:
+                  o = o.lower()
+                  if o == 'yes':
+                    self.injector = InjectorClass(self.hal.c, self.wTree) #
                 # event bindings
                 dic = {
                         "quit" : self.quit,
@@ -421,7 +430,11 @@ class touchy:
                         "on_toolset_workpiece_clicked" : self.toolset_workpiece,
                         "on_changetheme_clicked" : self.change_theme,
                         }
+                # also connect singal to injector
+                if self.injector is not None:
+                  dic.update(self.injector.dic)
                 self.wTree.connect_signals(dic)
+                self.wTree.connect_signals(self.injector)
                 # self.wTree.signal_autoconnect(dic)
 
 		for widget in self.wTree.get_objects():
