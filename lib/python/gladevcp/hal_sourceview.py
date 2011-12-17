@@ -47,7 +47,7 @@ class EMC_SourceView(gtksourceview.View, _EMC_ActionBase):
         self.set_mark_category_background('motion', gtk.gdk.Color('#f44'))
         # b = self.buf
         # print "Debug: EMC_SourceView::__init__() buf(%s)" % (b.get_text(b.get_start_iter(), b.get_end_iter()))
-
+        self._hal_init()
     def _hal_init(self):
         _EMC_ActionBase._hal_init(self)
         self.gstat.connect('file-loaded', lambda w, f: gobject.timeout_add(1, self.load_file, f))

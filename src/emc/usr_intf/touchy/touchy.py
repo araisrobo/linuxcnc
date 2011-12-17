@@ -15,7 +15,6 @@
 
 
 
-from injector import InjectorClass 
 from gladevcp.gladebuilder import GladeBuilder
 import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
@@ -349,6 +348,7 @@ class touchy:
                 if o is not None:
                   o = o.lower()
                   if o == 'yes':
+                    from injector import InjectorClass 
                     self.injector = InjectorClass(self.hal.c, self.wTree) #
                 # event bindings
                 dic = {
