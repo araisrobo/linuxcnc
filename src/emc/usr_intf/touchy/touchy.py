@@ -229,7 +229,20 @@ class touchy:
                             self.wTree.get_object("error"))
                 # self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
                 self.emc.continuous_jog_velocity(self.mv_val)
+
+                # set injector to 1 if use_injection is set
+                # don't instance injector before halcomp is initialized
+                self.injector = None
+                o = ini.find("DISPLAY", "USE_INJECTION")
+                if o is not None:
+                  o = o.lower()
+                  if o == 'yes':
+                    from injector import InjectorClass
+                    self.injector = 1
                 self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control, emc)
+                if self.injector == 1:
+                    # instance injector after halcomp initialized
+                    self.injector = InjectorClass(self.hal.c, self.wTree) #
 
                 # silly file chooser
                 filechooser_labels = []
@@ -341,15 +354,7 @@ class touchy:
                                 
                 gobject.timeout_add(50, self.periodic_status)
                 gobject.timeout_add(100, self.periodic_radiobuttons)
-               
                 
-                self.injector = None
-                o = ini.find("DISPLAY", "USE_INJECTION")
-                if o is not None:
-                  o = o.lower()
-                  if o == 'yes':
-                    from injector import InjectorClass 
-                    self.injector = InjectorClass(self.hal.c, self.wTree) #
                 # event bindings
                 dic = {
                         "quit" : self.quit,
@@ -938,7 +943,8 @@ class touchy:
                     count = count - 1
 
                 dialog.destroy()
-                w = self.wTree.get_widget("MainWindow").window
+                w = self.wTree.get_object("MainWindow").window
+                #w = self.wTree.get_widget("MainWindow").window
 #                w.destroy()
                 gtk.main_quit() 
             else:

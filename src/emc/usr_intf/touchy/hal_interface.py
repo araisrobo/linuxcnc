@@ -105,7 +105,11 @@ class hal_interface:
         self.c.newpin("wheel-counts", hal.HAL_S32, hal.HAL_IN)
         self.counts = 0
         self.jog_velocity = 1
-        self.c.ready()
+        if self.gui.injector == 1:
+          # let injector call hal ready
+          pass
+        else:
+          self.c.ready()
         self.active = 0
         self.jogaxis(0)
 
