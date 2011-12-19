@@ -62,6 +62,8 @@ if [ -z "$PYTHONPATH" ]; then
 else
     PYTHONPATH=$EMC2_HOME/lib/python:"$PYTHONPATH"
 fi
+# for injection
+PYTHONPATH=$PYTHONPATH:`pwd`
 export PYTHONPATH
 
 XFILESEARCHPATH=%D:@EMC2_HOME@/%T/%N%C:@EMC2_HOME@/%T/%N
