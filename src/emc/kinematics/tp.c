@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -395,8 +395,8 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxv
     PmPose start_uvw, end_uvw;
     PmPose start_abc, end_abc;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    //    fprintf(stderr,"tpAddline(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
-    //            ini_maxjerk, vel, acc, ini_maxvel);
+    DP("tpAddline(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+        ini_maxjerk, vel, acc, ini_maxvel);
     if (ini_maxjerk == 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
         assert(ini_maxjerk > 0);
