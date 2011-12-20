@@ -166,7 +166,7 @@ GladeVCP Programming>> section.
 [[gladevcp:Prerequisites]]
 === Prerequisite: Glade installation
 To view or modify Glade UI files, you need glade installed - it is not
-needed just to run a GladeVCP panel. If the glade command is ḿissing,
+needed just to run a GladeVCP panel. If the glade command is missing,
 install it with the command:
 
  $ sudo apt-get install glade
@@ -256,7 +256,7 @@ SUBROUTINE_PATH = ../gladevcp/nc_files/
 The HAL component name of a GladeVCP application started with the  the GLADEVCP option is fixed:  +gladevcp+.
 The command line actually run by Axis in the above configuration is as follows:
 
- halcmd loadusr -Wn gladevcp gladevcp -c gladevcp -x {XID} <arguments to GLADEVCP=>
+ halcmd loadusr -Wn gladevcp gladevcp -c gladevcp -x {XID} <arguments to GLADEVCP>
 
 This means you may add arbitrary gladevcp options here, as long as
 they dont collide with the above command line options.
@@ -1419,6 +1419,50 @@ def _on_timer_tick(self,userdata=None):
 # glib.timeout_add(100, self._on_timer_tick,userdata) # 10Hz
 glib.timeout_add_seconds(1, self._on_timer_tick)
 ----------------------------------
+
+=== Setting HAL widget properties programmatically
+
+With glade, widget properties are typically set fixed while editing.
+You can, however, set widget properties at runtime, for instance from
+ini file values, which  would typically be done in the handler
+initialisation code. Setting properties from HAL pin values is
+possible, too.
+
+In the following example (assuming a HAL Meter widget called `meter`), the
+meter's min value is set from an INI file parameter at startup, and the max value
+is set via a HAL pin, which causese the widget's scale to readjust dynamically:
+
+[source,python]
+----------------------------------
+import emc
+import os
+import hal
+import hal_glib
+
+class HandlerClass:
+
+    def _on_max_value_change(self,hal_pin,data=None):
+        self.meter.max = float(hal_pin.get())
+        self.meter.queue_draw() # force a widget redraw
+
+    def __init__(self, halcomp,builder,useropts):
+	self.builder = builder
+
+        # hal pin with change callback.
+        # When the pin's value changes the callback is executed.
+        self.max_value = hal_glib.GPin(halcomp.newpin('max-value',  hal.HAL_FLOAT, hal.HAL_IN))
+        self.max_value.connect('value-changed', self._on_max_value_change)
+
+	inifile = emc.ini(os.getenv("INI_FILE_NAME"))
+	mmin = float(inifile.find("METER", "MIN") or 0.0)
+        self.meter = self.builder.get_object('meter')
+        self.meter.min = mmin
+
+
+def get_handlers(halcomp,builder,useropts):
+    return [HandlerClass(halcomp,builder,useropts)]
+----------------------------------
+
 
 === Examples, and rolling your own GladeVCP application
 
