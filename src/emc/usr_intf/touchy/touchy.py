@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 
-
+import gladevcp.makepins
 from gladevcp.gladebuilder import GladeBuilder
 import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
@@ -242,7 +242,10 @@ class touchy:
                 self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control, emc)
                 if self.injector == 1:
                     # instance injector after halcomp initialized
-                    self.injector = InjectorClass(self.hal.c, self.wTree) #
+                    # make hal pin depends description from the xml file
+                    panel = gladevcp.makepins.GladePanel( self.hal.c,
+                            self.gladefile, self.wTree, None)
+                    self.injector = InjectorClass(self,self.hal.c, self.wTree) #
 
                 # silly file chooser
                 filechooser_labels = []
@@ -458,7 +461,6 @@ class touchy:
                   self.wGladevcp = GladeBuilder(self.wTree)
                 except:
                   pass
-
         def quit(self, unused):
                 gtk.main_quit()
 
@@ -872,6 +874,7 @@ class touchy:
 
 	def _dynamic_tab(self, notebook, text):
 		s = gtk.Socket()
+
 		notebook.append_page(s, gtk.Label(" " + text + " "))
 		return s.get_id()
 
@@ -891,22 +894,26 @@ class touchy:
                 # nb2 = self.wTree.get_widget('notebook2')
 		nb = self.wTree.get_object('notebook1')
                 nb2 = self.wTree.get_object('notebook2')
+                print 'notebooks',nb, nb2
 		for t,c in zip(tab_names, tab_cmd):
                         if '{XID}' in c:
 		  	  xid = self._dynamic_tab(nb, t)
                         if '{XID2}' in c:
-                          xid2 = self._dynamic_tab(nb2, t)
+                          if nb2 != None:
+                            xid2 = self._dynamic_tab(nb2, t)
 			if not xid and not xid2: continue
                         if '{XID}' in c:
   			  cmd = c.replace('{XID}', str(xid))
                           child = Popen(cmd.split())
                           self._dynamic_childs[xid] = child
-                        if '{XID2}' in c:
-  			  cmd = c.replace('{XID2}', str(xid2))
-                          child = Popen(cmd.split())
-                          self._dynamic_childs[xid2] = child
+                        if '{XID2}' in c :
+                          if nb2 != None:
+                            cmd = c.replace('{XID2}', str(xid2))
+                            child = Popen(cmd.split())
+                            self._dynamic_childs[xid2] = child
 		nb.show_all()
                 if nb2:
+                  print 'show nb2'
                   nb2.show_all()
 
 	def kill_dynamic_childs(self):
