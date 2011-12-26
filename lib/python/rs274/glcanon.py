@@ -45,8 +45,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
         # dwell list - [line number, color, pos x, pos y, pos z, plane]
         self.dwells = []; self.dwells_append = self.dwells.append
-        # block path list - [start line, end line, [pos x, pos y, pos z],
-        # feedrate]
+        # block path list - [start line, end line, [start position], feedrate]
         self.blocks = []; self.blocks_append = self.blocks.append
         self.block_start = None
         self.highlight_mode = 'line'
@@ -138,7 +137,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if self.suppress > 0: return
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         if not self.first_move:
-            self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+            self.traverse_append((self.lineno, self.lo, l, [self.xo,
+                                    self.yo, self.zo]))
+        else:
+            self.lo = (0, 0, 0, 0, 0, 0, 0, 0, 0) # a fake lo
+            self.traverse_append((self.lineno, self.lo, l, [self.xo,
+                                    self.yo, self.zo]))
         self.lo = l
 
     def rigid_tap(self, x, y, z):
@@ -168,6 +172,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         to = [self.xo, self.yo, self.zo]
         append = self.arcfeed_append
         for l in segs:
+            if self.block_start != None and self.block_pos == None:
+                block_pos = self.l
             append((lineno, lo, l, feedrate, to))
             lo = l
         self.lo = lo
@@ -177,6 +183,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+
+        if self.block_start != None and self.block_pos == None:
+            self.block_pos = l
 
         self.lo = l
     straight_probe = straight_feed
@@ -199,7 +208,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
         self.block_start = self.lineno 
-        self.block_pos = [self.lo[0], self.lo[1], self.lo[2]]
+        self.block_pos = None # self.lo # we should record next feed (arcfeed or traverse) 
         self.block_feed = self.feedrate
     def start_spindle_counterclockwise(self, arg):
         # M4
@@ -208,9 +217,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
         if self.block_start != None:
-            self.blocks_append((self.block_start, self.lineno, 
-                self.block_pos[0], self.block_pos[1],
-                self.block_pos[2],self.block_feed))
+            self.blocks_append((self.block_start, self.lineno, self.block_pos,self.block_feed))
+            # self.blocks_append((self.block_start, self.lineno, self.lo, self.block_feed))
         self.block_start = None
         self.block_pos = []
     
@@ -292,7 +300,112 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             y = (self.min_extents[1] + self.max_extents[1])/2
             z = (self.min_extents[2] + self.max_extents[2])/2
         return x, y, z
+    # TODO: move to injector?
+    def get_first_pos_of_prog(self):
+        if len(self.blocks) > 0:
+            block_line = self.blocks[0][0]
+        else:
+            block_line = None
+        
+        if len(self.traverse) > 0:
+            traverse_line = self.traverse[0][0]
+        else:
+            traverse_line = None
+        if len(self.feed) > 0:
+            feed_line = self.feed[0][0]
+        else:
+            feed_line = None
+        if len(self.arcfeed) > 0:
+            arcfeed_line = self.arcfeed[0][0]
+        else:
+            arcfeed_line = None
+
+        # DEBUG: print 'block-line',block_line
+        # DEBUG: print 'traverse-line',traverse_line
+        # DEBUG: print 'feed-line',feed_line
+        # DEBUG: print 'arcfeed-line', arcfeed_line
+
+        if arcfeed_line is None:
+            arcfeed_line = max((block_line,arcfeed_line,feed_line,traverse_line))
+        if feed_line is None:
+            feed_line = max((block_line,arcfeed_line,feed_line,traverse_line))
+        if block_line is None:
+            block_line = max((block_line,arcfeed_line,feed_line,traverse_line))
+        if traverse_line is None:
+            traverse_line = max((block_line,arcfeed_line,feed_line,traverse_line))
+
+        if block_line <= min((traverse_line, feed_line, arcfeed_line)):
+        #    print 'min is block',block_line
+            return self.blocks[0][2][:3], block[0][3]
+        if arcfeed_line <= min((traverse_line, feed_line, block_line)):
+        #    print 'min is arcfeed', arcfeed_line
+            return self.arcfeed[0][2][:3],self.arcfeed[0][3]
+        if feed_line <= min((traverse_line, block_line, feed_line)):
+        #    print 'min is feed', feed_line
+            return self.feed[0][2][:3],self.feed[0][3]
+        if traverse_line <= min((block_line, arcfeed_line, feed_line)):
+        #    print 'min is traverse', traverse_line 
+            feedrate = 1.3123359580052494
+            if len(self.feed) != 0:
+                feedrate = self.feed[0][3]
+            elif len(self.arcfeed) != 0:
+                feedrate = self.arcfeed[0][3]
+            return self.traverse[0][2][:3], feedrate
+    def get_last_pos_of_prog(self):
+        if len(self.blocks) > 0:
+            block_line = self.blocks[len(self.blocks)-1][0]
+        else:
+            block_line = None
+        
+        if len(self.traverse) > 0:
+            traverse_line = self.traverse[len(self.traverse)-1][0]
+        else:
+            traverse_line = None
+        if len(self.feed) > 0:
+            feed_line = self.feed[len(self.feed)-1][0]
+        else:
+            feed_line = None
+        if len(self.arcfeed) > 0:
+            arcfeed_line = self.arcfeed[len(self.arcfeed)-1][0]
+        else:
+            arcfeed_line = None
+
+        # DEBUG: print 'block-line',block_line
+        # DEBUG: print 'traverse-line',traverse_line
+        # DEBUG: print 'feed-line',feed_line
+        # DEBUG: print 'arcfeed-line', arcfeed_line
+
+        if arcfeed_line is None:
+            arcfeed_line = min((block_line,arcfeed_line,feed_line,traverse_line))
+        if feed_line is None:
+            feed_line = min((block_line,arcfeed_line,feed_line,traverse_line))
+        if block_line is None:
+            block_line = min((block_line,arcfeed_line,feed_line,traverse_line))
+        if traverse_line is None:
+            traverse_line = min((block_line,arcfeed_line,feed_line,traverse_line))
+
+        if block_line >= max((traverse_line, feed_line, arcfeed_line)):
+            # print 'max is block',block_line
+            index = len(self.blocks) - 1 
+            return self.blocks[index][2][:3], block[index][3]
+        if arcfeed_line >= max((traverse_line, feed_line, block_line)):
+            # print 'max is arcfeed', arcfeed_line
+            index = len(self.arcfeed) - 1
+            return self.arcfeed[index][2][:3],self.arcfeed[index][3]
+        if feed_line >= max((traverse_line, block_line, feed_line)):
+            # print 'max is feed', feed_line
+            index = len(self.feed) - 1
+            return self.feed[index][2][:3],self.feed[index][3]
+        if traverse_line >= max((block_line, arcfeed_line, feed_line)):
+            # print 'max is traverse', traverse_line 
+            feedrate = 1.3123359580052494
+            index = len(self.traverse) - 1
+            if len(self.feed) != 0:
+                feedrate = self.feed[0][3]
+            elif len(self.arcfeed) != 0:
                 
+                feedrate = self.arcfeed[0][3]
+            return self.traverse[index][2][:3], feedrate
     def get_start_line_of_block(self, lineno = None):
         for i in range(0, len(self.blocks)):
             if lineno >= self.blocks[i][0] and lineno <= self.blocks[i][1]:
@@ -323,11 +436,11 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             emc.line9(geometry, line[1], line[2])
             coords.append(line[1][:3])
             coords.append(line[2][:3])
-        for line in self.arcfeed:
-            if line[0] != lineno: continue
-            emc.line9(geometry, line[1], line[2])
-            coords.append(line[1][:3])
-            coords.append(line[2][:3])
+        for line in self.arcfeed:                 # duplicated?     
+            if line[0] != lineno: continue        # duplicated?      
+            emc.line9(geometry, line[1], line[2]) # duplicated?        
+            coords.append(line[1][:3])            # duplicated?      
+            coords.append(line[2][:3])            # duplicated?    
         for line in self.feed:
             if line[0] != lineno: continue
             emc.line9(geometry, line[1], line[2])
