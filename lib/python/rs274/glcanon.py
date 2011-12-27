@@ -39,6 +39,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def __init__(self, colors, geometry):
         # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
         self.traverse = []; self.traverse_append = self.traverse.append
+        self.first_traverse = [None, None, None] # [line number , [pos], feedrate]
+        self.last_traverse = [None, None, None] # [line number , [pos], feedrate]
         # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.feed = []; self.feed_append = self.feed.append
         # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
@@ -139,10 +141,13 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if not self.first_move:
             self.traverse_append((self.lineno, self.lo, l, [self.xo,
                                     self.yo, self.zo]))
+            self.last_traverse = [self.lineno, l , self.feedrate]
         else:
-            self.lo = (0, 0, 0, 0, 0, 0, 0, 0, 0) # a fake lo
-            self.traverse_append((self.lineno, self.lo, l, [self.xo,
-                                    self.yo, self.zo]))
+            self.first_traverse = [self.lineno, l, self.feedrate]
+        # else:
+        #     self.lo = (0, 0, 0, 0, 0, 0, 0, 0, 0) # a fake lo
+        #     self.traverse_append((self.lineno, self.lo, l, [self.xo,
+        #                             self.yo, self.zo]))
         self.lo = l
 
     def rigid_tap(self, x, y, z):
@@ -172,8 +177,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         to = [self.xo, self.yo, self.zo]
         append = self.arcfeed_append
         for l in segs:
-            if self.block_start != None and self.block_pos == None:
-                block_pos = self.l
+            # if self.block_start != None and self.block_pos == None:
+            #     block_pos = self.l
             append((lineno, lo, l, feedrate, to))
             lo = l
         self.lo = lo
@@ -184,8 +189,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
 
-        if self.block_start != None and self.block_pos == None:
-            self.block_pos = l
+        # if self.block_start != None and self.block_pos == None:
+        #     self.block_pos = l
 
         self.lo = l
     straight_probe = straight_feed
@@ -208,7 +213,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
         self.block_start = self.lineno 
-        self.block_pos = None # self.lo # we should record next feed (arcfeed or traverse) 
+        self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
         self.block_feed = self.feedrate
     def start_spindle_counterclockwise(self, arg):
         # M4
@@ -307,10 +312,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         else:
             block_line = None
         
-        if len(self.traverse) > 0:
-            traverse_line = self.traverse[0][0]
-        else:
-            traverse_line = None
+        # if len(self.traverse) > 0:
+        #     traverse_line = self.traverse[0][0]
+        # else:
+        #     traverse_line = None
+        traverse_line = self.first_traverse[0]
+
         if len(self.feed) > 0:
             feed_line = self.feed[0][0]
         else:
@@ -345,22 +352,19 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             return self.feed[0][2][:3],self.feed[0][3]
         if traverse_line <= min((block_line, arcfeed_line, feed_line)):
         #    print 'min is traverse', traverse_line 
-            feedrate = 1.3123359580052494
-            if len(self.feed) != 0:
-                feedrate = self.feed[0][3]
-            elif len(self.arcfeed) != 0:
-                feedrate = self.arcfeed[0][3]
-            return self.traverse[0][2][:3], feedrate
+            feedrate = self.first_traverse[2]
+            return self.first_traverse[1][:3], feedrate
     def get_last_pos_of_prog(self):
         if len(self.blocks) > 0:
             block_line = self.blocks[len(self.blocks)-1][0]
         else:
             block_line = None
         
-        if len(self.traverse) > 0:
-            traverse_line = self.traverse[len(self.traverse)-1][0]
-        else:
-            traverse_line = None
+        #if len(self.traverse) > 0:
+        #    traverse_line = self.traverse[len(self.traverse)-1][0]
+        #else:
+        #    traverse_line = None
+        traverse_line = self.last_traverse[0]
         if len(self.feed) > 0:
             feed_line = self.feed[len(self.feed)-1][0]
         else:
@@ -398,14 +402,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             return self.feed[index][2][:3],self.feed[index][3]
         if traverse_line >= max((block_line, arcfeed_line, feed_line)):
             # print 'max is traverse', traverse_line 
-            feedrate = 1.3123359580052494
-            index = len(self.traverse) - 1
-            if len(self.feed) != 0:
-                feedrate = self.feed[0][3]
-            elif len(self.arcfeed) != 0:
-                
-                feedrate = self.arcfeed[0][3]
-            return self.traverse[index][2][:3], feedrate
+            feedrate = self.last_traverse[2]
+            return self.last_traverse[1][:3], feedrate
     def get_start_line_of_block(self, lineno = None):
         for i in range(0, len(self.blocks)):
             if lineno >= self.blocks[i][0] and lineno <= self.blocks[i][1]:
@@ -1049,7 +1047,61 @@ class GlCanonDraw:
                 glPopMatrix()
             else:
                 glCallList(alist)
+        
+        try:
+            if self.draw_material():
+                material_min, material_max = self.get_material_dimension()
+                if material_min is not None and material_max is not None:
+                    glLineWidth(1)
+                    glColor3f(0.5,1.0,0.0)
+                    glLineStipple(1, 0x8888)
+                    glEnable(GL_LINE_STIPPLE)
+                    glBegin(GL_LINES)
 
+                    glVertex3f(material_min[0], material_min[1], material_max[2])
+                    glVertex3f(material_min[0], material_min[1], material_min[2])
+
+                    glVertex3f(material_min[0], material_min[1], material_min[2])
+                    glVertex3f(material_min[0], material_max[1], material_min[2])
+
+                    glVertex3f(material_min[0], material_max[1], material_min[2])
+                    glVertex3f(material_min[0], material_max[1], material_max[2])
+
+                    glVertex3f(material_min[0], material_max[1], material_max[2])
+                    glVertex3f(material_min[0], material_min[1], material_max[2])
+
+
+                    glVertex3f(material_max[0], material_min[1], material_max[2])
+                    glVertex3f(material_max[0], material_min[1], material_min[2])
+
+                    glVertex3f(material_max[0], material_min[1], material_min[2])
+                    glVertex3f(material_max[0], material_max[1], material_min[2])
+
+                    glVertex3f(material_max[0], material_max[1], material_min[2])
+                    glVertex3f(material_max[0], material_max[1], material_max[2])
+
+                    glVertex3f(material_max[0], material_max[1], material_max[2])
+                    glVertex3f(material_max[0], material_min[1], material_max[2])
+
+
+                    glVertex3f(material_min[0], material_min[1], material_min[2])
+                    glVertex3f(material_max[0], material_min[1], material_min[2])
+
+                    glVertex3f(material_min[0], material_max[1], material_min[2])
+                    glVertex3f(material_max[0], material_max[1], material_min[2])
+
+                    glVertex3f(material_min[0], material_max[1], material_max[2])
+                    glVertex3f(material_max[0], material_max[1], material_max[2])
+
+                    glVertex3f(material_min[0], material_min[1], material_max[2])
+                    glVertex3f(material_max[0], material_min[1], material_max[2])
+
+                    glEnd()
+                    glDisable(GL_LINE_STIPPLE)
+                    glLineStipple(2, 0xffff)
+
+        except:
+            pass
         if self.get_show_limits():
             glLineWidth(1)
             glColor3f(1.0,0.0,0.0)
