@@ -1052,53 +1052,16 @@ class GlCanonDraw:
             if self.draw_material():
                 material_min, material_max = self.get_material_dimension()
                 if material_min is not None and material_max is not None:
-                    glLineWidth(1)
-                    glColor3f(0.5,1.0,0.0)
-                    glLineStipple(1, 0x8888)
-                    glEnable(GL_LINE_STIPPLE)
-                    glBegin(GL_LINES)
-
-                    glVertex3f(material_min[0], material_min[1], material_max[2])
-                    glVertex3f(material_min[0], material_min[1], material_min[2])
-
-                    glVertex3f(material_min[0], material_min[1], material_min[2])
-                    glVertex3f(material_min[0], material_max[1], material_min[2])
-
-                    glVertex3f(material_min[0], material_max[1], material_min[2])
-                    glVertex3f(material_min[0], material_max[1], material_max[2])
-
-                    glVertex3f(material_min[0], material_max[1], material_max[2])
-                    glVertex3f(material_min[0], material_min[1], material_max[2])
-
-
-                    glVertex3f(material_max[0], material_min[1], material_max[2])
-                    glVertex3f(material_max[0], material_min[1], material_min[2])
-
-                    glVertex3f(material_max[0], material_min[1], material_min[2])
-                    glVertex3f(material_max[0], material_max[1], material_min[2])
-
-                    glVertex3f(material_max[0], material_max[1], material_min[2])
-                    glVertex3f(material_max[0], material_max[1], material_max[2])
-
-                    glVertex3f(material_max[0], material_max[1], material_max[2])
-                    glVertex3f(material_max[0], material_min[1], material_max[2])
-
-
-                    glVertex3f(material_min[0], material_min[1], material_min[2])
-                    glVertex3f(material_max[0], material_min[1], material_min[2])
-
-                    glVertex3f(material_min[0], material_max[1], material_min[2])
-                    glVertex3f(material_max[0], material_max[1], material_min[2])
-
-                    glVertex3f(material_min[0], material_max[1], material_max[2])
-                    glVertex3f(material_max[0], material_max[1], material_max[2])
-
-                    glVertex3f(material_min[0], material_min[1], material_max[2])
-                    glVertex3f(material_max[0], material_min[1], material_max[2])
+                    glLineWidth(10)
+                    glColor3f(0.4,0.4,0.2)
+                    # glColor3f(0.5,1.0,0.2)
+                    glBegin(GL_QUADS)
+                    glVertex3f(material_max[0], material_max[1],0)
+                    glVertex3f(material_min[0], material_max[1],0)
+                    glVertex3f(material_min[0], material_min[1],0)
+                    glVertex3f(material_max[0], material_min[1],0)
 
                     glEnd()
-                    glDisable(GL_LINE_STIPPLE)
-                    glLineStipple(2, 0xffff)
 
         except:
             pass
