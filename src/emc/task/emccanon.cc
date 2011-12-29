@@ -809,7 +809,7 @@ double getStraightVelocity(double x, double y, double z,
         printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
                dx, dy, dz, da, db, dc, du, dv, dw);
     }
-    vel = MIN(vel, canon.linearFeedRate);
+//    vel = MIN(vel, canon.linearFeedRate);
 
     DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
     if(debug_velacc) 
