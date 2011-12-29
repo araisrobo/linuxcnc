@@ -1326,6 +1326,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
         // finished
         DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
         tc->progress = tc->target;
+        tc->cur_accel = 0;
+        tc->cur_vel = 0;
     }
 
     tc->motion_progress = tc->progress;
