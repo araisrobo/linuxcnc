@@ -1,3 +1,11 @@
+emc2 (1:2.5.0-2011.12.26) lucid; urgency=low
+
+  * merge upstream master (linuxcnc/master)
+  * update touchy
+  * WOU: support 64-Digital-IN, 32-Digital-OUT
+
+ -- Yishin Li <ysli@araisrobo.com>  Mon, 26 Dec 2011 10:34:21 +0800
+
 emc2 (1:2.4.0-nurbs-2011.12.11) lucid; urgency=low
 
   * new algorighm for CSS request velocity calculation
