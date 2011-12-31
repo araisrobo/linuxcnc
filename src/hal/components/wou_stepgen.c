@@ -202,11 +202,6 @@ RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
-//obsolete: int gpio_alm_out0 = -1;
-//obsolete: RTAPI_MP_INT(gpio_alm_out0, "WOU Register Value for GPIO_ALM_OUT0");
-//obsolete: 
-//obsolete: int gpio_alm_out1 = -1;
-//obsolete: RTAPI_MP_INT(gpio_alm_out1, "WOU Register Value for GPIO_ALM_OUT1");
 
 //obsolete: int gpio_leds_sel = -1;
 //obsolete: RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
