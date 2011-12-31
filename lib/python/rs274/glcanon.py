@@ -315,8 +315,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         #     traverse_line = self.traverse[0][0]
         # else:
         #     traverse_line = None
-        first_traverse = self.all_traverse[0]
-        traverse_line = first_traverse[0]
+        if len(self.all_traverse) > 0:
+            first_traverse = self.all_traverse[0]
+            traverse_line = first_traverse[0]
+        else:
+            traverse_line = None 
+            first_traverse = None
         if len(self.feed) > 0:
             feed_line = self.feed[0][0]
         else:
@@ -363,8 +367,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         #    traverse_line = self.traverse[len(self.traverse)-1][0]
         #else:
         #    traverse_line = None
-        last_traverse = self.all_traverse[len(self.all_traverse)-1]
-        traverse_line = last_traverse[0] 
+        if len(self.all_traverse) > 0: 
+            last_traverse = self.all_traverse[len(self.all_traverse)-1]
+            traverse_line = last_traverse[0] 
+        else:
+            traverse_line = None 
+            last_traverse = None
         if len(self.feed) > 0:
             feed_line = self.feed[len(self.feed)-1][0]
         else:

@@ -29,25 +29,39 @@ static FILE *dptrace;
 
 typedef struct {
     hal_float_t *theta; // unit: rad
-    hal_float_t *x_cent;
-    hal_float_t *y_cent;
-    hal_float_t * x_offset;
-    hal_float_t * y_offset;
     double prev_theta;
+    hal_float_t *x_cent;
+    double prev_x_cent;
+    hal_float_t *y_cent;
+    double prev_y_cent;
+    hal_float_t * x_offset;
+    double prev_x_offset;
+    hal_float_t * y_offset;
+    double prev_y_offset;
 } align_pins_t;
 
 static align_pins_t *align_pins;
 
-#define THETA (*(align_pins->theta))
-#define PREV_THETA  (align_pins->prev_theta)
-#define X_OFFSET    (*(align_pins->x_offset))
-#define Y_OFFSET    (*(align_pins->y_offset))
-#define X_CENT      (*(align_pins->x_cent))
-#define Y_CENT      (*(align_pins->y_cent))
+#define THETA           (*(align_pins->theta))
+#define PREV_THETA      (align_pins->prev_theta)
+#define PREV_X_OFFSET   (align_pins->prev_x_offset)
+#define PREV_Y_OFFSET   (align_pins->prev_y_offset)
+#define PREV_X_CENT     (align_pins->prev_y_cent)
+#define PREV_Y_CENT     (align_pins->prev_x_cent)
+#define X_OFFSET        (*(align_pins->x_offset))
+#define Y_OFFSET        (*(align_pins->y_offset))
+#define X_CENT          (*(align_pins->x_cent))
+#define Y_CENT          (*(align_pins->y_cent))
 
-void theta_change_handler(EmcPose * pos, double  * joints) {
+void cord_change_handler(EmcPose * pos, double  * joints) {
     // update cord to avoid offset of joint position
-    if (THETA != PREV_THETA) {
+    if (THETA != PREV_THETA||
+        X_OFFSET != PREV_X_OFFSET ||
+        Y_OFFSET != PREV_Y_OFFSET ||
+        X_CENT   != PREV_X_CENT   ||
+        Y_CENT   != PREV_Y_CENT) {
+        fprintf(stderr, "THETA(%f)\n", THETA);
+        fprintf(stderr, "x-cent(%f) y-cent(%f) x-offset(%f) y-offset(%f)\n", X_CENT, Y_CENT, X_OFFSET, Y_OFFSET);
         fprintf(stderr, "1:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
                         joints[0], joints[1]);
         pos->tran.x  = (joints[0] - X_CENT - X_OFFSET) * cos(THETA) +
@@ -56,7 +70,11 @@ void theta_change_handler(EmcPose * pos, double  * joints) {
                         (joints[1] - Y_CENT - Y_OFFSET) * cos(THETA) + Y_OFFSET + Y_CENT;
         fprintf(stderr, "2:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
                 joints[0], joints[1]);
-        PREV_THETA = THETA;
+        PREV_THETA    = THETA;
+        PREV_X_OFFSET = X_OFFSET; 
+        PREV_Y_OFFSET = Y_OFFSET; 
+        PREV_X_CENT   = X_CENT;   
+        PREV_Y_CENT   = Y_CENT;   
     }
 
 }
@@ -66,7 +84,7 @@ int kinematicsForward(const double *joints,
 		      KINEMATICS_INVERSE_FLAGS * iflags)
 {
     // double c_rad = -joints[5]*M_PI/180;
-    theta_change_handler((EmcPose *)pos, (double *)joints);
+    cord_change_handler((EmcPose *)pos, (double *)joints);
     pos->tran.x  = (joints[0] - X_CENT - X_OFFSET) * cos(THETA) +
                    (joints[1] - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
     pos->tran.y  = -(joints[0] - X_CENT - X_OFFSET)* sin(THETA) +
@@ -95,7 +113,7 @@ int kinematicsInverse(const EmcPose * pos,
 		      KINEMATICS_FORWARD_FLAGS * fflags)
 {
     // double c_rad = pos->c*M_PI/180;
-    theta_change_handler((EmcPose *)pos, (double *)joints);
+    cord_change_handler((EmcPose *)pos, (double *)joints);
 
     joints[0] = (pos->tran.x - X_CENT - X_OFFSET) * cos(THETA) -
             (pos->tran.y - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
