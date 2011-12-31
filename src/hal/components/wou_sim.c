@@ -202,17 +202,6 @@ RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
-//obsolete: int gpio_mask_in0 = -1;
-//obsolete: RTAPI_MP_INT(gpio_mask_in0, "WOU Register Value for GPIO_MASK_IN0");
-//obsolete: 
-//obsolete: int gpio_mask_in1 = -1;
-//obsolete: RTAPI_MP_INT(gpio_mask_in1, "WOU Register Value for GPIO_MASK_IN1");
-
-int gpio_alm_out0 = -1;
-RTAPI_MP_INT(gpio_alm_out0, "WOU Register Value for GPIO_ALM_OUT0");
-
-int gpio_alm_out1 = -1;
-RTAPI_MP_INT(gpio_alm_out1, "WOU Register Value for GPIO_ALM_OUT1");
 
 //obsolete: int gpio_leds_sel = -1;
 //obsolete: RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
@@ -223,7 +212,7 @@ RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
 
 int num_gpio_in = 64;
 RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
-int num_gpio_out = 64;
+int num_gpio_out = 32;
 RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 
 //const char *thc_velocity = "1.0"; // 1mm/s
@@ -440,10 +429,9 @@ typedef struct {
     hal_bit_t *plasma_enable;
     /* sync input pins (input to motmod) */
     hal_bit_t   *in[64];
+    hal_bit_t   *in_n[64];
     uint32_t    prev_in0;
     uint32_t    prev_in1;
-    hal_u32_t   *dout0; // dout reg 0
-//    hal_u32_t   *dout1; // dout reg 1
     hal_float_t *analog_ref_level;
     double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
@@ -453,16 +441,16 @@ typedef struct {
     double prev_timeout;
     int num_gpio_in;
     
-//    uint32_t    bp_tick;    /* base-period tick obtained from fetchmail */
-    hal_u32_t *wou_bp_tick;     /* host side bp counter */
-    hal_u32_t *bp_tick;     /* base-period tick obtained from fetchmail */
-    uint32_t    prev_bp;    /* previous base-period tick */
-    hal_u32_t *crc_error_counter;
+    hal_u32_t   *wou_bp_tick;   /* host side bp counter */
+    hal_u32_t   *bp_tick;       /* base-period tick obtained from fetchmail */
+    uint32_t    prev_bp;        /* previous base-period tick */
+    hal_u32_t   *dout0;         /* the DOUT value obtained from fetchmail */
+    hal_u32_t   *crc_error_counter;
 
     /* sync output pins (output from motmod) */
-    hal_bit_t *out[64];
+    hal_bit_t *out[32];
     int num_gpio_out;
-    uint64_t prev_out;		//ON or OFF
+    uint32_t prev_out;		//ON or OFF
 
     double     prev_ahc_state;
     hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
@@ -491,8 +479,10 @@ typedef struct {
     hal_bit_t *spindle_index_enable;    // TODO: move spindle-index sync into motion
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
+    double   spindle_revs_integer;
 //    double  last_spindle_index_pos;
     int32_t last_spindle_index_pos;
+    double  last_spindle_index_pos_int;
     int32_t spindle_enc_count;          // predicted spindle-encoder count
 //    double  prev_spindle_irevs;         // to calculate index position
     int32_t prev_spindle_irevs;
@@ -592,7 +582,7 @@ static void fetchmail(const uint8_t *buf_head)
 {
     int         i;
     uint16_t    mail_tag;
-    uint32_t    *p, din[1], dout[1];
+    uint32_t    *p, din[2], dout[1];
     // obsolete: double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
@@ -600,7 +590,7 @@ static void fetchmail(const uint8_t *buf_head)
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
-    static      uint32_t prev_din0;
+    //obsolete: static      uint32_t prev_din[2];
 #elif (DEBUG_LOG)
     char        dmsg[1024];
 	int         dsize;
@@ -673,11 +663,12 @@ static void fetchmail(const uint8_t *buf_head)
         // digital inpout
         p += 1;
         din[0] = *p;
+        p += 1;
+        din[1] = *p;
         // digital output
         p += 1;
         dout[0] = *p;
         *machine_control->dout0 = dout[0];
-        //obsolete: din[0] &= gpio_mask_in0;
 
         // update gpio_in[31:0]
         // compare if there's any GPIO.DIN bit got toggled
@@ -733,10 +724,14 @@ static void fetchmail(const uint8_t *buf_head)
         // DEBUG  : MOVE to MT_DEBUG
 
 #if (MBOX_LOG)
-        if (din[0] != prev_din0) {
-            prev_din0 = din[0];
-            fprintf (stderr, "DIN: 0x%08X\n", din[0]);
-        }
+        //obsolete: if (din[0] != prev_din[0]) {
+        //obsolete:     prev_din[0] = din[0];
+        //obsolete:     fprintf (stderr, "DIN[0]: 0x%08X\n", din[0]);
+        //obsolete: }
+        //obsolete: if (din[1] != prev_din[1]) {
+        //obsolete:     prev_din[1] = din[1];
+        //obsolete:     fprintf (stderr, "DIN[1]: 0x%08X\n", din[1]);
+        //obsolete: }
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -750,10 +745,11 @@ static void fetchmail(const uint8_t *buf_head)
                              );
             stepgen += 1;   // point to next joint
         }
-        dsize += sprintf (dmsg + dsize, "0x%04X 0x%04X", // #21 #22
+        dsize += sprintf (dmsg + dsize, "0x%04X 0x%04X 0x%04X", // #21 #22 #23
                           din[0],
+                          din[1],
                           dout[0]);
-        dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #23 #24
+        dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #24 #25
 
 
         // number of debug words: to match "send_joint_status() at common.c
@@ -901,6 +897,10 @@ static void parse_usb_cmd (uint32_t usb_cmd)
             machine_control->a_cmd_on_going = 1;
             write_machine_param(PROBE_CMD, PROBE_LOW);
             break;
+        case USB_CMD_ABORT:  // for risc probing
+            fprintf(stderr,"output PROBE_END\n");
+            write_machine_param(PROBE_CMD, PROBE_END);
+            break;
         }
     } else if (usb_cmd == USB_CMD_STATUS_ACK){
 
@@ -909,16 +909,17 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         case USB_CMD_PROBE_HIGH:
         case USB_CMD_PROBE_LOW:
 //            machine_control->a_cmd_on_going = 0;
+            fprintf(stderr,"output PROBE_END\n");
             write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
     } else if (usb_cmd == USB_CMD_ABORT) {
         switch(machine_control->prev_wou_cmd) {
-        case USB_CMD_PROBE_HIGH:
-        case USB_CMD_PROBE_LOW:
-            // machine_control->a_cmd_on_going = 0;
-            write_machine_param(PROBE_CMD, PROBE_END);
+            case USB_CMD_PROBE_HIGH:
+            case USB_CMD_PROBE_LOW:
+                machine_control->a_cmd_on_going = 0;
+                write_machine_param(PROBE_CMD, PROBE_END);
             break;
         }
 
@@ -1191,18 +1192,6 @@ int rtapi_app_main(void)
 //obsolete:	data[0] = (uint8_t) gpio_mask_in1;
 //obsolete:	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_MASK_IN1, 1, data);
 //obsolete:    }
-
-    if (gpio_alm_out0 != -1) {
-       data[0] = (uint8_t) gpio_alm_out0;
-       // sim: wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT0, 1, data);
-       // sim: wou_flush(&w_param);
-    }
-    
-    if (gpio_alm_out1 != -1) {
-       data[0] = (uint8_t) gpio_alm_out1;
-       // sim: wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT1, 1, data);
-       // sim: wou_flush(&w_param);
-    }
     
 //obsolete:    /* test for GPIO_LEDS_SEL: gpio_leds_sel */
 //obsolete:    if ((gpio_leds_sel == -1)) {
@@ -1523,19 +1512,16 @@ static void update_freq(void *arg, long period)
     // int32_t wou_cmd_accum;
     uint16_t sync_cmd;
     int wou_pos_cmd, integer_pos_cmd;
-    int j;
-    // ret, data[]: for wou_cmd()
-    uint8_t data[MAX_DSIZE];
-    uint64_t sync_io_data;
-    // int     ret;
+    uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
+    uint32_t sync_out_data;
 
     // for homing:
     uint8_t r_load_pos;
     uint8_t r_switch_en;
-    uint8_t r_index_en;
-    uint8_t r_index_lock = 0;
-    static uint8_t prev_r_index_en = 0;
-    static uint8_t prev_r_index_lock = 0;
+//TODO: RISC_HOMING:    uint8_t r_index_en;
+//TODO: RISC_HOMING:    uint8_t r_index_lock;
+//TODO: RISC_HOMING:    static uint8_t prev_r_index_en = 0;
+//TODO: RISC_HOMING:    static uint8_t prev_r_index_lock = 0;
     static uint32_t host_tick = 0;
 
     int32_t immediate_data = 0;
@@ -1572,13 +1558,13 @@ static void update_freq(void *arg, long period)
     //    DP("before wou_update()\n");
     // sim: wou_update(&w_param);
     // read SSIF_INDEX_LOCK
-//     memcpy(&r_index_lock,
-// 	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
-    if (r_index_lock != prev_r_index_lock) {
-	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n",
-	                                r_index_lock, prev_r_index_lock);
-	prev_r_index_lock = r_index_lock;
-    }
+//TODO: implement RISC homing:    memcpy(&r_index_lock,
+//TODO: implement RISC homing:	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
+//TODO: implement RISC homing:    if (r_index_lock != prev_r_index_lock) {
+//TODO: implement RISC homing:	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n",
+//TODO: implement RISC homing:	                                r_index_lock, prev_r_index_lock);
+//TODO: implement RISC homing:	prev_r_index_lock = r_index_lock;
+//TODO: implement RISC homing:    }
 
     /* begin: sending debug pattern */
     if (test_pattern_type != NO_TEST) {
@@ -1604,48 +1590,6 @@ static void update_freq(void *arg, long period)
     machine_control->prev_wou_cmd = *machine_control->wou_cmd;
     /* end: handle usb cmd */
 
-    /* begin: process position compensation enable */
-    // remove thc_enable control bit: if (((uint32_t)*machine_control->ahc_state) !=
-    // remove thc_enable control bit:         ((uint32_t)machine_control->prev_ahc_state)) {
-
-    // remove thc_enable control bit:     if(*(machine_control->thc_enbable)) {
-    // remove thc_enable control bit:         int32_t max_offset, pos_scale;
-    // remove thc_enable control bit:         /* config only if ahc_state = enable */
-    // remove thc_enable control bit:         if (((uint32_t)*machine_control->ahc_state) == 1) {
-    // remove thc_enable control bit:             stepgen = arg;
-    // remove thc_enable control bit:             stepgen += atoi(ahc_joint_str);
-    // remove thc_enable control bit:             pos_scale = (stepgen->pos_scale);
-    // remove thc_enable control bit:             max_offset = *(machine_control->ahc_max_offset);
-    // remove thc_enable control bit:             max_offset = max_offset >= 0? max_offset:0;
-    // remove thc_enable control bit:             fprintf(stderr,"wou_stepgen.c: ahc_state(%d) ahc_level(%d) max_offset(%d) ahc_joint(%d) \n",
-    // remove thc_enable control bit:                             (uint32_t)*(machine_control->ahc_state),(uint32_t) *
-    // remove thc_enable control bit:                                 (machine_control->ahc_level),
-    // remove thc_enable control bit:                             (uint32_t)abs(max_offset *
-    // remove thc_enable control bit:                                 (pos_scale)),
-    // remove thc_enable control bit:                                 atoi(ahc_joint_str));
-
-    // remove thc_enable control bit:             /* ahc max_offset */
-    // remove thc_enable control bit:             write_machine_param(AHC_MAX_OFFSET, (uint32_t)
-    // remove thc_enable control bit:                     abs((max_offset)) * (pos_scale));
-
-    // remove thc_enable control bit:         }
-    // remove thc_enable control bit:         /* ahc level , ahc state */
-    // remove thc_enable control bit:         immediate_data = (uint32_t)(*(machine_control->ahc_level));
-    // remove thc_enable control bit:         for(j=0; j<sizeof(uint32_t); j++) {
-    // remove thc_enable control bit:             sync_cmd = SYNC_DATA | ((uint8_t *)&immediate_data)[j];
-    // remove thc_enable control bit:             memcpy(data, &sync_cmd, sizeof(uint16_t));
-    // remove thc_enable control bit:             wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-    // remove thc_enable control bit:                     sizeof(uint16_t), data);
-    // remove thc_enable control bit:         }
-    // remove thc_enable control bit:         sync_cmd = SYNC_AHC |  AHC_STATE(((uint32_t)*(machine_control->ahc_state)));
-    // remove thc_enable control bit:         memcpy(data, &sync_cmd, sizeof(uint16_t));
-    // remove thc_enable control bit:         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-    // remove thc_enable control bit:                 sizeof(uint16_t), data);
-
-    // remove thc_enable control bit:     }
-    // remove thc_enable control bit: }
-    // remove thc_enable control bit: machine_control->prev_ahc_state = *machine_control->ahc_state;
-
     /* begin: handle AHC state, AHC level */
     if (*machine_control->ahc_level != machine_control->prev_ahc_level) {
         immediate_data = (uint32_t)(*(machine_control->ahc_level));
@@ -1656,6 +1600,7 @@ static void update_freq(void *arg, long period)
         machine_control->prev_ahc_level = *(machine_control->ahc_level);
 
     }
+
     if (((uint32_t)*machine_control->ahc_state) !=
             ((uint32_t)machine_control->prev_ahc_state)) {
         immediate_data = (uint32_t)(*(machine_control->ahc_state));
@@ -1688,7 +1633,7 @@ static void update_freq(void *arg, long period)
     /* begin: setup sync wait timeout */
     if (*machine_control->timeout != machine_control->prev_timeout) {
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
-        //immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
+        // immediate_data = 1000; // ticks about 1000 * 0.00065536 sec
         // transmit immediate data
         fprintf(stderr,"wou_stepgen.c: setup wait timeout(%u) \n", immediate_data);
         write_machine_param(WAIT_TIMEOUT, immediate_data);
@@ -1712,43 +1657,31 @@ static void update_freq(void *arg, long period)
     }
     /* end: process motion synchronized input */
     
-    // ESTOP active
+    // for sim, activate ESTOP
     *(machine_control->in[0]) = 1;
 
     /* begin: process motion synchronized output */
-    sync_io_data = 0;
-    j = 0;
+    sync_out_data = 0;
+    //obsolete: j = 0;
     for (i = 0; i < machine_control->num_gpio_out; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
-                ((*(machine_control->out[i]) & 1))) {
-            //TODO: replace plasma-on with general purpose enable bit
-//            if(i==1 /* plasma on bit */ && *(machine_control->plasma_enable)) {
-////                fprintf(stderr,"plasma_switch(%d)\n",
-////                        *(machine_control->sync_out[i]));
-//                fprintf(stderr,"wou_stepgen.c: gpio_%2d => (%d)\n",
-//                                        i,*(machine_control->out[i]));
-//                sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
-//                memcpy(data, &sync_cmd, sizeof(uint16_t));
-//                wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
-//
-//            } else if(i !=1)
+                (*(machine_control->out[i]))) {
             {
+                // write a wou frame for sync output into command FIFO
                 fprintf(stderr,"wou_stepgen.c: gpio_%02d => (%d)\n",
                         i,*(machine_control->out[i]));
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 // sim: wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
-            j ++;
+            //obsolete: j ++;
         }
 
-	sync_io_data |= ((*(machine_control->out[i]) & 1) << i);
-       // write a wou frame for sync input into command FIFO
+	sync_out_data |= ((*(machine_control->out[i])) << i);
     }
-
-    if (j > 0) {        //
-        machine_control->prev_out = sync_io_data;
-    }
+    //obsolete: if (j > 0) {        //
+    machine_control->prev_out = sync_out_data;
+    //obsolete: }
     /* end: process motion synchronized output */
 
     /* begin: send application parameters */
@@ -1914,15 +1847,15 @@ static void update_freq(void *arg, long period)
 	// sim: wou_flush(&w_param);
     }
 
-    /* check if we should enable MOTOR Index Detection */
-    if (r_index_en != prev_r_index_en) {
-	// issue a WOU_WRITE
-	// sim: wou_cmd(&w_param,
-	// sim: 	WB_WR_CMD, SSIF_BASE | SSIF_INDEX_EN, 1, &r_index_en);
-	fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
-	// sim: wou_flush(&w_param);
-	prev_r_index_en = r_index_en;
-    }
+//TODO: RISC_HOMING:    /* check if we should enable MOTOR Index Detection */
+//TODO: RISC_HOMING:    if (r_index_en != prev_r_index_en) {
+//TODO: RISC_HOMING:	// issue a WOU_WRITE
+//TODO: RISC_HOMING:	wou_cmd(&w_param,
+//TODO: RISC_HOMING:		WB_WR_CMD, SSIF_BASE | SSIF_INDEX_EN, 1, &r_index_en);
+//TODO: RISC_HOMING:	fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
+//TODO: RISC_HOMING:	wou_flush(&w_param);
+//TODO: RISC_HOMING:	prev_r_index_en = r_index_en;
+//TODO: RISC_HOMING:    }
 
     pending_cnt += 1;
     if (pending_cnt == JNT_PER_WOF) {
@@ -2280,7 +2213,7 @@ static void update_freq(void *arg, long period)
     if (*machine_control->motion_state != machine_control->prev_motion_state) {
         if (*machine_control->motion_state == ACCEL_S3) {
             sync_cmd = SYNC_VEL | 0x0001;
-             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
+//             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
         } else {
             sync_cmd = SYNC_VEL;
 //                 fprintf(stderr,"motion_state != ACCEL_S3\n");
@@ -2613,14 +2546,21 @@ static int export_machine_control(machine_control_t * machine_control)
     machine_control->num_gpio_out = num_gpio_out;
 
     // export input status pin
-    for (i = 0; i < machine_control->num_gpio_in; i++) {
-        retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
-                                  "wou.gpio.in.%02d", i);
-        if (retval != 0) {
-            return retval;
-        }
-        *(machine_control->in[i]) = 0;
-    }
+     for (i = 0; i < machine_control->num_gpio_in; i++) {
+         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
+                                   "wou.gpio.in.%02d", i);
+         if (retval != 0) {
+             return retval;
+         }
+         *(machine_control->in[i]) = 0;
+         
+         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in_n[i]), comp_id,
+                                   "wou.gpio.in.%02d.not", i);
+         if (retval != 0) {
+             return retval;
+         }
+         *(machine_control->in_n[i]) = 0;
+     }
 
     retval =
 	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
@@ -2801,13 +2741,13 @@ static int export_machine_control(machine_control_t * machine_control)
         *(machine_control->debug[i]) = 0;
     }
 
-
+    // dout0: the DOUT value obtained from RISC
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->dout0), comp_id,
                                      "wou.dout0");
-        if (retval != 0) {
-            return retval;
-        }
-        *(machine_control->dout0) = 0;
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->dout0) = 0;
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->bp_tick), comp_id,
                                  "wou.bp_tick");
@@ -2863,12 +2803,11 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->prev_out = 0;
 
-//    machine_control->position_compensation_en_flag = 0;
-
     machine_control->last_spindle_index_pos = 0;
     machine_control->prev_spindle_irevs = 0;
+    machine_control->spindle_revs_integer  = 0;
 
-/*   restore saved message level*/
+    /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
 }				// export_gpio ()
