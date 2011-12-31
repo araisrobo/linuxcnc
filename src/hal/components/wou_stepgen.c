@@ -146,6 +146,7 @@
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
 #define FRACTION_BITS 16
+#define FIXED_POINT_SCALE   65536.0     // (double (1 << FRACTION_BITS))
 #define FRACTION_MASK 0x0000FFFF
 #define PID_LOOP 8
 // to disable DP(): #define TRACE 0
@@ -1074,8 +1075,10 @@ int rtapi_app_main(void)
     immediate_data = atoi(probe_pin_id);
     fprintf(stderr,"wou_stgepgen.c: probe_pin_id(%d)\n", immediate_data);
     write_machine_param(PROBE_PIN_ID, immediate_data);
+    
     immediate_data = atoi(probe_analog_ref_level);
     write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);
+    
     if (strcmp(probe_pin_type, "ANALOG_PIN") == 0) {
         immediate_data = ANALOG_PIN;
     } else if (strcmp(probe_pin_type, "DIGITAL_PIN") == 0){
@@ -1084,6 +1087,7 @@ int rtapi_app_main(void)
         fprintf(stderr,"ERROR: wou_stepgen.c unknown probe_pin_type\n");
         assert(0);
     }
+
     write_machine_param(PROBE_PIN_TYPE, immediate_data);
     // we use this value later.
     probe_decel = atoi(probe_decel_cmd);
@@ -1281,67 +1285,54 @@ int rtapi_app_main(void)
         // compute proper fraction bit for command
         // compute fraction bit for velocity
         // accurate 0.0001 mm
-        pos_scale   = atof(pos_scale_str[n]);
+        pos_scale   = fabs(atof(pos_scale_str[n]));
         max_vel     = atof(max_vel_str[n]);
         max_accel   = atof(max_accel_str[n]);
-//obsolete:         /* config fraction bit of param */
-//obsolete:         immediate_data = FRACTION_BITS;
-//obsolete:         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
+        
         /* config MAX velocity */
-        immediate_data = (uint32_t)(max_vel * fabs(pos_scale) * dt * (1 << FRACTION_BITS)
-                                    + (1 << (FRACTION_BITS-1)));    // rounding to 0.5
+        immediate_data = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE));
         rtapi_print_msg(RTAPI_MSG_DBG,
-                " max_vel= %f*%f*%f*(2^%d) = (%d) ", 
-                max_vel, pos_scale, dt, FRACTION_BITS, immediate_data);
+                        "j[%d] max_vel(%d) = %f*%f*%f*%f\n", 
+                        n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
         /* config acceleration */
-        immediate_data = (uint32_t)(((max_accel*pos_scale*dt*
-                                        dt)*(1 << FRACTION_BITS)+ (1 << (FRACTION_BITS-1))));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        immediate_data += 1;
-        rtapi_print_msg(RTAPI_MSG_DBG,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
-                 max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
-
-        assert(immediate_data>0);
+        immediate_data = ((uint32_t)(max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_accel(%d) = %f*%f*(%f^2)*(%f)\n",
+                        n, immediate_data, max_accel, pos_scale, dt, FIXED_POINT_SCALE);
+        assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
-        immediate_data = (uint32_t)((1 << FRACTION_BITS)/(max_accel*pos_scale*dt*dt)+ (1 << (FRACTION_BITS-1)));
-        immediate_data = (immediate_data > 0) ? immediate_data : -immediate_data;
-        rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
-                                        max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
-        assert(immediate_data>0);
-
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG, 
+                        "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
+        assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
 
         /* config max following error */
         // following error send with unit pulse
         max_following_error = atof(ferror_str[n]);
         immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-
-
-        rtapi_print_msg(RTAPI_MSG_DBG, "(max ferror) = (%d) (%d) \n",
-                       ((uint32_t) (immediate_data/pos_scale)),(immediate_data));
+        rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
 
         // set probe decel cmd
-        immediate_data = (uint32_t)(((probe_decel*pos_scale*dt*
-                                dt)*(1 << FRACTION_BITS)+ (1 << (FRACTION_BITS-1))));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        immediate_data += 1;
-        rtapi_print_msg(RTAPI_MSG_DBG,"probe_decel=%f*%f*(%f^2)*(2^%d) = (%d) ",
-                probe_decel, pos_scale, dt, FRACTION_BITS, immediate_data);
-
-        assert(immediate_data>0);
+        immediate_data = (uint32_t)(probe_decel * pos_scale * dt * FIXED_POINT_SCALE * dt);
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] probe_decel(%d) = %f*%f*(%f^2)*%f\n",
+                        n, immediate_data, probe_decel, pos_scale, dt, FIXED_POINT_SCALE);
+        assert(immediate_data > 0);
         write_mot_param (n, (PROBE_DECEL_CMD), immediate_data);
 
         // set move type as normal by default
         immediate_data = NORMAL_MOVE;
         write_mot_param (n, (MOTION_TYPE), immediate_data);
     }
+
     // config PID parameter
     for (n=0; n < PID_LOOP; n++) {
         if (pid_str[n][0] != NULL) {
