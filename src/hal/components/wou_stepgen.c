@@ -617,12 +617,8 @@ void fetchmail()
         /* for PLASMA with ADC_SPI */
         // BP_TICK
         p = (uint32_t *) (buf_head + 4);
-        //try: bp_tick = *p;
-        //try: if (machine_control->prev_bp == bp_tick) {
-        //try:     // skip mailbox parsing because there isn't new bp_tick
-        //try:     return;
-        //try: }
-        //try: *machine_control->bp_tick = bp_tick;
+        //? bp_tick = *p;
+        //? *machine_control->bp_tick = bp_tick;
         assert(actual_joint_num>=num_chan);
         stepgen = stepgen_array;
         for (i=0; i<actual_joint_num; i++) {
@@ -743,14 +739,6 @@ void fetchmail()
         // DEBUG  : MOVE to MT_DEBUG
 
 #if (MBOX_LOG)
-        //obsolete: if (din[0] != prev_din[0]) {
-        //obsolete:     prev_din[0] = din[0];
-        //obsolete:     fprintf (stderr, "DIN[0]: 0x%08X\n", din[0]);
-        //obsolete: }
-        //obsolete: if (din[1] != prev_din[1]) {
-        //obsolete:     prev_din[1] = din[1];
-        //obsolete:     fprintf (stderr, "DIN[1]: 0x%08X\n", din[1]);
-        //obsolete: }
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -808,7 +796,6 @@ void fetchmail()
 
     case MT_DEBUG:
         p = (uint32_t *) (buf_head + 4);
-        break; // debug
         bp_tick = *p;
 #if (DEBUG_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
@@ -828,17 +815,15 @@ void fetchmail()
         break;
     case MT_TICK:
         p = (uint32_t *) (buf_head + 4);
-        return; // debug
-
         for (i=0; i<14; i++) {
             p += 1;
             *machine_control->tick[i] = *p;
         }
         break;
     default:
-        // fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
+        fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
         *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
-        // assert(0);
+        //? assert(0);
         break;
     }
 
