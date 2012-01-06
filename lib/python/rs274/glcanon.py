@@ -346,17 +346,28 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
         if block_line <= min((traverse_line, feed_line, arcfeed_line)):
         #    print 'min is block',block_line
-            return self.blocks[0][2][:3], block[0][3]
+            if len(self.blocks) > 0:
+                return self.blocks[0][2][:3], self.blocks[0][3]
+            else: 
+                return (0,0,0),1000
         if arcfeed_line <= min((traverse_line, feed_line, block_line)):
         #    print 'min is arcfeed', arcfeed_line
-            return self.arcfeed[0][2][:3],self.arcfeed[0][3]
+            if len(self.arcfeed) > 0:
+                return self.arcfeed[0][2][:3],self.arcfeed[0][3]
+            else:
+                return (0,0,0),1000
         if feed_line <= min((traverse_line, block_line, feed_line)):
-        #    print 'min is feed', feed_line
-            return self.feed[0][2][:3],self.feed[0][3]
+            if len(self.feed) > 0:
+                return self.feed[0][2][:3],self.feed[0][3]
+            else:
+                return (0,0,0),1000 
         if traverse_line <= min((block_line, arcfeed_line, feed_line)):
         #    print 'min is traverse', traverse_line 
-            feedrate = self.all_traverse[0][2]
-            return first_traverse[1][:3], feedrate
+            if len(self.all_traverse) > 0:
+                feedrate = self.all_traverse[0][2]
+                return first_traverse[1][:3], feedrate
+            else:
+                return (0,0,0),1000
     def get_last_pos_of_prog(self):
         if len(self.blocks) > 0:
             block_line = self.blocks[len(self.blocks)-1][0]
@@ -399,7 +410,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if block_line >= max((traverse_line, feed_line, arcfeed_line)):
             # print 'max is block',block_line
             index = len(self.blocks) - 1 
-            return self.blocks[index][2][:3], block[index][3]
+            return self.blocks[index][2][:3], self.blocks[index][3]
         if arcfeed_line >= max((traverse_line, feed_line, block_line)):
             # print 'max is arcfeed', arcfeed_line
             index = len(self.arcfeed) - 1
@@ -1621,7 +1632,10 @@ class GlCanonDraw:
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
             self.stale_dlist('select_norapids')
-
+        else:
+            error_str = _(gcode.strerror(result))
+            print 'glcanon error msg:', error_str
+            pass
         return result, seq
 
     def from_internal_units(self, pos, unit=None):
