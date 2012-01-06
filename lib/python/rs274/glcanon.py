@@ -24,6 +24,9 @@ import emc
 import array
 import gcode
 
+from scipy import mat
+from scipy import linalg
+
 homeicon = array.array('B',
         [0x2, 0x00,   0x02, 0x00,   0x02, 0x00,   0x0f, 0x80,
         0x1e, 0x40,   0x3e, 0x20,   0x3e, 0x20,   0x3e, 0x20,
@@ -44,6 +47,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.feed = []; self.feed_append = self.feed.append
         # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
+        # arcfeed center list - [line number, [x,y]]
+        self.arc_center = []; self.arc_center_append = self.arc_center.append
         # dwell list - [line number, color, pos x, pos y, pos z, plane]
         self.dwells = []; self.dwells_append = self.dwells.append
         # block path list - [start line, end line, [start position], feedrate]
@@ -175,13 +180,27 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         feedrate = self.feedrate
         to = [self.xo, self.yo, self.zo]
         append = self.arcfeed_append
+        points = []
         for l in segs:
             # if self.block_start != None and self.block_pos == None:
             #     block_pos = self.l
             append((lineno, lo, l, feedrate, to))
             lo = l
         self.lo = lo
+        
+        points.append(segs[0])
+        points.append(segs[len(segs)/3])
+        points.append(segs[len(segs)/3*2])
 
+        A = mat([[ points[0][0],     points[0][1], 1], \
+                 [ points[1][0],     points[1][1], 1], \
+                 [ points[2][0],     points[2][1], 1]])
+        b = mat([[-points[0][0]**2 - points[0][1]**2], \
+                 [-points[1][0]**2 - points[1][1]**2], \
+                 [-points[2][0]**2 - points[2][1]**2]])
+        d, e, f = linalg.solve(A,b)
+        self.arc_center_append([lineno,[-d/2,-e/2]])
+        print self.arc_center
     def straight_feed(self, x,y,z, a,b,c, u,v,w):
         if self.suppress > 0: return
         self.first_move = False
