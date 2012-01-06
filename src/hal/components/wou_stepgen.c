@@ -146,6 +146,7 @@
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
 #define FRACTION_BITS 16
+#define FIXED_POINT_SCALE   65536.0     // (double (1 << FRACTION_BITS))
 #define FRACTION_MASK 0x0000FFFF
 #define PID_LOOP 8
 // to disable DP(): #define TRACE 0
@@ -168,8 +169,8 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
-#define VEL_UPDATE_FREQ         (0.00065536)   // in second
-#define VEL_UPDATE_BP           (VEL_UPDATE_FREQ * 1526)
+//obsolete: #define VEL_UPDATE_FREQ         (0.00065536)   // in second
+//obsolete: #define VEL_UPDATE_BP           (VEL_UPDATE_FREQ * 1526)
 
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
@@ -202,11 +203,6 @@ RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
-//obsolete: int gpio_alm_out0 = -1;
-//obsolete: RTAPI_MP_INT(gpio_alm_out0, "WOU Register Value for GPIO_ALM_OUT0");
-//obsolete: 
-//obsolete: int gpio_alm_out1 = -1;
-//obsolete: RTAPI_MP_INT(gpio_alm_out1, "WOU Register Value for GPIO_ALM_OUT1");
 
 //obsolete: int gpio_leds_sel = -1;
 //obsolete: RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
@@ -583,12 +579,13 @@ static void get_crc_error_counter(int32_t crc_error_counter)
 
     return;
 }
-static void fetchmail(const uint8_t *buf_head)
+
+void fetchmail()
 {
+    char        *buf_head;
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[2], dout[1];
-    // obsolete: double      pos_scale;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
     uint32_t    ferror_flag;
@@ -598,20 +595,30 @@ static void fetchmail(const uint8_t *buf_head)
     //obsolete: static      uint32_t prev_din[2];
 #elif (DEBUG_LOG)
     char        dmsg[1024];
-	int         dsize;
+    int         dsize;
 #endif
-
+    
+    buf_head = (char *) wou_mbox_ptr (&w_param);
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
+    
+    // BP_TICK
+    p = (uint32_t *) (buf_head + 4);
+    bp_tick = *p;
+    if (machine_control->prev_bp == bp_tick) {
+        // skip mailbox parsing because there isn't new bp_tick
+        return;
+    }
+    *machine_control->bp_tick = bp_tick;
+    
     switch(mail_tag)
     {
     case MT_MOTION_STATUS:
 
         /* for PLASMA with ADC_SPI */
-
         // BP_TICK
         p = (uint32_t *) (buf_head + 4);
-        bp_tick = *p;
-        *machine_control->bp_tick = bp_tick;
+        //? bp_tick = *p;
+        //? *machine_control->bp_tick = bp_tick;
         assert(actual_joint_num>=num_chan);
         stepgen = stepgen_array;
         for (i=0; i<actual_joint_num; i++) {
@@ -628,11 +635,12 @@ static void fetchmail(const uint8_t *buf_head)
                 // pid output
                 p +=1;
                 // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
-                *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
+                // *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
+                *(stepgen->pid_output) = (hal_float_t)(*p);
                 // cmd error
                 p += 1;
                 // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-                *(stepgen->cmd_error) = ((int32_t)*p)*(1.0);
+                *(stepgen->cmd_error) = (hal_float_t)(*p);
                 *(machine_control->ferror[i]) = (int32_t)*p;
                 // joint_cmd of this BP
                 p += 1;
@@ -642,25 +650,17 @@ static void fetchmail(const uint8_t *buf_head)
             } else {
                 // PULSE_POS
                 p += 1;
-//                *(stepgen->pulse_pos) = *p;
-//                *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
                 *(machine_control->pulse_count[i]) = *p;
                 // enc counter
                 p += 1;
-//                *(stepgen->enc_pos) = *p;
                 *(machine_control->encoder_count[i]) = *p;
                 // pid output
                 p +=1;
-                // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
-//                *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
                 // cmd error
                 p += 1;
-                // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-//                *(stepgen->cmd_error) = ((int32_t)*p)*(1.0);
                 *(machine_control->ferror[i]) = (int32_t)*p;
                 // joint_cmd of this BP
                 p += 1;
-//                *(stepgen->joint_cmd) = ((int32_t)*p);
             }
             
         }
@@ -674,22 +674,23 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         dout[0] = *p;
         *machine_control->dout0 = dout[0];
-
+        
         // update gpio_in[31:0]
         // compare if there's any GPIO.DIN bit got toggled
-        if (memcmp (&(machine_control->prev_in0), &din[0], sizeof(uint32_t))) {
+        if (machine_control->prev_in0 != din[0]) {
             // avoid for-loop to save CPU cycles
-            memcpy(&(machine_control->prev_in0), &din[0], sizeof(uint32_t));
+            machine_control->prev_in0 = din[0];
             for (i = 0; i < 32; i++) {
                 *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
             }
         }
+        
         // update gpio_in[63:32]
         // compare if there's any GPIO.DIN bit got toggled
-        if (memcmp (&(machine_control->prev_in1), &din[1], sizeof(uint32_t))) {
+        if (machine_control->prev_in1 != din[1]) {
             // avoid for-loop to save CPU cycles
-            memcpy(&(machine_control->prev_in1), &din[1], sizeof(uint32_t));
+            machine_control->prev_in1 = din[1];
             for (i = 32; i < 64; i++) {
                 *(machine_control->in[i]) = ((machine_control->prev_in1) >> (i-32)) & 0x01;
                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
@@ -725,7 +726,7 @@ static void fetchmail(const uint8_t *buf_head)
         // otherwise, there will be 4 units of motions for every MPG click.
         *(machine_control->mpg_count) >>= 2;
         //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
-
+        
         // FERROR FLAG
         p += 1;
         ferror_flag = *p;
@@ -738,14 +739,6 @@ static void fetchmail(const uint8_t *buf_head)
         // DEBUG  : MOVE to MT_DEBUG
 
 #if (MBOX_LOG)
-        //obsolete: if (din[0] != prev_din[0]) {
-        //obsolete:     prev_din[0] = din[0];
-        //obsolete:     fprintf (stderr, "DIN[0]: 0x%08X\n", din[0]);
-        //obsolete: }
-        //obsolete: if (din[1] != prev_din[1]) {
-        //obsolete:     prev_din[1] = din[1];
-        //obsolete:     fprintf (stderr, "DIN[1]: 0x%08X\n", din[1]);
-        //obsolete: }
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
@@ -777,23 +770,15 @@ static void fetchmail(const uint8_t *buf_head)
         break;
     case MT_ERROR_CODE:
         // error code
-        p = (uint32_t *) (buf_head + 4);
+        p = (uint32_t *) (buf_head + 4);    // prev_bp_tick - bp_offset
         p += 1;
-        bp_tick = *p;
+        bp_tick = *p;                      
         p += 1;
-        switch (*p) {
-        case ERROR_BASE_PERIOD:
-            fprintf(stderr, "ERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
-            break;
+        if (ERROR_BASE_PERIOD == *p) {
+            DP("ERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
         }
-
-#if (MBOX_LOG)
-//        if(*p < 100) {
-            fprintf(mbox_fp, "# error occure with code(%d) bp_tick(%d)\n",*p, bp_tick);
-//        }
-//        fprintf(mbox_fp, "# error occure with code(%d)\n",bp_tick);
-#endif
         break;
+
     case MT_USB_STATUS:
             // update wou status only if a cmd ongoing
         p = (uint32_t *) (buf_head + 4);
@@ -807,8 +792,8 @@ static void fetchmail(const uint8_t *buf_head)
         } else {
             *machine_control->wou_status = USB_STATUS_READY;
         }
-//        fprintf(stderr, "wou_stepgen.c: probe_level(%d) probe_ref(%d)\n", *(p+1), *(p+2));
         break;
+
     case MT_DEBUG:
         p = (uint32_t *) (buf_head + 4);
         bp_tick = *p;
@@ -830,19 +815,15 @@ static void fetchmail(const uint8_t *buf_head)
         break;
     case MT_TICK:
         p = (uint32_t *) (buf_head + 4);
-
         for (i=0; i<14; i++) {
             p += 1;
             *machine_control->tick[i] = *p;
         }
         break;
     default:
-        fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag\n");
-        assert(0);
-#if (MBOX_LOG)
-        fprintf(mbox_fp, "# unknown mail tag\n"
-                );
-#endif
+        fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
+        *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
+        //? assert(0);
         break;
     }
 
@@ -890,6 +871,7 @@ static void write_machine_param (uint32_t addr, int32_t data)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     wou_flush(&w_param);
+
 
     return;
 }
@@ -969,7 +951,9 @@ int rtapi_app_main(void)
     int msg;
 
     msg = rtapi_get_msg_level();
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    // rtapi_set_msg_level(RTAPI_MSG_ALL);
+    // rtapi_set_msg_level(RTAPI_MSG_INFO);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
 
 #if (TRACE!=0)
     // initialize file handle for logging wou steps
@@ -1027,8 +1011,8 @@ int rtapi_app_main(void)
 #if (DEBUG_LOG)
         debug_fp = fopen ("./debug.log", "w");
 #endif
-        // set mailbox callback function
-        wou_set_mbox_cb (&w_param, fetchmail);
+//obsolete:        // set mailbox callback function
+//obsolete:        wou_set_mbox_cb (&w_param, fetchmail);
         // set crc counter callback function
         wou_set_crc_error_cb (&w_param, get_crc_error_counter);
     }
@@ -1074,8 +1058,10 @@ int rtapi_app_main(void)
     immediate_data = atoi(probe_pin_id);
     fprintf(stderr,"wou_stgepgen.c: probe_pin_id(%d)\n", immediate_data);
     write_machine_param(PROBE_PIN_ID, immediate_data);
+    
     immediate_data = atoi(probe_analog_ref_level);
     write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);
+    
     if (strcmp(probe_pin_type, "ANALOG_PIN") == 0) {
         immediate_data = ANALOG_PIN;
     } else if (strcmp(probe_pin_type, "DIGITAL_PIN") == 0){
@@ -1084,6 +1070,7 @@ int rtapi_app_main(void)
         fprintf(stderr,"ERROR: wou_stepgen.c unknown probe_pin_type\n");
         assert(0);
     }
+
     write_machine_param(PROBE_PIN_TYPE, immediate_data);
     // we use this value later.
     probe_decel = atoi(probe_decel_cmd);
@@ -1281,67 +1268,56 @@ int rtapi_app_main(void)
         // compute proper fraction bit for command
         // compute fraction bit for velocity
         // accurate 0.0001 mm
-        pos_scale   = atof(pos_scale_str[n]);
+        pos_scale   = fabs(atof(pos_scale_str[n]));
         max_vel     = atof(max_vel_str[n]);
         max_accel   = atof(max_accel_str[n]);
-//obsolete:         /* config fraction bit of param */
-//obsolete:         immediate_data = FRACTION_BITS;
-//obsolete:         write_mot_param (n, (PARAM_FRACT_BIT), immediate_data);
+        
         /* config MAX velocity */
-        immediate_data = (uint32_t)(max_vel * fabs(pos_scale) * dt * (1 << FRACTION_BITS)
-                                    + (1 << (FRACTION_BITS-1)));    // rounding to 0.5
+        // +1: rounding to last fixed point unit
+        immediate_data = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);    
         rtapi_print_msg(RTAPI_MSG_DBG,
-                " max_vel= %f*%f*%f*(2^%d) = (%d) ", 
-                max_vel, pos_scale, dt, FRACTION_BITS, immediate_data);
+                        "j[%d] max_vel(%d) = %f*%f*%f*%f\n", 
+                        n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
 
         /* config acceleration */
-        immediate_data = (uint32_t)(((max_accel*pos_scale*dt*
-                                        dt)*(1 << FRACTION_BITS)+ (1 << (FRACTION_BITS-1))));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        immediate_data += 1;
-        rtapi_print_msg(RTAPI_MSG_DBG,"max_accel=%f*%f*(%f^2)*(2^%d) = (%d) ",
-                 max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
-
-        assert(immediate_data>0);
+        // +1: rounding to last fixed point unit
+        immediate_data = ((uint32_t)(max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt) + 1);
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_accel(%d) = %f*%f*(%f^2)*(%f)\n",
+                        n, immediate_data, max_accel, pos_scale, dt, FIXED_POINT_SCALE);
+        assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL), immediate_data);
 
         /* config acceleration recip */
-        immediate_data = (uint32_t)((1 << FRACTION_BITS)/(max_accel*pos_scale*dt*dt)+ (1 << (FRACTION_BITS-1)));
-        immediate_data = (immediate_data > 0) ? immediate_data : -immediate_data;
-        rtapi_print_msg(RTAPI_MSG_DBG, "(1/(max_accel*scale)=(1/(%f*%f*(%f^2)))*(2^%d) = (%d) ",
-                                        max_accel, pos_scale, dt, FRACTION_BITS, immediate_data);
-        assert(immediate_data>0);
-
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG, 
+                        "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
+        assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
 
         /* config max following error */
         // following error send with unit pulse
         max_following_error = atof(ferror_str[n]);
         immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-
-
-        rtapi_print_msg(RTAPI_MSG_DBG, "(max ferror) = (%d) (%d) \n",
-                       ((uint32_t) (immediate_data/pos_scale)),(immediate_data));
+        rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
 
         // set probe decel cmd
-        immediate_data = (uint32_t)(((probe_decel*pos_scale*dt*
-                                dt)*(1 << FRACTION_BITS)+ (1 << (FRACTION_BITS-1))));
-        immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-        immediate_data += 1;
-        rtapi_print_msg(RTAPI_MSG_DBG,"probe_decel=%f*%f*(%f^2)*(2^%d) = (%d) ",
-                probe_decel, pos_scale, dt, FRACTION_BITS, immediate_data);
-
-        assert(immediate_data>0);
+        immediate_data = (uint32_t)(probe_decel * pos_scale * dt * FIXED_POINT_SCALE * dt);
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] probe_decel(%d) = %f*%f*(%f^2)*%f\n",
+                        n, immediate_data, probe_decel, pos_scale, dt, FIXED_POINT_SCALE);
+        // assert(immediate_data > 0);
         write_mot_param (n, (PROBE_DECEL_CMD), immediate_data);
 
         // set move type as normal by default
         immediate_data = NORMAL_MOVE;
         write_mot_param (n, (MOTION_TYPE), immediate_data);
     }
+
     // config PID parameter
     for (n=0; n < PID_LOOP; n++) {
         if (pid_str[n][0] != NULL) {
@@ -1544,7 +1520,8 @@ static void update_freq(void *arg, long period)
        function's actions, change the second line below */
     int msg;
     msg = rtapi_get_msg_level();
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    // rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
 
     // update host tick for risc
 
@@ -1561,6 +1538,7 @@ static void update_freq(void *arg, long period)
     host_tick += 1;
     //    DP("before wou_update()\n");
     wou_update(&w_param);
+    fetchmail();
     // read SSIF_INDEX_LOCK
 //TODO: implement RISC homing:    memcpy(&r_index_lock,
 //TODO: implement RISC homing:	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
@@ -1914,8 +1892,8 @@ static void update_freq(void *arg, long period)
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-        if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
             // update velocity-feedback only after encoder movement
+        if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
                                   / (*machine_control->bp_tick - machine_control->prev_bp)
                                  );
@@ -2252,8 +2230,8 @@ static int export_gpio(gpio_t * addr)
        of msg_level and restore it later.  If you actually need to log this
        function's actions, change the second line below */
     msg = rtapi_get_msg_level();
-    // rtapi_set_msg_level(RTAPI_MSG_WARN);
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
+    // rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     // export Analog IN
     for (i = 0; i < 1; i++) {
@@ -2279,8 +2257,8 @@ static int export_analog(analog_t * addr)
        of msg_level and restore it later.  If you actually need to log this
        function's actions, change the second line below */
     msg = rtapi_get_msg_level();
-    // rtapi_set_msg_level(RTAPI_MSG_WARN);
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
+    // rtapi_set_msg_level(RTAPI_MSG_ALL);
 
     // export Analog IN
     for (i = 0; i < 16; i++) {
@@ -2308,8 +2286,8 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
        of msg_level and restore it later.  If you actually need to log this
        function's actions, change the second line below */
     msg = rtapi_get_msg_level();
-    // rtapi_set_msg_level(RTAPI_MSG_WARN);
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
+    // rtapi_set_msg_level(RTAPI_MSG_ALL);
     
     /* debug info */
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->joint_cmd), comp_id,
@@ -2531,8 +2509,8 @@ static int export_machine_control(machine_control_t * machine_control)
     int i, retval, msg;
 
     msg = rtapi_get_msg_level();
-    // rtapi_set_msg_level(RTAPI_MSG_WARN);
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
+    // rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
 
