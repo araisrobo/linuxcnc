@@ -330,6 +330,9 @@ const char *act_jnt_num="4";
 RTAPI_MP_STRING(act_jnt_num,
                "actual joints controlled by risc");
 
+int alr_output = 0x00000000;
+RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
+
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
 static const char *board = "7i43u";
@@ -1053,6 +1056,8 @@ int rtapi_app_main(void)
         assert(0);
     }
 
+    // configure alarm output (for E-Stop)
+    write_machine_param(ALR_OUTPUT, alr_output);
     // config probe parameters
     // probe_decel_cmd
     immediate_data = atoi(probe_pin_id);
