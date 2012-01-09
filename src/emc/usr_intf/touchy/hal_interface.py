@@ -94,6 +94,16 @@ class hal_interface:
         self.wn_sw = 0
         self.sw_button_presented = 0
 
+        self.c.newpin("joint-for-x", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-y", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-z", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-a", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-b", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-c", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-u", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-v", hal.HAL_U32, hal.HAL_IN)
+        self.c.newpin("joint-for-w", hal.HAL_U32, hal.HAL_IN)
+        
         self.c.newpin("quill-up", hal.HAL_BIT, hal.HAL_IN)
         self.quillup = 0
         self.c.newpin("cycle-start", hal.HAL_BIT, hal.HAL_IN)
@@ -210,114 +220,124 @@ class hal_interface:
             if self.emc_stat.task_mode == self.emc.MODE_AUTO:
                 # self.gui.fo()
                 self.gui.wheel = "fo"
+
+        jx = self.c["joint-for-x"]
         xp = self.c["jog.continuous.x.positive"]
         if self.sw_button_presented == 1:
             xp = self.xp_sw
         if xp ^ self.xp: 
-            self.emc_control.continuous_jog(0, xp)
+            self.emc_control.continuous_jog(jx, xp)
         self.xp = xp
 
         xn = self.c["jog.continuous.x.negative"]
         if self.sw_button_presented == 1:
             xn = self.xn_sw
         if xn ^ self.xn:
-            self.emc_control.continuous_jog(0, -xn)
+            self.emc_control.continuous_jog(jx, -xn)
         self.xn = xn
 
+        jy = self.c["joint-for-y"]
         yp = self.c["jog.continuous.y.positive"]
         if self.sw_button_presented == 1:
             yp = self.yp_sw
-        if yp ^ self.yp: self.emc_control.continuous_jog(1, yp)
+        if yp ^ self.yp: self.emc_control.continuous_jog(jy, yp)
         self.yp = yp
 
         yn = self.c["jog.continuous.y.negative"]
         if self.sw_button_presented == 1:
             yn = self.yn_sw
-        if yn ^ self.yn: self.emc_control.continuous_jog(1, -yn)
+        if yn ^ self.yn: self.emc_control.continuous_jog(jy, -yn)
         self.yn = yn
 
+        jz = self.c["joint-for-z"]
         zp = self.c["jog.continuous.z.positive"]
         if self.sw_button_presented == 1:
             zp = self.zp_sw
-        if zp ^ self.zp: self.emc_control.continuous_jog(2, zp)
+        if zp ^ self.zp: self.emc_control.continuous_jog(jz, zp)
         self.zp = zp
 
         zn = self.c["jog.continuous.z.negative"]
         if self.sw_button_presented == 1:
             zn = self.zn_sw
-        if zn ^ self.zn: self.emc_control.continuous_jog(2, -zn)
+        if zn ^ self.zn: self.emc_control.continuous_jog(jz, -zn)
         self.zn = zn
 
+        ja = self.c["joint-for-a"]
         ap = self.c["jog.continuous.a.positive"]
         if self.sw_button_presented == 1:
             ap = self.ap_sw
-        if ap ^ self.ap: self.emc_control.continuous_jog(3, ap)
+        if ap ^ self.ap: self.emc_control.continuous_jog(ja, ap)
         self.ap = ap
 
         an = self.c["jog.continuous.a.negative"]
         if self.sw_button_presented == 1:
             an = self.an_sw
-        if an ^ self.an: self.emc_control.continuous_jog(3, -an)
+        if an ^ self.an: self.emc_control.continuous_jog(ja, -an)
         self.an = an
 
+        jb = self.c["joint-for-b"]
         bp = self.c["jog.continuous.b.positive"]
         if self.sw_button_presented == 1:
             bp = self.bp_sw
-        if bp ^ self.bp: self.emc_control.continuous_jog(4, bp)
+        if bp ^ self.bp: self.emc_control.continuous_jog(jb, bp)
         self.bp = bp
    
         bn = self.c["jog.continuous.b.negative"]
         if self.sw_button_presented == 1:
             bn = self.bn_sw
-        if bn ^ self.bn: self.emc_control.continuous_jog(4, -bn)
+        if bn ^ self.bn: self.emc_control.continuous_jog(jb, -bn)
         self.bn = bn
 
+        jc = self.c["joint-for-c"]
         cp = self.c["jog.continuous.c.positive"]
         if self.sw_button_presented == 1:
             cp = self.cp_sw
-        if cp ^ self.cp: self.emc_control.continuous_jog(5, cp)
+        if cp ^ self.cp: self.emc_control.continuous_jog(jc, cp)
         self.cp = cp
 
         cn = self.c["jog.continuous.c.negative"]
         if self.sw_button_presented == 1:
             cn = self.cn_sw
-        if cn ^ self.cn: self.emc_control.continuous_jog(5, -cn)
+        if cn ^ self.cn: self.emc_control.continuous_jog(jc, -cn)
         self.cn = cn
 
+        ju = self.c["joint-for-u"]
         up = self.c["jog.continuous.u.positive"]
         if self.sw_button_presented == 1:
             up = self.up_sw
-        if up ^ self.up: self.emc_control.continuous_jog(6, up)
+        if up ^ self.up: self.emc_control.continuous_jog(ju, up)
         self.up = up
 
         un = self.c["jog.continuous.u.negative"]
         if self.sw_button_presented == 1:
             un = self.un_sw
-        if un ^ self.un: self.emc_control.continuous_jog(6, -un)
+        if un ^ self.un: self.emc_control.continuous_jog(ju, -un)
         self.un = un
 
+        jv = self.c["joint-for-v"]
         vp = self.c["jog.continuous.v.positive"]
         if self.sw_button_presented == 1:
             vp = self.vp_sw
-        if vp ^ self.vp: self.emc_control.continuous_jog(7, vp)
+        if vp ^ self.vp: self.emc_control.continuous_jog(jv, vp)
         self.vp = vp
 
         vn = self.c["jog.continuous.v.negative"]
         if self.sw_button_presented == 1:
             vn = self.vn_sw
-        if vn ^ self.vn: self.emc_control.continuous_jog(7, -vn)
+        if vn ^ self.vn: self.emc_control.continuous_jog(jv, -vn)
         self.vn = vn
 
+        jw = self.c["joint-for-w"]
         wp = self.c["jog.continuous.w.positive"]
         if self.sw_button_presented == 1:
             wp = self.wp_sw
-        if wp ^ self.wp: self.emc_control.continuous_jog(8, wp)
+        if wp ^ self.wp: self.emc_control.continuous_jog(jw, wp)
         self.wp = wp
 
         wn = self.c["jog.continuous.w.negative"]
         if self.sw_button_presented == 1:
             wn = self.wn_sw
-        if wn ^ self.wn: self.emc_control.continuous_jog(8, -wn)
+        if wn ^ self.wn: self.emc_control.continuous_jog(jw, -wn)
         self.wn = wn
         
         quillup = self.c["quill-up"]

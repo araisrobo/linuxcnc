@@ -523,39 +523,39 @@ class touchy:
 
         def wheelx(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 0
+                self.wheelxyz = self.hal.c['joint-for-x']
 
         def wheely(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 1
+                self.wheelxyz = self.hal.c['joint-for-y']
 
         def wheelz(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 2
+                self.wheelxyz = self.hal.c['joint-for-z']
 
         def wheela(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 3
+                self.wheelxyz = self.hal.c['joint-for-a']
 
         def wheelb(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 4
+                self.wheelxyz = self.hal.c['joint-for-b']
 
         def wheelc(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 5
+                self.wheelxyz = self.hal.c['joint-for-c']
 
         def wheelu(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 6
+                self.wheelxyz = self.hal.c['joint-for-u']
 
         def wheelv(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 7
+                self.wheelxyz = self.hal.c['joint-for-v']
 
         def wheelw(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = 8
+                self.wheelxyz = self.hal.c['joint-for-w']
 
         def wheelinc1(self, b):
                 if self.radiobutton_mask: return
