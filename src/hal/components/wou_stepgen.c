@@ -330,8 +330,11 @@ const char *act_jnt_num="4";
 RTAPI_MP_STRING(act_jnt_num,
                "actual joints controlled by risc");
 
-int alr_output = 0x00000000;
-RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
+// int alr_output = 0x00000000;
+// RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
+const char *alr_output= "0";
+RTAPI_MP_STRING(alr_output,
+                "Digital Output when E-Stop presents");
 
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
@@ -668,7 +671,7 @@ void fetchmail()
             
         }
 
-        // digital inpout
+        // digital input
         p += 1;
         din[0] = *p;
         p += 1;
@@ -1057,7 +1060,8 @@ int rtapi_app_main(void)
     }
 
     // configure alarm output (for E-Stop)
-    write_machine_param(ALR_OUTPUT, alr_output);
+    write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
+    fprintf(stderr, "ALR_OUTPUT(%08X)",(uint32_t) strtoul(alr_output, NULL, 16));
     // config probe parameters
     // probe_decel_cmd
     immediate_data = atoi(probe_pin_id);
