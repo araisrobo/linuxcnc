@@ -1893,6 +1893,13 @@ static void update_freq(void *arg, long period)
         }
 
     }
+    
+    // in[0] == 1 (ESTOP released)
+    // in[0] == 0 (ESTOP pressed)
+    if (*(machine_control->in[0]) == 0) {
+        // force updating prev_out and ignore out[] if ESTOP is pressed
+        machine_control->prev_out =  *machine_control->dout0;
+    }
 
     i = 0;
     stepgen = arg;

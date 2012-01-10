@@ -135,6 +135,8 @@ class emc_control:
                                 self.emccommand.jog(self.emc.JOG_CONTINUOUS, i, self.isjogging[i] * self.jog_velocity)
         
         def continuous_jog(self, axis, direction):
+                # DEBUG:
+                print "continuous_jog(%d) dir(%d)\n" % (axis, direction)
                 if self.masked: return
                 if direction == 0:
                         self.isjogging[axis] = 0
