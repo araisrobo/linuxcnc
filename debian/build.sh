@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #usage: source ./build.sh
-RELEASE=2.5.0-master-2011.12.26
+RELEASE=2.5.0-master-2012.01.11
 CONCURRENCY_LEVEL=`getconf _NPROCESSORS_ONLN`
 export DEB_BUILD_OPTIONS="parallel=${CONCURRENCY_LEVEL}"
 ./configure sim
