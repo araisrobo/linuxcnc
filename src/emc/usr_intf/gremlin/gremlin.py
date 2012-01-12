@@ -98,7 +98,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.maxlat = 90
 
         self.highlight_line = None
-
+	self.material_l = None 
+	self.material_w = None
+	self.material_offset_x = 0
+	self.material_offset_y = 0	
+	self.draw_material_state = False
 	self.a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
 	self.b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
 	self.c_axis_wrapped = inifile.find("AXIS_5", "WRAPPED_ROTARY")
@@ -231,7 +235,19 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_show_relative(self): return True
     def get_show_tool(self): return True
     def get_show_distance_to_go(self): return True
-
+    def get_material_dimension(self):
+        return [self.offset_x, self.offset_y],[self.offset_x+self.material_l, self.offset_y+self.material_w]
+    def set_material_dimension(self, offset_x = 0, offset_y = 0, width =None, length = None):
+	self.material_l = length
+	self.material_w = width
+	self.offset_x = offset_x
+	self.offset_y = offset_y
+	if width == None or length == None:
+		self.draw_material_state = False
+	else:
+		self.draw_material_state = True
+    def draw_material(self):
+	return self.draw_material_state
     def get_view(self):
         view_dict = {'x':0, 'y':1, 'z':2, 'p':3}
         return view_dict.get(self.current_view, 3)
