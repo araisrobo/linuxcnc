@@ -1,3 +1,9 @@
+emc2 (1:2.5.0-2012.01.11) lucid; urgency=low
+
+  * improve fetchmail() of WOU for better USB bandwidth utilization
+
+ -- Yishin Li <ysli@araisrobo.com>  Wed, 11 Jan 2012 16:29:23 +0800
+
 emc2 (1:2.5.0-2011.12.26) lucid; urgency=low
 
   * merge upstream master (linuxcnc/master)
