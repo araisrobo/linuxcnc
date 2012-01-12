@@ -291,25 +291,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                     y = (self.min_extents[1] + self.max_extents[1])/2
                     z = (self.min_extents[2] + self.max_extents[2])/2
                 return x, y, z
-        #  for line in self.traverse:
-        #      if line[0] != lineno: continue
-        #      coords.append(line[1][:3])
-        #      coords.append(line[2][:3])
-        #  for line in self.arcfeed:
-        #      if line[0] != lineno: continue
-        #      emc.line9(geometry, line[1], line[2])
-        #      coords.append(line[1][:3])
-        #      coords.append(line[2][:3])
-        #  for line in self.arcfeed:
-        #      if line[0] != lineno: continue
-        #      emc.line9(geometry, line[1], line[2])
-        #      coords.append(line[1][:3])
-        #      coords.append(line[2][:3])
-        #  for line in self.feed:
-        #      if line[0] != lineno: continue
-        #      emc.line9(geometry, line[1], line[2])
-        #      coords.append(line[1][:3])
-        #      coords.append(line[2][:3])
         glEnd()
         for line in self.dwells: 
             if line[0] != lineno: continue
