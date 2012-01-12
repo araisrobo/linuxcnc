@@ -62,9 +62,8 @@ if [ -z "$PYTHONPATH" ]; then
 else
     PYTHONPATH=$EMC2_HOME/lib/python:"$PYTHONPATH"
 fi
-# for injection
-PYTHONPATH=$PYTHONPATH:`pwd`
-export PYTHONPATH
+# will export PYTHONPATH later after obtaining $INI_DIR
+# export PYTHONPATH
 
 XFILESEARCHPATH=%D:@EMC2_HOME@/%T/%N%C:@EMC2_HOME@/%T/%N
 export XFILESEARCHPATH
@@ -262,6 +261,10 @@ fi
 # delete directories from path, save name only
 INI_NAME="${INIFILE##*/}"
 INI_DIR="${INIFILE%/*}"
+
+# for python modules in $INI_DIR
+PYTHONPATH=${INI_DIR}:$PYTHONPATH
+export PYTHONPATH
 
 echo "Machine configuration directory is '$INI_DIR'"
 echo "Machine configuration file is '$INI_NAME'"
