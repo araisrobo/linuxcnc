@@ -47,8 +47,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.feed = []; self.feed_append = self.feed.append
         # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
-        # arcfeed center list - [line number, [x,y]]
-        self.arc_center = []; self.arc_center_append = self.arc_center.append
+        # arcfeed center list - [line number, [c_x,c_y], [s_x, s_y], [e_x, e_y]]
+        self.arc_info = []; self.arc_info_append = self.arc_info.append
         # dwell list - [line number, color, pos x, pos y, pos z, plane]
         self.dwells = []; self.dwells_append = self.dwells.append
         # block path list - [start line, end line, [start position], feedrate]
@@ -199,8 +199,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                  [-points[1][0]**2 - points[1][1]**2], \
                  [-points[2][0]**2 - points[2][1]**2]])
         d, e, f = linalg.solve(A,b)
-        self.arc_center_append([lineno,[-d/2,-e/2]])
-        print self.arc_center
+        self.arc_info_append([lineno,[-d/2,-e/2],segs[0],segs[len(segs)-1]])
     def straight_feed(self, x,y,z, a,b,c, u,v,w):
         if self.suppress > 0: return
         self.first_move = False
