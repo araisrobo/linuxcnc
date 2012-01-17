@@ -47,7 +47,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.feed = []; self.feed_append = self.feed.append
         # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
-        # arcfeed center list - [line number, [c_x,c_y], [s_x, s_y], [e_x, e_y]]
+        # arc info list - [line number, [c_x,c_y], [s_x, s_y], [e_x, e_y]]
         self.arc_info = []; self.arc_info_append = self.arc_info.append
         # dwell list - [line number, color, pos x, pos y, pos z, plane]
         self.dwells = []; self.dwells_append = self.dwells.append
