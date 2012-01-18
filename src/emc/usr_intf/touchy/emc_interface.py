@@ -137,9 +137,10 @@ class emc_control:
         def continuous_jog(self, axis, direction):
                 self.emcstat.poll()
                 if self.emcstat.task_mode != self.emc.MODE_MANUAL:
+                    # TODO wait till task_mode equal to emc.MODE_MANUAL
                     return
                 # DEBUG:
-                print "continuous_jog(%d) dir(%d)\n" % (axis, direction)
+                print "continuous_jog(%d) dir(%d)" % (axis, direction)
                 if self.masked: return
                 if direction == 0:
                         self.isjogging[axis] = 0

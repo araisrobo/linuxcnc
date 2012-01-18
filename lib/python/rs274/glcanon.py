@@ -42,6 +42,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def __init__(self, colors, geometry):
         # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
         self.traverse = []; self.traverse_append = self.traverse.append
+        # all_traverse list - [line number , [start position], [end position], feedrate]
         self.all_traverse = []; self.all_traverse_append = self.all_traverse.append
         # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.feed = []; self.feed_append = self.feed.append
@@ -145,9 +146,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if not self.first_move:
             self.traverse_append((self.lineno, self.lo, l, [self.xo,
                                     self.yo, self.zo]))
-            self.all_traverse_append([self.lineno, l , self.feedrate])
+            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate])
         else:
-            self.all_traverse_append([self.lineno, l, self.feedrate])
+            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate])
         # else:
         #     self.lo = (0, 0, 0, 0, 0, 0, 0, 0, 0) # a fake lo
         #     self.traverse_append((self.lineno, self.lo, l, [self.xo,
@@ -365,8 +366,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if traverse_line <= min((block_line, arcfeed_line, feed_line)):
         #    print 'min is traverse', traverse_line 
             if len(self.all_traverse) > 0:
-                feedrate = self.all_traverse[0][2]
-                return first_traverse[1][:3], feedrate
+                feedrate = self.all_traverse[0][3]
+                return first_traverse[2][:3], feedrate
             else:
                 return (0,0,0),1000
     def get_last_pos_of_prog(self):
@@ -422,8 +423,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             return self.feed[index][2][:3],self.feed[index][3]
         if traverse_line >= max((block_line, arcfeed_line, feed_line)):
             # print 'max is traverse', traverse_line 
-            feedrate = last_traverse[2]
-            return last_traverse[1][:3], feedrate
+            feedrate = last_traverse[3]
+            return last_traverse[2][:3], feedrate
     def get_start_line_of_block(self, lineno = None):
         for i in range(0, len(self.blocks)):
             if lineno >= self.blocks[i][0] and lineno <= self.blocks[i][1]:
