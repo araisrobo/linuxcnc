@@ -212,13 +212,17 @@ static int emcWaitCommandComplete(int serial_number, RCS_STAT_CHANNEL *s, double
         if(s->peek() == EMC_STAT_TYPE) {
            EMC_STAT *stat = (EMC_STAT*)s->get_address();
            // DEBUG: printf("WaitComplete: %d %d %d\n", serial_number, stat->echo_serial_number, stat->status);
-           
+
            // serial_number would be not equal to echo_serial when we change feedoverrid 
            // if (stat->echo_serial_number == serial_number &&
            //     ( stat->status == RCS_DONE || stat->status == RCS_ERROR )) {
            //      return s->get_address()->status;
            // }
            if (stat->status == RCS_DONE || stat->status == RCS_ERROR ) {
+                if (stat->echo_serial_number != serial_number) {
+                    printf("WaitComplete: echo_erial_number(%d) != serial_number(%d)\n", stat->echo_serial_number,
+                            serial_number);
+                }
                 return s->get_address()->status;
            }
         }
