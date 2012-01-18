@@ -230,20 +230,20 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if self.suppress > 0: return
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
-        self.block_start = self.lineno 
-        self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
-        self.block_feed = self.feedrate
+        if self.block_start != None:
+            self.blocks_append((self.block_start, self.lineno, self.block_pos,self.block_feed))
+            # self.blocks_append((self.block_start, self.lineno, self.lo, self.block_feed))
+        self.block_start = None
+        self.block_pos = []
     def start_spindle_counterclockwise(self, arg):
         # M4
         # DEBUG: print 'M4'
         if self.suppress > 0: return
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
-        if self.block_start != None:
-            self.blocks_append((self.block_start, self.lineno, self.block_pos,self.block_feed))
-            # self.blocks_append((self.block_start, self.lineno, self.lo, self.block_feed))
-        self.block_start = None
-        self.block_pos = []
+        self.block_start = self.lineno 
+        self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
+        self.block_feed = self.feedrate
     
     def highlight2(self, lineno, geometry):
         glLineWidth(3)
