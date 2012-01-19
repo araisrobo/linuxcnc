@@ -1112,7 +1112,7 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
     if(rot > 1) theta2 += 2*M_PI*(rot-1);
 
     int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
-    double rsteps = 1. / steps;
+    double rsteps = 1. / (steps); 
     PyObject *segs = PyList_New(steps);
 
     double dtheta = theta2 - theta1;
@@ -1120,10 +1120,10 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
     d[Z] = n[Z] - o[Z];
 
     double tx = o[X] - cx, ty = o[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
-    for(int i=0; i<steps-1; i++) {
-        double f = (i+1) * rsteps;
+    for(int i=0; i<steps; i++) {
+        double f = (i) * rsteps; 
         double p[9];
-        rotate(tx, ty, dc, ds);
+        if (i>0) rotate(tx, ty, dc, ds);
         p[X] = tx + cx;
         p[Y] = ty + cy;
         p[Z] = o[Z] + d[Z] * f;
