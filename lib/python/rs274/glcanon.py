@@ -1071,16 +1071,21 @@ class GlCanonDraw:
         
         try:
             if self.draw_material():
-                material_min, material_max = self.get_material_dimension()
-                if material_min is not None and material_max is not None:
+                pos_2, pos_3, pos_0, pos_1 = self.get_material_dimension()
+                # if pos_2 is not None and pos_3 is not None and pos_0 is\
+                #  not None and pos_1 is not None:
+                if pos_2 is None:
+
+                    pass
+                else:
                     glLineWidth(10)
                     glColor3f(0.4,0.4,0.2)
                     # glColor3f(0.5,1.0,0.2)
                     glBegin(GL_QUADS)
-                    glVertex3f(material_max[0], material_max[1],0)
-                    glVertex3f(material_min[0], material_max[1],0)
-                    glVertex3f(material_min[0], material_min[1],0)
-                    glVertex3f(material_max[0], material_min[1],0)
+                    glVertex3f(pos_2[0], pos_2[1],0)
+                    glVertex3f(pos_3[0], pos_3[1],0)
+                    glVertex3f(pos_0[0], pos_0[1],0)
+                    glVertex3f(pos_1[0], pos_1[1],0)
 
                     glEnd()
 

@@ -98,10 +98,15 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.maxlat = 90
 
         self.highlight_line = None
-	self.material_l = None 
-	self.material_w = None
-	self.material_offset_x = 0
-	self.material_offset_y = 0	
+	#self.material_l = None 
+	#self.material_w = None
+	#self.material_offset_x = 0
+	#self.material_offset_y = 0
+        self.material_buttom_left = (0.0,0.0)
+        self.material_buttom_right = (0.0,0.0)
+        self.material_top_left = (0.0,0.0)
+        self.material_top_right = (0.0,0.0)
+
 	self.draw_material_state = False
 	self.a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
 	self.b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
@@ -236,13 +241,22 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_show_tool(self): return True
     def get_show_distance_to_go(self): return True
     def get_material_dimension(self):
-        return [self.offset_x, self.offset_y],[self.offset_x+self.material_l, self.offset_y+self.material_w]
-    def set_material_dimension(self, offset_x = 0, offset_y = 0, width =None, length = None):
-	self.material_l = length
-	self.material_w = width
-	self.offset_x = offset_x
-	self.offset_y = offset_y
-	if width == None or length == None:
+        return self.material_top_right, self.material_top_left, self.material_buttom_left, self.material_buttom_right 
+    def set_material_dimension(self, pos_0=None, pos_1=None, pos_2=None, pos_3=None):
+	#self.material_l = length  
+	#self.material_w = width
+	#self.offset_x = offset_x
+	#self.offset_y = offset_y
+
+        self.material_buttom_left = pos_0
+        self.material_buttom_right = pos_1
+        self.material_top_left = pos_3
+        self.material_top_right = pos_2
+
+        if self.material_buttom_left is None or\
+            self.material_buttom_right\
+            is None or self.material_top_left is None or\
+            self.material_top_right is None :
 		self.draw_material_state = False
 	else:
 		self.draw_material_state = True
