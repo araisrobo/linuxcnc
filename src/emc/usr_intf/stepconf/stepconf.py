@@ -550,16 +550,21 @@ class Data:
         print >>file, "CYCLE_TIME = 0.100"
         print >>file, "TOOL_TABLE = tool.tbl"
 
+        
         all_homes = self.home_sig("x") and self.home_sig("z")
-        if self.axes != 2: all_homes = all_homes and self.home_sig("y")
-        if self.axes == 4: all_homes = all_homes and self.home_sig("a")
+        self.write_one_axis(file,"x")
+        self.write_one_axis(file,"y")
+        self.write_one_axis(file,"z")
+        self.write_one_joint(file, 0, "x", 'LINEAR', all_homes)
+        # if self.axes != 2: all_homes = all_homes and self.home_sig("y")
+        # if self.axes == 4: all_homes = all_homes and self.home_sig("a")
 
-        self.write_one_axis(file, 0, "x", "LINEAR", all_homes)
-        if self.axes != 2:
-            self.write_one_axis(file, 1, "y", "LINEAR", all_homes)
-        self.write_one_axis(file, 2, "z", "LINEAR", all_homes)
-        if self.axes == 1:
-            self.write_one_axis(file, 3, "a", "ANGULAR", all_homes)
+        # self.write_one_joint(file, 0, "x", "LINEAR", all_homes)
+        # if self.axes != 2:
+        #     self.write_one_joint(file, 1, "y", "LINEAR", all_homes)
+        # self.write_one_joint(file, 2, "z", "LINEAR", all_homes)
+        # if self.axes == 1:
+        #     self.write_one_joint(file, 3, "a", "ANGULAR", all_homes)
 
         file.close()
         self.add_md5sum(filename)
@@ -615,14 +620,25 @@ class Data:
             return abs(.95 * 1e9 / self.ideal_period() / scale)
         else:
             return abs(.95 * .5 * 1e9 / self.ideal_period() / scale)
+    def write_one_axis(self, file, letter):
+        def get(s): return self[letter + s]
+        scale = get("scale")
+        vel = min(get("maxvel"), self.ideal_maxvel(scale))
+        print >> file
+        print >> file, "[AXIS_%s]" % (letter.upper())
+        print >> file, "HOME = %s" % get("homepos")
+        print >> file, "MAX_VELOCITY = %s" % vel
+        print >> file, "MAX_ACCELERATION = %s" % get("maxacc")
+        print >> file, "MAX_JERK = 1000.0"
 
-    def write_one_axis(self, file, num, letter, type, all_homes):
+        pass
+    def write_one_joint(self, file, num, letter, type, all_homes):
         order = "1203"
         def get(s): return self[letter + s]
         scale = get("scale")
         vel = min(get("maxvel"), self.ideal_maxvel(scale))
         print >>file
-        print >>file, "[AXIS_%d]" % num
+        print >>file, "[JOINT_%d]" % num
         print >>file, "TYPE = %s" % type
         print >>file, "HOME = %s" % get("homepos")
         print >>file, "MAX_VELOCITY = %s" % vel
@@ -1125,7 +1141,6 @@ class Data:
         d = xml.dom.minidom.getDOMImplementation().createDocument(
                             None, "stepconf", None)
         e = d.documentElement
-
         for k, v in sorted(self.__dict__.iteritems()):
             if k.startswith("_"): continue
             n = d.createElement('property')
@@ -1142,7 +1157,6 @@ class Data:
         
         d.writexml(open(filename, "wb"), addindent="  ", newl="\n")
         print("%s" % base)
-
         # see http://freedesktop.org/wiki/Software/xdg-user-dirs
         desktop = commands.getoutput("""
             test -f ${XDG_CONFIG_HOME:-~/.config}/user-dirs.dirs && . ${XDG_CONFIG_HOME:-~/.config}/user-dirs.dirs
@@ -1187,7 +1201,7 @@ class App:
 
     def make_axispage(self, doc, axisname):
         axispage = self._getwidget(doc, 'xaxis').parentNode.cloneNode(True)
-        nextpage = self._getwidget(doc, 'spindle').parentNode
+        nextpage = self._getwidget(doc, 'complete').parentNode
         widget = self._getwidget(axispage, "xaxis")
         for node in widget.childNodes:
             if (node.nodeType == xml.dom.Node.ELEMENT_NODE
@@ -1214,7 +1228,6 @@ class App:
         glade = xml.dom.minidom.parse(os.path.join(datadir, self.fname))
         self.make_axispage(glade, 'y')
         self.make_axispage(glade, 'z')
-        self.make_axispage(glade, 'a')
         doc = glade.toxml().encode("utf-8")
 
         self.xml = gtk.glade.xml_new_from_buffer(doc, len(doc), domain="axis")
@@ -1848,12 +1861,12 @@ class App:
 
     def on_zaxis_next(self, *args):
         self.axis_done('z')
-        if self.data.axes != 1:
-            if self.has_spindle_speed_control():
-                self.widgets.druid1.set_page(self.widgets.spindle)
-            else:
-                self.widgets.druid1.set_page(self.widgets.complete)
-            return True
+        # if self.data.axes != 1:
+            # if self.has_spindle_speed_control():
+            #    self.widgets.druid1.set_page(self.widgets.spindle)
+            # else:
+        self.widgets.druid1.set_page(self.widgets.complete)
+        return True
 
     def on_aaxis_next(self, *args):
         self.axis_done('a')
@@ -1936,6 +1949,7 @@ class App:
     def on_amaxacc_changed(self, *args): self.update_pps('a')
 
     def on_complete_finish(self, *args):
+        print self.data
         self.data.save()        
         if self.data.classicladder: 
            if not self.data.laddername == "custom.clp":
@@ -1968,12 +1982,12 @@ class App:
         gtk.main_quit()
 
     def on_complete_back(self, *args):
-        if self.has_spindle_speed_control():
-            self.widgets.druid1.set_page(self.widgets.spindle)
-        elif self.data.axes != 1:
-            self.widgets.druid1.set_page(self.widgets.zaxis)
-        else:
-            self.widgets.druid1.set_page(self.widgets.aaxis)
+        # if self.has_spindle_speed_control():
+        #    self.widgets.druid1.set_page(self.widgets.spindle)
+        # elif self.data.axes != 1:
+        self.widgets.druid1.set_page(self.widgets.zaxis)
+        # else:
+        #    self.widgets.druid1.set_page(self.widgets.aaxis)
         return True
 
     def on_calculate_ideal_period(self, *args):
