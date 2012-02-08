@@ -286,6 +286,7 @@ class Data:
         self.j0homefinalvel = 1.0
         self.j0latchdir = 0
         self.j0scale = 0
+        self.j0axis = 'X'
 
         self.j1steprev = 200
         self.j1microstep = 2
@@ -295,7 +296,7 @@ class Data:
         self.j1maxvel = 1
         self.j1maxacc = 30
         self.j1maxjerk = 100
-
+        self.j1axis = 'Y'
 
         self.j1homepos = 0
         self.j1minlim =  0
@@ -305,7 +306,6 @@ class Data:
         self.j1homefinalvel = 1.0
         self.j1latchdir = 0
         self.j1scale = 0
-
 
         self.j2steprev = 200
         self.j2microstep = 2
@@ -325,6 +325,7 @@ class Data:
         self.j2homefinalvel = 1.0
         self.j2latchdir = 0
         self.j2scale = 0
+        self.j2axis = 'Z'
 
 
         self.j3steprev = 200
@@ -344,6 +345,7 @@ class Data:
         self.j3homefinalvel = 1.0
         self.j3latchdir = 0
         self.j3scale = 0
+        self.j3axis = 'A'
 
         self.spindlecarrier = 100
         self.spindlecpr = 100
@@ -461,27 +463,34 @@ class Data:
         print >>file, "[EMC]"
         print >>file, "MACHINE = %s" % self.machinename
         print >>file, "DEBUG = 0"
-
+        print >>file, "RS274NGC_STARTUP_CODE = S1"
+        
+        print >>file, "[KINS]"
+        print >>file, "JOINT = 4"
+        print >>file, "KINEMATICS = align_gantry_kins"
         print >>file
         print >>file, "[DISPLAY]"
         print >>file, "DISPLAY = touchy"
-        print >>file, "EDITOR = gedit"
-        print >>file, "POSITION_OFFSET = RELATIVE"
+        print >>file, "HIGHLIGHT_MODE = Block"
+        print >>file, "JOG_ALWAYS = TRUE"
+        print >>file, "GLADE_FILE = custom.glade"
+        print >>file, "USE_INJECTION = YES"
+        print >>file, "CYCLE_TIME = 0.030"
+        print >>file, "doc/help.txt"
+        print >>file, "MDI_HISTORY_FILE = ./touchy_mdi_history"
+        print >>file, "POSITION_OFFSET = MACHINE"
         print >>file, "POSITION_FEEDBACK = ACTUAL"
-        print >>file, "MAX_FEED_OVERRIDE = 1.2"
+        print >>file, "MAX_FEED_OVERRIDE = 1.5"
+        print >>file, "PROGRAM_PREFIX = ../../nc_files/taiwan-plasma"
+        print >>file, "OPEN_FILE = ../../nc_files/taiwan-plasma/thc_line_x_edge_start_measure_voltage.ngc"
         print >>file, "INTRO_GRAPHIC = emc2.gif"
-        print >>file, "INTRO_TIME = 5"
+        print >>file, "INTRO_TIME = 3"
         print >>file, "PROGRAM_PREFIX = %s" % \
                                     os.path.expanduser("~/emc2/nc_files")
         if self.units:
-            print >>file, "INCREMENTS = 5mm 1mm .5mm .1mm .05mm .01mm .005mm"
+            print >>file, "INCREMENTS = 1mm .1mm .01mm"
         else:
-            print >>file, "INCREMENTS = .1in .05in .01in .005in .001in .0005in .0001in"
-        if self.pyvcp:
-            print >>file, "PYVCP = custompanel.xml"
-
-        if self.axes == 2:
-            print >>file, "LATHE = 1"
+            print >>file, "INCREMENTS = .1in .05in .01in .001in"
 
         print >>file
         print >>file, "[FILTER]"
@@ -495,7 +504,7 @@ class Data:
         print >>file
         print >>file, "[TASK]"
         print >>file, "TASK = milltask"
-        print >>file, "CYCLE_TIME = 0.010"
+        print >>file, "CYCLE_TIME = 0.0010"
 
         print >>file
         print >>file, "[RS274NGC]"
@@ -508,48 +517,39 @@ class Data:
         print >>file, "EMCMOT = motmod"
         print >>file, "COMM_TIMEOUT = 1.0"
         print >>file, "COMM_WAIT = 0.010"
-        print >>file, "BASE_PERIOD = %d" % base_period
-        print >>file, "SERVO_PERIOD = 1000000"
+        # print >>file, "BASE_PERIOD = %d" % base_period
+        print >>file, "BASE_PERIOD = 655360"
+        print >>file, "SERVO_PERIOD = 655360"
+        print >>file, "TRAJ_PERIOD = 655360"
 
         print >>file
         print >>file, "[HAL]"
-        if self.halui:
-            print >>file,"HALUI = halui"          
-        print >>file, "HALFILE = %s.hal" % self.machinename
-        if self.customhal:
-            print >>file, "HALFILE = custom.hal"
-            print >>file, "POSTGUI_HALFILE = custom_postgui.hal"
+        # if self.halui:
+        #    print >>file,"HALUI = halui"          
+        # print >>file, "HALFILE = %s.hal" % self.machinename
+        # if self.customhal:
+        #    print >>file, "HALFILE = custom.hal"
+        #     print >>file, "POSTGUI_HALFILE = custom_postgui.hal"
 
-        if self.halui:
-           print >>file
-           print >>file, "[HALUI]"
-           print >>file, _("# add halui MDI commands here (max 64) ")
-
-        print >>file
+        # if self.halui:
+        #   print >>file
+        #   print >>file, "[HALUI]"
+        #   print >>file, _("# add halui MDI commands here (max 64) ")
+        print >> file
+        print >>file, "HALFILE =              gantry.hal"
+        print >>file, "HALFILE =                     risc_param.hal" 
+        print >>file, "HALFILE =                     switches.hal"
+        print >>file, "HALFILE =                     plasma.hal"
+        print >>file, "HALFILE =                     plasma_cl.hal"
+        print >>file, "HALUI = halui"
         print >>file, "[TRAJ]"
-        if self.axes == 1:
-            print >>file, "AXES = 4"
-            print >>file, "COORDINATES = X Y Z A"
-            print >>file, "MAX_ANGULAR_VELOCITY = %.2f" % self.amaxvel
-            defvel = min(60, self.amaxvel/10.)
-            print >>file, "DEFAULT_ANGULAR_VELOCITY = %.2f" % defvel
-        elif self.axes == 0:
-            print >>file, "AXES = 3"
-            print >>file, "COORDINATES = X Y Z"
-        else:
-            print >>file, "AXES = 3"
-            print >>file, "COORDINATES = X Z"
+        print >>file, "AXES = 3"
+        print >>file, "COORDINATES = X Y Z"
         if self.units:
             print >>file, "LINEAR_UNITS = mm"
         else:
             print >>file, "LINEAR_UNITS = inch"
-        print >>file, "ANGULAR_UNITS = degree"
-        print >>file, "CYCLE_TIME = 0.010"
-        if self.axes == 2:
-            maxvel = max(self.xmaxvel, self.zmaxvel)        
-        else:
-            maxvel = max(self.xmaxvel, self.ymaxvel, self.zmaxvel)        
-        hypotvel = (self.xmaxvel**2 + self.ymaxvel**2 + self.zmaxvel**2) **.5
+        maxvel = max(self.j0maxvel, self.j1maxvel, self.j2maxvel, self.j3maxvel)        
         defvel = min(maxvel, max(.1, maxvel/10.))
         print >>file, "DEFAULT_VELOCITY = %.2f" % defvel
         print >>file, "MAX_LINEAR_VELOCITY = %.2f" % maxvel
@@ -572,20 +572,23 @@ class Data:
         # if self.axes != 2:
         self.write_one_joint(file, 1, "j1", "LINEAR", all_homes)
         self.write_one_joint(file, 2, "j2", "LINEAR", all_homes)
+        self.write_one_joint(file, 3, "j2", "LINEAR", all_homes)
         # if self.axes == 1:
         #    self.write_one_axis(file, 3, "a", "ANGULAR", all_homes)
 
+        self.write_wou(file)
         file.close()
         self.add_md5sum(filename)
 
-    def hz(self, axname):
-        steprev = getattr(self, axname+"steprev")
-        microstep = getattr(self, axname+"microstep")
-        pulleynum = getattr(self, axname+"pulleynum")
-        pulleyden = getattr(self, axname+"pulleyden")
-        leadscrew = getattr(self, axname+"leadscrew")
-        maxvel = getattr(self, axname+"maxvel")
-        if self.units or axname == 'a': leadscrew = 1./leadscrew
+    def hz(self, joint):
+        steprev = getattr(self, joint+"steprev")
+        microstep = getattr(self, joint+"microstep")
+        pulleynum = getattr(self, joint+"pulleynum")
+        pulleyden = getattr(self, joint+"pulleyden")
+        leadscrew = getattr(self, joint+"leadscrew")
+        maxvel = getattr(self, joint+"maxvel")
+        # if self.units or joint == 'a': leadscrew = 1./leadscrew
+        if self.units: leadscrew = 1./leadscrew
         pps = leadscrew * steprev * microstep * (pulleynum/pulleyden) * maxvel
         return abs(pps)
 
@@ -631,7 +634,15 @@ class Data:
             return abs(.95 * .5 * 1e9 / self.ideal_period() / scale)
 
     def write_one_axis(self, file, letter):
-        def get(s): return self[letter + s]
+        
+        def get(s): return self[joint + s]
+        tar_joint = None
+        for j in ('j0','j1','j2','j3'):
+            joint = j
+            if get('axis').upper() == letter.upper():
+                tar_joint = j
+        print 'write %s for %s' % (tar_joint, letter)
+        joint = tar_joint          
         scale = get("scale")
         vel = min(get("maxvel"), self.ideal_maxvel(scale))
         print >> file
@@ -641,7 +652,7 @@ class Data:
         print >> file, "MAX_ACCELERATION = %s" % get("maxacc")
         print >> file, "MAX_JERK = %s" % get("maxjerk")
     def write_one_joint(self, file, num, letter, type, all_homes):
-        order = "1203"
+        order = "1110"
         def get(s): return self[letter + s]
         scale = get("scale")
         vel = min(get("maxvel"), self.ideal_maxvel(scale))
@@ -711,6 +722,21 @@ class Data:
             print >>file, "HOME_OFFSET = %s" % get("homepos")
             print >> file, "HOME_VEL = %f" % get("homefinalvel")
 
+    def write_wou(self, file):
+        print >> file
+        print >> file, "[WOU]"
+        print >> file, 'J0_PID      =  "   790,   7,  2500,   0, 65500,   0,    1,  0,    0, 5000,   0,  0,  0,     0"'
+        print >> file, 'J1_PID      =  "   700,   7,  2500,   0, 65500,   0,    1,  0,    0, 5000,   0,  0,  0,     0"'
+        print >> file, 'J2_PID      =  "   700,   7,  2500,   0, 65500,   0,    1,  0,    0, 5000,   0,  0,  0,     0"'
+        print >> file, 'J3_PID      =  "   900,   3,     0,   0, 65500,   0,    1,  0,    0, 5000,   0,  0,  0,     0"'
+        print >> file, 'GANTRY_PID  =  "     0,   0, 99536,   0,     0,   0,    0,  0,    0,    0,   0,  0,  0,     0"'
+        print >> file, 'AHC_PID     =  " 17500,  10,  2500,   0,     0,   0,    1,  0,    0, 5000,   0,  0,  0,   100"'
+        print >> file, 'AHC_CH = 0'
+        print >> file, 'AHC_JNT = 3'
+        print >> file, 'AHC_LEVEL_MIN = 1000'
+        print >> file, 'AHC_LEVEL_MAX = 1700'
+        print >> file, 'AHC_POLARITY = POSITIVE'
+
     def home_sig(self, axis):
         inputs = set((self.pin10,self.pin11,self.pin12,self.pin13,self.pin15))
         thisaxishome = set((ALL_HOME, ALL_LIMIT_HOME, "home-" + axis, "min-home-" + axis,
@@ -743,6 +769,7 @@ class Data:
                        return i
  
     def connect_axis(self, file, num, let):
+        if let not in "xyza": return
         axnum = "xyza".index(let)
         lat = self.latency
         print >>file
@@ -1688,11 +1715,13 @@ class App:
         self.widgets.pin8.set_active(6)
         self.widgets.pin9.set_active(7)
 
-    def axis_prepare(self, axis):
+    def joint_prepare(self, joint):
         d = self.data
         w = self.widgets
-        def set_text(n): w[axis + n].set_text("%s" % d[axis + n])
-        def set_active(n): w[axis + n].set_active(d[axis + n])
+        
+        def set_text(n):
+            w[joint + n].set_text("%s" % d[joint + n])
+        def set_active(n): w[joint + n].set_active(d[joint + n])
         set_text("steprev")
         set_text("microstep")
         set_text("pulleynum")
@@ -1708,44 +1737,50 @@ class App:
         set_text("homevel")
         set_text("homefinalvel")
         set_active("latchdir")
-
-        if axis == "a":
-            w[axis + "screwunits"].set_text(_("degree / rev"))
-            w[axis + "velunits"].set_text(_("deg / s"))
-            w[axis + "accunits"].set_text(_("deg / s²"))
-            w[axis + "accdistunits"].set_text(_("deg"))
-            w[axis + "scaleunits"].set_text(_("Steps / deg"))
+        set_text("axis")
+        set_text("maxjerk")
+        if joint == "a":
+            w[joint + "screwunits"].set_text(_("degree / rev"))
+            w[joint + "velunits"].set_text(_("deg / s"))
+            w[joint + "accunits"].set_text(_("deg / s²"))
+            w[joint + "accdistunits"].set_text(_("deg"))
+            w[joint + "scaleunits"].set_text(_("Steps / deg"))
         elif d.units:
-            w[axis + "screwunits"].set_text(_("mm / rev"))
-            w[axis + "velunits"].set_text(_("mm / s"))
-            w[axis + "accunits"].set_text(_("mm / s²"))
-            w[axis + "accdistunits"].set_text(_("mm"))
-            w[axis + "scaleunits"].set_text(_("Steps / mm"))
+            w[joint + "screwunits"].set_text(_("mm / rev"))
+            w[joint + "velunits"].set_text(_("mm / s"))
+            w[joint + "accunits"].set_text(_("mm / s²"))
+            w[joint + "accdistunits"].set_text(_("mm"))
+            w[joint + "scaleunits"].set_text(_("Steps / mm"))
         else:
-            w[axis + "screwunits"].set_text(_("rev / in"))
-            w[axis + "velunits"].set_text(_("in / s"))
-            w[axis + "accunits"].set_text(_("in / s²"))
-            w[axis + "accdistunits"].set_text(_("in"))
-            w[axis + "scaleunits"].set_text(_("Steps / in"))
+            w[joint + "screwunits"].set_text(_("rev / in"))
+            w[joint + "velunits"].set_text(_("in / s"))
+            w[joint + "accunits"].set_text(_("in / s²"))
+            w[joint + "accdistunits"].set_text(_("in"))
+            w[joint + "scaleunits"].set_text(_("Steps / in"))
 
         inputs = set((d.pin10, d.pin11, d.pin12, d.pin13, d.pin15))
-        thisaxishome = set((ALL_HOME, ALL_LIMIT_HOME, "home-" + axis, "min-home-" + axis,
-                            "max-home-" + axis, "both-home-" + axis))
+        thisjointhome = set((ALL_HOME, ALL_LIMIT_HOME, "home-" + joint, "min-home-" + joint,
+                            "max-home-" + joint, "both-home-" + joint))
         # USB-HOMING 
-        # homes = bool(inputs & thisaxishome)
+        # homes = bool(inputs & thisjointhome)
         homes = True
-        w[axis + "homesw"].set_sensitive(homes)
-        w[axis + "homevel"].set_sensitive(homes)
-        w[axis + "homefinalvel"].set_sensitive(homes)
-        w[axis + "latchdir"].set_sensitive(homes)
+        w[joint + "homesw"].set_sensitive(homes)
+        w[joint + "homevel"].set_sensitive(homes)
+        w[joint + "homefinalvel"].set_sensitive(homes)
+        w[joint + "latchdir"].set_sensitive(homes)
 
-        w[axis + "steprev"].grab_focus()
-        gobject.idle_add(lambda: self.update_pps(axis))
+        w[joint + "steprev"].grab_focus()
+        gobject.idle_add(lambda: self.update_pps(joint))
 
     def joint_done(self, joint):
         d = self.data
         w = self.widgets
-        def get_text(n): d[joint + n] = float(w[joint + n].get_text())
+        def get_text(n): 
+            v = w[joint + n].get_text()
+            try:
+                d[joint + n]  = float(v)
+            except:
+                d[joint + n]  = v
         def get_active(n): d[joint + n] = w[joint + n].get_active()
         get_text("steprev")
         get_text("microstep")
@@ -1762,11 +1797,13 @@ class App:
         get_text("homevel")
         get_text("homefinalvel")
         get_active("latchdir")
+        get_text("maxjerk")
+        get_text("axis")
         
-    def on_j0_prepare(self, *args): self.axis_prepare('j0')
-    def on_j1_prepare(self, *args): self.axis_prepare('j1')
-    def on_j2_prepare(self, *args): self.axis_prepare('j2')
-    def on_j3_prepare(self, *args): self.axis_prepare('j3')
+    def on_j0_prepare(self, *args): self.joint_prepare('j0')
+    def on_j1_prepare(self, *args): self.joint_prepare('j1')
+    def on_j2_prepare(self, *args): self.joint_prepare('j2')
+    def on_j3_prepare(self, *args): self.joint_prepare('j3')
 
     def on_j0_back(self, *args): 
         self.joint_done('j0')
@@ -1926,7 +1963,7 @@ class App:
 
         try:
             pitch = get("leadscrew")
-            if d.units == 1 or axis == 'a': pitch = 1./pitch
+            if d.units == 1 : pitch = 1./pitch
             pps = (pitch * get("steprev") * get("microstep") *
                 (get("pulleynum") / get("pulleyden")) * get("maxvel"))
             if pps == 0: raise ValueError
@@ -2326,7 +2363,6 @@ class App:
             widgets[axis+"maxacc"].set_text("%s" % widgets.testacc.get_value())
             widgets[axis+"maxvel"].set_text("%s" % widgets.testvel.get_value())
         self.axis_under_test = None
-
     def run(self, filename=None):
         if filename is not None:
             self.data.load(filename, self)
