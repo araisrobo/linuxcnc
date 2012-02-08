@@ -276,7 +276,8 @@ class Data:
         self.xleadscrew = 20
         self.xmaxvel = 1
         self.xmaxacc = 30
-
+        self.xmaxjerk = 100
+        
         self.xhomepos = 0
         self.xminlim =  0
         self.xmaxlim =  8
@@ -293,6 +294,8 @@ class Data:
         self.yleadscrew = 20
         self.ymaxvel = 1
         self.ymaxacc = 30
+        self.ymaxjerk = 100
+
 
         self.yhomepos = 0
         self.yminlim =  0
@@ -311,6 +314,8 @@ class Data:
         self.zleadscrew = 20
         self.zmaxvel = 1
         self.zmaxacc = 30
+        self.zmaxjerk = 100
+
 
         self.zhomepos = 0
         self.zminlim = -4
@@ -329,6 +334,7 @@ class Data:
         self.aleadscrew = 8
         self.amaxvel = 360
         self.amaxacc = 1200
+        self.amaxjerk = 3600
 
         self.ahomepos = 0
         self.aminlim = -9999
@@ -633,7 +639,7 @@ class Data:
         print >> file, "HOME = %s" % get("homepos")
         print >> file, "MAX_VELOCITY = %s" % vel
         print >> file, "MAX_ACCELERATION = %s" % get("maxacc")
-        print >> file, "MAX_JERK = 1000.0"
+        print >> file, "MAX_JERK = %s" % get("maxjerk")
     def write_one_joint(self, file, num, letter, type, all_homes):
         order = "1203"
         def get(s): return self[letter + s]
@@ -644,7 +650,7 @@ class Data:
         print >>file, "TYPE = %s" % type
         print >>file, "HOME = %s" % get("homepos")
         print >>file, "MAX_VELOCITY = %s" % vel
-        print >>file, "MAX_ACCELERATION = %s" % get("maxacc")
+        print >>file, "MAX_ACCELERATION = %s" % str(float(get("maxacc")+5))
         # we don't have this: print >>file, "STEPGEN_MAXACCEL = %s" % (1.25 * get("maxacc"))
         print >>file, "BACKLASH = 0.0000"  # We haven't used this.
         print >>file, "STEPLEN = 80"  # This is due to 7i43 (USB MODE)
@@ -1694,6 +1700,7 @@ class App:
         set_text("leadscrew")
         set_text("maxvel")
         set_text("maxacc")
+        set_text("maxjerk")
         set_text("homepos")
         set_text("minlim")
         set_text("maxlim")
@@ -1747,6 +1754,7 @@ class App:
         get_text("leadscrew")
         get_text("maxvel")
         get_text("maxacc")
+        get_text("maxjerk")
         get_text("homepos")
         get_text("minlim")
         get_text("maxlim")
