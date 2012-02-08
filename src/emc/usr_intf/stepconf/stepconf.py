@@ -282,6 +282,7 @@ class Data:
         self.xmaxlim =  8
         self.xhomesw =  0
         self.xhomevel = .05
+        self.xhomefinalvel = 1.0
         self.xlatchdir = 0
         self.xscale = 0
 
@@ -298,6 +299,7 @@ class Data:
         self.ymaxlim =  8
         self.yhomesw =  0
         self.yhomevel = .05
+        self.yhomefinalvel = 1.0
         self.ylatchdir = 0
         self.yscale = 0
 
@@ -315,6 +317,7 @@ class Data:
         self.zmaxlim =  0
         self.zhomesw = 0
         self.zhomevel = .05
+        self.zhomefinalvel = 1.0
         self.zlatchdir = 0
         self.zscale = 0
 
@@ -332,6 +335,7 @@ class Data:
         self.amaxlim =  9999
         self.ahomesw =  0
         self.ahomevel = .05
+        self.ahomefinalvel = 1.0
         self.alatchdir = 0
         self.ascale = 0
 
@@ -641,18 +645,11 @@ class Data:
         print >>file, "HOME = %s" % get("homepos")
         print >>file, "MAX_VELOCITY = %s" % vel
         print >>file, "MAX_ACCELERATION = %s" % get("maxacc")
-        print >>file, "STEPGEN_MAXACCEL = %s" % (1.25 * get("maxacc"))
-        print >>file, "SCALE = %s" % scale
-        if num == 3:
-            print >>file, "FERROR = 1"
-            print >>file, "MIN_FERROR = .25"
-        elif self.units:
-            print >>file, "FERROR = 1"
-            print >>file, "MIN_FERROR = .25"
-        else:
-            print >>file, "FERROR = 0.05"
-            print >>file, "MIN_FERROR = 0.01"
-
+        # we don't have this: print >>file, "STEPGEN_MAXACCEL = %s" % (1.25 * get("maxacc"))
+        print >>file, "BACKLASH = 0.0000"  # We haven't used this.
+        print >>file, "STEPLEN = 80"  # This is due to 7i43 (USB MODE)
+        print >>file, "INPUT_SCALE = %s" % scale
+        print >>file, "OUTPUT_SACLE = 1"
         # emc2 doesn't like having home right on an end of travel,
         # so extend the travel limit by up to .01in or .1mm
         minlim = get("minlim")
@@ -664,6 +661,17 @@ class Data:
         maxlim = max(maxlim, home + extend)
         print >>file, "MIN_LIMIT = %s" % minlim
         print >>file, "MAX_LIMIT = %s" % maxlim
+        
+        if num == 3:
+            print >>file, "FERROR = 1"
+            print >>file, "MIN_FERROR = .25"
+        elif self.units:
+            print >>file, "FERROR = 1"
+            print >>file, "MIN_FERROR = .25"
+        else:
+            print >>file, "FERROR = 0.05"
+            print >>file, "MIN_FERROR = 0.01"
+
 
         inputs = set((self.pin10,self.pin11,self.pin12,self.pin13,self.pin15))
         thisaxishome = set((ALL_HOME, ALL_LIMIT_HOME, "home-" + letter, "min-home-" + letter,
@@ -671,8 +679,9 @@ class Data:
         # no need to set HOME_IGNORE_LIMITS when ALL_LIMIT_HOME, HAL logic will do the trick
         ignore = set(("min-home-" + letter, "max-home-" + letter,
                             "both-home-" + letter))
-        homes = bool(inputs & thisaxishome)
-    
+        # USB-HOMING
+        # homes = bool(inputs & thisaxishome)
+        homes = True
         if homes:
             print >>file, "HOME_OFFSET = %f" % get("homesw")
             print >>file, "HOME_SEARCH_VEL = %f" % get("homevel")
@@ -684,13 +693,17 @@ class Data:
             # don't do the latch move faster than the search move
             if abs(latchvel) > abs(get("homevel")):
                 latchvel = latchvel * (abs(get("homevel"))/abs(latchvel))
+            # TODO: judge whether index homing used
+            print >>file, "HOME_USE_INDEX = NO"
             print >>file, "HOME_LATCH_VEL = %f" % latchvel
-            if inputs & ignore:
-                print >>file, "HOME_IGNORE_LIMITS = YES"
-            if all_homes:
-                print >>file, "HOME_SEQUENCE = %s" % order[num]
+            print >> file, "HOME_VEL = %f" % get("homefinalvel")
+            # USB-HOMING don't look this inputs valid or not. 
+            # if inputs & ignore:
+            print >>file, "HOME_IGNORE_LIMITS = YES"
+            print >>file, "HOME_SEQUENCE = %s" % order[num]
         else:
             print >>file, "HOME_OFFSET = %s" % get("homepos")
+            print >> file, "HOME_VEL = %f" % get("homefinalvel")
 
     def home_sig(self, axis):
         inputs = set((self.pin10,self.pin11,self.pin12,self.pin13,self.pin15))
@@ -1686,6 +1699,7 @@ class App:
         set_text("maxlim")
         set_text("homesw")
         set_text("homevel")
+        set_text("homefinalvel")
         set_active("latchdir")
 
         if axis == "a":
@@ -1710,9 +1724,12 @@ class App:
         inputs = set((d.pin10, d.pin11, d.pin12, d.pin13, d.pin15))
         thisaxishome = set((ALL_HOME, ALL_LIMIT_HOME, "home-" + axis, "min-home-" + axis,
                             "max-home-" + axis, "both-home-" + axis))
-        homes = bool(inputs & thisaxishome)
+        # USB-HOMING 
+        # homes = bool(inputs & thisaxishome)
+        homes = True
         w[axis + "homesw"].set_sensitive(homes)
         w[axis + "homevel"].set_sensitive(homes)
+        w[axis + "homefinalvel"].set_sensitive(homes)
         w[axis + "latchdir"].set_sensitive(homes)
 
         w[axis + "steprev"].grab_focus()
@@ -1735,6 +1752,7 @@ class App:
         get_text("maxlim")
         get_text("homesw")
         get_text("homevel")
+        get_text("homefinalvel")
         get_active("latchdir")
         
     def on_xaxis_prepare(self, *args): self.axis_prepare('x')
