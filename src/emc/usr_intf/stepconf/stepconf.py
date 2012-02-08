@@ -269,81 +269,81 @@ class Data:
         self.pin13 = UNUSED_INPUT
         self.pin15 = UNUSED_INPUT
 
-        self.xsteprev = 200
-        self.xmicrostep = 2
-        self.xpulleynum = 1
-        self.xpulleyden = 1
-        self.xleadscrew = 20
-        self.xmaxvel = 1
-        self.xmaxacc = 30
-        self.xmaxjerk = 100
+        self.j0steprev = 200
+        self.j0microstep = 2
+        self.j0pulleynum = 1
+        self.j0pulleyden = 1
+        self.j0leadscrew = 20
+        self.j0maxvel = 1
+        self.j0maxacc = 30
+        self.j0maxjerk = 100
         
-        self.xhomepos = 0
-        self.xminlim =  0
-        self.xmaxlim =  8
-        self.xhomesw =  0
-        self.xhomevel = .05
-        self.xhomefinalvel = 1.0
-        self.xlatchdir = 0
-        self.xscale = 0
+        self.j0homepos = 0
+        self.j0minlim =  0
+        self.j0maxlim =  8
+        self.j0homesw =  0
+        self.j0homevel = .05
+        self.j0homefinalvel = 1.0
+        self.j0latchdir = 0
+        self.j0scale = 0
 
-        self.ysteprev = 200
-        self.ymicrostep = 2
-        self.ypulleynum = 1
-        self.ypulleyden = 1
-        self.yleadscrew = 20
-        self.ymaxvel = 1
-        self.ymaxacc = 30
-        self.ymaxjerk = 100
-
-
-        self.yhomepos = 0
-        self.yminlim =  0
-        self.ymaxlim =  8
-        self.yhomesw =  0
-        self.yhomevel = .05
-        self.yhomefinalvel = 1.0
-        self.ylatchdir = 0
-        self.yscale = 0
+        self.j1steprev = 200
+        self.j1microstep = 2
+        self.j1pulleynum = 1
+        self.j1pulleyden = 1
+        self.j1leadscrew = 20
+        self.j1maxvel = 1
+        self.j1maxacc = 30
+        self.j1maxjerk = 100
 
 
-        self.zsteprev = 200
-        self.zmicrostep = 2
-        self.zpulleynum = 1
-        self.zpulleyden = 1
-        self.zleadscrew = 20
-        self.zmaxvel = 1
-        self.zmaxacc = 30
-        self.zmaxjerk = 100
+        self.j1homepos = 0
+        self.j1minlim =  0
+        self.j1maxlim =  8
+        self.j1homesw =  0
+        self.j1homevel = .05
+        self.j1homefinalvel = 1.0
+        self.j1latchdir = 0
+        self.j1scale = 0
 
 
-        self.zhomepos = 0
-        self.zminlim = -4
-        self.zmaxlim =  0
-        self.zhomesw = 0
-        self.zhomevel = .05
-        self.zhomefinalvel = 1.0
-        self.zlatchdir = 0
-        self.zscale = 0
+        self.j2steprev = 200
+        self.j2microstep = 2
+        self.j2pulleynum = 1
+        self.j2pulleyden = 1
+        self.j2leadscrew = 20
+        self.j2maxvel = 1
+        self.j2maxacc = 30
+        self.j2maxjerk = 100
 
 
-        self.asteprev = 200
-        self.amicrostep = 2
-        self.apulleynum = 1
-        self.apulleyden = 1
-        self.aleadscrew = 8
-        self.amaxvel = 360
-        self.amaxacc = 1200
-        self.amaxjerk = 3600
+        self.j2homepos = 0
+        self.j2minlim = -4
+        self.j2maxlim =  0
+        self.j2homesw = 0
+        self.j2homevel = .05
+        self.j2homefinalvel = 1.0
+        self.j2latchdir = 0
+        self.j2scale = 0
 
-        self.ahomepos = 0
-        self.aminlim = -9999
-        self.amaxlim =  9999
-        self.ahomesw =  0
-        self.ahomevel = .05
-        self.ahomefinalvel = 1.0
-        self.alatchdir = 0
-        self.ascale = 0
+
+        self.j3steprev = 200
+        self.j3microstep = 2
+        self.j3pulleynum = 1
+        self.j3pulleyden = 1
+        self.j3leadscrew = 8
+        self.j3maxvel = 360
+        self.j3maxacc = 1200
+        self.j3maxjerk = 3600
+
+        self.j3homepos = 0
+        self.j3minlim = -9999
+        self.j3maxlim =  9999
+        self.j3homesw =  0
+        self.j3homevel = .05
+        self.j3homefinalvel = 1.0
+        self.j3latchdir = 0
+        self.j3scale = 0
 
         self.spindlecarrier = 100
         self.spindlecpr = 100
@@ -464,7 +464,7 @@ class Data:
 
         print >>file
         print >>file, "[DISPLAY]"
-        print >>file, "DISPLAY = axis"
+        print >>file, "DISPLAY = touchy"
         print >>file, "EDITOR = gedit"
         print >>file, "POSITION_OFFSET = RELATIVE"
         print >>file, "POSITION_FEEDBACK = ACTUAL"
@@ -568,10 +568,10 @@ class Data:
         self.write_one_axis(file, "y")
         self.write_one_axis(file, "z")
         
-        self.write_one_joint(file, 0, "x", "LINEAR", all_homes)
+        self.write_one_joint(file, 0, "j0", "LINEAR", all_homes)
         # if self.axes != 2:
-        self.write_one_joint(file, 1, "y", "LINEAR", all_homes)
-        self.write_one_joint(file, 2, "z", "LINEAR", all_homes)
+        self.write_one_joint(file, 1, "j1", "LINEAR", all_homes)
+        self.write_one_joint(file, 2, "j2", "LINEAR", all_homes)
         # if self.axes == 1:
         #    self.write_one_axis(file, 3, "a", "ANGULAR", all_homes)
 
@@ -606,10 +606,10 @@ class Data:
         return 1e9 / self.minperiod()
 
     def ideal_period(self):
-        xhz = self.hz('x')
-        yhz = self.hz('y')
-        zhz = self.hz('z')
-        ahz = self.hz('a')
+        xhz = self.hz('j0')
+        yhz = self.hz('j1')
+        zhz = self.hz('j2')
+        ahz = self.hz('j3')
         if self.axes == 1:
             pps = max(xhz, yhz, zhz, ahz)
         elif self.axes == 0:
@@ -1005,17 +1005,17 @@ class Data:
 
 
         if self.axes == 2:
-            self.connect_axis(file, 0, 'x')
-            self.connect_axis(file, 1, 'z')
+            self.connect_axis(file, 0, 'j0')
+            self.connect_axis(file, 1, 'j2')
         elif self.axes == 0:
-            self.connect_axis(file, 0, 'x')
-            self.connect_axis(file, 1, 'y')
-            self.connect_axis(file, 2, 'z')
+            self.connect_axis(file, 0, 'j0')
+            self.connect_axis(file, 1, 'j1')
+            self.connect_axis(file, 2, 'j2')
         elif self.axes == 1:
-            self.connect_axis(file, 0, 'x')
-            self.connect_axis(file, 1, 'y')
-            self.connect_axis(file, 2, 'z')
-            self.connect_axis(file, 3, 'a')
+            self.connect_axis(file, 0, 'j0')
+            self.connect_axis(file, 1, 'j1')
+            self.connect_axis(file, 2, 'j2')
+            self.connect_axis(file, 3, 'j3')
 
         print >>file
         print >>file, "net estop-out <= iocontrol.0.user-enable-out"
@@ -1218,36 +1218,36 @@ class App:
         for i in doc.getElementsByTagName('widget'):
             if i.getAttribute('id') == id: return i
 
-    def make_axispage(self, doc, axisname):
-        axispage = self._getwidget(doc, 'xaxis').parentNode.cloneNode(True)
+    def make_jointpage(self, doc, jointname): # jointname = j0, j1
+        axispage = self._getwidget(doc, 'j0_page').parentNode.cloneNode(True)
         nextpage = self._getwidget(doc, 'spindle').parentNode
-        widget = self._getwidget(axispage, "xaxis")
+        widget = self._getwidget(axispage, "j0_page")
         for node in widget.childNodes:
             if (node.nodeType == xml.dom.Node.ELEMENT_NODE
                     and node.tagName == "property"
                     and node.getAttribute('name') == "title"):
-                node.childNodes[0].data = _("%s Axis Configuration") % axisname.upper()
+                node.childNodes[0].data = _("Joint %s Configuration") % jointname[1] 
         for node in axispage.getElementsByTagName("widget"):
             id = node.getAttribute('id')
-            if id.startswith("x"):
-                node.setAttribute('id', axisname + id[1:])
+            if id.startswith("j0"):
+                node.setAttribute('id', jointname + id[2:])
             else:
-                node.setAttribute('id', axisname + id)
+                node.setAttribute('id', jointname + id)
         for node in axispage.getElementsByTagName("signal"):
             handler = node.getAttribute('handler')
-            node.setAttribute('handler', handler.replace("on_x", "on_" + axisname))
+            node.setAttribute('handler', handler.replace("on_j0", "on_" + jointname))
         for node in axispage.getElementsByTagName("property"):
             name = node.getAttribute('name')
             if name == "mnemonic_widget":
-                node.childNodes[0].data = axisname + node.childNodes[0].data[1:]
+                node.childNodes[0].data = jointname + node.childNodes[0].data[2:]
         nextpage.parentNode.insertBefore(axispage, nextpage)
 
     def __init__(self):
         gnome.init("stepconf", "0.6") 
         glade = xml.dom.minidom.parse(os.path.join(datadir, self.fname))
-        self.make_axispage(glade, 'y')
-        self.make_axispage(glade, 'z')
-        self.make_axispage(glade, 'a')
+        self.make_jointpage(glade, "j1")
+        self.make_jointpage(glade, "j2")
+        self.make_jointpage(glade, "j3")
         doc = glade.toxml().encode("utf-8")
 
         self.xml = gtk.glade.xml_new_from_buffer(doc, len(doc), domain="axis")
@@ -1423,7 +1423,7 @@ class App:
             self.data.number_pports = 1
 
         # skip advance config, paraport config
-        self.widgets.druid1.set_page(self.widgets.xaxis)
+        self.widgets.druid1.set_page(self.widgets.j0_page)
         return True
     def on_advanced_prepare(self, *args):       
         self.widgets.pyvcp.set_active(self.data.pyvcp)
@@ -1742,11 +1742,11 @@ class App:
         w[axis + "steprev"].grab_focus()
         gobject.idle_add(lambda: self.update_pps(axis))
 
-    def axis_done(self, axis):
+    def joint_done(self, joint):
         d = self.data
         w = self.widgets
-        def get_text(n): d[axis + n] = float(w[axis + n].get_text())
-        def get_active(n): d[axis + n] = w[axis + n].get_active()
+        def get_text(n): d[joint + n] = float(w[joint + n].get_text())
+        def get_active(n): d[joint + n] = w[joint + n].get_active()
         get_text("steprev")
         get_text("microstep")
         get_text("pulleynum")
@@ -1763,32 +1763,35 @@ class App:
         get_text("homefinalvel")
         get_active("latchdir")
         
-    def on_xaxis_prepare(self, *args): self.axis_prepare('x')
-    def on_yaxis_prepare(self, *args): self.axis_prepare('y')
-    def on_zaxis_prepare(self, *args): self.axis_prepare('z')
-    def on_aaxis_prepare(self, *args): self.axis_prepare('a')
+    def on_j0_prepare(self, *args): self.axis_prepare('j0')
+    def on_j1_prepare(self, *args): self.axis_prepare('j1')
+    def on_j2_prepare(self, *args): self.axis_prepare('j2')
+    def on_j3_prepare(self, *args): self.axis_prepare('j3')
 
-    def on_xaxis_back(self, *args): 
-        self.axis_done('x')
+    def on_j0_back(self, *args): 
+        self.joint_done('j0')
         self.widgets.druid1.set_page(self.widgets.basicinfo)
         return True # return to make set_page() valid
-    def on_yaxis_back(self, *args): 
-        self.axis_done('y')
-        self.widgets.druid1.set_page(self.widgets.xaxis)
+    def on_j1_back(self, *args): 
+        self.joint_done('j1')
+        self.widgets.druid1.set_page(self.widgets.j0_page)
         return True
-    def on_zaxis_back(self, *args):
-        self.axis_done('z')
+    def on_j2_back(self, *args):
+        self.joint_done('j2')
         #if self.data.axes == 2:
         #    self.widgets.druid1.set_page(self.widgets.xaxis)
         #    return True
-        self.widgets.druid1.set_page(self.widgets.yaxis)
+        self.widgets.druid1.set_page(self.widgets.j1_page)
         return True
-    def on_aaxis_back(self, *args): self.axis_done('a')
+    def on_j3_back(self, *args): 
+        self.joint_done('j3')
+        self.widgets.druid1.set_page(self.widgets.j2_page)
+        return True
 
-    def on_xaxistest_clicked(self, *args): self.test_axis('x')
-    def on_yaxistest_clicked(self, *args): self.test_axis('y')
-    def on_zaxistest_clicked(self, *args): self.test_axis('z')
-    def on_aaxistest_clicked(self, *args): self.test_axis('a')
+    def on_j0test_clicked(self, *args): self.test_joint('j0')
+    def on_j1test_clicked(self, *args): self.test_joint('j1')
+    def on_j2test_clicked(self, *args): self.test_joint('j2')
+    def on_j3test_clicked(self, *args): self.test_joint('j3')
 
     def on_spindle_prepare(self, *args):
         self.widgets['spindlecarrier'].set_text("%s" % self.data.spindlecarrier)
@@ -1884,32 +1887,29 @@ class App:
         print"clicked"
         self.testpanel(self)
 
-    def on_xaxis_next(self, *args):
-        self.axis_done('x')
+    def on_j0_next(self, *args):
+        self.joint_done('j0')
         # if self.data.axes == 2:
         #    self.widgets.druid1.set_page(self.widgets.zaxis)
         #    return True
-        self.widgets.druid1.set_page(self.widgets.yaxis)
+        self.widgets.druid1.set_page(self.widgets.j1_page)
         return True
-    def on_yaxis_next(self, *args): 
-        self.axis_done('y')
-        self.widgets.druid1.set_page(self.widgets.zaxis)
+    def on_j1_next(self, *args): 
+        self.joint_done('j1')
+        self.widgets.druid1.set_page(self.widgets.j2_page)
         return True
-    def on_zaxis_next(self, *args):
-        self.axis_done('z')
-        #if self.data.axes != 1:
-        #    if self.has_spindle_speed_control():
-        #        self.widgets.druid1.set_page(self.widgets.spindle)
-        #    else:
-        self.widgets.druid1.set_page(self.widgets.complete)
+    def on_j2_next(self, *args):
+        self.joint_done('j2')
+        # self.widgets.druid1.set_page(self.widgets.complete)
+        self.widgets.druid1.set_page(self.widgets.j3_page)
         return True
 
-    def on_aaxis_next(self, *args):
-        self.axis_done('a')
-        if self.has_spindle_speed_control():
-            self.widgets.druid1.set_page(self.widgets.spindle)
-        else:
-            self.widgets.druid1.set_page(self.widgets.complete)
+    def on_j3_next(self, *args):
+        self.joint_done('j3')
+        # if self.has_spindle_speed_control():
+        #    self.widgets.druid1.set_page(self.widgets.spindle)
+        # else:
+        self.widgets.druid1.set_page(self.widgets.complete)
         return True
 
     def has_spindle_speed_control(self):
@@ -1919,10 +1919,10 @@ class App:
                 PPR in (d.pin10, d.pin11, d.pin12, d.pin13, d.pin15) or \
                 PHA in (d.pin10, d.pin11, d.pin12, d.pin13, d.pin15) \
 
-    def update_pps(self, axis):
+    def update_pps(self, joint):
         w = self.widgets
         d = self.data
-        def get(n): return float(w[axis + n].get_text())
+        def get(n): return float(w[joint + n].get_text())
 
         try:
             pitch = get("leadscrew")
@@ -1933,56 +1933,56 @@ class App:
             pps = abs(pps)
             acctime = get("maxvel") / get("maxacc")
             accdist = acctime * .5 * get("maxvel")
-            w[axis + "acctime"].set_text("%.4f" % acctime)
-            w[axis + "accdist"].set_text("%.4f" % accdist)
-            w[axis + "hz"].set_text("%.1f" % pps)
-            scale = self.data[axis + "scale"] = (1.0 * pitch * get("steprev")
+            w[joint + "acctime"].set_text("%.4f" % acctime)
+            w[joint + "accdist"].set_text("%.4f" % accdist)
+            w[joint + "hz"].set_text("%.1f" % pps)
+            scale = self.data[joint + "scale"] = (1.0 * pitch * get("steprev")
                 * get("microstep") * (get("pulleynum") / get("pulleyden")))
-            w[axis + "scale"].set_text("%.1f" % scale)
+            w[joint + "scale"].set_text("%.1f" % scale)
             self.widgets.druid1.set_buttons_sensitive(1,1,1,1)
-            w[axis + "axistest"].set_sensitive(1)
+            w[joint + "jointtest"].set_sensitive(1)
         except (ValueError, ZeroDivisionError): # Some entries not numbers or not valid
-            w[axis + "acctime"].set_text("")
-            w[axis + "accdist"].set_text("")
-            w[axis + "hz"].set_text("")
-            w[axis + "scale"].set_text("")
+            w[joint + "acctime"].set_text("")
+            w[joint + "accdist"].set_text("")
+            w[joint + "hz"].set_text("")
+            w[joint + "scale"].set_text("")
             self.widgets.druid1.set_buttons_sensitive(1,0,1,1)
-            w[axis + "axistest"].set_sensitive(0)
+            w[joint + "jointtest"].set_sensitive(0)
 
-    def on_xsteprev_changed(self, *args): self.update_pps('x')
-    def on_ysteprev_changed(self, *args): self.update_pps('y')
-    def on_zsteprev_changed(self, *args): self.update_pps('z')
-    def on_asteprev_changed(self, *args): self.update_pps('a')
+    def on_j0steprev_changed(self, *args): self.update_pps('j0')
+    def on_j1steprev_changed(self, *args): self.update_pps('j1')
+    def on_j2steprev_changed(self, *args): self.update_pps('j2')
+    def on_j3steprev_changed(self, *args): self.update_pps('j3')
 
-    def on_xmicrostep_changed(self, *args): self.update_pps('x')
-    def on_ymicrostep_changed(self, *args): self.update_pps('y')
-    def on_zmicrostep_changed(self, *args): self.update_pps('z')
-    def on_amicrostep_changed(self, *args): self.update_pps('a')
+    def on_j0microstep_changed(self, *args): self.update_pps('j0')
+    def on_j1microstep_changed(self, *args): self.update_pps('j1')
+    def on_j2microstep_changed(self, *args): self.update_pps('j2')
+    def on_j3microstep_changed(self, *args): self.update_pps('j3')
 
-    def on_xpulleynum_changed(self, *args): self.update_pps('x')
-    def on_ypulleynum_changed(self, *args): self.update_pps('y')
-    def on_zpulleynum_changed(self, *args): self.update_pps('z')
-    def on_apulleynum_changed(self, *args): self.update_pps('a')
+    def on_j0pulleynum_changed(self, *args): self.update_pps('j0')
+    def on_j1pulleynum_changed(self, *args): self.update_pps('j1')
+    def on_j2pulleynum_changed(self, *args): self.update_pps('j2')
+    def on_j3pulleynum_changed(self, *args): self.update_pps('j3')
 
-    def on_xpulleyden_changed(self, *args): self.update_pps('x')
-    def on_ypulleyden_changed(self, *args): self.update_pps('y')
-    def on_zpulleyden_changed(self, *args): self.update_pps('z')
-    def on_apulleyden_changed(self, *args): self.update_pps('a')
+    def on_j0pulleyden_changed(self, *args): self.update_pps('j0')
+    def on_j1pulleyden_changed(self, *args): self.update_pps('j1')
+    def on_j2pulleyden_changed(self, *args): self.update_pps('j2')
+    def on_j3pulleyden_changed(self, *args): self.update_pps('j3')
 
-    def on_xleadscrew_changed(self, *args): self.update_pps('x')
-    def on_yleadscrew_changed(self, *args): self.update_pps('y')
-    def on_zleadscrew_changed(self, *args): self.update_pps('z')
-    def on_aleadscrew_changed(self, *args): self.update_pps('a')
+    def on_j0leadscrew_changed(self, *args): self.update_pps('j0')
+    def on_j1leadscrew_changed(self, *args): self.update_pps('j1')
+    def on_j2leadscrew_changed(self, *args): self.update_pps('j2')
+    def on_j3leadscrew_changed(self, *args): self.update_pps('j3')
 
-    def on_xmaxvel_changed(self, *args): self.update_pps('x')
-    def on_ymaxvel_changed(self, *args): self.update_pps('y')
-    def on_zmaxvel_changed(self, *args): self.update_pps('z')
-    def on_amaxvel_changed(self, *args): self.update_pps('a')
+    def on_j0maxvel_changed(self, *args): self.update_pps('j0')
+    def on_j1maxvel_changed(self, *args): self.update_pps('j1')
+    def on_j2maxvel_changed(self, *args): self.update_pps('j2')
+    def on_j3maxvel_changed(self, *args): self.update_pps('j3')
 
-    def on_xmaxacc_changed(self, *args): self.update_pps('x')
-    def on_ymaxacc_changed(self, *args): self.update_pps('y')
-    def on_zmaxacc_changed(self, *args): self.update_pps('z')
-    def on_amaxacc_changed(self, *args): self.update_pps('a')
+    def on_j0maxacc_changed(self, *args): self.update_pps('j0')
+    def on_j1maxacc_changed(self, *args): self.update_pps('j1')
+    def on_j2maxacc_changed(self, *args): self.update_pps('j2')
+    def on_j3maxacc_changed(self, *args): self.update_pps('j3')
 
     def on_complete_finish(self, *args):
         self.data.save()        
@@ -2022,7 +2022,7 @@ class App:
         # elif self.data.axes != 1:
         #     self.widgets.druid1.set_page(self.widgets.zaxis)
         # else:
-        self.widgets.druid1.set_page(self.widgets.zaxis)
+        self.widgets.druid1.set_page(self.widgets.j0_page)
         return True
 
     def on_calculate_ideal_period(self, *args):
@@ -2152,15 +2152,15 @@ class App:
             self.data.tempexists = 0
         
 
-    def test_axis(self, axis):
+    def test_joint(self, joint):
         if not self.check_for_rt(): return
         data = self.data
         widgets = self.widgets
 
-        vel = float(widgets[axis + "maxvel"].get_text())
-        acc = float(widgets[axis + "maxacc"].get_text())
+        vel = float(widgets[joint + "maxvel"].get_text())
+        acc = float(widgets[joint + "maxacc"].get_text())
 
-        scale = data[axis + "scale"]
+        scale = data[joint + "scale"]
         maxvel = 1.5 * vel
         if data.doublestep():
                 period = int(1e9 / maxvel / scale)
@@ -2183,9 +2183,16 @@ class App:
 
         self.halrun = halrun = os.popen("halrun -sf > /dev/null", "w")
 
-        axnum = "xyza".index(axis)
-        step = axis + "step"
-        dir = axis + "dir"
+        dict = {"j0":0,
+                "j1":1,
+                "j2":2,
+                "j3":3
+                }
+                
+#        axnum = "xyza".index(axis)
+        jnnum = dict[joint]
+        step = joint + "step"
+        dir = joint + "dir"
         halrun.write("""
             loadrt steptest
             loadrt stepgen step_type=0
@@ -2220,8 +2227,8 @@ class App:
             'dirpin': data.find_output(dir),
             'dirhold': data.dirhold + data.latency,
             'dirsetup': data.dirsetup + data.latency,
-            'onestep': abs(1. / data[axis + "scale"]),
-            'scale': data[axis + "scale"],
+            'onestep': abs(1. / data[joint + "scale"]),
+            'scale': data[joint + "scale"],
         })
 
         if data.doublestep():
@@ -2248,7 +2255,7 @@ class App:
                 halrun.write("setp parport.0.pin-%(pin)02d-out-invert 1\n"
                     % {'pin': pin}) 
 
-        widgets.dialog1.set_title(_("%s Axis Test") % axis.upper())
+        widgets.dialog1.set_title(_("%s (JOINT) Test") % joint)
 
         if axis == "a":
             widgets.testvelunit.set_text(_("deg / s"))
