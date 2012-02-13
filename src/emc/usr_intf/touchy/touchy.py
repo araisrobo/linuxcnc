@@ -43,10 +43,10 @@ empty_program.write("%\n%\n")
 empty_program.flush()
 
 import gettext
-LOCALEDIR = os.path.join(BASE, "share", "locale")
-gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
-gtk.glade.bindtextdomain("emc2", LOCALEDIR)
-gtk.glade.textdomain("emc2")
+# LOCALEDIR = os.path.join(BASE, "share", "locale")
+# gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
+# gtk.glade.bindtextdomain("emc2", LOCALEDIR)
+# gtk.glade.textdomain("emc2")
 
 def set_active(w, s):
 	if not w: return
@@ -90,6 +90,16 @@ class touchy:
                     self.ini = ini
                 else:
                     self.ini = None
+
+		# Set the gettext application domain
+		o = ini.find("DISPLAY", "APP_DOMAIN")
+                if o == None:
+                    # default application domain to emc2.mo
+		    o = "emc2"
+                LOCALEDIR = os.path.join(BASE, "share", "locale")
+                gettext.install(o, localedir=LOCALEDIR, unicode=True)
+                gtk.glade.bindtextdomain(o, LOCALEDIR)
+                gtk.glade.textdomain(o)
                
                 # check for for jog flag
                 self.foce_jog = "FALSE"
@@ -103,8 +113,6 @@ class touchy:
                     self.gladefile = o
                 self.wTree = gtk.Builder()
                 self.wTree.add_from_file(self.gladefile)
-
-
 
 	        # self.wTree = gtk.glade.XML(self.gladefile) 
 	# 	for widget in self.wTree.get_widget_prefix(''):

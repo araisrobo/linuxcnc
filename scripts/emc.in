@@ -265,6 +265,7 @@ INI_DIR="${INIFILE%/*}"
 # for python modules in $INI_DIR
 PYTHONPATH=${INI_DIR}:$PYTHONPATH
 export PYTHONPATH
+export INI_DIR
 
 echo "Machine configuration directory is '$INI_DIR'"
 echo "Machine configuration file is '$INI_NAME'"
