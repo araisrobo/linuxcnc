@@ -110,7 +110,7 @@ class touchy:
                     # default 
 		    self.gladefile = os.path.join(datadir, "touchy.glade")
                 else:
-                    self.gladefile = o
+                    self.gladefile = os.path.join(datadir,o)
                 self.wTree = gtk.Builder()
                 self.wTree.add_from_file(self.gladefile)
 
