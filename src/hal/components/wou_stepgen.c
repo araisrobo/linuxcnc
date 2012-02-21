@@ -169,9 +169,6 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
-//obsolete: #define VEL_UPDATE_FREQ         (0.00065536)   // in second
-//obsolete: #define VEL_UPDATE_BP           (VEL_UPDATE_FREQ * 1526)
-
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
@@ -197,15 +194,8 @@ RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 int enc_type = -1;
 RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
-//obsolete: int adc_spi_en = 0;
-//obsolete: RTAPI_MP_INT(adc_spi_en, "Analog to Digital Converter Enable Signal");
-
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
-
-
-//obsolete: int gpio_leds_sel = -1;
-//obsolete: RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
 
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
@@ -480,25 +470,19 @@ typedef struct {
     hal_u32_t *wou_status;
     uint32_t a_cmd_on_going;
     /* spindle */
-//obsolete:    hal_bit_t *spindle_enable;
-//obsolete:    hal_float_t *spindle_vel_cmd;
-//obsolete:    hal_float_t *spindle_vel_fb;
     hal_bit_t *spindle_index_enable;    // TODO: move spindle-index sync into motion
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
     double   spindle_revs_integer;
-//    double  last_spindle_index_pos;
     int32_t last_spindle_index_pos;
     double  last_spindle_index_pos_int;
     int32_t spindle_enc_count;          // predicted spindle-encoder count
-//    double  prev_spindle_irevs;         // to calculate index position
     int32_t prev_spindle_irevs;
     /* test pattern  */
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
     /* DEBUG */
-//    hal_s32_t *debug;
     hal_s32_t *debug[8];
     /* tick */
     hal_u32_t *tick[14];
@@ -598,7 +582,6 @@ void fetchmail()
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
-    //obsolete: static      uint32_t prev_din[2];
 #elif (DEBUG_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -1017,8 +1000,6 @@ int rtapi_app_main(void)
 #if (DEBUG_LOG)
         debug_fp = fopen ("./debug.log", "w");
 #endif
-//obsolete:        // set mailbox callback function
-//obsolete:        wou_set_mbox_cb (&w_param, fetchmail);
         // set crc counter callback function
         wou_set_crc_error_cb (&w_param, get_crc_error_counter);
     }
@@ -1133,44 +1114,6 @@ int rtapi_app_main(void)
         assert(0);
     }
 
-//obsolete:    if (1 == adc_spi_en) {
-//obsolete:        rtapi_print_msg(RTAPI_MSG_INFO,
-//obsolete:                        "WOU: enable ADC_SPI\n");
-//obsolete:        // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
-//obsolete:        data[0] = 19; 
-//obsolete:        //MCP3202: // MCP3202: set ADC_SPI_SCK_NR to generate 17 SPI_SCK pulses
-//obsolete:        //MCP3202: data[0] = 17;   // MCP3202
-//obsolete:        wou_cmd (&w_param, WB_WR_CMD,
-//obsolete:                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR),
-//obsolete:                 (uint8_t) 1, data);
-//obsolete:
-//obsolete:        // enable ADC_SPI with LOOP mode
-//obsolete:        
-//obsolete:        // MCP3204: (p.19 of adc_mcp3204.pdf)
-//obsolete:        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
-//obsolete:        //                      (0)Differential mode,
-//obsolete:        //                      (0)D2 ... dont care,
-//obsolete:        //                      (0)D1 ... Ch0 = IN+,
-//obsolete:        //                      (0)D0 ... CH1 = IN-   }
-//obsolete:        // ADC_SPI_CMD: 0x18: { (1)START_BIT,
-//obsolete:        //                      (1)single-end mode,
-//obsolete:        //                      (0)D2 ... dont care,
-//obsolete:        //                      (00){D1,D0} ... CH0 }
-//obsolete:        data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-//obsolete:                  | (ADC_SPI_CMD_MASK & 0x18);
-//obsolete:
-//obsolete:        //MCP3202: // MCP3202: 
-//obsolete:        //MCP3202: // ADC_SPI_CMD: 0x04: { (1)START_BIT,
-//obsolete:        //MCP3202: //                      (0)Differential mode,
-//obsolete:        //MCP3202: //                      (0)SIGN   Ch0 = IN+,
-//obsolete:        //MCP3202: //                                CH1 = IN-   }
-//obsolete:        //MCP3202: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-//obsolete:        //MCP3202:           | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
-//obsolete:        wou_cmd (&w_param, WB_WR_CMD,
-//obsolete:                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL),
-//obsolete:                 (uint8_t) 1, data);
-//obsolete:    }
-
     /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
     // issue a WOU_WRITE 
     data[0] = 0x0F;
@@ -1180,29 +1123,6 @@ int rtapi_app_main(void)
     data[0] = 0x00;
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
     wou_flush(&w_param);
-
-//obsolete:    if (gpio_alm_out0 != -1) {
-//obsolete:       data[0] = (uint8_t) gpio_alm_out0;
-//obsolete:       wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT0, 1, data);
-//obsolete:       wou_flush(&w_param);
-//obsolete:    }
-//obsolete:    
-//obsolete:    if (gpio_alm_out1 != -1) {
-//obsolete:       data[0] = (uint8_t) gpio_alm_out1;
-//obsolete:       wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT1, 1, data);
-//obsolete:       wou_flush(&w_param);
-//obsolete:    }
-    
-//obsolete:    /* test for GPIO_LEDS_SEL: gpio_leds_sel */
-//obsolete:    if ((gpio_leds_sel == -1)) {
-//obsolete:	rtapi_print_msg(RTAPI_MSG_ERR,
-//obsolete:			"WOU: ERROR: no value for GPIO_LEDS_SEL: gpio_leds_sel\n");
-//obsolete:	return -1;
-//obsolete:    } else {
-//obsolete:	// select signals for LEDs
-//obsolete:	data[0] = (uint8_t) gpio_leds_sel;
-//obsolete:	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
-//obsolete:    }
 
     /* test for stepping motor current limit: step_cur */
     num_chan = 0;
@@ -1514,7 +1434,6 @@ static void update_freq(void *arg, long period)
     static uint32_t host_tick = 0;
 
     int32_t immediate_data = 0;
-//obsolete: double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -1650,7 +1569,6 @@ static void update_freq(void *arg, long period)
 
     /* begin: process motion synchronized output */
     sync_out_data = 0;
-    //obsolete: j = 0;
     for (i = 0; i < machine_control->num_gpio_out; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
                 (*(machine_control->out[i]))) {
@@ -1662,14 +1580,11 @@ static void update_freq(void *arg, long period)
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
-            //obsolete: j ++;
         }
 
 	sync_out_data |= ((*(machine_control->out[i])) << i);
     }
-    //obsolete: if (j > 0) {        //
     machine_control->prev_out = sync_out_data;
-    //obsolete: }
     /* end: process motion synchronized output */
 
     /* begin: send application parameters */
@@ -1858,12 +1773,6 @@ static void update_freq(void *arg, long period)
                 16,
                 data);
 
-//         wou_cmd (&w_param,
-//                 WB_RD_CMD,
-//                 (SSIF_BASE | SSIF_INDEX_POS),
-//                 16,
-//                 data);
-
         wou_flush(&w_param);
 
     }
@@ -1882,10 +1791,6 @@ static void update_freq(void *arg, long period)
             }
 
         } else {
-//            data[0] = 0; // RESET GPIO_OUT
-//            wou_cmd (&w_param, WB_WR_CMD,
-//                     (uint16_t) (GPIO_BASE | GPIO_OUT),
-//                     (uint8_t) 1, data);
             for(i=0; i<num_chan; i++) {
                 immediate_data = 0;
                 write_mot_param (i, (ENABLE), immediate_data);
@@ -1963,10 +1868,6 @@ static void update_freq(void *arg, long period)
                 /* load SWITCH, INDEX, and PULSE positions with enc_counter */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-//                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
-//                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-//                fprintf(stderr, "j[%d] prev_pos_cmd(%f) pos_cmd(%f) rawcount(%lld)\n",
-//                        n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
@@ -2011,11 +1912,6 @@ static void update_freq(void *arg, long period)
                     stepgen->maxvel = physical_maxvel;
                 }
 
-    //obsolete:	    if (stepgen->maxvel == 0.0) {
-    //obsolete:		maxvel = physical_maxvel;
-    //obsolete:	    } else {
-    //obsolete:		maxvel = stepgen->maxvel;
-    //obsolete:	    }
             }
 
             /* and skip to next one */
@@ -2066,10 +1962,6 @@ static void update_freq(void *arg, long period)
 	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 	    }
 	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
-//obsolete:            if(*machine_control->spindle_enable)
-//obsolete:                stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
-//obsolete:            else
-//obsolete:                stepgen->vel_cmd = 0;
 	}
 	{
             
@@ -2192,35 +2084,19 @@ static void update_freq(void *arg, long period)
     }
 
     DPS("  %15.7f", *machine_control->spindle_revs);
-    // send velocity status to RISC
-//    if(*machine_control->ahc_state == 1) {
 
+    // send velocity status to RISC
     if (*machine_control->motion_state != machine_control->prev_motion_state) {
         if (*machine_control->motion_state == ACCEL_S3) {
             sync_cmd = SYNC_VEL | 0x0001;
-//             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
         } else {
             sync_cmd = SYNC_VEL;
-//                 fprintf(stderr,"motion_state != ACCEL_S3\n");
         }
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
-
-//        if (is_probing) {
-//            if (*machine_control->motion_state == ACCEL_S7 ||
-//                    *machine_control->motion_state == ACCEL_S6) {
-//                *machine_control->probe_type = PROBE_NONE;
-//                is_probing = 0;
-//                fprintf(stderr, "clean probe state  probe_type(%0f) prev_probe_type(%0f)\n",
-//                        *machine_control->probe_type, machine_control->prev_probe_type);
-//            }
-//            fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
-//        }
     }
     machine_control->prev_motion_state = *machine_control->motion_state;
-//        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
-//    }
 
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
@@ -2476,13 +2352,6 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     } else {
 	addr->step_space = 0;
     }
-    //obsolete: if (step_type == 0) {
-    //obsolete:     addr->dir_hold_dly = 1;
-    //obsolete:     addr->dir_setup = 1;
-    //obsolete: } else {
-    //obsolete:     addr->dir_hold_dly = 1;
-    //obsolete:     addr->dir_setup = 0;
-    //obsolete: }
     /* init the step generator core to zero output */
 //    addr->cur_pos = 0.0;
     /* accumulator gets a half step offset, so it will step half
