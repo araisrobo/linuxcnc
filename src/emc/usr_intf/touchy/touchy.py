@@ -359,7 +359,7 @@ class touchy:
                 else:
                         self.emc.opstop_off(0)                        
 
-		self.emc.emccommand.program_open(empty_program.name)
+		# self.emc.emccommand.program_open(empty_program.name)
 
                 self.emc.max_velocity(self.mv_val)
                                 
