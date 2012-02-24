@@ -289,8 +289,13 @@ class EMC_Action_Pause(_EMC_Action):
     __gtype_name__ = 'EMC_Action_Pause'
     def on_activate(self, w):
         self.stat.poll()
-        if self.stat.task_mode != emc.MODE_AUTO or\
+        if self.stat.task_mode == emc.MODE_MDI:
+            ensure_mode(self.stat, self.emc, emc.MODE_MDI)
+            self.emc.auto(emc.AUTO_PAUSE)
+            return
+        if self.stat.task_mode != emc.MODE_AUTO  or\
                 self.stat.interp_state not in (emc.INTERP_READING, emc.INTERP_WAITING):
+
             return
         ensure_mode(self.stat, self.emc, emc.MODE_AUTO)
         self.emc.auto(emc.AUTO_PAUSE)
@@ -298,7 +303,6 @@ class EMC_Action_Pause(_EMC_Action):
 class EMC_Action_Resume(_EMC_Action):
     __gtype_name__ = 'EMC_Action_Resume'
     def on_activate(self, w):
-        print "RESUME"
         self.stat.poll()
         if not self.stat.paused:
             return
