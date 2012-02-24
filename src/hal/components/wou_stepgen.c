@@ -407,11 +407,11 @@ typedef struct {
 
 } stepgen_t;
 
-typedef struct {
-    // Digital I/O: 16in 8out
-    // Analog I/O: 32bit
-    hal_float_t *a_in[1];
-} gpio_t;
+//obsolete: typedef struct {
+//obsolete:     // Digital I/O: 16in 8out
+//obsolete:     // Analog I/O: 32bit
+//obsolete:     hal_float_t *a_in[1];
+//obsolete: } gpio_t;
 
 typedef struct {
     // Analog input: 0~4.096VDC, up to 16 channel
@@ -419,11 +419,13 @@ typedef struct {
     // TODO: may add *out[] here
 } analog_t;
 
+// machine_control_t:
 typedef struct {
+    hal_bit_t   *rt_abort;  // realtime abort to FPGA
     /* plasma control */
-    hal_bit_t *thc_enbable;
+    hal_bit_t   *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
-    hal_bit_t *plasma_enable;
+    hal_bit_t   *plasma_enable;
     /* sync input pins (input to motmod) */
     hal_bit_t   *in[64];
     hal_bit_t   *in_n[64];
@@ -497,7 +499,7 @@ typedef struct {
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
-static gpio_t *gpio;
+//obsolete: static gpio_t *gpio;
 static analog_t *analog;
 static machine_control_t *machine_control;
 static int32_t actual_joint_num;
@@ -549,7 +551,7 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode);
-static int export_gpio(gpio_t * addr);
+//obsolete: static int export_gpio(gpio_t * addr);
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
@@ -688,7 +690,7 @@ void fetchmail()
 
         // ADC_SPI (raw ADC value)
         p += 1;
-        *(gpio->a_in[0]) = (((double)*p)/20.0);
+        //obsolete: *(gpio->a_in[0]) = (((double)*p)/20.0);
         *(analog->in[0]) = *p;
         p += 1; *(analog->in[1]) = *p;
         p += 1; *(analog->in[2]) = *p;
@@ -1307,13 +1309,13 @@ int rtapi_app_main(void)
 	return -1;
     }
     
-    gpio = hal_malloc(sizeof(gpio_t));
-    if (gpio == 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"GPIO: ERROR: hal_malloc() failed\n");
-	hal_exit(comp_id);
-	return -1;
-    }
+    //obsolete: gpio = hal_malloc(sizeof(gpio_t));
+    //obsolete: if (gpio == 0) {
+    //obsolete:     rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:     		"GPIO: ERROR: hal_malloc() failed\n");
+    //obsolete:     hal_exit(comp_id);
+    //obsolete:     return -1;
+    //obsolete: }
     
     analog = hal_malloc(sizeof(analog_t));
     if (analog == 0) {
@@ -1345,13 +1347,13 @@ int rtapi_app_main(void)
 	}
     }
 
-    retval = export_gpio(gpio);	// 16-in, 8-out
-    if (retval != 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"GPIO: ERROR: gpio var export failed\n");
-	hal_exit(comp_id);
-	return -1;
-    }
+    //obsolete: retval = export_gpio(gpio);	// 16-in, 8-out
+    //obsolete: if (retval != 0) {
+    //obsolete:     rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:     		"GPIO: ERROR: gpio var export failed\n");
+    //obsolete:     hal_exit(comp_id);
+    //obsolete:     return -1;
+    //obsolete: }
 
     retval = export_analog(analog);	// up to 16-ch-adc-in
     if (retval != 0) {
@@ -1370,7 +1372,8 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-/* put export machine_control above */
+    
+    /* put export machine_control above */
     retval = hal_export_funct("wou.stepgen.update-freq", update_freq,
 			      stepgen_array, 1, 0, comp_id);
     if (retval != 0) {
@@ -1451,12 +1454,19 @@ static void update_freq(void *arg, long period)
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-    // update host tick for risc
+    if (*machine_control->rt_abort == 1) {
+        immediate_data = RT_ABORT;
+        memcpy(data, &immediate_data, sizeof(uint32_t));
+        rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+                sizeof(uint32_t), data);
+        rt_wou_flush(&w_param);
+    }
+    
 
+    // update host tick for risc
     write_machine_param(HOST_TICK, host_tick);
     *machine_control->wou_bp_tick = host_tick;
     if (host_tick == REQUEST_TICK_SYNC_AFTER) {
-
         sync_cmd = SYNC_BP ;
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
@@ -1464,9 +1474,11 @@ static void update_freq(void *arg, long period)
         wou_flush(&w_param);
     }
     host_tick += 1;
-    //    DP("before wou_update()\n");
+
+
     wou_update(&w_param);
     fetchmail();
+
     // read SSIF_INDEX_LOCK
 //TODO: implement RISC homing:    memcpy(&r_index_lock,
 //TODO: implement RISC homing:	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
@@ -2113,32 +2125,32 @@ static void update_freq(void *arg, long period)
 *                   LOCAL FUNCTION DEFINITIONS                         *
 ************************************************************************/
 
-static int export_gpio(gpio_t * addr)
-{
-    int i, retval, msg;
-
-    /* This function exports a lot of stuff, which results in a lot of
-       logging if msg_level is at INFO or ALL. So we save the current value
-       of msg_level and restore it later.  If you actually need to log this
-       function's actions, change the second line below */
-    msg = rtapi_get_msg_level();
-    rtapi_set_msg_level(RTAPI_MSG_WARN);
-    // rtapi_set_msg_level(RTAPI_MSG_ALL);
-
-    // export Analog IN
-    for (i = 0; i < 1; i++) {
-        retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
-                                  "wou.gpio.a_in.%02d", i);
-        if (retval != 0) {
-            return retval;
-        }
-	*(addr->a_in[i]) = 0;
-    }
-
-    /* restore saved message level */
-    rtapi_set_msg_level(msg);
-    return 0;
-} // export_gpio ()
+//obsolete: static int export_gpio(gpio_t * addr)
+//obsolete: {
+//obsolete:     int i, retval, msg;
+//obsolete: 
+//obsolete:     /* This function exports a lot of stuff, which results in a lot of
+//obsolete:        logging if msg_level is at INFO or ALL. So we save the current value
+//obsolete:        of msg_level and restore it later.  If you actually need to log this
+//obsolete:        function's actions, change the second line below */
+//obsolete:     msg = rtapi_get_msg_level();
+//obsolete:     rtapi_set_msg_level(RTAPI_MSG_WARN);
+//obsolete:     // rtapi_set_msg_level(RTAPI_MSG_ALL);
+//obsolete: 
+//obsolete:     // export Analog IN
+//obsolete:     for (i = 0; i < 1; i++) {
+//obsolete:         retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
+//obsolete:                                   "wou.gpio.a_in.%02d", i);
+//obsolete:         if (retval != 0) {
+//obsolete:             return retval;
+//obsolete:         }
+//obsolete: 	*(addr->a_in[i]) = 0;
+//obsolete:     }
+//obsolete: 
+//obsolete:     /* restore saved message level */
+//obsolete:     rtapi_set_msg_level(msg);
+//obsolete:     return 0;
+//obsolete: } // export_gpio ()
 
 static int export_analog(analog_t * addr)
 {
@@ -2398,6 +2410,12 @@ static int export_machine_control(machine_control_t * machine_control)
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
+    
+    // rt_abort: realtime abort command to FPGA
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id,
+                              "wou.rt.abort");
+    if (retval != 0) { return retval; }
+    *(machine_control->rt_abort) = 0;
 
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
@@ -2416,13 +2434,11 @@ static int export_machine_control(machine_control_t * machine_control)
          *(machine_control->in_n[i]) = 0;
      }
 
-    retval =
-	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
-			 "wou.sync.in.trigger");
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
+                              "wou.sync.in.trigger");
+    if (retval != 0) { return retval; }
     *(machine_control->sync_in_trigger) = 0;	// pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
+
     retval =
 	hal_pin_float_newf(HAL_IN, &(machine_control->sync_in), comp_id,
 			 "wou.sync.in.index");
@@ -2664,7 +2680,7 @@ static int export_machine_control(machine_control_t * machine_control)
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
-}				// export_gpio ()
+}
 
 
 // vim:sw=4:sts=4:et:
