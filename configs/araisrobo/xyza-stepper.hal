@@ -88,6 +88,7 @@ setp wou.stepgen.1.steplen  [JOINT_1]STEPLEN
 setp wou.stepgen.2.steplen  [JOINT_2]STEPLEN
 setp wou.stepgen.3.steplen  [JOINT_3]STEPLEN
 
+setp wou.rt.abort  0
 
 # connect signals from FPGA.
 # pulse_pos: the actual pulse sent to servo drive.

@@ -486,6 +486,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             coords.append(line[1][:3])
             coords.append(line[2][:3])
         for line in self.arcfeed:
+            if line[0] != lineno: continue        # duplicated?      
             emc.line9(geometry, line[1], line[2])
             coords.append(line[1][:3])
             coords.append(line[2][:3])

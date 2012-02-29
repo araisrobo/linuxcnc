@@ -9,13 +9,3 @@ net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
 net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
 net j3_index_en   joint.3.index-enable => wou.stepgen.3.index-enable
 
-# # net ccwl_j0_in    not.1.in          <=  wou.gpio.in.06 
-# # net ccwl_j0                         <=  not.1.out
-# # net ccwl_j0                         => axis.0.???
-# net ccwl_j2_in    not.3.in          <=  wou.gpio.in.08 
-# # net ccwl_j2       not.3.out         =>  axis.2.neg-lim-sw-in
-# net ccwl_j2       not.3.out         
-# 
-# net cwl_j2_in     not.6.in          <=  wou.gpio.in.11 
-# # net cwl_j2        not.6.out         =>  axis.2.pos-lim-sw-in
-# net cwl_j2        not.6.out         
