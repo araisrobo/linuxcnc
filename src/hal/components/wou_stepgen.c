@@ -527,6 +527,7 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
+static void update_rt_cmd(void);
 
 
 void endian_swap(uint32_t  *x)
@@ -535,12 +536,11 @@ void endian_swap(uint32_t  *x)
 }
 
 /************************************************************************
- * mailbox callback function for libwou                                 *
+ * callback functions for libwou                                        *
  ************************************************************************/
 static void get_crc_error_counter(int32_t crc_error_counter)
 {
     // store crc_error_counter
-
     return;
 }
 
@@ -932,6 +932,7 @@ int rtapi_app_main(void)
        );
 #endif
 
+    machine_control = NULL;
     pending_cnt = 0;
 
     /* test for bitfile string: bits */
@@ -976,6 +977,9 @@ int rtapi_app_main(void)
 #endif
         // set crc counter callback function
         wou_set_crc_error_cb (&w_param, get_crc_error_counter);
+        
+        // set rt_cmd callback function
+        wou_set_rt_cmd_cb (&w_param, update_rt_cmd);
     }
 
     if(pulse_type != -1) {
@@ -1357,7 +1361,7 @@ int rtapi_app_main(void)
     rtapi_print_msg(RTAPI_MSG_INFO,
 		    "STEPGEN: installed %d step pulse generators\n",
 		    num_chan);
-
+    
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
 
@@ -1385,6 +1389,28 @@ static double force_precision(double d) __attribute__ ((__noinline__));
 static double force_precision(double d)
 {
     return d;
+}
+
+static void update_rt_cmd(void)
+{
+    uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
+    int32_t immediate_data = 0;
+    
+    // rtapi_print_msg(RTAPI_MSG_ERR,
+    //                 "update_rt_cmd:debug: begin\n");
+    if (machine_control) {
+        if (*machine_control->rt_abort == 1) {
+            // rtapi_print_msg(RTAPI_MSG_ERR,
+            //                 "update_rt_cmd:debug: got rt_abort\n");
+            immediate_data = RT_ABORT;
+            memcpy(data, &immediate_data, sizeof(uint32_t));
+            rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+                    sizeof(uint32_t), data);
+            rt_wou_flush(&w_param);
+        }
+    }
+    // rtapi_print_msg(RTAPI_MSG_ERR,
+    //                 "update_rt_cmd:debug: end\n");
 }
 
 static void update_freq(void *arg, long period)
@@ -1425,15 +1451,17 @@ static void update_freq(void *arg, long period)
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
-
-    if (*machine_control->rt_abort == 1) {
-        immediate_data = RT_ABORT;
-        memcpy(data, &immediate_data, sizeof(uint32_t));
-        rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-                sizeof(uint32_t), data);
-        rt_wou_flush(&w_param);
-    }
     
+    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:                 "update_freq:debug: begin\n");
+    //obsolete: if (*machine_control->rt_abort == 1) {
+    //obsolete:     immediate_data = RT_ABORT;
+    //obsolete:     memcpy(data, &immediate_data, sizeof(uint32_t));
+    //obsolete:     rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+    //obsolete:             sizeof(uint32_t), data);
+    //obsolete:     rt_wou_flush(&w_param);
+    //obsolete: }
+    //obsolete: 
 
     // update host tick for risc
     write_machine_param(HOST_TICK, host_tick);
@@ -1796,8 +1824,7 @@ static void update_freq(void *arg, long period)
     for (n = 0; n < num_chan; n++) {
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
-//        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
-            // update velocity-feedback only after encoder movement
+        // update velocity-feedback only after encoder movement
         if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
                                   / (*machine_control->bp_tick - machine_control->prev_bp)
@@ -2090,6 +2117,8 @@ static void update_freq(void *arg, long period)
 /* restore saved message level */
     rtapi_set_msg_level(msg);
     /* done */
+    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:                 "update_freq:debug: end\n");
 }
 
 /***********************************************************************
