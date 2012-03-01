@@ -26,6 +26,8 @@ import gcode
 
 from scipy import mat
 from scipy import linalg
+from numpy import cross
+from numpy import linalg as LA
 
 homeicon = array.array('B',
         [0x2, 0x00,   0x02, 0x00,   0x02, 0x00,   0x0f, 0x80,
@@ -46,9 +48,11 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.all_traverse = []; self.all_traverse_append = self.all_traverse.append
         # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.feed = []; self.feed_append = self.feed.append
+        # feed info list - [line number, [start position], [end position], length]
+        self.feed_info = []; self.feed_info_append = self.feed_info.append
         # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
-        # arc info list - [line number, [c_x,c_y], [s_x, s_y], [e_x, e_y]]
+        # arc info list - [line number, [c_x,c_y], [s_x, s_y], [e_x, e_y], length, cw]
         self.arc_info = []; self.arc_info_append = self.arc_info.append
         # dwell list - [line number, color, pos x, pos y, pos z, plane]
         self.dwells = []; self.dwells_append = self.dwells.append
@@ -182,13 +186,34 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         to = [self.xo, self.yo, self.zo]
         append = self.arcfeed_append
         points = []
+        length = 0.0
+        length_vector = []
+        vector = []
+        vector2 = []
+        cw = 0 # 0 is clockwise, 1 is counter-clockwise
+
         for l in segs:
             # if self.block_start != None and self.block_pos == None:
             #     block_pos = self.l
             append((lineno, lo, l, feedrate, to))
+            
+            # calculate the length from lo to l
+            for i in range (0, (len(l)-1)):
+                length_vector.append(l[i] - lo[i])
+            length = length + LA.norm(length_vector)
+            length_vector = []
             lo = l
+        # print "arc length is", length  
         self.lo = lo
         
+        for i in range (0, 2):
+            vector.append(segs[len(segs)/3][i] - segs[0][i])
+            vector2.append(segs[len(segs)*2/3][i] - segs[len(segs)/3][i])
+        if cross(vector, vector2) >= 0:
+            cw = 1
+        else:
+            cw = 0
+
         points.append(segs[0])
         points.append(segs[len(segs)/3])
         points.append(segs[len(segs)/3*2])
@@ -200,15 +225,24 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                  [-points[1][0]**2 - points[1][1]**2], \
                  [-points[2][0]**2 - points[2][1]**2]])
         d, e, f = linalg.solve(A,b)
-        self.arc_info_append([lineno,[-d/2,-e/2],segs[0],segs[len(segs)-1]])
+        self.arc_info_append([lineno,[-d/2,-e/2],segs[0],segs[len(segs)-1], length, cw])
+        # print "self.arc_info", self.arc_info
+
     def straight_feed(self, x,y,z, a,b,c, u,v,w):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
 
-        # if self.block_start != None and self.block_pos == None:
-        #     self.block_pos = l
+        # calculate length
+        length_vector = []
+        length = 0.0
+        for i in range (0, (len(l)-1)):
+            length_vector.append(l[i] - self.lo[i])
+        length = LA.norm(length_vector)
+        # print "line length is", length
+        self.feed_info_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo], length))
+        # print "self.feed_info", self.feed_info
 
         self.lo = l
     straight_probe = straight_feed
@@ -244,7 +278,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.block_start = self.lineno 
         self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
         self.block_feed = self.feedrate
-    
+  
     def highlight2(self, lineno, geometry):
         glLineWidth(3)
         c = self.colors['selected']
@@ -531,7 +565,6 @@ def with_context_swap(f):
             self.swapbuffers()
             self.deactivate()
     return inner
-
 
 class GlCanonDraw:
     colors = {
