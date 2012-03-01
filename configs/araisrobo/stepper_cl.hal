@@ -25,6 +25,6 @@ net estop-all-ok  classicladder.0.out-00  => iocontrol.0.emc-enable-in
 net machine_is_on classicladder.0.in-03   <= halui.machine.is-on
 
 # CL outputs
-net dout_0        classicladder.0.out-01  # SVO-ON
-net dout_1        classicladder.0.out-02  # AXIS_Z.BREAK_N
+net dout_00     wou.gpio.out.00     <=  classicladder.0.out-01  # SVO-ON
+# net dout_01     wou.gpio.out.01     <=  classicladder.0.out-02  # AXIS_Z.BREAK_N
 

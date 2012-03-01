@@ -169,17 +169,15 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
-//obsolete: #define VEL_UPDATE_FREQ         (0.00065536)   // in second
-//obsolete: #define VEL_UPDATE_BP           (VEL_UPDATE_FREQ * 1526)
-
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
-int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
+int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
 		   "stepping types for up to 8 channels");
+
 const char *ctrl_type[MAX_CHAN] =
     { "p", "p", "p", "p", "p", "p", "p", "p" };
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
@@ -197,15 +195,8 @@ RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 int enc_type = -1;
 RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
-//obsolete: int adc_spi_en = 0;
-//obsolete: RTAPI_MP_INT(adc_spi_en, "Analog to Digital Converter Enable Signal");
-
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
-
-
-//obsolete: int gpio_leds_sel = -1;
-//obsolete: RTAPI_MP_INT(gpio_leds_sel, "WOU Register Value for GPIO_LEDS_SEL");
 
 int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
@@ -417,11 +408,11 @@ typedef struct {
 
 } stepgen_t;
 
-typedef struct {
-    // Digital I/O: 16in 8out
-    // Analog I/O: 32bit
-    hal_float_t *a_in[1];
-} gpio_t;
+//obsolete: typedef struct {
+//obsolete:     // Digital I/O: 16in 8out
+//obsolete:     // Analog I/O: 32bit
+//obsolete:     hal_float_t *a_in[1];
+//obsolete: } gpio_t;
 
 typedef struct {
     // Analog input: 0~4.096VDC, up to 16 channel
@@ -429,11 +420,13 @@ typedef struct {
     // TODO: may add *out[] here
 } analog_t;
 
+// machine_control_t:
 typedef struct {
+    hal_bit_t   *rt_abort;  // realtime abort to FPGA
     /* plasma control */
-    hal_bit_t *thc_enbable;
+    hal_bit_t   *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
-    hal_bit_t *plasma_enable;
+    hal_bit_t   *plasma_enable;
     /* sync input pins (input to motmod) */
     hal_bit_t   *in[64];
     hal_bit_t   *in_n[64];
@@ -480,25 +473,19 @@ typedef struct {
     hal_u32_t *wou_status;
     uint32_t a_cmd_on_going;
     /* spindle */
-//obsolete:    hal_bit_t *spindle_enable;
-//obsolete:    hal_float_t *spindle_vel_cmd;
-//obsolete:    hal_float_t *spindle_vel_fb;
     hal_bit_t *spindle_index_enable;    // TODO: move spindle-index sync into motion
     hal_bit_t *spindle_at_speed;
     hal_float_t *spindle_revs;
     double   spindle_revs_integer;
-//    double  last_spindle_index_pos;
     int32_t last_spindle_index_pos;
     double  last_spindle_index_pos_int;
     int32_t spindle_enc_count;          // predicted spindle-encoder count
-//    double  prev_spindle_irevs;         // to calculate index position
     int32_t prev_spindle_irevs;
     /* test pattern  */
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
     /* DEBUG */
-//    hal_s32_t *debug;
     hal_s32_t *debug[8];
     /* tick */
     hal_u32_t *tick[14];
@@ -513,7 +500,7 @@ typedef struct {
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
-static gpio_t *gpio;
+//obsolete: static gpio_t *gpio;
 static analog_t *analog;
 static machine_control_t *machine_control;
 static int32_t actual_joint_num;
@@ -522,36 +509,7 @@ static int32_t actual_joint_num;
 
 /* lookup tables for stepping types 2 and higher - phase A is the LSB */
 
-static const unsigned char master_lut[][10] = {
-    {1, 3, 2, 0, 0, 0, 0, 0, 0, 0},	/* type 2: Quadrature */
-    {1, 2, 4, 0, 0, 0, 0, 0, 0, 0},	/* type 3: Three Wire */
-    {1, 3, 2, 6, 4, 5, 0, 0, 0, 0},	/* type 4: Three Wire Half Step */
-    {1, 2, 4, 8, 0, 0, 0, 0, 0, 0},	/* 5: Unipolar Full Step 1 */
-    {3, 6, 12, 9, 0, 0, 0, 0, 0, 0},	/* 6: Unipoler Full Step 2 */
-    {1, 7, 14, 8, 0, 0, 0, 0, 0, 0},	/* 7: Bipolar Full Step 1 */
-    {5, 6, 10, 9, 0, 0, 0, 0, 0, 0},	/* 8: Bipoler Full Step 2 */
-    {1, 3, 2, 6, 4, 12, 8, 9, 0, 0},	/* 9: Unipolar Half Step */
-    {1, 5, 7, 6, 14, 10, 8, 9, 0, 0},	/* 10: Bipolar Half Step */
-    {1, 2, 4, 8, 16, 0, 0, 0, 0, 0},	/* 11: Five Wire Unipolar */
-    {3, 6, 12, 24, 17, 0, 0, 0, 0, 0},	/* 12: Five Wire Wave */
-    {1, 3, 2, 6, 4, 12, 8, 24, 16, 17},	/* 13: Five Wire Uni Half */
-    {3, 7, 6, 14, 12, 28, 24, 25, 17, 19}	/* 14: Five Wire Wave Half */
-};
-
-static const unsigned char cycle_len_lut[] =
-    { 4, 3, 6, 4, 4, 4, 4, 8, 8, 5, 5, 10, 10 };
-
-static const unsigned char num_phases_lut[] =
-    { 2, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, };
-
 #define MAX_STEP_TYPE 14
-
-#define STEP_PIN	0	/* output phase used for STEP signal */
-#define DIR_PIN		1	/* output phase used for DIR signal */
-#define UP_PIN		0	/* output phase used for UP signal */
-#define DOWN_PIN	1	/* output phase used for DOWN signal */
-
-//#define PICKOFF		26	/* bit location in DDS accum */
 
 /* other globals */
 static int comp_id;		/* component ID */
@@ -565,7 +523,7 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
 
 static int export_stepgen(int num, stepgen_t * addr, int step_type,
 			  int pos_mode);
-static int export_gpio(gpio_t * addr);
+//obsolete: static int export_gpio(gpio_t * addr);
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
@@ -598,7 +556,6 @@ void fetchmail()
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
-    //obsolete: static      uint32_t prev_din[2];
 #elif (DEBUG_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -705,7 +662,7 @@ void fetchmail()
 
         // ADC_SPI (raw ADC value)
         p += 1;
-        *(gpio->a_in[0]) = (((double)*p)/20.0);
+        //obsolete: *(gpio->a_in[0]) = (((double)*p)/20.0);
         *(analog->in[0]) = *p;
         p += 1; *(analog->in[1]) = *p;
         p += 1; *(analog->in[2]) = *p;
@@ -1017,8 +974,6 @@ int rtapi_app_main(void)
 #if (DEBUG_LOG)
         debug_fp = fopen ("./debug.log", "w");
 #endif
-//obsolete:        // set mailbox callback function
-//obsolete:        wou_set_mbox_cb (&w_param, fetchmail);
         // set crc counter callback function
         wou_set_crc_error_cb (&w_param, get_crc_error_counter);
     }
@@ -1133,44 +1088,6 @@ int rtapi_app_main(void)
         assert(0);
     }
 
-//obsolete:    if (1 == adc_spi_en) {
-//obsolete:        rtapi_print_msg(RTAPI_MSG_INFO,
-//obsolete:                        "WOU: enable ADC_SPI\n");
-//obsolete:        // MCP3204: set ADC_SPI_SCK_NR to generate 19 SPI_SCK pulses
-//obsolete:        data[0] = 19; 
-//obsolete:        //MCP3202: // MCP3202: set ADC_SPI_SCK_NR to generate 17 SPI_SCK pulses
-//obsolete:        //MCP3202: data[0] = 17;   // MCP3202
-//obsolete:        wou_cmd (&w_param, WB_WR_CMD,
-//obsolete:                 (uint16_t) (SPI_BASE | ADC_SPI_SCK_NR),
-//obsolete:                 (uint8_t) 1, data);
-//obsolete:
-//obsolete:        // enable ADC_SPI with LOOP mode
-//obsolete:        
-//obsolete:        // MCP3204: (p.19 of adc_mcp3204.pdf)
-//obsolete:        // ADC_SPI_CMD: 0x10: { (1)START_BIT,
-//obsolete:        //                      (0)Differential mode,
-//obsolete:        //                      (0)D2 ... dont care,
-//obsolete:        //                      (0)D1 ... Ch0 = IN+,
-//obsolete:        //                      (0)D0 ... CH1 = IN-   }
-//obsolete:        // ADC_SPI_CMD: 0x18: { (1)START_BIT,
-//obsolete:        //                      (1)single-end mode,
-//obsolete:        //                      (0)D2 ... dont care,
-//obsolete:        //                      (00){D1,D0} ... CH0 }
-//obsolete:        data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-//obsolete:                  | (ADC_SPI_CMD_MASK & 0x18);
-//obsolete:
-//obsolete:        //MCP3202: // MCP3202: 
-//obsolete:        //MCP3202: // ADC_SPI_CMD: 0x04: { (1)START_BIT,
-//obsolete:        //MCP3202: //                      (0)Differential mode,
-//obsolete:        //MCP3202: //                      (0)SIGN   Ch0 = IN+,
-//obsolete:        //MCP3202: //                                CH1 = IN-   }
-//obsolete:        //MCP3202: data[0] = ADC_SPI_EN_MASK | ADC_SPI_LOOP_MASK
-//obsolete:        //MCP3202:           | (ADC_SPI_CMD_MASK & 0x04);  // MCP3202
-//obsolete:        wou_cmd (&w_param, WB_WR_CMD,
-//obsolete:                 (uint16_t) (SPI_BASE | ADC_SPI_CTRL),
-//obsolete:                 (uint8_t) 1, data);
-//obsolete:    }
-
     /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
     // issue a WOU_WRITE 
     data[0] = 0x0F;
@@ -1180,29 +1097,6 @@ int rtapi_app_main(void)
     data[0] = 0x00;
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
     wou_flush(&w_param);
-
-//obsolete:    if (gpio_alm_out0 != -1) {
-//obsolete:       data[0] = (uint8_t) gpio_alm_out0;
-//obsolete:       wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT0, 1, data);
-//obsolete:       wou_flush(&w_param);
-//obsolete:    }
-//obsolete:    
-//obsolete:    if (gpio_alm_out1 != -1) {
-//obsolete:       data[0] = (uint8_t) gpio_alm_out1;
-//obsolete:       wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_ALM_OUT1, 1, data);
-//obsolete:       wou_flush(&w_param);
-//obsolete:    }
-    
-//obsolete:    /* test for GPIO_LEDS_SEL: gpio_leds_sel */
-//obsolete:    if ((gpio_leds_sel == -1)) {
-//obsolete:	rtapi_print_msg(RTAPI_MSG_ERR,
-//obsolete:			"WOU: ERROR: no value for GPIO_LEDS_SEL: gpio_leds_sel\n");
-//obsolete:	return -1;
-//obsolete:    } else {
-//obsolete:	// select signals for LEDs
-//obsolete:	data[0] = (uint8_t) gpio_leds_sel;
-//obsolete:	wou_cmd(&w_param, WB_WR_CMD, GPIO_BASE | GPIO_LEDS_SEL, 1, data);
-//obsolete:    }
 
     /* test for stepping motor current limit: step_cur */
     num_chan = 0;
@@ -1387,13 +1281,13 @@ int rtapi_app_main(void)
 	return -1;
     }
     
-    gpio = hal_malloc(sizeof(gpio_t));
-    if (gpio == 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"GPIO: ERROR: hal_malloc() failed\n");
-	hal_exit(comp_id);
-	return -1;
-    }
+    //obsolete: gpio = hal_malloc(sizeof(gpio_t));
+    //obsolete: if (gpio == 0) {
+    //obsolete:     rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:     		"GPIO: ERROR: hal_malloc() failed\n");
+    //obsolete:     hal_exit(comp_id);
+    //obsolete:     return -1;
+    //obsolete: }
     
     analog = hal_malloc(sizeof(analog_t));
     if (analog == 0) {
@@ -1425,13 +1319,13 @@ int rtapi_app_main(void)
 	}
     }
 
-    retval = export_gpio(gpio);	// 16-in, 8-out
-    if (retval != 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"GPIO: ERROR: gpio var export failed\n");
-	hal_exit(comp_id);
-	return -1;
-    }
+    //obsolete: retval = export_gpio(gpio);	// 16-in, 8-out
+    //obsolete: if (retval != 0) {
+    //obsolete:     rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:     		"GPIO: ERROR: gpio var export failed\n");
+    //obsolete:     hal_exit(comp_id);
+    //obsolete:     return -1;
+    //obsolete: }
 
     retval = export_analog(analog);	// up to 16-ch-adc-in
     if (retval != 0) {
@@ -1450,7 +1344,8 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
-/* put export machine_control above */
+    
+    /* put export machine_control above */
     retval = hal_export_funct("wou.stepgen.update-freq", update_freq,
 			      stepgen_array, 1, 0, comp_id);
     if (retval != 0) {
@@ -1514,7 +1409,6 @@ static void update_freq(void *arg, long period)
     static uint32_t host_tick = 0;
 
     int32_t immediate_data = 0;
-//obsolete: double fp_req_vel, fp_cur_vel, fp_diff;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
@@ -1532,12 +1426,19 @@ static void update_freq(void *arg, long period)
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-    // update host tick for risc
+    if (*machine_control->rt_abort == 1) {
+        immediate_data = RT_ABORT;
+        memcpy(data, &immediate_data, sizeof(uint32_t));
+        rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+                sizeof(uint32_t), data);
+        rt_wou_flush(&w_param);
+    }
+    
 
+    // update host tick for risc
     write_machine_param(HOST_TICK, host_tick);
     *machine_control->wou_bp_tick = host_tick;
     if (host_tick == REQUEST_TICK_SYNC_AFTER) {
-
         sync_cmd = SYNC_BP ;
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
@@ -1545,9 +1446,11 @@ static void update_freq(void *arg, long period)
         wou_flush(&w_param);
     }
     host_tick += 1;
-    //    DP("before wou_update()\n");
+
+
     wou_update(&w_param);
     fetchmail();
+
     // read SSIF_INDEX_LOCK
 //TODO: implement RISC homing:    memcpy(&r_index_lock,
 //TODO: implement RISC homing:	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
@@ -1650,7 +1553,6 @@ static void update_freq(void *arg, long period)
 
     /* begin: process motion synchronized output */
     sync_out_data = 0;
-    //obsolete: j = 0;
     for (i = 0; i < machine_control->num_gpio_out; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
                 (*(machine_control->out[i]))) {
@@ -1662,14 +1564,11 @@ static void update_freq(void *arg, long period)
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
-            //obsolete: j ++;
         }
 
 	sync_out_data |= ((*(machine_control->out[i])) << i);
     }
-    //obsolete: if (j > 0) {        //
     machine_control->prev_out = sync_out_data;
-    //obsolete: }
     /* end: process motion synchronized output */
 
     /* begin: send application parameters */
@@ -1858,12 +1757,6 @@ static void update_freq(void *arg, long period)
                 16,
                 data);
 
-//         wou_cmd (&w_param,
-//                 WB_RD_CMD,
-//                 (SSIF_BASE | SSIF_INDEX_POS),
-//                 16,
-//                 data);
-
         wou_flush(&w_param);
 
     }
@@ -1882,10 +1775,6 @@ static void update_freq(void *arg, long period)
             }
 
         } else {
-//            data[0] = 0; // RESET GPIO_OUT
-//            wou_cmd (&w_param, WB_WR_CMD,
-//                     (uint16_t) (GPIO_BASE | GPIO_OUT),
-//                     (uint8_t) 1, data);
             for(i=0; i<num_chan; i++) {
                 immediate_data = 0;
                 write_mot_param (i, (ENABLE), immediate_data);
@@ -1963,10 +1852,6 @@ static void update_freq(void *arg, long period)
                 /* load SWITCH, INDEX, and PULSE positions with enc_counter */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-//                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
-//                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-//                fprintf(stderr, "j[%d] prev_pos_cmd(%f) pos_cmd(%f) rawcount(%lld)\n",
-//                        n, (stepgen->prev_pos_cmd), *(stepgen->pos_cmd), stepgen->rawcount);
             }
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
@@ -2011,11 +1896,6 @@ static void update_freq(void *arg, long period)
                     stepgen->maxvel = physical_maxvel;
                 }
 
-    //obsolete:	    if (stepgen->maxvel == 0.0) {
-    //obsolete:		maxvel = physical_maxvel;
-    //obsolete:	    } else {
-    //obsolete:		maxvel = stepgen->maxvel;
-    //obsolete:	    }
             }
 
             /* and skip to next one */
@@ -2066,14 +1946,9 @@ static void update_freq(void *arg, long period)
 	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 	    }
 	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
-//obsolete:            if(*machine_control->spindle_enable)
-//obsolete:                stepgen->vel_cmd = *machine_control->spindle_vel_cmd * 360.0;
-//obsolete:            else
-//obsolete:                stepgen->vel_cmd = 0;
 	}
 	{
             
-            //wou_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << pulse_fraction_bit[n]));
             integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
 
             /* extract integer part of command */
@@ -2192,35 +2067,19 @@ static void update_freq(void *arg, long period)
     }
 
     DPS("  %15.7f", *machine_control->spindle_revs);
-    // send velocity status to RISC
-//    if(*machine_control->ahc_state == 1) {
 
+    // send velocity status to RISC
     if (*machine_control->motion_state != machine_control->prev_motion_state) {
         if (*machine_control->motion_state == ACCEL_S3) {
             sync_cmd = SYNC_VEL | 0x0001;
-//             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
         } else {
             sync_cmd = SYNC_VEL;
-//                 fprintf(stderr,"motion_state != ACCEL_S3\n");
         }
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), data);
-
-//        if (is_probing) {
-//            if (*machine_control->motion_state == ACCEL_S7 ||
-//                    *machine_control->motion_state == ACCEL_S6) {
-//                *machine_control->probe_type = PROBE_NONE;
-//                is_probing = 0;
-//                fprintf(stderr, "clean probe state  probe_type(%0f) prev_probe_type(%0f)\n",
-//                        *machine_control->probe_type, machine_control->prev_probe_type);
-//            }
-//            fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
-//        }
     }
     machine_control->prev_motion_state = *machine_control->motion_state;
-//        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
-//    }
 
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
@@ -2237,32 +2096,32 @@ static void update_freq(void *arg, long period)
 *                   LOCAL FUNCTION DEFINITIONS                         *
 ************************************************************************/
 
-static int export_gpio(gpio_t * addr)
-{
-    int i, retval, msg;
-
-    /* This function exports a lot of stuff, which results in a lot of
-       logging if msg_level is at INFO or ALL. So we save the current value
-       of msg_level and restore it later.  If you actually need to log this
-       function's actions, change the second line below */
-    msg = rtapi_get_msg_level();
-    rtapi_set_msg_level(RTAPI_MSG_WARN);
-    // rtapi_set_msg_level(RTAPI_MSG_ALL);
-
-    // export Analog IN
-    for (i = 0; i < 1; i++) {
-        retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
-                                  "wou.gpio.a_in.%02d", i);
-        if (retval != 0) {
-            return retval;
-        }
-	*(addr->a_in[i]) = 0;
-    }
-
-    /* restore saved message level */
-    rtapi_set_msg_level(msg);
-    return 0;
-} // export_gpio ()
+//obsolete: static int export_gpio(gpio_t * addr)
+//obsolete: {
+//obsolete:     int i, retval, msg;
+//obsolete: 
+//obsolete:     /* This function exports a lot of stuff, which results in a lot of
+//obsolete:        logging if msg_level is at INFO or ALL. So we save the current value
+//obsolete:        of msg_level and restore it later.  If you actually need to log this
+//obsolete:        function's actions, change the second line below */
+//obsolete:     msg = rtapi_get_msg_level();
+//obsolete:     rtapi_set_msg_level(RTAPI_MSG_WARN);
+//obsolete:     // rtapi_set_msg_level(RTAPI_MSG_ALL);
+//obsolete: 
+//obsolete:     // export Analog IN
+//obsolete:     for (i = 0; i < 1; i++) {
+//obsolete:         retval = hal_pin_float_newf(HAL_OUT, &(addr->a_in[i]), comp_id,
+//obsolete:                                   "wou.gpio.a_in.%02d", i);
+//obsolete:         if (retval != 0) {
+//obsolete:             return retval;
+//obsolete:         }
+//obsolete: 	*(addr->a_in[i]) = 0;
+//obsolete:     }
+//obsolete: 
+//obsolete:     /* restore saved message level */
+//obsolete:     rtapi_set_msg_level(msg);
+//obsolete:     return 0;
+//obsolete: } // export_gpio ()
 
 static int export_analog(analog_t * addr)
 {
@@ -2476,20 +2335,10 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     } else {
 	addr->step_space = 0;
     }
-    //obsolete: if (step_type == 0) {
-    //obsolete:     addr->dir_hold_dly = 1;
-    //obsolete:     addr->dir_setup = 1;
-    //obsolete: } else {
-    //obsolete:     addr->dir_hold_dly = 1;
-    //obsolete:     addr->dir_setup = 0;
-    //obsolete: }
     /* init the step generator core to zero output */
-//    addr->cur_pos = 0.0;
     /* accumulator gets a half step offset, so it will step half
        way between integer positions, not at the integer positions */
-//    addr->accum = 1L << (PICKOFF-1);
     addr->rawcount = 0;
-
     addr->prev_pos_cmd = 0;
     addr->prev_pos_fb = 0;
     addr->sum_err_0 = 0;
@@ -2529,6 +2378,12 @@ static int export_machine_control(machine_control_t * machine_control)
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
+    
+    // rt_abort: realtime abort command to FPGA
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id,
+                              "wou.rt.abort");
+    if (retval != 0) { return retval; }
+    *(machine_control->rt_abort) = 0;
 
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
@@ -2547,13 +2402,11 @@ static int export_machine_control(machine_control_t * machine_control)
          *(machine_control->in_n[i]) = 0;
      }
 
-    retval =
-	hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
-			 "wou.sync.in.trigger");
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->sync_in_trigger), comp_id,
+                              "wou.sync.in.trigger");
+    if (retval != 0) { return retval; }
     *(machine_control->sync_in_trigger) = 0;	// pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
+
     retval =
 	hal_pin_float_newf(HAL_IN, &(machine_control->sync_in), comp_id,
 			 "wou.sync.in.index");
@@ -2795,7 +2648,7 @@ static int export_machine_control(machine_control_t * machine_control)
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
-}				// export_gpio ()
+}
 
 
 // vim:sw=4:sts=4:et:
