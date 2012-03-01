@@ -427,6 +427,7 @@ typedef struct {
 } analog_t;
 
 typedef struct {
+    hal_bit_t   *rt_abort;  // realtime abort to FPGA
     /* plasma control */
     hal_bit_t *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
@@ -1536,7 +1537,14 @@ static void update_freq(void *arg, long period)
        function's actions, change the second line below */
     int msg;
     msg = rtapi_get_msg_level();
-    rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
+    if (*machine_control->rt_abort == 1) {
+        immediate_data = RT_ABORT;
+        memcpy(data, &immediate_data, sizeof(uint32_t));
+        rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+                sizeof(uint32_t), data);
+        rt_wou_flush(&w_param);
+    }
 
     // update host tick for risc
 
@@ -2541,6 +2549,11 @@ static int export_machine_control(machine_control_t * machine_control)
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
 
+    // rt_abort: realtime abort command to FPGA
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id,
+                              "wou.rt.abort");
+    if (retval != 0) { return retval; }
+    *(machine_control->rt_abort) = 0;
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
