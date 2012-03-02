@@ -544,9 +544,9 @@ static void get_crc_error_counter(int32_t crc_error_counter)
     return;
 }
 
-void fetchmail()
+static void fetchmail(const uint8_t *buf_head)
 {
-    char        *buf_head;
+    // char        *buf_head;
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[2], dout[1];
@@ -561,7 +561,7 @@ void fetchmail()
     int         dsize;
 #endif
     
-    buf_head = (char *) wou_mbox_ptr (&w_param);
+    // buf_head = (char *) wou_mbox_ptr (&w_param);
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
     
     // BP_TICK
@@ -975,6 +975,9 @@ int rtapi_app_main(void)
 #if (DEBUG_LOG)
         debug_fp = fopen ("./debug.log", "w");
 #endif
+        // set mailbox callback function
+        wou_set_mbox_cb (&w_param, fetchmail);
+        
         // set crc counter callback function
         wou_set_crc_error_cb (&w_param, get_crc_error_counter);
         
@@ -1477,7 +1480,7 @@ static void update_freq(void *arg, long period)
 
 
     wou_update(&w_param);
-    fetchmail();
+    //obsolete: fetchmail();
 
     // read SSIF_INDEX_LOCK
 //TODO: implement RISC homing:    memcpy(&r_index_lock,
