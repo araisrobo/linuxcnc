@@ -345,9 +345,9 @@ class emc_status:
                         dtg = self.convert_units(dtg,self.unit_convert)
 
                 if self.mm:
-                        fmt = "%c:% 10.3f"
+                        fmt = "%c:% 10.2f"
                 else:
-                        fmt = "%c:% 9.4f"
+                        fmt = "%c:% 9.2f"
 
                 d = 0
                 if (am & 1):
@@ -395,7 +395,7 @@ class emc_status:
                 set_text(self.status['line'], "%d" % self.emcstat.current_line)
                 set_text(self.status['id'], "%d" % self.emcstat.id)
                 set_text(self.status['dtg'], "%.4f" % self.emcstat.distance_to_go)
-                set_text(self.status['velocity'], "%.4f" % (self.emcstat.current_vel * 60.0))
+                set_text(self.status['velocity'], "%.2f" % (self.emcstat.current_vel * 60.0))
                 set_text(self.status['delay'], "%.2f" % self.emcstat.delay_left)
 
                 flood = self.emcstat.flood
@@ -451,8 +451,8 @@ class emc_status:
                 g92 = ""
                 for i in range(len(self.emcstat.g5x_offset)):
                         letter = "XYZABCUVW"[i]
-                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.4f " % (letter, self.emcstat.g5x_offset[i])
-                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.4f " % (letter, self.emcstat.g92_offset[i])
+                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.2f " % (letter, self.emcstat.g5x_offset[i])
+                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.2f " % (letter, self.emcstat.g92_offset[i])
                                    
                 set_text(self.status['g5xoffset'], g5x);
                 set_text(self.status['g92offset'], g92);

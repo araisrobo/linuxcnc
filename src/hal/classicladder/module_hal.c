@@ -81,6 +81,8 @@ extern StrGeneralParams GeneralParamsMirror;
 
 #define TIME_REFRESH_RUNG_NS (1000 * 1000 * (TIME_REFRESH_RUNG_MS))
 
+static int thread_exit;
+
 void HalReadPhysicalInputs(void) {
 	int i;
 	for( i=0; i<InfosGene->GeneralParams.SizesInfos.nbr_phys_inputs; i++) {
@@ -169,7 +171,7 @@ static void hal_task(void *arg, long period) {
 void *auto_task(void *ptr) {
 	unsigned long t0, t1,milliseconds;
  	static unsigned long leftover=0;
-        while(1) {
+        while(thread_exit == 0) {
         long period = last_period;
          leftover += period;
 	 milliseconds= leftover / 1000000;
@@ -199,12 +201,12 @@ void *auto_task(void *ptr) {
 				}
             usleep(100);
         }
+        return (void *)0;
 }
 
 
 extern void CopySizesInfosFromModuleParams( void );
 pthread_t thread;
-
 
 int rtapi_app_main(void) {
 	int result, i;
@@ -279,12 +281,14 @@ error:
 	hal_ready(compId);
 
 	ClassicLadder_AllocAll( );
+        thread_exit = 0;
         pthread_create( &thread, NULL, auto_task, (void*) NULL);
 	return 0;
 }
 
 void rtapi_app_exit(void) {
         //pthread_kill(thread,0);
+        thread_exit = 1;
 	ClassicLadder_FreeAll( FALSE);
 	hal_exit(compId);
 }
