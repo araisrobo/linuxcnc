@@ -450,7 +450,8 @@ class touchy:
                 if self.injector is not None:
                   dic.update(self.injector.dic)
                 self.wTree.connect_signals(dic)
-                self.wTree.connect_signals(self.injector)
+                if self.injector is not None:
+                  self.wTree.connect_signals(self.injector)
                 # self.wTree.signal_autoconnect(dic)
 
 		for widget in self.wTree.get_objects():
