@@ -599,11 +599,11 @@ static void fetchmail(const uint8_t *buf_head)
                 p +=1;
                 // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
                 // *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
-                *(stepgen->pid_output) = (hal_float_t)(*p);
+                *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
                 // cmd error
                 p += 1;
                 // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-                *(stepgen->cmd_error) = (hal_float_t)(*p);
+                *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
                 *(machine_control->ferror[i]) = (int32_t)*p;
                 // joint_cmd of this BP
                 p += 1;
@@ -613,10 +613,10 @@ static void fetchmail(const uint8_t *buf_head)
             } else {
                 // PULSE_POS
                 p += 1;
-                *(machine_control->pulse_count[i]) = *p;
+                *(machine_control->pulse_count[i]) = (int32_t) *p;
                 // enc counter
                 p += 1;
-                *(machine_control->encoder_count[i]) = *p;
+                *(machine_control->encoder_count[i]) = (int32_t) *p;
                 // pid output
                 p +=1;
                 // cmd error
