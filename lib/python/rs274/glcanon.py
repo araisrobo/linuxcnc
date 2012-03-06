@@ -1110,9 +1110,15 @@ class GlCanonDraw:
                 # if pos_2 is not None and pos_3 is not None and pos_0 is\
                 #  not None and pos_1 is not None:
                 if pos_2 is None:
-
+                    print "PLATEVIEW: trying to draw but position doesn't assigned"
+                    print 'pos2 is None'
                     pass
                 else:
+                    print 'PLATEVIEW: drawing gl for plateview'
+                    print 'x0(%f) y0(%f)' % (pos_0[0], pos_0[1])
+                    print 'x1(%f) y1(%f)' % (pos_1[0], pos_1[1])
+                    print 'x2(%f) y2(%f)' % (pos_2[0], pos_2[1])
+                    print 'x3(%f) y3(%f)' % (pos_3[0], pos_3[1])
                     glLineWidth(10)
                     glColor3f(0.4,0.4,0.2)
                     # glColor3f(0.5,1.0,0.2)
@@ -1123,8 +1129,11 @@ class GlCanonDraw:
                     glVertex3f(pos_1[0], pos_1[1],0)
 
                     glEnd()
+            else:
+                print 'PLATEVIEW: glcanon does not want to draw'
 
         except:
+            print 'PLATEVIEW: glcanon exception error'
             pass
         if self.get_show_limits():
             glLineWidth(1)
