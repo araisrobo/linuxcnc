@@ -574,16 +574,20 @@ class GlCanonDraw:
         'backplotprobing': (0.63, 0.13, 0.94),
         'backplottraverse': (0.30, 0.50, 0.50),
         'label_ok': (1.00, 0.51, 0.53),
-        'backplotjog_alpha': 0.75,
+        'backplotjog_alpha': 0,
+        #'backplotjog_alpha': 0.75,
         'tool_diffuse': (0.60, 0.60, 0.60),
         'backplotfeed': (0.75, 0.25, 0.25),
         'back': (0.00, 0.00, 0.00),
         'lathetool_alpha': 0.10,
-        'axis_x': (0.20, 1.00, 0.20),
+        'axis_x': (0, 0, 0),
+        # 'axis_x': (0.20, 1.00, 0.20),
         'cone': (1.00, 0.00, 0.00),
-        'axis_z': (0.20, 0.20, 1.00),
+        'axis_z': (0, 0, 0),
+        # 'axis_z': (0.20, 0.20, 1.00),
         'label_limit': (1.00, 0.21, 0.23),
-        'backplotjog': (1.00, 1.00, 0.00),
+        'backplotjog': (0, 0, 0),
+        # 'backplotjog': (1.00, 1.00, 0.00),
         'selected': (0.00, 1.00, 1.00),
         'lathetool': (0.80, 0.80, 0.80),
         'dwell': (1.00, 0.50, 0.50),
@@ -604,7 +608,8 @@ class GlCanonDraw:
         'backplotarc_alpha': 0.75,
         'arc_feed': (1.00, 1.00, 1.00),
         'arc_feed_alpha': .5,
-        'axis_y': (1.00, 0.20, 0.20),
+        'axis_y': (0, 0, 0),
+        # 'axis_y': (1.00, 0.20, 0.20),
     }
     def __init__(self, s, lp, g=None):
         self.stat = s
@@ -1097,11 +1102,11 @@ class GlCanonDraw:
                     glPopMatrix()
 
                 glTranslatef(*g92_offset)
-                # glCallList(alist)
+                glCallList(alist)
 
                 glPopMatrix()
             else:
-                # glCallList(alist)
+                glCallList(alist)
                 pass
         
         try:
@@ -1110,15 +1115,15 @@ class GlCanonDraw:
                 # if pos_2 is not None and pos_3 is not None and pos_0 is\
                 #  not None and pos_1 is not None:
                 if pos_2 is None:
-                    print "PLATEVIEW: trying to draw but position doesn't assigned"
-                    print 'pos2 is None'
+#                     print "PLATEVIEW: trying to draw but position doesn't assigned"
+#                     print 'pos2 is None'
                     pass
                 else:
-                    print 'PLATEVIEW: drawing gl for plateview'
-                    print 'x0(%f) y0(%f)' % (pos_0[0], pos_0[1])
-                    print 'x1(%f) y1(%f)' % (pos_1[0], pos_1[1])
-                    print 'x2(%f) y2(%f)' % (pos_2[0], pos_2[1])
-                    print 'x3(%f) y3(%f)' % (pos_3[0], pos_3[1])
+#                     print 'PLATEVIEW: drawing gl for plateview'
+#                     print 'x0(%f) y0(%f)' % (pos_0[0], pos_0[1])
+#                     print 'x1(%f) y1(%f)' % (pos_1[0], pos_1[1])
+#                     print 'x2(%f) y2(%f)' % (pos_2[0], pos_2[1])
+#                     print 'x3(%f) y3(%f)' % (pos_3[0], pos_3[1])
                     glLineWidth(10)
                     glColor3f(0.4,0.4,0.2)
                     # glColor3f(0.5,1.0,0.2)
@@ -1130,7 +1135,8 @@ class GlCanonDraw:
 
                     glEnd()
             else:
-                print 'PLATEVIEW: glcanon does not want to draw'
+                # print 'PLATEVIEW: glcanon does not want to draw'
+                pass
 
         except:
             print 'PLATEVIEW: glcanon exception error'
