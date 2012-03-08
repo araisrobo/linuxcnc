@@ -1016,7 +1016,74 @@ class GlCanonDraw:
     def redraw(self):
         s = self.stat
         s.poll()
+        # to keep tracking tool with program position
+        # s.position should be always equal to program_pos
+        # use difference between s.position and program_pos to update 
+        # pattern position
+        if self.get_path_tracking() == True:
+            diff = []
+            diff2 = []
+            pos = s.position[:s.axes]
+            for i in range(0, len(pos)):
+                d = pos[i] - self.program_pos[i]
+                diff.append(d)
+                if d != 0:
+                    diff2.append(self.prev_diff[i] - d)
+                else:
+                    diff2.append(0)
+                 
+            self.prev_diff = diff
+            # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
+            # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
+            # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
+            # update arc list
+            diff2 = self.to_internal_units(diff2)
+            diff = self.to_internal_units(diff)
+            narcfeed = []
+            for a in self.canon.oarcfeed:
+                b = list(a)
+                for i in range(0, s.axes):
+                    c = list(b[1])
+                    d = list(b[2])
+                    c[i] = c[i] + diff[i]
+                    d[i] = d[i] + diff[i]
+                    b[1] = tuple(c)
+                    b[2] = tuple(d)
 
+                narcfeed.append(tuple(b))
+
+            # update feed list
+            nfeed = []
+            for a in self.canon.ofeed:
+                b = list(a)
+                for i in range(0, s.axes):
+                    c = list(b[1])
+                    d = list(b[2])
+                    c[i] = c[i] +  diff[i]
+                    d[i] = d[i] +  diff[i]
+                    b[1] = tuple(c)
+                    b[2] = tuple(d)
+
+                nfeed.append(tuple(b))
+            # update traverse list 
+            ntraverse = []
+            for a in self.canon.otraverse:
+                b = list(a)
+                for i in range(0, s.axes):
+                    c = list(b[1])
+                    d = list(b[2])
+                    c[i] = c[i] + diff[i]
+                    d[i] = d[i] + diff[i]
+                    b[1] = tuple(c)
+                    b[2] = tuple(d)
+                ntraverse.append(tuple(b))
+            # dwell list - [line number, color, pos x, pos y, pos z, plane]
+            ndwells = []
+            for a in self.canon.odwells:
+                b = list(a)
+                for i in range(0, s.axes):
+                    b[i+2] = b[i+2] + diff[i]
+                ndwells.append(tuple(b))
         machine_limit_min, machine_limit_max = self.soft_limits()
 
         glDisable(GL_LIGHTING)
@@ -1027,11 +1094,22 @@ class GlCanonDraw:
                 glDisable(GL_DEPTH_TEST)
                 glEnable(GL_BLEND)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
+    
+            if self.get_path_tracking() == True:
+                self.canon.traverse = ntraverse
+                self.canon.feed = nfeed
+                self.canon.arcfeed = narcfeed
+                self.canon.dwells = ndwells
+                self.make_main_list()
+                self.select(0,0)
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_main_list))
             glCallList(self.dlist('program_norapids', gen=self.make_main_list))
             glCallList(self.dlist('highlight'))
+            self.canon.traverse = self.canon.otraverse
+            self.canon.feed = self.canon.ofeed
+            self.canon.arcfeed = self.canon.oarcfeed
+            self.canon.dwells = self.canon.odwells
 
             if self.get_program_alpha():
                 glDisable(GL_BLEND)
@@ -1682,6 +1760,10 @@ class GlCanonDraw:
     def load_preview(self, f, canon, unitcode, initcode):
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
+        canon.ofeed = canon.feed
+        canon.otraverse = canon.traverse
+        canon.oarcfeed = canon.arcfeed
+        canon.odwells = canon.dwells
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents() # so that the milling path will fit to the screen
