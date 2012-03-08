@@ -223,7 +223,7 @@ class GlNavBase:
 
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-        self._redraw()
+        # do not redraw after rest: self._redraw() 
 
 
     def recordMouse(self, x, y):
@@ -344,6 +344,8 @@ class GlNavBase:
     def set_view_z(self):
         self.reset()
         mid, size = self.extents_info()
+        print 'mid', mid
+        print 'size', size
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.set_eyepoint_from_extents(size[0], size[1])
         self.perspective = False

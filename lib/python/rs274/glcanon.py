@@ -1102,11 +1102,11 @@ class GlCanonDraw:
                     glPopMatrix()
 
                 glTranslatef(*g92_offset)
-                glCallList(alist)
+                # glCallList(alist)
 
                 glPopMatrix()
             else:
-                glCallList(alist)
+                # glCallList(alist)
                 pass
         
         try:
