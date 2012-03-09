@@ -447,14 +447,14 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             # print 'max is block',block_line
             index = len(self.blocks) - 1 
             return self.blocks[index][2][:3], self.blocks[index][3]
-        if arcfeed_line >= max((traverse_line, feed_line, block_line)):
-            # print 'max is arcfeed', arcfeed_line
-            index = len(self.arcfeed) - 1
-            return self.arcfeed[index][2][:3],self.arcfeed[index][3]
         if feed_line >= max((traverse_line, block_line, feed_line)):
             # print 'max is feed', feed_line
             index = len(self.feed) - 1
             return self.feed[index][2][:3],self.feed[index][3]
+        if arcfeed_line >= max((traverse_line, feed_line, block_line)):
+            # print 'max is arcfeed', arcfeed_line
+            index = len(self.arcfeed) - 1
+            return self.arcfeed[index][2][:3],self.arcfeed[index][3]
         if traverse_line >= max((block_line, arcfeed_line, feed_line)):
             # print 'max is traverse', traverse_line 
             feedrate = last_traverse[3]
