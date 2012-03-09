@@ -96,7 +96,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.g5x_offset_u = 0.0
         self.g5x_offset_v = 0.0
         self.g5x_offset_w = 0.0
-
+        self.diff = [0.0, 0.0, 0.0, 0.0]
+        self.prev_diff = [0.0, 0.0, 0.0, 0.0]
     def comment(self, arg):
         if arg.startswith("AXIS,"):
             parts = arg.split(",")
@@ -115,7 +116,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def draw_lines(self, lines, for_selection, j=0):
         return emc.draw_lines(self.geometry, lines, for_selection)
-
     def draw_dwells(self, dwells, alpha, for_selection, j0=0):
         return emc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
@@ -536,7 +536,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             else:
                 self.color_with_alpha('straight_feed')
             self.draw_lines(self.feed, for_selection, len(self.traverse))
-
             if for_selection:
                 self.color('arc_feed')
             else:
@@ -1027,63 +1026,14 @@ class GlCanonDraw:
             for i in range(0, len(pos)):
                 d = pos[i] - self.program_pos[i]
                 diff.append(d)
-                if d != 0:
-                    diff2.append(self.prev_diff[i] - d)
-                else:
-                    diff2.append(0)
-                 
-            self.prev_diff = diff
-            # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
-            # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
-            # arcfeed list -  [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
-            # update arc list
+                diff2.append(d - self.canon.prev_diff[i])
+            self.canon.prev_diff = diff
             diff2 = self.to_internal_units(diff2)
             diff = self.to_internal_units(diff)
-            narcfeed = []
-            for a in self.canon.oarcfeed:
-                b = list(a)
-                for i in range(0, s.axes):
-                    c = list(b[1])
-                    d = list(b[2])
-                    c[i] = c[i] + diff[i]
-                    d[i] = d[i] + diff[i]
-                    b[1] = tuple(c)
-                    b[2] = tuple(d)
+        else:
+            diff2 = [0.0, 0.0, 0.0, 0.0]
+            diff = diff2 
 
-                narcfeed.append(tuple(b))
-
-            # update feed list
-            nfeed = []
-            for a in self.canon.ofeed:
-                b = list(a)
-                for i in range(0, s.axes):
-                    c = list(b[1])
-                    d = list(b[2])
-                    c[i] = c[i] +  diff[i]
-                    d[i] = d[i] +  diff[i]
-                    b[1] = tuple(c)
-                    b[2] = tuple(d)
-
-                nfeed.append(tuple(b))
-            # update traverse list 
-            ntraverse = []
-            for a in self.canon.otraverse:
-                b = list(a)
-                for i in range(0, s.axes):
-                    c = list(b[1])
-                    d = list(b[2])
-                    c[i] = c[i] + diff[i]
-                    d[i] = d[i] + diff[i]
-                    b[1] = tuple(c)
-                    b[2] = tuple(d)
-                ntraverse.append(tuple(b))
-            # dwell list - [line number, color, pos x, pos y, pos z, plane]
-            ndwells = []
-            for a in self.canon.odwells:
-                b = list(a)
-                for i in range(0, s.axes):
-                    b[i+2] = b[i+2] + diff[i]
-                ndwells.append(tuple(b))
         machine_limit_min, machine_limit_max = self.soft_limits()
 
         glDisable(GL_LIGHTING)
@@ -1094,22 +1044,12 @@ class GlCanonDraw:
                 glDisable(GL_DEPTH_TEST)
                 glEnable(GL_BLEND)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    
-            if self.get_path_tracking() == True:
-                self.canon.traverse = ntraverse
-                self.canon.feed = nfeed
-                self.canon.arcfeed = narcfeed
-                self.canon.dwells = ndwells
-                self.make_main_list()
-                self.select(0,0)
+   
+            glTranslatef(diff[0], diff[1], 0)
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_main_list))
             glCallList(self.dlist('program_norapids', gen=self.make_main_list))
             glCallList(self.dlist('highlight'))
-            self.canon.traverse = self.canon.otraverse
-            self.canon.feed = self.canon.ofeed
-            self.canon.arcfeed = self.canon.oarcfeed
-            self.canon.dwells = self.canon.odwells
 
             if self.get_program_alpha():
                 glDisable(GL_BLEND)
@@ -1117,6 +1057,8 @@ class GlCanonDraw:
 
             if self.get_show_extents():
                 self.show_extents()
+
+        glTranslatef(-diff[0], -diff[1], 0)
 
         if self.get_show_live_plot() or self.get_show_program():
 
@@ -1761,9 +1703,6 @@ class GlCanonDraw:
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
         canon.ofeed = canon.feed
-        canon.otraverse = canon.traverse
-        canon.oarcfeed = canon.arcfeed
-        canon.odwells = canon.dwells
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents() # so that the milling path will fit to the screen
