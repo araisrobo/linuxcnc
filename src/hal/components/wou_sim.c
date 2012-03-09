@@ -1539,11 +1539,11 @@ static void update_freq(void *arg, long period)
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_WARN);
     if (*machine_control->rt_abort == 1) {
-        immediate_data = RT_ABORT;
-        memcpy(data, &immediate_data, sizeof(uint32_t));
-        rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-                sizeof(uint32_t), data);
-        rt_wou_flush(&w_param);
+        // immediate_data = RT_ABORT;
+        // memcpy(data, &immediate_data, sizeof(uint32_t));
+        // rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+        //         sizeof(uint32_t), data);
+        // rt_wou_flush(&w_param);
     }
 
     // update host tick for risc

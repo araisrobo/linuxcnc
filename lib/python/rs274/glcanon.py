@@ -96,7 +96,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.g5x_offset_u = 0.0
         self.g5x_offset_v = 0.0
         self.g5x_offset_w = 0.0
-
+        self.diff = [0.0, 0.0, 0.0, 0.0]
+        self.prev_diff = [0.0, 0.0, 0.0, 0.0]
     def comment(self, arg):
         if arg.startswith("AXIS,"):
             parts = arg.split(",")
@@ -115,7 +116,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def draw_lines(self, lines, for_selection, j=0):
         return emc.draw_lines(self.geometry, lines, for_selection)
-
     def draw_dwells(self, dwells, alpha, for_selection, j0=0):
         return emc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
@@ -536,7 +536,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             else:
                 self.color_with_alpha('straight_feed')
             self.draw_lines(self.feed, for_selection, len(self.traverse))
-
             if for_selection:
                 self.color('arc_feed')
             else:
@@ -574,16 +573,20 @@ class GlCanonDraw:
         'backplotprobing': (0.63, 0.13, 0.94),
         'backplottraverse': (0.30, 0.50, 0.50),
         'label_ok': (1.00, 0.51, 0.53),
-        'backplotjog_alpha': 0.75,
+        'backplotjog_alpha': 0,
+        #'backplotjog_alpha': 0.75,
         'tool_diffuse': (0.60, 0.60, 0.60),
         'backplotfeed': (0.75, 0.25, 0.25),
         'back': (0.00, 0.00, 0.00),
         'lathetool_alpha': 0.10,
-        'axis_x': (0.20, 1.00, 0.20),
+        'axis_x': (0, 0, 0),
+        # 'axis_x': (0.20, 1.00, 0.20),
         'cone': (1.00, 0.00, 0.00),
-        'axis_z': (0.20, 0.20, 1.00),
+        'axis_z': (0, 0, 0),
+        # 'axis_z': (0.20, 0.20, 1.00),
         'label_limit': (1.00, 0.21, 0.23),
-        'backplotjog': (1.00, 1.00, 0.00),
+        'backplotjog': (0, 0, 0),
+        # 'backplotjog': (1.00, 1.00, 0.00),
         'selected': (0.00, 1.00, 1.00),
         'lathetool': (0.80, 0.80, 0.80),
         'dwell': (1.00, 0.50, 0.50),
@@ -604,7 +607,8 @@ class GlCanonDraw:
         'backplotarc_alpha': 0.75,
         'arc_feed': (1.00, 1.00, 1.00),
         'arc_feed_alpha': .5,
-        'axis_y': (1.00, 0.20, 0.20),
+        'axis_y': (0, 0, 0),
+        # 'axis_y': (1.00, 0.20, 0.20),
     }
     def __init__(self, s, lp, g=None):
         self.stat = s
@@ -1011,6 +1015,24 @@ class GlCanonDraw:
     def redraw(self):
         s = self.stat
         s.poll()
+        # to keep tracking tool with program position
+        # s.position should be always equal to program_pos
+        # use difference between s.position and program_pos to update 
+        # pattern position
+        if self.get_path_tracking() == True:
+            diff = []
+            diff2 = []
+            pos = s.position[:s.axes]
+            for i in range(0, len(pos)):
+                d = pos[i] - self.program_pos[i]
+                diff.append(d)
+                diff2.append(d - self.canon.prev_diff[i])
+            self.canon.prev_diff = diff
+            diff2 = self.to_internal_units(diff2)
+            diff = self.to_internal_units(diff)
+        else:
+            diff2 = [0.0, 0.0, 0.0, 0.0]
+            diff = diff2 
 
         machine_limit_min, machine_limit_max = self.soft_limits()
 
@@ -1022,7 +1044,8 @@ class GlCanonDraw:
                 glDisable(GL_DEPTH_TEST)
                 glEnable(GL_BLEND)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
+   
+            glTranslatef(diff[0], diff[1], 0)
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_main_list))
             glCallList(self.dlist('program_norapids', gen=self.make_main_list))
@@ -1034,6 +1057,8 @@ class GlCanonDraw:
 
             if self.get_show_extents():
                 self.show_extents()
+
+        glTranslatef(-diff[0], -diff[1], 0)
 
         if self.get_show_live_plot() or self.get_show_program():
 
@@ -1097,11 +1122,12 @@ class GlCanonDraw:
                     glPopMatrix()
 
                 glTranslatef(*g92_offset)
-                glCallList(alist)
+                # glCallList(alist)
 
                 glPopMatrix()
             else:
-                glCallList(alist)
+                # glCallList(alist)
+                pass
         
         try:
             if self.draw_material():
@@ -1109,9 +1135,15 @@ class GlCanonDraw:
                 # if pos_2 is not None and pos_3 is not None and pos_0 is\
                 #  not None and pos_1 is not None:
                 if pos_2 is None:
-
+#                     print "PLATEVIEW: trying to draw but position doesn't assigned"
+#                     print 'pos2 is None'
                     pass
                 else:
+#                     print 'PLATEVIEW: drawing gl for plateview'
+#                     print 'x0(%f) y0(%f)' % (pos_0[0], pos_0[1])
+#                     print 'x1(%f) y1(%f)' % (pos_1[0], pos_1[1])
+#                     print 'x2(%f) y2(%f)' % (pos_2[0], pos_2[1])
+#                     print 'x3(%f) y3(%f)' % (pos_3[0], pos_3[1])
                     glLineWidth(10)
                     glColor3f(0.4,0.4,0.2)
                     # glColor3f(0.5,1.0,0.2)
@@ -1122,8 +1154,12 @@ class GlCanonDraw:
                     glVertex3f(pos_1[0], pos_1[1],0)
 
                     glEnd()
+            else:
+                # print 'PLATEVIEW: glcanon does not want to draw'
+                pass
 
         except:
+            print 'PLATEVIEW: glcanon exception error'
             pass
         if self.get_show_limits():
             glLineWidth(1)
@@ -1666,6 +1702,7 @@ class GlCanonDraw:
     def load_preview(self, f, canon, unitcode, initcode):
         self.set_canon(canon)
         result, seq = gcode.parse(f, canon, unitcode, initcode)
+        canon.ofeed = canon.feed
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents() # so that the milling path will fit to the screen

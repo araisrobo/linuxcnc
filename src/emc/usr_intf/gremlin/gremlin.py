@@ -38,7 +38,9 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
 class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
               rs274.glcanon.GlCanonDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
-
+    canon = None
+    program_pos = [0, 0, 0, 0, 0, 0, 0, 0]
+    path_tracking = False
     __gsignals__ = {'line-selected': (gobject.SIGNAL_RUN_FIRST, gobject.TYPE_NONE, (gobject.TYPE_INT,))}
     def __init__(self, inifile):
         gobject.GObject.__init__(self)
@@ -121,6 +123,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.highlight_mode = 'line'
         self.highlight_mode = inifile.find("DISPLAY", "HIGHLIGHT_MODE")
         print 'gremlin.py highlight_mode', self.highlight_mode 
+    def get_path_tracking(self):
+        return self.path_tracking
+    def set_path_tracking(self, path_tracking=False):
+        self.path_tracking = path_tracking
     def activate(self):
         glcontext = gtk.gtkgl.widget_get_gl_context(self)
         gldrawable = gtk.gtkgl.widget_get_gl_drawable(self)
@@ -199,7 +205,12 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self._current_file = filename
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            canon = StatCanon(self.colors, self.get_geometry(), s, random)
+            if self.canon == None:
+                canon = StatCanon(self.colors, self.get_geometry(), s, random)
+                self.canon = canon
+            else:
+                canon = self.canon
+                canon.__init__(self.colors, self.get_geometry(), s, random)
             canon.set_highlight_mode(self.highlight_mode)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             temp_parameter = os.path.join(td, os.path.basename(parameter or "emc.var"))

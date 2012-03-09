@@ -1,3 +1,10 @@
+emc2 (1:2.5.0-2012.03.05) lucid; urgency=low
+
+  * Implemented WOU.RT_CMD protocol: realtime wou command
+  * BUGFIX for WOU.MAILBOX protocol: fetchmail()
+
+ -- Yishin Li <ysli@araisrobo.com>  Mon, 05 Mar 2012 13:27:51 +0800
+
 emc2 (1:2.5.0-2012.01.11) lucid; urgency=low
 
   * improve fetchmail() of WOU for better USB bandwidth utilization

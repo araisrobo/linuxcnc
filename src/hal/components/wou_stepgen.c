@@ -544,9 +544,9 @@ static void get_crc_error_counter(int32_t crc_error_counter)
     return;
 }
 
-void fetchmail()
+static void fetchmail(const uint8_t *buf_head)
 {
-    char        *buf_head;
+    // char        *buf_head;
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[2], dout[1];
@@ -561,7 +561,7 @@ void fetchmail()
     int         dsize;
 #endif
     
-    buf_head = (char *) wou_mbox_ptr (&w_param);
+    // buf_head = (char *) wou_mbox_ptr (&w_param);
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
     
     // BP_TICK
@@ -599,11 +599,11 @@ void fetchmail()
                 p +=1;
                 // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
                 // *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
-                *(stepgen->pid_output) = (hal_float_t)(*p);
+                *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
                 // cmd error
                 p += 1;
                 // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-                *(stepgen->cmd_error) = (hal_float_t)(*p);
+                *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
                 *(machine_control->ferror[i]) = (int32_t)*p;
                 // joint_cmd of this BP
                 p += 1;
@@ -613,10 +613,10 @@ void fetchmail()
             } else {
                 // PULSE_POS
                 p += 1;
-                *(machine_control->pulse_count[i]) = *p;
+                *(machine_control->pulse_count[i]) = (int32_t) *p;
                 // enc counter
                 p += 1;
-                *(machine_control->encoder_count[i]) = *p;
+                *(machine_control->encoder_count[i]) = (int32_t) *p;
                 // pid output
                 p +=1;
                 // cmd error
@@ -975,6 +975,9 @@ int rtapi_app_main(void)
 #if (DEBUG_LOG)
         debug_fp = fopen ("./debug.log", "w");
 #endif
+        // set mailbox callback function
+        wou_set_mbox_cb (&w_param, fetchmail);
+        
         // set crc counter callback function
         wou_set_crc_error_cb (&w_param, get_crc_error_counter);
         
@@ -1477,7 +1480,7 @@ static void update_freq(void *arg, long period)
 
 
     wou_update(&w_param);
-    fetchmail();
+    //obsolete: fetchmail();
 
     // read SSIF_INDEX_LOCK
 //TODO: implement RISC homing:    memcpy(&r_index_lock,
