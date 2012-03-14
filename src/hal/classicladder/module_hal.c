@@ -169,39 +169,38 @@ static void hal_task(void *arg, long period) {
 }
 // FOR USB PROTOCOL
 void *auto_task(void *ptr) {
-	unsigned long t0, t1,milliseconds;
- 	static unsigned long leftover=0;
-        while(thread_exit == 0) {
+    unsigned long t0, t1,milliseconds;
+    static unsigned long leftover=0;
+    while(thread_exit == 0) {
         long period = last_period;
-         leftover += period;
-	 milliseconds= leftover / 1000000;
-	leftover %= 1000000;
-	if (milliseconds >= 1) {
-	InfosGene->GeneralParams.PeriodicRefreshMilliSecs=milliseconds;
-	*hal_state = InfosGene->LadderState;
-	t0 = rtapi_get_time();
-		if (InfosGene->LadderState==STATE_RUN)
-			{
-				HalReadPhysicalInputs();
+        leftover += period;
+        milliseconds= leftover / 1000000;
+        leftover %= 1000000;
+        if (milliseconds >= 1) {
+            InfosGene->GeneralParams.PeriodicRefreshMilliSecs=milliseconds;
+            *hal_state = InfosGene->LadderState;
+            t0 = rtapi_get_time();
+            if (InfosGene->LadderState==STATE_RUN) {
+                HalReadPhysicalInputs();
 
-				HalReads32Inputs();
-                                
-                                HalReadFloatInputs();
-		
-				ClassicLadder_RefreshAllSections();
-		
-				HalWritePhysicalOutputs();
+                HalReads32Inputs();
 
-				HalWrites32Outputs();
-    
-                                HalWriteFloatOutputs();
-			}
-     	 t1 = rtapi_get_time();
-         InfosGene->DurationOfLastScan = t1 - t0;
-				}
-            usleep(100);
-        }
-        return (void *)0;
+                HalReadFloatInputs();
+
+                // causing syntax error in some case: ClassicLadder_RefreshAllSections();
+
+                HalWritePhysicalOutputs();
+
+                HalWrites32Outputs();
+
+                HalWriteFloatOutputs();
+            }
+            t1 = rtapi_get_time();
+          InfosGene->DurationOfLastScan = t1 - t0;
+ 				}
+        usleep(100);
+    }
+    return (void *)0;
 }
 
 
