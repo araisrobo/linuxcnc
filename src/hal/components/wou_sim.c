@@ -427,6 +427,11 @@ typedef struct {
 } analog_t;
 
 typedef struct {
+    int32_t     prev_vel_sync;
+    hal_float_t *vel_sync_scale;
+    hal_float_t *current_vel;
+    hal_float_t *requested_vel;
+    hal_float_t *feed_scale;
     hal_bit_t   *rt_abort;  // realtime abort to FPGA
     /* plasma control */
     hal_bit_t *thc_enbable;
@@ -2212,34 +2217,34 @@ static void update_freq(void *arg, long period)
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     // send velocity status to RISC
-//    if(*machine_control->ahc_state == 1) {
-
-    if (*machine_control->motion_state != machine_control->prev_motion_state) {
-        if (*machine_control->motion_state == ACCEL_S3) {
-            sync_cmd = SYNC_VEL | 0x0001;
-//             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
-        } else {
-            sync_cmd = SYNC_VEL;
-//                 fprintf(stderr,"motion_state != ACCEL_S3\n");
-        }
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        // sim:         sizeof(uint16_t), data);
-
-//        if (is_probing) {
-//            if (*machine_control->motion_state == ACCEL_S7 ||
-//                    *machine_control->motion_state == ACCEL_S6) {
-//                *machine_control->probe_type = PROBE_NONE;
-//                is_probing = 0;
-//                fprintf(stderr, "clean probe state  probe_type(%0f) prev_probe_type(%0f)\n",
-//                        *machine_control->probe_type, machine_control->prev_probe_type);
-//            }
-//            fprintf(stderr, "motion_state(%d)\n", *machine_control->motion_state);
-//        }
+    if (*(machine_control->vel_sync_scale) *
+         (*machine_control->feed_scale) *
+         (*(machine_control->requested_vel)) <
+            *machine_control->current_vel) {
+        sync_cmd = SYNC_VEL | 0x0001;
+    } else {
+        sync_cmd = SYNC_VEL;
     }
-    machine_control->prev_motion_state = *machine_control->motion_state;
-//        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
+    if (sync_cmd != machine_control->prev_vel_sync) {
+        fprintf(stderr, "sent new vel sync status(%x)\n", sync_cmd);
+    }
+    machine_control->prev_vel_sync = sync_cmd;
+//    if (*machine_control->motion_state != machine_control->prev_motion_state) {
+//        if (*machine_control->motion_state == ACCEL_S3) {
+//            sync_cmd = SYNC_VEL | 0x0001;
+////             fprintf(stderr,"wou_stepgen.c: motion_state == ACCEL_S3\n");
+//        } else {
+//            sync_cmd = SYNC_VEL;
+////                 fprintf(stderr,"motion_state != ACCEL_S3\n");
+//        }
+//        memcpy(data, &sync_cmd, sizeof(uint16_t));
+//        // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//        // sim:         sizeof(uint16_t), data);
+//
 //    }
+//    machine_control->prev_motion_state = *machine_control->motion_state;
+////        fprintf(stderr,"prev_motion_state(%d)\n", machine_control->prev_motion_state);
+////    }
 
 #if (TRACE!=0)
     if (*(stepgen - 1)->enable) {
@@ -2548,7 +2553,20 @@ static int export_machine_control(machine_control_t * machine_control)
     rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
-
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->vel_sync_scale), comp_id,
+                             "wou.motion.vel-sync-scale");
+    if (retval != 0) { return retval; }
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->current_vel), comp_id,
+                             "wou.motion.current-vel");
+    if (retval != 0) { return retval; }
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->feed_scale), comp_id,
+                             "wou.motion.feed-scale");
+    if (retval != 0) { return retval; }
+    *(machine_control->feed_scale) = 0;    // pin index must not beyond index
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
+                             "wou.motion.requested-vel");
+    if (retval != 0) { return retval; }
+    *(machine_control->requested_vel) = 0;    // pin index must not beyond index
     // rt_abort: realtime abort command to FPGA
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id,
                               "wou.rt.abort");

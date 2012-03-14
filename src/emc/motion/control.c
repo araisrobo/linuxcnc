@@ -2048,6 +2048,7 @@ static void output_to_hal(void)
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
         *(emcmot_hal_data->requested_vel) = emcmotStatus->requested_vel;
+        *(emcmot_hal_data->feed_scale) = emcmotStatus->feed_scale;
     } else if (GET_MOTION_TELEOP_FLAG()) {
         int i;
         double v2 = 0.0;

@@ -365,6 +365,7 @@ static int init_hal_io(void)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->current_vel), mot_comp_id, "motion.current-vel")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->requested_vel), mot_comp_id, "motion.requested-vel")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->distance_to_go), mot_comp_id, "motion.distance-to-go")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->feed_scale), mot_comp_id, "motion.feed-scale")) != 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->program_line), mot_comp_id, "motion.program-line")) != 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->motion_state), mot_comp_id, "motion.motion-state")) != 0) goto error;
 

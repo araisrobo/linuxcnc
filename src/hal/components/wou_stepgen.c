@@ -422,6 +422,11 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
+    int32_t     prev_vel_sync;
+    hal_float_t *vel_sync_scale;
+    hal_float_t *current_vel;
+    hal_float_t *requested_vel;
+    hal_float_t *feed_scale;
     hal_bit_t   *rt_abort;  // realtime abort to FPGA
     /* plasma control */
     hal_bit_t   *thc_enbable;
@@ -2099,16 +2104,33 @@ static void update_freq(void *arg, long period)
     DPS("  %15.7f", *machine_control->spindle_revs);
 
     // send velocity status to RISC
-    if (*machine_control->motion_state != machine_control->prev_motion_state) {
-        if (*machine_control->motion_state == ACCEL_S3) {
-            sync_cmd = SYNC_VEL | 0x0001;
-        } else {
-            sync_cmd = SYNC_VEL;
-        }
+    if ( (*machine_control->vel_sync_scale) *
+        (*machine_control->feed_scale) *
+        (*(machine_control->requested_vel)) <
+            *machine_control->current_vel) {
+        sync_cmd = SYNC_VEL | 0x0001;
+
+    } else {
+        sync_cmd = SYNC_VEL;
+    }
+    if (sync_cmd != machine_control->prev_vel_sync) {
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
+                    sizeof(uint16_t), data);
+        fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
     }
+    machine_control->prev_vel_sync = sync_cmd;
+//   if (*machine_control->motion_state != machine_control->prev_motion_state) {
+//        // TODO: replace ACCEL_S3 as vel_request with requested velocity rate.
+//        if (*machine_control->motion_state == ACCEL_S3) {
+//            sync_cmd = SYNC_VEL | 0x0001;
+//        } else {
+//            sync_cmd = SYNC_VEL;
+//        }
+//        memcpy(data, &sync_cmd, sizeof(uint16_t));
+//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//                sizeof(uint16_t), data);
+//    }
     machine_control->prev_motion_state = *machine_control->motion_state;
 
 #if (TRACE!=0)
@@ -2407,6 +2429,21 @@ static int export_machine_control(machine_control_t * machine_control)
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_WARN);
+
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->vel_sync_scale), comp_id,
+                             "wou.motion.vel-sync-scale");
+    if (retval != 0) { return retval; }
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->current_vel), comp_id,
+                             "wou.motion.current-vel");
+    if (retval != 0) { return retval; }
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->feed_scale), comp_id,
+                             "wou.motion.feed-scale");
+    if (retval != 0) { return retval; }
+    *(machine_control->feed_scale) = 0;    // pin index must not beyond index
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->requested_vel), comp_id,
+                             "wou.motion.requested-vel");
+    if (retval != 0) { return retval; }
+    *(machine_control->requested_vel) = 0;    // pin index must not beyond index
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
