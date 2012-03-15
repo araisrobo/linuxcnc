@@ -23,6 +23,8 @@ import hershey
 import emc
 import array
 import gcode
+import gettext
+_=gettext.gettext
 
 from scipy import mat
 from scipy import linalg
@@ -44,7 +46,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def __init__(self, colors, geometry):
         # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
         self.traverse = []; self.traverse_append = self.traverse.append
-        # all_traverse list - [line number , [start position], [end position], feedrate]
+        # all_traverse list - [line number , [start position], [end position], feedrate, length]
         self.all_traverse = []; self.all_traverse_append = self.all_traverse.append
         # feed list -     [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
         self.feed = []; self.feed_append = self.feed.append
@@ -147,18 +149,21 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def straight_traverse(self, x,y,z, a,b,c, u, v, w):
         if self.suppress > 0: return
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
+        # calculate length
+        length_vector = []
+        length = 0.0
+        for i in range (0, (len(l)-1)):
+            length_vector.append(l[i] - self.lo[i])
+        length = LA.norm(length_vector)
+
         if not self.first_move:
             self.traverse_append((self.lineno, self.lo, l, [self.xo,
                                     self.yo, self.zo]))
-            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate])
+            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
         else:
-            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate])
-        # else:
-        #     self.lo = (0, 0, 0, 0, 0, 0, 0, 0, 0) # a fake lo
-        #     self.traverse_append((self.lineno, self.lo, l, [self.xo,
-        #                             self.yo, self.zo]))
+            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
         self.lo = l
-
+        print self.all_traverse
     def rigid_tap(self, x, y, z):
         if self.suppress > 0: return
         self.first_move = False
@@ -1019,21 +1024,24 @@ class GlCanonDraw:
         # s.position should be always equal to program_pos
         # use difference between s.position and program_pos to update 
         # pattern position
-        if self.get_path_tracking() == True:
-            diff = []
-            diff2 = []
-            pos = s.position[:s.axes]
-            for i in range(0, len(pos)):
-                d = pos[i] - self.program_pos[i]
-                diff.append(d)
-                diff2.append(d - self.canon.prev_diff[i])
-            self.canon.prev_diff = diff
-            diff2 = self.to_internal_units(diff2)
-            diff = self.to_internal_units(diff)
-        else:
-            diff2 = [0.0, 0.0, 0.0, 0.0]
-            diff = diff2 
-
+        try:
+            if self.get_path_tracking() == True:
+                diff = []
+                diff2 = []
+                pos = s.position[:s.axes]
+                for i in range(0, len(pos)):
+                    d = pos[i] - self.program_pos[i]
+                    diff.append(d)
+                    diff2.append(d - self.canon.prev_diff[i])
+                self.canon.prev_diff = diff
+                diff2 = self.to_internal_units(diff2)
+                diff = self.to_internal_units(diff)
+            else:
+                diff2 = [0.0, 0.0, 0.0, 0.0]
+                diff = diff2 
+        except:
+            diff2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            diff = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         machine_limit_min, machine_limit_max = self.soft_limits()
 
         glDisable(GL_LIGHTING)
@@ -1159,7 +1167,7 @@ class GlCanonDraw:
                 pass
 
         except:
-            print 'PLATEVIEW: glcanon exception error'
+            # print 'PLATEVIEW: glcanon exception error'
             pass
         if self.get_show_limits():
             glLineWidth(1)
@@ -1669,6 +1677,12 @@ class GlCanonDraw:
             glEnd()
         glDepthFunc(GL_LESS)
 
+    def segment_info(self):
+        '''
+            return mid point of segments in a a line number and 
+            size of segments in a line number.
+        '''
+        pass
     def extents_info(self):
         if self.canon:
             mid = [(a+b)/2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
@@ -1713,7 +1727,6 @@ class GlCanonDraw:
         else:
             error_str = _(gcode.strerror(result))
             print 'glcanon error msg:', error_str
-            pass
         return result, seq
 
     def from_internal_units(self, pos, unit=None):

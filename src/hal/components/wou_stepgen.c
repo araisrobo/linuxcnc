@@ -2102,18 +2102,20 @@ static void update_freq(void *arg, long period)
     }
 
     DPS("  %15.7f", *machine_control->spindle_revs);
-
+    sync_cmd = SYNC_VEL;
     // send velocity status to RISC
     if ( (*machine_control->vel_sync_scale) *
         (*machine_control->feed_scale) *
         (*(machine_control->requested_vel)) <
             *machine_control->current_vel) {
         sync_cmd = SYNC_VEL | 0x0001;
-
     } else {
         sync_cmd = SYNC_VEL;
     }
     if (sync_cmd != machine_control->prev_vel_sync) {
+//        if (sync_cmd == SYNC_VEL && *machine_control->motion_state == ACCEL_S3 &&
+//                *machine_control->requested_vel != 0.0) {
+//        }
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
