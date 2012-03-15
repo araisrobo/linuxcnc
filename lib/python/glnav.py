@@ -344,8 +344,6 @@ class GlNavBase:
     def set_view_z(self):
         self.reset()
         mid, size = self.extents_info()
-        print 'mid', mid
-        print 'size', size
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.set_eyepoint_from_extents(size[0], size[1])
         self.perspective = False
@@ -380,4 +378,9 @@ class GlNavBase:
         glRotateScene(self, 1.0, mid[0], mid[1], mid[2], 0, 0, 0, 0)
         self._redraw()
 
+    def set_line_view(self):
+        '''
+        set view point of in a line number 
+        '''
+        pass
 # vim:ts=8:sts=4:sw=4:et:

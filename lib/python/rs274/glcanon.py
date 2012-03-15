@@ -163,7 +163,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         else:
             self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
         self.lo = l
-        print self.all_traverse
     def rigid_tap(self, x, y, z):
         if self.suppress > 0: return
         self.first_move = False
@@ -409,6 +408,21 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                 return first_traverse[2][:3], feedrate
             else:
                 return (0,0,0),1000
+    def get_last_line_of_path(self):
+        if len(self.all_traverse) > 0: 
+            traverse_line = self.all_traverse[len(self.all_traverse)-1][0]
+        else:
+            traverse_line = 0 
+        if len(self.feed) > 0:
+            feed_line = self.feed[len(self.feed)-1][0]
+        else:
+            feed_line = 0 
+        if len(self.arcfeed) > 0:
+            arcfeed_line = self.arcfeed[len(self.arcfeed)-1][0]
+        else:
+            arcfeed_line = 0
+        print 'max line = %f' % (max(traverse_line, feed_line, arcfeed_line))
+        return max(traverse_line, feed_line, arcfeed_line)
     def get_last_pos_of_prog(self):
         if len(self.blocks) > 0:
             block_line = self.blocks[len(self.blocks)-1][0]
