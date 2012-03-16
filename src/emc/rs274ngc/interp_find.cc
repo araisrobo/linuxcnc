@@ -163,6 +163,11 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
     middle = !s->cutter_comp_firstmove;
     comp = (s->cutter_comp_side);
 
+    printf("debug: find_ends():\n");
+    printf("\tmiddle(%d) comp(%d) g_modes[0](%d) dist_mode(%d)\n", middle, comp, block->g_modes[0], s->distance_mode);
+    printf("\tprogram_x(%f) current_x(%f) x_flag(%d) x_number(%f)\n", s->program_x, s->current_x, block->x_flag, block->x_number);
+    printf("\tprogram_y(%f) current_y(%f) y_flag(%d) y_number(%f)\n", s->program_y, s->current_y, block->y_flag, block->y_number);
+
     if (block->g_modes[0] == G_53) {      /* distance mode is absolute in this case */
 #ifdef DEBUG_EMC
         COMMENT("interpreter: offsets temporarily suspended");
@@ -374,6 +379,10 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         *w_p = s->w_current;
         if(block->w_flag) *w_p += block->w_number;
     }
+
+    printf("debug: find_ends():\n");
+    printf("\tpx(%f) py(%f) pz(%f)\n", *px, *py, *pz);
+
     return INTERP_OK;
 }
 
