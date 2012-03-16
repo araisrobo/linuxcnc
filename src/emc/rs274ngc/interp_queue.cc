@@ -20,7 +20,7 @@
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 
-static int debug_qc = 0;
+static int debug_qc = 1;
 
 // lathe tools have strange origin points that are not at
 // the center of the radius.  This means that the point that
@@ -567,6 +567,8 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
     double x2;
     double y2;
     double dot;
+            
+    if(debug_qc) printf("debug: move_endpoint_and_flush: x(%f) y(%f) end0(%f) end1(%f)\n", x, y, endpoint[0], endpoint[1]);
 
     if(qc().empty()) return 0;
     
@@ -693,4 +695,8 @@ void set_endpoint(double x, double y) {
     if(debug_qc) printf("setting endpoint %f %f\n", x, y);
     endpoint[0] = x; endpoint[1] = y; 
     endpoint_valid = 1;
+}
+
+void get_endpoint(double *x, double *y) {
+    *x = endpoint[0]; *y = endpoint[1]; 
 }
