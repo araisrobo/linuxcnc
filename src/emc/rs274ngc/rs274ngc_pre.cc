@@ -1765,11 +1765,11 @@ int Interp::synch()
 
   char file_name[LINELEN];
   double prev_x, prev_y, prev_z;    // for cutter_comp
-  double end0, end1;                // for cutter_comp
+  double offset_x, offset_y, offset_z;    // for cutter_comp
     
-  printf("debug: synch():\n");
-  printf("\told: current_x(%f) current_y(%f)\n", _setup.current_x, _setup.current_y);
-  printf("\told: cutter_comp_firstmove(%d)\n", _setup.cutter_comp_firstmove);
+  //debug: printf("debug: synch():\n");
+  //debug: printf("\told: current_x(%f) current_y(%f)\n", _setup.current_x, _setup.current_y);
+  //debug: printf("\told: cutter_comp_firstmove(%d)\n", _setup.cutter_comp_firstmove);
 
   _setup.control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
   _setup.AA_current = GET_EXTERNAL_POSITION_A();
@@ -1782,13 +1782,16 @@ int Interp::synch()
   _setup.current_x = GET_EXTERNAL_POSITION_X();
   _setup.current_y = GET_EXTERNAL_POSITION_Y();
   _setup.current_z = GET_EXTERNAL_POSITION_Z();
-  _setup.program_x -= (prev_x - _setup.current_x);  /* for cutter comp */
-  _setup.program_y -= (prev_y - _setup.current_y);  /* for cutter comp */
-  _setup.program_z -= (prev_z - _setup.current_z);  /* for cutter comp */
-  get_endpoint(&end0, &end1);                       /* for cutter comp */
-  end0 -= (prev_x - _setup.current_x);              /* for cutter comp */
-  end1 -= (prev_y - _setup.current_y);              /* for cutter comp */
-  set_endpoint(end0, end1);                         /* for cutter comp */
+  // _setup.program_x -= (prev_x - _setup.current_x);  /* for cutter comp */
+  // _setup.program_y -= (prev_y - _setup.current_y);  /* for cutter comp */
+  // _setup.program_z -= (prev_z - _setup.current_z);  /* for cutter comp */
+  offset_x = (prev_x - _setup.current_x);  /* for cutter comp */
+  offset_y = (prev_y - _setup.current_y);  /* for cutter comp */
+  offset_z = (prev_z - _setup.current_z);  /* for cutter comp */
+  _setup.program_x -= (offset_x);  /* for cutter comp */
+  _setup.program_y -= (offset_y);  /* for cutter comp */
+  _setup.program_z -= (offset_z);  /* for cutter comp */
+  offset_endpoint(&_setup, offset_x, offset_y, offset_z);                         /* for cutter comp */
   _setup.u_current = GET_EXTERNAL_POSITION_U();
   _setup.v_current = GET_EXTERNAL_POSITION_V();
   _setup.w_current = GET_EXTERNAL_POSITION_W();
@@ -1816,7 +1819,10 @@ int Interp::synch()
   load_tool_table();   /*  must set  _setup.tool_max first */
 
   // read_inputs(&_setup); // input/probe/toolchange 
-  printf("\tnew: current_x(%f) current_y(%f)\n", _setup.current_x, _setup.current_y);
+
+  //debug: printf("debug: synch():\n");
+  //debug: printf("\tnew: current_x(%f) current_y(%f)\n", _setup.current_x, _setup.current_y);
+  //debug: printf("\tnew: program_x(%f) program_y(%f)\n", _setup.program_x, _setup.program_y);
 
   return INTERP_OK;
 }

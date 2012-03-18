@@ -20,7 +20,7 @@
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 
-static int debug_qc = 1;
+static int debug_qc = 0;
 
 // lathe tools have strange origin points that are not at
 // the center of the radius.  This means that the point that
@@ -568,8 +568,6 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
     double y2;
     double dot;
             
-    if(debug_qc) printf("debug: move_endpoint_and_flush: x(%f) y(%f) end0(%f) end1(%f)\n", x, y, endpoint[0], endpoint[1]);
-
     if(qc().empty()) return 0;
     
     for(unsigned int i = 0; i<qc().size(); i++) {
@@ -583,6 +581,12 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
         switch(q.type) {
         case QARC_FEED:
             double r1, r2, l1, l2;
+            if(debug_qc) {
+                printf("debug: move_endpoint_and_flush: QARC_FEED\n");
+                printf("\tx(%f) y(%f) end0(%f) end1(%f)\n", x, y, endpoint[0], endpoint[1]);
+                printf("\tX: arc_feed.end1(%f) arc_feed.center1(%f)\n", q.data.arc_feed.end1, q.data.arc_feed.center1);
+                printf("\tY: arc_feed.end2(%f) arc_feed.center2(%f)\n", q.data.arc_feed.end2, q.data.arc_feed.center2);
+            }
             r1 = hypot(q.data.arc_feed.end1 - q.data.arc_feed.center1,
                        q.data.arc_feed.end2 - q.data.arc_feed.center2);
             l1 = q.data.arc_feed.original_turns;
@@ -594,7 +598,10 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
                            q.data.arc_feed.center1, q.data.arc_feed.center2,
                            q.data.arc_feed.turn,
                            x, y);
-            if(debug_qc) printf("moving endpoint of arc lineno %d old sweep %f new sweep %f\n", q.data.arc_feed.line_number, l1, l2);
+            if(debug_qc) {
+                printf("moving endpoint of arc lineno %d old sweep l1(%f) new sweep l2(%f)\n", q.data.arc_feed.line_number, l1, l2);
+                printf("\tr1(%f) r2(%f)\n", r1, r2);
+            }
 
             if(fabs(r1-r2) > .01) 
                 ERS(_("BUG: cutter compensation has generated an invalid arc with mismatched radii r1 %f r2 %f\n"), r1, r2);
@@ -691,12 +698,50 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
     return 0;
 }
 
-void set_endpoint(double x, double y) {
+void set_endpoint(double x, double y) 
+{
     if(debug_qc) printf("setting endpoint %f %f\n", x, y);
     endpoint[0] = x; endpoint[1] = y; 
     endpoint_valid = 1;
 }
 
-void get_endpoint(double *x, double *y) {
-    *x = endpoint[0]; *y = endpoint[1]; 
+void offset_endpoint(setup_pointer settings, double offset_x, double offset_y, double offset_z) 
+{
+    double offset_0, offset_1;
+
+    switch(settings->plane) {
+    case CANON_PLANE_XY:
+        if(debug_qc) {
+            printf("debug: offset_endpoint: CANON_PLANE_XY\n");
+            printf("\told end0(%f) end1(%f)\n", endpoint[0], endpoint[1]);
+        }
+        offset_0 = offset_x;
+        offset_1 = offset_y;
+        break;
+    case CANON_PLANE_XZ:
+        if(debug_qc) {
+            printf("debug: offset_endpoint: CANON_PLANE_XZ\n");
+            printf("\tend0(%f) end1(%f)\n", endpoint[0], endpoint[1]);
+        }
+        offset_0 = offset_z;
+        offset_1 = offset_x;
+        printf("ERROR: not verified yet\n");
+        assert(0);
+        break;
+    default:
+        offset_0 = offset_x;
+        offset_1 = offset_y;
+        printf(_("WARN: UNKNOWN plane(%d) in cutter compensation\n"), settings->plane);
+        // assert(0);
+    }
+
+    endpoint[0] -= offset_0;
+    endpoint[1] -= offset_1;
+    if(debug_qc) {
+        printf("\tnew end0(%f) end1(%f)\n", endpoint[0], endpoint[1]);
+    }
+    
+    settings->arc_not_allowed = false;
+    qc_reset();
+    return;
 }

@@ -139,7 +139,7 @@ void enqueue_ORIENT_SPINDLE(double orientation, int mode);
 void enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(double timeout);
 void dequeue_canons(setup_pointer settings);
 void set_endpoint(double x, double y);
-void get_endpoint(double *x, double *y);
+void offset_endpoint(setup_pointer settings, double offset_x, double offset_y, double offset_z);
 //2012-03-16 obsolete: void set_endpoint_zx(double z, double x);
 int move_endpoint_and_flush(setup_pointer settings, double x, double y);
 void qc_reset(void);

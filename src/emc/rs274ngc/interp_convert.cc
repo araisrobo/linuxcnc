@@ -75,8 +75,8 @@ int Interp::comp_set_current(setup_pointer settings, double x, double y, double 
         ERS("BUG: Invalid plane in comp_set_current");
     }
     
-    printf("debug: comp_set_current():\n");
-    printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
+    //debug: printf("debug: comp_set_current():\n");
+    //debug: printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
     return INTERP_OK;
 }
 
@@ -586,7 +586,6 @@ int Interp::convert_arc(int move,        //!< either G_2 (cw arc) or G_3 (ccw ar
 
   settings->motion_mode = move;
 
-
   if (settings->plane == CANON_PLANE_XY) {
     if ((!settings->cutter_comp_side) ||
         (settings->cutter_comp_radius == 0.0)) {
@@ -681,7 +680,7 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
                         double AA_end,  //!< a-value at end of arc                   
                         double BB_end,  //!< b-value at end of arc                   
                         double CC_end,  //!< c-value at end of arc                   
-                         double u, double v, double w, //!< values at end of arc
+                        double u, double v, double w, //!< values at end of arc
                         double offset1, //!< center, either abs or offset from current
                         double offset2)
 {
@@ -690,7 +689,7 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
   double tolerance;             /* tolerance for difference of radii          */
   int turn;                     /* number of full or partial turns CCW in arc */
   int plane = settings->plane;
-
+  
   tolerance = (settings->length_units == CANON_UNITS_INCHES) ?
     TOLERANCE_INCH : TOLERANCE_MM;
 
@@ -769,7 +768,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     int turn;                     /* 1 for counterclockwise, -1 for clockwise */
     double cx, cy, cz; // current
     int plane = settings->plane;
-
+  
     side = settings->cutter_comp_side;
     tool_radius = settings->cutter_comp_radius;   /* always is positive */
     tolerance = (settings->length_units == CANON_UNITS_INCHES) ? TOLERANCE_INCH : TOLERANCE_MM;
@@ -929,7 +928,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     double new_end_x, new_end_y;
 
     /* find basic arc data: center_x, center_y, and turn */
-
+    
     comp_get_programmed(settings, &opx, &opy, &opz);
     comp_get_current(settings, &cx, &cy, &cz);
 
@@ -2339,10 +2338,6 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 {
     int status;
     
-    printf("debug: convert_g():\n");
-    printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
-    printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
-
     if ((block->g_modes[GM_MODAL_0] == G_4) && ONCE(STEP_DWELL)) {
       status = convert_dwell(settings, block->p_number);
       CHP(status);
@@ -3502,11 +3497,6 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
   int bi = block->b_flag && settings->b_indexer;
   int ci = block->c_flag && settings->c_indexer;
 
-    printf("debug: convert_motion():\n");
-    printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
-    printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
-        
-
   if (motion != G_0) {
       CHKS((ai), (_("Indexing axis %c can only be moved with G0")), 'A');
       CHKS((bi), (_("Indexing axis %c can only be moved with G0")), 'B');
@@ -4483,9 +4473,9 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
     } else if(settings->plane == CANON_PLANE_XY) {
 
-        printf("debug: convert_straight():\n");
-        printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
-        printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
+//debug:        printf("debug: convert_straight():\n");
+//debug:        printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
+//debug:        printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
         
         if (settings->cutter_comp_firstmove)
             status = convert_straight_comp1(move, block, settings, end_x, end_y, end_z,
@@ -4833,8 +4823,8 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
 
     set_endpoint(cx, cy);
     
-    printf("debug: convert_straight_comp1():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n",
-                px, py, cx, cy, end_x, end_y);
+//debug:    printf("debug: convert_straight_comp1():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n",
+//debug:                px, py, cx, cy, end_x, end_y);
 
 
     if (move == G_0) {
@@ -4958,10 +4948,10 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     comp_get_current(settings, &end_x, &end_y, &end_z);
     comp_get_programmed(settings, &opx, &opy, &opz);
       
-    logDebug("debug: convert_straight_comp2():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n\topx(%f) opy(%f)\n",
-                px, py, cx, cy, end_x, end_y, opx, opy);
-    printf("debug: convert_straight_comp2():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n\topx(%f) opy(%f)\n",
-                px, py, cx, cy, end_x, end_y, opx, opy);
+//debug:    logDebug("debug: convert_straight_comp2():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n\topx(%f) opy(%f)\n",
+//debug:                px, py, cx, cy, end_x, end_y, opx, opy);
+//debug:    printf("debug: convert_straight_comp2():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n\topx(%f) opy(%f)\n",
+//debug:                px, py, cx, cy, end_x, end_y, opx, opy);
 
     if ((py == opy) && (px == opx)) {     /* no XY motion */
         if (move == G_0) {
