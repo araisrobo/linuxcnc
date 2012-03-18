@@ -188,6 +188,8 @@ void *auto_task(void *ptr) {
                 HalReadFloatInputs();
 
                 // causing syntax error in some case: ClassicLadder_RefreshAllSections();
+                // TODO: resolve this bug while using older configs
+                ClassicLadder_RefreshAllSections();
 
                 HalWritePhysicalOutputs();
 
