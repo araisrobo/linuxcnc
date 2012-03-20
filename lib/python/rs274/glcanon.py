@@ -1372,7 +1372,8 @@ class GlCanonDraw:
             else:
                 if self.fix_tool_size == True:
                     # dia = current_tool.diameter * math.sqrt(self.canon.tool_scale) * (self.distance / 10)
-                    dia = current_tool.diameter * math.sqrt((self.distance / 10))
+                    # dia = current_tool.diameter * math.sqrt((self.distance / 10))
+                    dia = 2 * math.sqrt((self.distance / 10))
                 else:
                     dia = current_tool.diameter 
                 r = self.to_internal_linear_unit(dia) / 2.
