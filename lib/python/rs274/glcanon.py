@@ -100,6 +100,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.g5x_offset_w = 0.0
         self.diff = [0.0, 0.0, 0.0, 0.0]
         self.prev_diff = [0.0, 0.0, 0.0, 0.0]
+        self.tool_scale = 1.0
     def comment(self, arg):
         if arg.startswith("AXIS,"):
             parts = arg.split(",")
@@ -600,7 +601,8 @@ class GlCanonDraw:
         'lathetool_alpha': 0.10,
         'axis_x': (0, 0, 0),
         # 'axis_x': (0.20, 1.00, 0.20),
-        'cone': (1.00, 0.00, 0.00),
+        'cone': (1.00, 1.00, 0.00), # yellow
+        # 'cone': (0.00, 1.00, 0.00), # green 
         'axis_z': (0, 0, 0),
         # 'axis_z': (0.20, 0.20, 1.00),
         'label_limit': (1.00, 0.21, 0.23),
@@ -1278,25 +1280,30 @@ class GlCanonDraw:
             glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
 
             current_tool = self.get_current_tool()
-            if current_tool is None or current_tool.diameter == 0:
-                if self.canon:
-                    g = self.canon
-                    x,y,z = 0,1,2
-                    cone_scale = max(g.max_extents[x] - g.min_extents[x],
-                                   g.max_extents[y] - g.min_extents[y],
-                                   g.max_extents[z] - g.min_extents[z],
-                                   2 ) * .5
-                else:
-                    cone_scale = 1
-                if self.is_lathe():
-                    glRotatef(90, 0, 1, 0)
-                cone = self.dlist("cone", gen=self.make_cone)
-                glScalef(cone_scale, cone_scale, cone_scale)
-                glCallList(cone)
-            else:
-                if current_tool != self.cached_tool:
-                    self.cache_tool(current_tool)
+            if self.fix_tool_size == True:
+                self.canon.fix_tool_size = True
+                self.cache_tool(current_tool)
                 glCallList(self.dlist('tool'))
+            else:
+                if current_tool is None or current_tool.diameter == 0:
+                    if self.canon:
+                        g = self.canon
+                        x,y,z = 0,1,2
+                        cone_scale = max(g.max_extents[x] - g.min_extents[x],
+                                       g.max_extents[y] - g.min_extents[y],
+                                       g.max_extents[z] - g.min_extents[z],
+                                       2 ) * .5
+                    else:
+                        cone_scale = 1
+                    if self.is_lathe():
+                        glRotatef(90, 0, 1, 0)
+                    cone = self.dlist("cone", gen=self.make_cone)
+                    glScalef(cone_scale, cone_scale, cone_scale)
+                    glCallList(cone)
+                else:
+                    if current_tool != self.cached_tool:
+                        self.cache_tool(current_tool)
+                    glCallList(self.dlist('tool'))
             glPopMatrix()
 
         glMatrixMode(GL_PROJECTION)
@@ -1356,18 +1363,22 @@ class GlCanonDraw:
     def cache_tool(self, current_tool):
         self.cached_tool = current_tool
         glNewList(self.dlist('tool'), GL_COMPILE)
-        if self.is_lathe() and current_tool and current_tool.orientation != 0:
+        if self.is_lathe() and current_tool and current_tool.orientation != 0: #\
+        #and self.fix_tool_size == False:
             glBlendColor(0,0,0,self.colors['lathetool_alpha'])
             self.lathetool(current_tool)
         else:
             glBlendColor(0,0,0,self.colors['tool_alpha'])
-            if self.is_lathe():
+            if self.is_lathe() and self.fix_tool_size == False:
                 glRotatef(90, 0, 1, 0)
             else:
-                dia = current_tool.diameter
+                if self.fix_tool_size == True:
+                    dia = 4 * math.sqrt((self.distance / 10))
+                else:
+                    dia = current_tool.diameter 
                 r = self.to_internal_linear_unit(dia) / 2.
                 q = gluNewQuadric()
-                glEnable(GL_LIGHTING)
+                # glEnable(GL_LIGHTING)
                 glColor3f(*self.colors['cone'])
                 gluCylinder(q, r, r, 8*r, 32, 1)
                 glPushMatrix()
@@ -1376,7 +1387,7 @@ class GlCanonDraw:
                 glPopMatrix()
                 glTranslatef(0,0,8*r)
                 gluDisk(q, 0, r, 32, 1)
-                glDisable(GL_LIGHTING)
+                # glDisable(GL_LIGHTING)
                 gluDeleteQuadric(q)
         glEndList()
 
@@ -1612,14 +1623,14 @@ class GlCanonDraw:
     def make_cone(self, n):
         q = gluNewQuadric()
         glNewList(n, GL_COMPILE)
-        glEnable(GL_LIGHTING)
+#        glEnable(GL_LIGHTING)
         glColor3f(*self.colors['cone'])
         gluCylinder(q, 0, .1, .25, 32, 1)
         glPushMatrix()
         glTranslatef(0,0,.25)
         gluDisk(q, 0, .1, 32, 1)
         glPopMatrix()
-        glDisable(GL_LIGHTING)
+ #       glDisable(GL_LIGHTING)
         glEndList()
         gluDeleteQuadric(q)
 

@@ -1,3 +1,9 @@
+emc2 (1:2.5.0-2012.03.19) lucid; urgency=low
+
+  * BUGFIX for interrupt under Cutter Radius Compensation (G41) is enabled
+
+ -- Yishin Li <ysli@araisrobo.com>  Mon, 19 Mar 2012 15:23:55 +0800
+
 emc2 (1:2.5.0-2012.03.05) lucid; urgency=low
 
   * Implemented WOU.RT_CMD protocol: realtime wou command

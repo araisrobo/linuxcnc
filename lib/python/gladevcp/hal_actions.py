@@ -422,13 +422,24 @@ class EMC_ToggleAction_MDI(_EMC_ToggleAction, EMC_Action_MDI):
     def _hal_init(self):
         _EMC_ToggleAction._hal_init(self)
         EMC_Action_MDI._hal_init(self)
-
-    def on_toggled(self, w):
+    
+    def execute(self):
+        '''
+            Execute MDI command without toggling a GTK Button.
+        '''
+        self.emit('mdi-command-start')
+        ensure_mode(self.stat, self.emc, emc.MODE_MDI)
+        template = HalTemplate(self.command)
+        cmd = template.substitute(FloatComp(self.hal))
+        self.emc.mdi(cmd)
+        gobject.timeout_add(100, self.wait_complete)
+    def on_toggled(self, w = None):
         if not self.get_active():
             return
         self.set_sensitive(False)
         self.emit('mdi-command-start')
-        self.on_activate(w)
+        if w is not None:
+            self.on_activate(w)
         gobject.timeout_add(100, self.wait_complete)
 
     def wait_complete(self):
