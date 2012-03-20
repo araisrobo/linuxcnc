@@ -138,11 +138,13 @@ void simple_tp_update(simple_tp_t *tp, double period)
     //orig: }
     
     /* check for still moving */
-    // if (tp->curr_vel != 0.0)
-    if (tp->curr_vel > tiny_dv) {
+    if (fabs(tp->curr_vel) > tiny_dv) {
 	/* yes, mark planner active */
 	tp->active = 1;
+    } else {
+        tp->curr_vel = 0;
     }
+
     /* integrate velocity to get new position */
     tp->curr_pos += tp->curr_vel * period;
 
