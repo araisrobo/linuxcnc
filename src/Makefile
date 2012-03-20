@@ -633,8 +633,13 @@ EXTRA_CFLAGS = $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
 	-I$(BASEPWD)/emc/nml_intf -I$(BASEPWD)/emc/kinematics -I$(BASEPWD)/emc/motion \
         -DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
-	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations \
-	$(call cc-option,-Wframe-larger-than=2560)
+	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations 
+	#not for sim: $(call cc-option,-Wframe-larger-than=2560)
+
+ifneq ($(BUILD_SYS),sim)
+EXTRA_CFLAGS += $(call cc-option,-Wframe-larger-than=2560)
+endif
+	
 ifeq ($(RTARCH),x86_64)
 EXTRA_CFLAGS += -msse
 endif
