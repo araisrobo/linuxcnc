@@ -679,6 +679,7 @@ static int init_comm_buffers(void)
 	joint->min_pos_limit = -1.0;
 	joint->vel_limit = 1.0;
 	joint->acc_limit = 1.0;
+	joint->jerk_limit = 0;
 	joint->min_ferror = 0.01;
 	joint->max_ferror = 1.0;
 	joint->home_search_vel = 0.0;
@@ -748,7 +749,7 @@ static int init_comm_buffers(void)
     tpSetCycleTime(&emcmotDebug->coord_tp, emcmotConfig->trajCycleTime);
     tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd);
     tpSetVmax(&emcmotDebug->coord_tp, emcmotStatus->vel, emcmotStatus->vel);
-    tpSetAmax(&emcmotDebug->coord_tp, emcmotStatus->acc);
+    //obsolete: tpSetAmax(&emcmotDebug->coord_tp, emcmotStatus->acc);
 
     emcmotStatus->tail = 0;
 

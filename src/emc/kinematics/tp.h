@@ -35,7 +35,7 @@ typedef struct {
                                    constraints (ini file) for
                                    subsequent moves */
     double vScale;		/* feed override value */
-    double aMax;
+    //obsolete: double aMax;
     double vLimit;		/* absolute upper limit on all vels */
     double wMax;		/* rotational velocity max */
     double wDotMax;		/* rotational accelleration max */
@@ -67,7 +67,7 @@ extern int tpSetPosCompEnWrite(TP_STRUCT *tp, int en_flag, int pos_comp_ref);
 extern int tpSetCycleTime(TP_STRUCT * tp, double secs);
 extern int tpSetVmax(TP_STRUCT * tp, double vmax, double ini_maxvel);
 extern int tpSetVlimit(TP_STRUCT * tp, double limit);
-extern int tpSetAmax(TP_STRUCT * tp, double amax);
+//obsolete: extern int tpSetAmax(TP_STRUCT * tp, double amax);
 extern int tpSetId(TP_STRUCT * tp, int id);
 extern int tpGetExecId(TP_STRUCT * tp);
 extern int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance);

@@ -135,7 +135,7 @@ int tpInit(TP_STRUCT * tp) {
     tp->cycleTime = 0.0;
     tp->vLimit = 0.0;
     tp->vScale = 1.0;
-    tp->aMax = 0.0;
+    //obsolete: tp->aMax = 0.0;
     tp->vMax = 0.0;
     tp->ini_maxvel = 0.0;
     tp->wMax = 0.0;
@@ -192,17 +192,17 @@ int tpSetVlimit(TP_STRUCT * tp, double vLimit) {
     return 0;
 }
 
-// Set max accel
-
-int tpSetAmax(TP_STRUCT * tp, double aMax) {
-    if (0 == tp || aMax <= 0.0) {
-        return -1;
-    }
-
-    tp->aMax = aMax;
-
-    return 0;
-}
+//obsolete: // Set max accel
+//obsolete: int tpSetAmax(TP_STRUCT * tp, double aMax) 
+//obsolete: {
+//obsolete:     if (0 == tp || aMax <= 0.0) {
+//obsolete:         return -1;
+//obsolete:     }
+//obsolete: 
+//obsolete:     tp->aMax = aMax;
+//obsolete: 
+//obsolete:     return 0;
+//obsolete: }
 
 /*
  tpSetId() sets the id that will be used for the next appended motions.

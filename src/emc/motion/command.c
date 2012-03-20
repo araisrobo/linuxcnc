@@ -377,12 +377,13 @@ void emcmotCommandHandler(void *arg, long period)
     double tmp1;
     emcmot_comp_entry_t *comp_entry;
     char issue_atspeed = 0;
-    // int msg_level_before = rtapi_get_msg_level();
-    // int msg_level_now = msg_level_before ;// | RTAPI_MSG_DBG;
+    int msg_level_before = rtapi_get_msg_level();
+    //DEBUG: int msg_level_now = msg_level_before | RTAPI_MSG_DBG;
+    int msg_level_now = msg_level_before;
     static int counter = 0;
-    // rtapi_set_msg_level(msg_level_now);
+    rtapi_set_msg_level(msg_level_now);
     counter = counter+1;
-check_stuff ( "before command_handler()" );
+    check_stuff ( "before command_handler()" );
 
     /* check for split read */
     if (emcmotCommand->head != emcmotCommand->tail) {
@@ -1089,21 +1090,43 @@ check_stuff ( "before command_handler()" );
 	    /* set joint max acceleration */
 	    /* can do it at any time */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_ACC_LIMIT");
-	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
+	    rtapi_print_msg(RTAPI_MSG_DBG, " j(%d) acc(%f)", joint_num, emcmotCommand->acc);
 	    emcmot_config_change();
-	    /* check joint range */
-	    if (joint == 0) {
-		break;
-	    }
+	    //obsolete: /* check joint range */
+	    //obsolete: if (joint == 0) {
+	    //obsolete:        break;
+	    //obsolete: }
+	    assert (joint != 0); // the joint pointer must not be NULL
 	    joint->acc_limit = emcmotCommand->acc;
 	    break;
 
-	case EMCMOT_SET_ACC:
-	    /* set the max acceleration */
+	case EMCMOT_SET_JOINT_JERK_LIMIT:
+	    /* set joint max jerk */
 	    /* can do it at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_ACC");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JOINT_JERK_LIMIT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " j(%d) jerk(%f)", joint_num, emcmotCommand->jerk);
+	    emcmot_config_change();
+	    //obsolete: /* check joint range */
+	    //obsolete: if (joint == 0) {
+	    //obsolete:        break;
+	    //obsolete: }
+	    assert (joint != 0); // the joint pointer must not be NULL
+	    joint->jerk_limit = emcmotCommand->jerk;
+	    break;
+
+	case EMCMOT_SET_ACC:
+	    /* set the traj acceleration for jogging */
+	    /* can do it at any time */
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_ACC, acc(%f)", emcmotCommand->acc);
 	    emcmotStatus->acc = emcmotCommand->acc;
-	    tpSetAmax(&emcmotDebug->coord_tp, emcmotStatus->acc);
+	    //obsolete: tpSetAmax(&emcmotDebug->coord_tp, emcmotStatus->acc);
+	    break;
+
+	case EMCMOT_SET_JERK:
+	    /* set the traj jerk for jogging */
+	    /* can do it at any time */
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_JERK, jerk(%f)", emcmotCommand->jerk);
+	    emcmotStatus->jerk = emcmotCommand->jerk;
 	    break;
 
 	case EMCMOT_PAUSE:
@@ -1713,7 +1736,7 @@ check_stuff ( "before command_handler()" );
 	    /* set the max axis vel */
 	    /* can be done at any time */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_AXIS_VEL_LIMITS");
-	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", axis_num);
+	    rtapi_print_msg(RTAPI_MSG_DBG, " %d vel(%f)", axis_num, emcmotCommand->vel);
 	    emcmot_config_change();
 	    if (axis == 0) {
 		break;
@@ -1725,12 +1748,24 @@ check_stuff ( "before command_handler()" );
  	    /* set the max axis acc */
 	    /* can be done at any time */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_AXIS_ACC_LIMITS");
-	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", axis_num);
+	    rtapi_print_msg(RTAPI_MSG_DBG, " %d acc(%f)", axis_num, emcmotCommand->acc);
 	    emcmot_config_change();
 	    if (axis == 0) {
 		break;
 	    }
 	    axis->acc_limit = emcmotCommand->acc;
+            break;
+
+        case EMCMOT_SET_AXIS_JERK_LIMIT:
+ 	    /* set the max axis jerk */
+	    /* can be done at any time */
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_AXIS_JERK_LIMITS");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " %d jerk(%f)", axis_num, emcmotCommand->jerk);
+	    emcmot_config_change();
+	    if (axis == 0) {
+		break;
+	    }
+	    axis->jerk_limit = emcmotCommand->jerk;
             break;
 
 	default:
@@ -1753,6 +1788,6 @@ check_stuff ( "before command_handler()" );
     }
     /* end of: if-new-command */
     check_stuff ( "after command_handler()" );
-    // rtapi_set_msg_level(msg_level_before);
+    rtapi_set_msg_level(msg_level_before);
     return;
 }

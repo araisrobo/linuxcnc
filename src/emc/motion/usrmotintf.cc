@@ -244,7 +244,7 @@ void printTPstruct(TP_STRUCT * tp)
     printf("cycleTime=%f\n", tp->cycleTime);
     printf("vMax=%f\n", tp->vMax);
     printf("vScale=%f\n", tp->vScale);
-    printf("aMax=%f\n", tp->aMax);
+    //obsolete: printf("aMax=%f\n", tp->aMax);
     printf("vLimit=%f\n", tp->vLimit);
     printf("wMax=%f\n", tp->wMax);
     printf("wDotMax=%f\n", tp->wDotMax);

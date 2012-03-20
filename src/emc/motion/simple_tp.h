@@ -27,9 +27,11 @@ extern "C" {
 	double pos_cmd;		/* position command */
 	double max_vel;		/* velocity limit */
 	double max_acc;		/* acceleration limit */
+        double max_jerk;        /* jerk limit */
 	int enable;		/* if zero, motion stops ASAP */
 	double curr_pos;	/* current position */
 	double curr_vel;	/* current velocity */
+        double curr_acc;        /* current acceleration */
 	int active;		/* non-zero if motion in progress */
     } simple_tp_t;
 

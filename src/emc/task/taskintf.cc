@@ -339,6 +339,29 @@ int emcJointSetMaxAcceleration(int joint, double acc)
     return retval;
 }
 
+int emcJointSetMaxJerk(int joint, double jerk)
+{
+    CATCH_NAN(isnan(jerk));
+
+    if (joint < 0 || joint >= EMCMOT_MAX_JOINTS) {
+	return 0;
+    }
+    if (jerk < 0.0) {
+	jerk = 0.0;
+    }
+    JointConfig[joint].MaxJerk = jerk;
+    emcmotCommand.command = EMCMOT_SET_JOINT_JERK_LIMIT;
+    emcmotCommand.joint = joint;
+    emcmotCommand.jerk = jerk;
+    
+    int retval = usrmotWriteEmcmotCommand(&emcmotCommand);
+
+    if (emc_debug & EMC_DEBUG_CONFIG) {
+        rcs_print("%s(%d, %.4f) returned %d\n", __FUNCTION__, joint, jerk, retval);
+    }
+    return retval;
+}
+
 /*! functions involving carthesian Axes (X,Y,Z,A,B,C,U,V,W) */
     
 int emcAxisSetMinPositionLimit(int axis, double limit)
@@ -436,6 +459,7 @@ int emcAxisSetMaxAcceleration(int axis, double acc)
     }
     return retval;
 }
+
 int emcAxisSetMaxJerk(int axis, double jerk)
 {
 
@@ -447,16 +471,11 @@ int emcAxisSetMaxJerk(int axis, double jerk)
     }
 
     AxisConfig[axis].MaxJerk = jerk;
-    //FIXME-AJ: need to see if we want to send these to motion
-    // disabled for now
-    //FIXME-eric: since AJ decide not to config motion for now , I will also disable jerk config for now
-#if 0
-    //TODO-eric: modify if we want to do jerk setting
-    emcmotCommand.command = EMCMOT_SET_JOINT_ACC_LIMIT;
-    emcmotCommand.joint = joint;
-    emcmotCommand.acc = acc;
+
+    emcmotCommand.command = EMCMOT_SET_AXIS_JERK_LIMIT;
+    emcmotCommand.axis = axis;
+    emcmotCommand.jerk = jerk;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
-#endif
 
     if (emc_debug & EMC_DEBUG_CONFIG) {
         rcs_print("%s(%d, %.4f)\n", __FUNCTION__, axis, jerk);
@@ -992,6 +1011,25 @@ int emcTrajSetAcceleration(double acc)
     return retval;
 }
 
+int emcTrajSetJerk(double jerk)
+{
+    if (jerk < 0.0) {
+	jerk = 0.0;
+    } else if (jerk > TrajConfig.MaxJerk) {
+	jerk = TrajConfig.MaxJerk;
+    }
+
+    emcmotCommand.command = EMCMOT_SET_JERK;
+    emcmotCommand.jerk = jerk;
+
+    int retval = usrmotWriteEmcmotCommand(&emcmotCommand);
+
+    if (emc_debug & EMC_DEBUG_CONFIG) {
+        rcs_print("%s(%.4f) returned %d\n", __FUNCTION__, jerk, retval);
+    }
+    return retval;
+}
+
 /*
   emcmot has no limits on max velocity, acceleration so we'll save them
   here and apply them in the functions above
@@ -1025,6 +1063,20 @@ int emcTrajSetMaxAcceleration(double acc)
 
     if (emc_debug & EMC_DEBUG_CONFIG) {
         rcs_print("%s(%.4f)\n", __FUNCTION__, acc);
+    }
+    return 0;
+}
+
+int emcTrajSetMaxJerk(double jerk)
+{
+    if (jerk < 0.0) {
+	jerk = 0.0;
+    }
+
+    TrajConfig.MaxJerk = jerk;
+
+    if (emc_debug & EMC_DEBUG_CONFIG) {
+        rcs_print("%s(%.4f)\n", __FUNCTION__, jerk);
     }
     return 0;
 }

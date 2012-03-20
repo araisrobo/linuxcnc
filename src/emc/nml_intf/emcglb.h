@@ -89,6 +89,7 @@ typedef struct JointConfig_t {
     double Units;
     double MaxVel;
     double MaxAccel;
+    double MaxJerk;
     double MinLimit;
     double MaxLimit;
 } JointConfig_t;

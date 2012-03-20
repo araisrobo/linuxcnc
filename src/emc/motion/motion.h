@@ -139,6 +139,7 @@ extern "C" {
 	EMCMOT_SET_VEL,		/* set the velocity for subsequent moves */
 	EMCMOT_SET_VEL_LIMIT,	/* set the max vel for all moves (tooltip) */
 	EMCMOT_SET_ACC,		/* set the max accel for moves (tooltip) */
+	EMCMOT_SET_JERK,	/* set the max jerk for moves (tooltip) */
 	EMCMOT_SET_TERM_COND,	/* set termination condition (stop, blend) */
 	EMCMOT_SET_NUM_JOINTS,	/* set the number of joints */
 	EMCMOT_SET_WORLD_HOME,	/* set pose for world home */
@@ -149,37 +150,40 @@ extern "C" {
         EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
         EMCMOT_SET_SYNC_INPUT,
 
-	EMCMOT_SET_SPINDLE_VEL,	/* set the spindle vel (>0 means forward, <0 means backward) */
-	EMCMOT_SPINDLE_ON,	/* start the spindle */
-	EMCMOT_SPINDLE_OFF,	/* stop the spindle */
-	EMCMOT_SPINDLE_INCREASE,	/* spindle faster */
-	EMCMOT_SPINDLE_DECREASE,	/* spindle slower */
-	EMCMOT_SPINDLE_BRAKE_ENGAGE,	/* engage the spindle brake */
-	EMCMOT_SPINDLE_BRAKE_RELEASE,	/* release the spindle brake */
-	EMCMOT_SPINDLE_ORIENT,          /* orient the spindle */
-	EMCMOT_SET_MOTOR_OFFSET,	/* set the offset between joint and motor */
-        EMCMOT_SET_OFFSET, /* set tool offsets */
+	EMCMOT_SET_SPINDLE_VEL,	            /* set the spindle vel (>0 means forward, <0 means backward) */
+	EMCMOT_SPINDLE_ON,	            /* start the spindle */
+	EMCMOT_SPINDLE_OFF,	            /* stop the spindle */
+	EMCMOT_SPINDLE_INCREASE,	    /* spindle faster */
+	EMCMOT_SPINDLE_DECREASE,	    /* spindle slower */
+	EMCMOT_SPINDLE_BRAKE_ENGAGE,	    /* engage the spindle brake */
+	EMCMOT_SPINDLE_BRAKE_RELEASE,	    /* release the spindle brake */
+	EMCMOT_SPINDLE_ORIENT,              /* orient the spindle */
+	EMCMOT_SET_MOTOR_OFFSET,	    /* set the offset between joint and motor */
+        EMCMOT_SET_OFFSET,                  /* set tool offsets */
 
-	EMCMOT_JOINT_ABORT,             /* abort one joint */
-	EMCMOT_JOINT_ACTIVATE,          /* make joint active */
-	EMCMOT_JOINT_DEACTIVATE,        /* make joint inactive */
-	EMCMOT_JOINT_ENABLE_AMPLIFIER,  /* enable amp outputs */
-	EMCMOT_JOINT_DISABLE_AMPLIFIER, /* disable amp outputs */
-	EMCMOT_JOINT_HOME,              /* home a joint or all joints */
-	EMCMOT_JOINT_UNHOME,            /* unhome a joint or all joints*/
-	EMCMOT_SET_JOINT_POSITION_LIMITS, /* set the joint position +/- limits */
-	EMCMOT_SET_JOINT_BACKLASH,      /* set the joint backlash */
-	EMCMOT_SET_JOINT_MIN_FERROR,    /* minimum following error, input units */
-	EMCMOT_SET_JOINT_MAX_FERROR,    /* maximum following error, input units */
-	EMCMOT_SET_JOINT_VEL_LIMIT,     /* set the max joint vel */
-	EMCMOT_SET_JOINT_ACC_LIMIT,     /* set the max joint accel */
-	EMCMOT_SET_JOINT_HOMING_PARAMS, /* sets joint homing parameters */
-	EMCMOT_SET_JOINT_MOTOR_OFFSET,  /* set the offset between joint and motor */
-	EMCMOT_SET_JOINT_COMP,          /* set a compensation triplet for a joint (nominal, forw., rev.) */
+	EMCMOT_JOINT_ABORT,                 /* abort one joint */
+	EMCMOT_JOINT_ACTIVATE,              /* make joint active */
+	EMCMOT_JOINT_DEACTIVATE,            /* make joint inactive */
+	EMCMOT_JOINT_ENABLE_AMPLIFIER,      /* enable amp outputs */
+	EMCMOT_JOINT_DISABLE_AMPLIFIER,     /* disable amp outputs */
+	EMCMOT_JOINT_HOME,                  /* home a joint or all joints */
+	EMCMOT_JOINT_UNHOME,                /* unhome a joint or all joints*/
 
-        EMCMOT_SET_AXIS_POSITION_LIMITS, /* set the axis position +/- limits */
-        EMCMOT_SET_AXIS_VEL_LIMIT,      /* set the max axis vel */
-        EMCMOT_SET_AXIS_ACC_LIMIT,      /* set the max axis acc */
+	EMCMOT_SET_JOINT_POSITION_LIMITS,   /* set the joint position +/- limits */
+	EMCMOT_SET_JOINT_BACKLASH,          /* set the joint backlash */
+	EMCMOT_SET_JOINT_MIN_FERROR,        /* minimum following error, input units */
+	EMCMOT_SET_JOINT_MAX_FERROR,        /* maximum following error, input units */
+	EMCMOT_SET_JOINT_VEL_LIMIT,         /* set the max joint vel */
+	EMCMOT_SET_JOINT_ACC_LIMIT,         /* set the max joint accel */
+	EMCMOT_SET_JOINT_JERK_LIMIT,        /* set the max joint jerk */
+	EMCMOT_SET_JOINT_HOMING_PARAMS,     /* sets joint homing parameters */
+	EMCMOT_SET_JOINT_MOTOR_OFFSET,      /* set the offset between joint and motor */
+	EMCMOT_SET_JOINT_COMP,              /* set a compensation triplet for a joint (nominal, forw., rev.) */
+
+        EMCMOT_SET_AXIS_POSITION_LIMITS,    /* set the axis position +/- limits */
+        EMCMOT_SET_AXIS_VEL_LIMIT,          /* set the max axis vel */
+        EMCMOT_SET_AXIS_ACC_LIMIT,          /* set the max axis acc */
+        EMCMOT_SET_AXIS_JERK_LIMIT,         /* set the max axis jerk */
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -219,7 +223,8 @@ extern "C" {
                                    constraints (the ini file) */
         int motion_type;        /* this move is because of traverse, feed, arc, or toolchange */
         double spindlesync;     /* user units per spindle revolution, 0 = no sync */
-	double acc;		/* max acceleration */
+	double acc;		/* acceleration for traj */
+	double jerk;		/* jerk for traj */
 	double ini_maxacc;
 	double ini_maxjerk;
 	double backlash;	/* amount of backlash */
@@ -486,6 +491,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double min_jog_limit;
 	double vel_limit;	/* upper limit of joint speed */
 	double acc_limit;	/* upper limit of joint accel */
+	double jerk_limit;	/* upper limit of joint jerk */
 	double min_ferror;	/* zero speed following error limit */
 	double max_ferror;	/* max speed following error limit */
 	double home_search_vel;	/* dir/spd to look for home switch */
@@ -591,6 +597,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double min_pos_limit;	/* lower soft limit on axis pos */
 	double vel_limit;	/* upper limit of axis speed */
 	double acc_limit;	/* upper limit of axis accel */
+	double jerk_limit;	/* upper limit of axis jerk */
 	simple_tp_t teleop_tp;	/* planner for teleop mode motion */
     } emcmot_axis_t;
 
@@ -678,10 +685,10 @@ Suggestion: Split this in to an Error and a Status flag register..
 				/* 1 << (joint-num*2) = ignore neg limit */
 				/* 2 << (joint-num*2) = ignore pos limit */
 
-
 	/* static status-- only changes upon input commands, e.g., config */
-	double vel;		/* scalar max vel */
-	double acc;		/* scalar max accel */
+	double vel;		/* vel for traj */
+	double acc;		/* accel for traj */
+	double jerk;		/* jerk for traj */
 	int32_t motionState;    /* s-curve motion state */
         int motionType;
         double distance_to_go;  /* in this move */

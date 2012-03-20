@@ -432,6 +432,7 @@ extern int emcJointSetHomingParams(int joint, double home, double offset, double
 				  int is_shared, int home_sequence, int volatile_home, int locking_indexer);
 extern int emcJointSetMaxVelocity(int joint, double vel);
 extern int emcJointSetMaxAcceleration(int joint, double acc);
+extern int emcJointSetMaxJerk(int joint, double jerk);
 
 extern int emcJointInit(int joint);
 extern int emcJointHalt(int joint);
@@ -460,8 +461,10 @@ extern int emcTrajSetCycleTime(double cycleTime);
 extern int emcTrajSetMode(int axes);
 extern int emcTrajSetVelocity(double vel, double ini_maxvel);
 extern int emcTrajSetAcceleration(double acc);
+extern int emcTrajSetJerk(double jerk);
 extern int emcTrajSetMaxVelocity(double vel);
 extern int emcTrajSetMaxAcceleration(double acc);
+extern int emcTrajSetMaxJerk(double jerk);
 extern int emcTrajSetScale(double scale);
 extern int emcTrajSetFOEnable(unsigned char mode);   //feed override enable
 extern int emcTrajSetFHEnable(unsigned char mode);   //feed hold enable

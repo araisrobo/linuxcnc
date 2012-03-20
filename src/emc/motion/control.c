@@ -695,7 +695,7 @@ static void process_probe_inputs(void)
     // don't error
     char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
                                            // motion would stop.
-    static int report_risc_probing_error = 0, counts;
+    static int report_risc_probing_error = 0;
 
     switch ( emcmotStatus->usb_status) {
     case USB_STATUS_PROBING:
@@ -1030,6 +1030,7 @@ static void set_operating_mode(void)
 	    /* disable free mode planner */
 	    joint->free_tp.enable = 0;
 	    joint->free_tp.curr_vel = 0.0;
+	    joint->free_tp.curr_acc = 0.0;
 	    /* drain coord mode interpolators */
 	    cubicDrain(&(joint->cubic));
 	    if (GET_JOINT_ACTIVE_FLAG(joint)) {
@@ -1264,6 +1265,7 @@ static void handle_jogwheels(void)
         joint->free_tp.pos_cmd = pos;
         joint->free_tp.max_vel = joint->vel_limit;
         joint->free_tp.max_acc = joint->acc_limit;
+        joint->free_tp.max_jerk = joint->jerk_limit;
 	/* lock out other jog sources */
 	joint->wheel_jog_active = 1;
         /* and let it go */
@@ -1282,9 +1284,9 @@ static void get_pos_cmds(long period)
     int joint_num, result;
     // int joint_num, axis_num, all_homed, all_at_home, result, limit;
     emcmot_joint_t *joint;
-    emcmot_axis_t *axis;
+    //obsolete: emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
-    double old_pos_cmd, new_pos_cmd, new_vel_cmd;
+    double old_pos_cmd;
     // double vel_lim;
     /* used in teleop mode to compute the max accell requested */
     double accell_mag;
@@ -1328,8 +1330,11 @@ static void get_pos_cmds(long period)
 	        continue;
             }
 
+            // ysli TODO: distinguish LINEAR and ANGULAR vel/acc/jerk
 	    if(joint->acc_limit > emcmotStatus->acc)
 		joint->acc_limit = emcmotStatus->acc;
+	    if(joint->jerk_limit > emcmotStatus->jerk)
+		joint->jerk_limit = emcmotStatus->jerk;
 	    /* compute joint velocity limit */
             if ( joint->home_state == HOME_IDLE ) {
                 /* velocity limit = joint limit * global scale factor */
@@ -1367,6 +1372,7 @@ static void get_pos_cmds(long period)
 
             /* set acc limit in free TP */
             joint->free_tp.max_acc = joint->acc_limit;
+            joint->free_tp.max_jerk = joint->jerk_limit;
             /* execute free TP */
             simple_tp_update(&(joint->free_tp), servo_period );
             /* copy free TP output to pos_cmd and coarse_pos */

@@ -59,7 +59,7 @@
 static int loadAxis(int axis, EmcIniFile *axisIniFile)
 {
     char axisString[16];
-    double units;
+    //obsolete: double units;
     double limit;
     double maxVelocity;
     double maxAcceleration;
