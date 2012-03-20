@@ -100,6 +100,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.g5x_offset_w = 0.0
         self.diff = [0.0, 0.0, 0.0, 0.0]
         self.prev_diff = [0.0, 0.0, 0.0, 0.0]
+        self.tool_scale = 1.0
     def comment(self, arg):
         if arg.startswith("AXIS,"):
             parts = arg.split(",")
@@ -1294,8 +1295,13 @@ class GlCanonDraw:
                 glScalef(cone_scale, cone_scale, cone_scale)
                 glCallList(cone)
             else:
-                if current_tool != self.cached_tool:
+                if self.fix_tool_size == True:
+                    self.canon.fix_tool_size = True
                     self.cache_tool(current_tool)
+                else:
+                    self.canon.fix_tool_size = False 
+                    if current_tool != self.cached_tool:
+                        self.cache_tool(current_tool)
                 glCallList(self.dlist('tool'))
             glPopMatrix()
 
@@ -1364,7 +1370,11 @@ class GlCanonDraw:
             if self.is_lathe():
                 glRotatef(90, 0, 1, 0)
             else:
-                dia = current_tool.diameter
+                if self.fix_tool_size == True:
+                    # dia = current_tool.diameter * math.sqrt(self.canon.tool_scale) * (self.distance / 10)
+                    dia = current_tool.diameter * math.sqrt((self.distance / 10))
+                else:
+                    dia = current_tool.diameter 
                 r = self.to_internal_linear_unit(dia) / 2.
                 q = gluNewQuadric()
                 glEnable(GL_LIGHTING)

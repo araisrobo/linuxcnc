@@ -122,7 +122,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
       
         self.highlight_mode = 'line'
         self.highlight_mode = inifile.find("DISPLAY", "HIGHLIGHT_MODE")
-        print 'gremlin.py highlight_mode', self.highlight_mode 
+        self.fix_tool_size = False
     def get_path_tracking(self):
         return self.path_tracking
     def set_path_tracking(self, path_tracking=False):
