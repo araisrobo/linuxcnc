@@ -838,7 +838,17 @@ void do_homing(void)
 		}
 
 		/* start the move */
-		joint->free_tp.enable = 1;
+                printf("debug: usb_homeing: joint(%d) pos_cmd(%f) curr_pos(%f) max_vel(%f)\n", 
+                        joint_num, 
+                        joint->free_tp.pos_cmd, 
+                        joint->free_tp.curr_pos, 
+                        joint->free_tp.max_vel);
+                if ( (joint->home_search_vel !=0) 
+                     || (joint->home_latch_vel != 0)
+                     || (joint->home_final_vel != 0)
+                   ) {
+                    joint->free_tp.enable = 1;
+                }
 		joint->home_state = HOME_FINAL_MOVE_WAIT;
 		break;
 
