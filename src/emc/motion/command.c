@@ -629,7 +629,17 @@ void emcmotCommandHandler(void *arg, long period)
 	    }
 	    break;
 
-	case EMCMOT_SET_JOINT_MOTOR_OFFSET:
+	case EMCMOT_SET_JOINT_DISABLE_JOG:
+	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_DISABLE_JOG");
+	    rtapi_print_msg(RTAPI_MSG_DBG, " joint(%d): %d", joint_num, emcmotCommand->flags);
+	    //orig: if(joint == 0) {
+	    //orig:     break;
+	    //orig: }
+            assert(joint != 0);
+	    joint->disable_jog = emcmotCommand->flags;
+	    break;
+	
+        case EMCMOT_SET_JOINT_MOTOR_OFFSET:
 	    rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_MOTOR_OFFSET");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if(joint == 0) {
@@ -637,6 +647,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    }
 	    joint->motor_offset = emcmotCommand->motor_offset;
 	    break;
+
 
 	case EMCMOT_SET_JOINT_POSITION_LIMITS:
 	    /* set the position limits for the joint */

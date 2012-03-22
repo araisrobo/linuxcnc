@@ -1,3 +1,9 @@
+emc2 (1:2.5.0-2012.03.20) lucid; urgency=low
+
+  * Support S-Curve velocity profile for Jogging
+
+ -- Yishin Li <ysli@araisrobo.com>  Tue, 20 Mar 2012 20:11:32 +0800
+
 emc2 (1:2.5.0-2012.03.19) lucid; urgency=low
 
   * BUGFIX for interrupt under Cutter Radius Compensation (G41) is enabled

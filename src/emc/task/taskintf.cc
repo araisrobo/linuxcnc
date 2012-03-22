@@ -93,6 +93,19 @@ static int localMotionEchoSerialNumber = 0;
 
 /*! functions involving joints */
 
+int emcJointSetDisableJog(int joint, bool disable_jog)
+{
+    if (joint < 0 || joint >= EMCMOT_MAX_JOINTS) {
+	return -1;
+    }
+
+    emcmotCommand.command = EMCMOT_SET_JOINT_DISABLE_JOG;
+    emcmotCommand.joint = joint;
+    emcmotCommand.flags = disable_jog;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
+
 int emcJointSetType(int joint, unsigned char jointType)
 {
     if (joint < 0 || joint >= EMCMOT_MAX_JOINTS) {
