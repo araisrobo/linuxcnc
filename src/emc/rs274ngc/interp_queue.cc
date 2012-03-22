@@ -151,25 +151,29 @@ void enqueue_FLOOD_OFF(void) {
     qc().push_back(q);
 }
 
-void enqueue_START_SPINDLE_CLOCKWISE(void) {
+// void enqueue_START_SPINDLE_CLOCKWISE(void) {
+void enqueue_START_SPINDLE_CLOCKWISE(int l) {
     if(qc().empty()) {
         if(debug_qc) printf("immediate spindle clockwise\n");
-        START_SPINDLE_CLOCKWISE();
+        START_SPINDLE_CLOCKWISE(l);
         return;
     }
     queued_canon q;
+    q.data.set_spindle_dir.line_number = l;
     q.type = QSTART_SPINDLE_CLOCKWISE;
     if(debug_qc) printf("enqueue spindle clockwise\n");
     qc().push_back(q);
 }
 
-void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void) {
+// void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void) {
+void enqueue_START_SPINDLE_COUNTERCLOCKWISE(int l) {
     if(qc().empty()) {
         if(debug_qc) printf("immediate spindle counterclockwise\n");
-        START_SPINDLE_COUNTERCLOCKWISE();
+        START_SPINDLE_COUNTERCLOCKWISE(l);
         return;
     }
     queued_canon q;
+    q.data.set_spindle_dir.line_number = l;
     q.type = QSTART_SPINDLE_COUNTERCLOCKWISE;
     if(debug_qc) printf("enqueue spindle counterclockwise\n");
     qc().push_back(q);
@@ -507,11 +511,11 @@ void dequeue_canons(setup_pointer settings) {
             break;
         case QSTART_SPINDLE_CLOCKWISE:
             if(debug_qc) printf("issuing spindle clockwise\n");
-            START_SPINDLE_CLOCKWISE();
+            START_SPINDLE_CLOCKWISE(q.data.set_spindle_dir.line_number);
             break;
         case QSTART_SPINDLE_COUNTERCLOCKWISE:
             if(debug_qc) printf("issuing spindle counterclockwise\n");
-            START_SPINDLE_COUNTERCLOCKWISE();
+            START_SPINDLE_COUNTERCLOCKWISE(q.data.set_spindle_dir.line_number);
             break;
         case QSTOP_SPINDLE_TURNING:
             if(debug_qc) printf("issuing stop spindle\n");

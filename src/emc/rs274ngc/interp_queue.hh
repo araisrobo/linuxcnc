@@ -57,6 +57,10 @@ struct set_spindle_speed {
     double speed;
 };
 
+struct set_spindle_dir {
+    int line_number;
+};
+
 struct comment {
     char *comment;
 };
@@ -94,6 +98,7 @@ struct queued_canon {
         struct set_spindle_speed set_spindle_speed;
         struct comment comment;
         struct mcommand mcommand;
+        struct set_spindle_dir set_spindle_dir;
 	struct orient_spindle orient_spindle;
 	struct wait_orient_spindle_complete wait_orient_spindle_complete;
     } data;
@@ -108,8 +113,11 @@ void enqueue_MIST_ON(void);
 void enqueue_MIST_OFF(void);
 void enqueue_FLOOD_ON(void);
 void enqueue_FLOOD_OFF(void);
-void enqueue_START_SPINDLE_CLOCKWISE(void);
-void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void);
+// void enqueue_START_SPINDLE_CLOCKWISE(void);
+// void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void);
+// get wrong line number while tool comp is on
+void enqueue_START_SPINDLE_CLOCKWISE(int l);
+void enqueue_START_SPINDLE_COUNTERCLOCKWISE(int l);
 void enqueue_STOP_SPINDLE_TURNING(void);
 void enqueue_SET_SPINDLE_MODE(double mode);
 void enqueue_SET_SPINDLE_SPEED(double speed);

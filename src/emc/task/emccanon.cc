@@ -1995,7 +1995,7 @@ void SET_SPINDLE_MODE(double css_max) {
     canon.css_maximum = css_max;
 }
 
-void START_SPINDLE_CLOCKWISE()
+void START_SPINDLE_CLOCKWISE(int l)
 {
     EMC_SPINDLE_ON emc_spindle_on_msg;
 
@@ -2016,7 +2016,7 @@ void START_SPINDLE_CLOCKWISE()
     interp_list.append(emc_spindle_on_msg);
 }
 
-void START_SPINDLE_COUNTERCLOCKWISE()
+void START_SPINDLE_COUNTERCLOCKWISE(int l)
 {
     EMC_SPINDLE_ON emc_spindle_on_msg;
 
