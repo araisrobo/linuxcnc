@@ -83,6 +83,8 @@ void simple_tp_update(simple_tp_t *tp, double period)
 	} else {
 	    /* within 'tiny_dp' of desired pos, no need to move */
 	    vel_req = 0.0;
+            /* disable tp after hitting pos_cmd to prevent futrher movement */
+	    tp->enabled = 0;
 	}
     } else {
 	/* planner disabled, request zero velocity */
@@ -131,15 +133,6 @@ void simple_tp_update(simple_tp_t *tp, double period)
 
     tp->curr_vel += (tp->curr_acc * period);
 
-    //orig: /* ramp velocity toward request at accel limit */
-    //orig: if (vel_req > tp->curr_vel + max_dv) {
-    //orig:     tp->curr_vel += max_dv;
-    //orig: } else if (vel_req < tp->curr_vel - max_dv) {
-    //orig:     tp->curr_vel -= max_dv;
-    //orig: } else {
-    //orig:     tp->curr_vel = vel_req;
-    //orig: }
-    
     /* check for still moving */
     if (fabs(tp->curr_vel) > tiny_dv) {
 	/* yes, mark planner active */
