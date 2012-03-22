@@ -591,14 +591,14 @@ void SET_SPINDLE_MODE(double arg) {
   PRINT1("SET_SPINDLE_MODE(%.4f)\n", arg);
 }
 
-void START_SPINDLE_CLOCKWISE()
+void START_SPINDLE_CLOCKWISE(int l)
 {
   PRINT0("START_SPINDLE_CLOCKWISE()\n");
   _spindle_turning = ((_spindle_speed == 0) ? CANON_STOPPED :
                                                    CANON_CLOCKWISE);
 }
 
-void START_SPINDLE_COUNTERCLOCKWISE()
+void START_SPINDLE_COUNTERCLOCKWISE(int l)
 {
   PRINT0("START_SPINDLE_COUNTERCLOCKWISE()\n");
   _spindle_turning = ((_spindle_speed == 0) ? CANON_STOPPED :
