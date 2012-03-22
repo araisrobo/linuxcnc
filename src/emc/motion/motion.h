@@ -169,6 +169,7 @@ extern "C" {
 	EMCMOT_JOINT_HOME,                  /* home a joint or all joints */
 	EMCMOT_JOINT_UNHOME,                /* unhome a joint or all joints*/
 
+	EMCMOT_SET_JOINT_DISABLE_JOG,       /* set the joint disable_jog flag */
 	EMCMOT_SET_JOINT_POSITION_LIMITS,   /* set the joint position +/- limits */
 	EMCMOT_SET_JOINT_BACKLASH,          /* set the joint backlash */
 	EMCMOT_SET_JOINT_MIN_FERROR,        /* minimum following error, input units */
@@ -526,6 +527,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	simple_tp_t free_tp;	/* planner for free mode motion */
 	int kb_jog_active;	/* non-zero during a keyboard jog */
 	int wheel_jog_active;	/* non-zero during a wheel jog */
+	int disable_jog;        /* flag to disable jogging: not calling simple_tp_update() */
 
 	/* internal info - changes regularly, not usually accessed from user
 	   space */

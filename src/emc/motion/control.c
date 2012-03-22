@@ -1374,7 +1374,9 @@ static void get_pos_cmds(long period)
             joint->free_tp.max_acc = joint->acc_limit;
             joint->free_tp.max_jerk = joint->jerk_limit;
             /* execute free TP */
-            simple_tp_update(&(joint->free_tp), servo_period );
+            if (joint->disable_jog == 0) {
+                simple_tp_update(&(joint->free_tp), servo_period );
+            }
             /* copy free TP output to pos_cmd and coarse_pos */
             joint->pos_cmd = joint->free_tp.curr_pos;
             joint->vel_cmd = joint->free_tp.curr_vel;

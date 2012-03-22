@@ -713,6 +713,7 @@ static int init_comm_buffers(void)
 	/* init joint flags */
 	joint->flag = 0;
 	SET_JOINT_INPOS_FLAG(joint, 1);
+	joint->disable_jog = 0;        // default to enable jogging
 
 	/* init status info */
 	joint->coarse_pos = 0.0;

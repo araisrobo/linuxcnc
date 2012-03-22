@@ -51,16 +51,19 @@ void simple_tp_update(simple_tp_t *tp, double period)
 
     tp->active = 0;
     max_da = tp->max_jerk * period;
-    next_acc = fabs(tp->curr_acc) + max_da;
-    if (next_acc > tp->max_acc) {
-        next_acc = tp->max_acc;
-    }
-    /* compute max change in velocity per servo period */
-    max_dv = next_acc * period;
-    /* compute a tiny position range, to be treated as zero */
-    tiny_dp = max_dv * period * 0.001;
+
     /* calculate desired velocity */
     if (tp->enable) {
+
+        next_acc = fabs(tp->curr_acc) + max_da;
+        if (next_acc > tp->max_acc) {
+            next_acc = tp->max_acc;
+        }
+        /* compute max change in velocity per servo period */
+        max_dv = next_acc * period;
+        /* compute a tiny position range, to be treated as zero */
+        tiny_dp = max_dv * period * 0.001;
+
 	/* planner enabled, request a velocity that tends to drive
 	   pos_err to zero, but allows for stopping without position
 	   overshoot */

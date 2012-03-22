@@ -85,6 +85,7 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
     bool use_index;
     bool ignore_limits;
     bool is_shared;
+    bool disable_jog;
     int sequence;
     int volatile_home;
     int locking_indexer;
@@ -206,6 +207,13 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
                 return -1;
             }
         }
+
+        disable_jog = false;	        // default to enable jogging
+        jointIniFile->Find(&disable_jog, "DISABLE_JOG", jointString);
+        if (0 != emcJointSetDisableJog(joint, disable_jog)) {
+            return -1;
+        }
+
     }
 
     catch (EmcIniFile::Exception &e) {
