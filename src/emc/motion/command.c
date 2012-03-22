@@ -378,9 +378,8 @@ void emcmotCommandHandler(void *arg, long period)
     emcmot_comp_entry_t *comp_entry;
     char issue_atspeed = 0;
     int msg_level_before = rtapi_get_msg_level();
-    //DEBUG: 
-    int msg_level_now = msg_level_before | RTAPI_MSG_DBG;
-    //int msg_level_now = msg_level_before;
+    //DEBUG: int msg_level_now = msg_level_before | RTAPI_MSG_DBG;
+    int msg_level_now = msg_level_before;
     static int counter = 0;
     rtapi_set_msg_level(msg_level_now);
     counter = counter+1;
