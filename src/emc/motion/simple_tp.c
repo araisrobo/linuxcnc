@@ -72,19 +72,19 @@ void simple_tp_update(simple_tp_t *tp, double period)
 	   avoid sqrt(negative) */
 	if (pos_err > tiny_dp) {
 	    vel_req = -max_dv +
-		       sqrt(2.0 * next_acc * pos_err + max_dv * max_dv);
+		       sqrt(2.0 * tp->max_acc /* next_acc */ * pos_err + max_dv * max_dv);
 	    //checked by curr_vel: /* mark planner as active */
 	    //checked by curr_vel: tp->active = 1;
 	} else if (pos_err < -tiny_dp) {
 	    vel_req =  max_dv -
-		       sqrt(-2.0 * next_acc * pos_err + max_dv * max_dv);
+		       sqrt(-2.0 * tp->max_acc /* next_acc */ * pos_err + max_dv * max_dv);
 	    //checked by curr_vel: /* mark planner as active */
 	    //checked by curr_vel: tp->active = 1;
 	} else {
 	    /* within 'tiny_dp' of desired pos, no need to move */
 	    vel_req = 0.0;
             /* disable tp after hitting pos_cmd to prevent futrher movement */
-	    tp->enabled = 0;
+	    tp->enable = 0;
 	}
     } else {
 	/* planner disabled, request zero velocity */
