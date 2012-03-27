@@ -3200,11 +3200,9 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     return convert_remapped_code(block, settings, STEP_M_7, 'm',
 				   block->m_modes[7]);
  } else if ((block->m_modes[7] == 3)  && ONCE_M(7)) {
-    fprintf(stderr,"enqueue M03 linenum(%d)\n", block->line_number);
     enqueue_START_SPINDLE_CLOCKWISE(block->line_number);
     settings->spindle_turning = CANON_CLOCKWISE;
  } else if ((block->m_modes[7] == 4) && ONCE_M(7)) {
-    fprintf(stderr,"enqueue M04 linenum(%d)\n", block->line_number);
     enqueue_START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
     settings->spindle_turning = CANON_COUNTERCLOCKWISE;
  } else if ((block->m_modes[7] == 5) && ONCE_M(7)){
