@@ -1280,11 +1280,7 @@ class GlCanonDraw:
             glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
 
             current_tool = self.get_current_tool()
-            try:
-                fix_tool_size = self.fix_tool_szie
-            except:
-                fix_tool_size = False
-            if fix_tool_size == True:
+            if self.fix_tool_size == True:
                 self.canon.fix_tool_size = True
                 self.cache_tool(current_tool)
                 glCallList(self.dlist('tool'))
