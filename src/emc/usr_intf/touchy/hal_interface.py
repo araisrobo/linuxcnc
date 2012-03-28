@@ -226,41 +226,63 @@ class hal_interface:
         if self.sw_button_presented == 1:
             xp = self.xp_sw
         if xp ^ self.xp: 
-            self.emc_control.continuous_jog(jx, xp)
-        self.xp = xp
+            if (self.emc_control.continuous_jog(jx, xp)):
+                # update self if jog cmd is send  
+                self.xp = xp
+        # try: self.emc_control.continuous_jog(jx, xp)
+        # self.xp = xp
 
         xn = self.c["jog.continuous.x.negative"]
         if self.sw_button_presented == 1:
             xn = self.xn_sw
         if xn ^ self.xn:
-            self.emc_control.continuous_jog(jx, -xn)
-        self.xn = xn
+            if (self.emc_control.continuous_jog(jx, -xn)):
+                # update self if jog cmd is send  
+                self.xn = xn
+        #    self.emc_control.continuous_jog(jx, -xn)
+        #self.xn = xn
 
         jy = self.c["joint-for-y"]
         yp = self.c["jog.continuous.y.positive"]
         if self.sw_button_presented == 1:
             yp = self.yp_sw
-        if yp ^ self.yp: self.emc_control.continuous_jog(jy, yp)
-        self.yp = yp
+        if yp ^ self.yp: 
+            if (self.emc_control.continuous_jog(jy, yp)):
+                # update self if jog cmd is send  
+                self.yp = yp
+            #self.emc_control.continuous_jog(jy, yp)
+        #self.yp = yp
 
         yn = self.c["jog.continuous.y.negative"]
         if self.sw_button_presented == 1:
             yn = self.yn_sw
-        if yn ^ self.yn: self.emc_control.continuous_jog(jy, -yn)
-        self.yn = yn
+        if yn ^ self.yn: 
+            if (self.emc_control.continuous_jog(jy, -yn)):
+                # update self if jog cmd is send  
+                self.yn = yn
+            #self.emc_control.continuous_jog(jy, -yn)
+        #self.yn = yn
 
         jz = self.c["joint-for-z"]
         zp = self.c["jog.continuous.z.positive"]
         if self.sw_button_presented == 1:
             zp = self.zp_sw
-        if zp ^ self.zp: self.emc_control.continuous_jog(jz, zp)
-        self.zp = zp
+        if zp ^ self.zp: 
+            if (self.emc_control.continuous_jog(jz, zp)):
+                # update self if jog cmd is send  
+                self.zp = zp
+            #self.emc_control.continuous_jog(jz, zp)
+        #self.zp = zp
 
         zn = self.c["jog.continuous.z.negative"]
         if self.sw_button_presented == 1:
             zn = self.zn_sw
-        if zn ^ self.zn: self.emc_control.continuous_jog(jz, -zn)
-        self.zn = zn
+        if zn ^ self.zn: 
+            if (self.emc_control.continuous_jog(jz, -zn)):
+                # update self if jog cmd is send  
+                self.zn = zn
+            #self.emc_control.continuous_jog(jz, -zn)
+        #self.zn = zn
 
         ja = self.c["joint-for-a"]
         ap = self.c["jog.continuous.a.positive"]
