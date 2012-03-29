@@ -1686,17 +1686,23 @@ static void get_pos_cmds(long period)
         }
 
 	/* check for soft limits */
+        joint_limit[joint_num][1] = 0;
+        joint_limit[joint_num][0] = 0;
 	if (joint->pos_cmd > joint->max_pos_limit) {
 	    joint_limit[joint_num][1] = 1;
             onlimit = 1;
-            reportError(_("joint[%d]: pos_cmd(%f) max_pos_limit(%f)\n"), 
-                          joint_num, joint->pos_cmd, joint->max_pos_limit);
+            if (! emcmotStatus->on_soft_limit) {
+                reportError(_("joint[%d]: pos_cmd(%f) max_pos_limit(%f)\n"), 
+                              joint_num, joint->pos_cmd, joint->max_pos_limit);
+            }
         }
         else if (joint->pos_cmd < joint->min_pos_limit) {
 	    joint_limit[joint_num][0] = 1;
             onlimit = 1;
-            reportError(_("joint[%d]: pos_cmd(%f) min_pos_limit(%f)\n"), 
-                          joint_num, joint->pos_cmd, joint->min_pos_limit);
+            if (! emcmotStatus->on_soft_limit) {
+                reportError(_("joint[%d]: pos_cmd(%f) min_pos_limit(%f)\n"), 
+                              joint_num, joint->pos_cmd, joint->min_pos_limit);
+            }
         }
     }
     if ( onlimit ) {
@@ -1712,6 +1718,7 @@ static void get_pos_cmds(long period)
 	    SET_MOTION_ERROR_FLAG(1);
 	    emcmotStatus->on_soft_limit = 1;
 	}
+        onlimit = 0;
     } else {
 	emcmotStatus->on_soft_limit = 0;
     }
