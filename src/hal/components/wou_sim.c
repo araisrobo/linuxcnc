@@ -433,6 +433,7 @@ typedef struct {
     hal_float_t *requested_vel;
     hal_float_t *feed_scale;
     hal_bit_t   *rt_abort;  // realtime abort to FPGA
+    hal_bit_t   *cl_abort;  // realtime abort from CL or other hardware pin
     /* plasma control */
     hal_bit_t *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
@@ -2572,6 +2573,11 @@ static int export_machine_control(machine_control_t * machine_control)
                               "wou.rt.abort");
     if (retval != 0) { return retval; }
     *(machine_control->rt_abort) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->cl_abort), comp_id,
+                              "wou.cl.abort");
+    if (retval != 0) { return retval; }
+    *(machine_control->cl_abort) = 0;
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
