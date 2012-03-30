@@ -174,12 +174,12 @@ MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
 
-int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
-		   "stepping types for up to 8 channels");
+//obsolete: int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+//obsolete: RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
+//obsolete: 		   "stepping types for up to 8 channels");
 
 const char *ctrl_type[MAX_CHAN] =
-    { "p", "p", "p", "p", "p", "p", "p", "p" };
+    { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 		      "control type (pos or vel) for up to 8 channels");
 
@@ -198,9 +198,9 @@ RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
-int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
-		   "current limit for up to 8 channel of stepping drivers");
+//obsolete: int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+//obsolete: RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
+//obsolete: 		   "current limit for up to 8 channel of stepping drivers");
 
 int num_gpio_in = 64;
 RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
@@ -317,9 +317,9 @@ const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
                 "indicate probing level used by analog probing");
 
-const char *act_jnt_num="4";
-RTAPI_MP_STRING(act_jnt_num,
-               "actual joints controlled by risc");
+//obsolete: const char *act_jnt_num="4";
+//obsolete: RTAPI_MP_STRING(act_jnt_num,
+//obsolete:                "actual joints controlled by risc");
 
 // int alr_output = 0x00000000;
 // RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
@@ -359,12 +359,12 @@ typedef struct {
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
-    int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
+    //obsolete: int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
-    hal_u32_t step_space;	/* parameter: min step pulse spacing */
+    //obsolete: hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
@@ -498,9 +498,9 @@ typedef struct {
     hal_s32_t *app_param[16];
     int32_t prev_app_param[16];
     hal_bit_t *send_app_param; // IO: trigger parameters to be sent
-    hal_s32_t *encoder_count[8]; // encoder count from risc
-    hal_s32_t *pulse_count[8];
-    hal_s32_t *ferror[8];
+    //obsolete: hal_s32_t *encoder_count[8]; // encoder count from risc
+    //obsolete: hal_s32_t *pulse_count[8];
+    //obsolete: hal_s32_t *ferror[8];
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -508,7 +508,7 @@ static stepgen_t *stepgen_array;
 //obsolete: static gpio_t *gpio;
 static analog_t *analog;
 static machine_control_t *machine_control;
-static int32_t actual_joint_num;
+//obsolete: static int32_t actual_joint_num;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -518,7 +518,7 @@ static int32_t actual_joint_num;
 
 /* other globals */
 static int comp_id;		/* component ID */
-static int num_chan = 0;	/* number of step generators configured */
+static int num_joints = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* reciprocal of period, avoids divides */
 
@@ -526,7 +526,7 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
 
-static int export_stepgen(int num, stepgen_t * addr, int step_type,
+static int export_stepgen(int num, stepgen_t * addr, /* obsolete: int step_type, */
 			  int pos_mode);
 //obsolete: static int export_gpio(gpio_t * addr);
 static int export_analog(analog_t * addr);
@@ -587,19 +587,19 @@ static void fetchmail(const uint8_t *buf_head)
         p = (uint32_t *) (buf_head + 4);
         //? bp_tick = *p;
         //? *machine_control->bp_tick = bp_tick;
-        assert(actual_joint_num>=num_chan);
+        //obsolete: assert(actual_joint_num>=num_joints);
         stepgen = stepgen_array;
-        for (i=0; i<actual_joint_num; i++) {
-            if (i<num_chan) {
+        for (i=0; i<num_joints/*obsolete: actual_joint_num */; i++) {
+            //obsolete: if (i<num_joints) {
                 // PULSE_POS
                 p += 1;
                 *(stepgen->pulse_pos) = *p;
                 *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
-                *(machine_control->pulse_count[i]) = (int32_t)*p;
+                //obsolete: *(machine_control->pulse_count[i]) = (int32_t)*p;
                 // enc counter
                 p += 1;
                 *(stepgen->enc_pos) = *p;
-                *(machine_control->encoder_count[i]) = (int32_t) *p;
+                //obsolete: *(machine_control->encoder_count[i]) = (int32_t) *p;
                 // pid output
                 p +=1;
                 // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
@@ -609,27 +609,27 @@ static void fetchmail(const uint8_t *buf_head)
                 p += 1;
                 // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
                 *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
-                *(machine_control->ferror[i]) = (int32_t)*p;
+                //obsolete: *(machine_control->ferror[i]) = (int32_t)*p;
                 // joint_cmd of this BP
                 p += 1;
                 *(stepgen->joint_cmd) = ((int32_t)*p);
 
                 stepgen += 1;   // point to next joint
-            } else {
-                // PULSE_POS
-                p += 1;
-                *(machine_control->pulse_count[i]) = (int32_t) *p;
-                // enc counter
-                p += 1;
-                *(machine_control->encoder_count[i]) = (int32_t) *p;
-                // pid output
-                p +=1;
-                // cmd error
-                p += 1;
-                *(machine_control->ferror[i]) = (int32_t)*p;
-                // joint_cmd of this BP
-                p += 1;
-            }
+            //obsolete: } else {
+            //obsolete:     // PULSE_POS
+            //obsolete:     p += 1;
+            //obsolete:     *(machine_control->pulse_count[i]) = (int32_t) *p;
+            //obsolete:     // enc counter
+            //obsolete:     p += 1;
+            //obsolete:     *(machine_control->encoder_count[i]) = (int32_t) *p;
+            //obsolete:     // pid output
+            //obsolete:     p +=1;
+            //obsolete:     // cmd error
+            //obsolete:     p += 1;
+            //obsolete:     *(machine_control->ferror[i]) = (int32_t)*p;
+            //obsolete:     // joint_cmd of this BP
+            //obsolete:     p += 1;
+            //obsolete: }
             
         }
 
@@ -699,7 +699,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         ferror_flag = *p;
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
+        for (i=0; i<num_joints; i++) {
             *stepgen->ferror_flag = ferror_flag & (1 << i);
             stepgen += 1;   // point to next joint
         }
@@ -710,7 +710,7 @@ static void fetchmail(const uint8_t *buf_head)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
+        for (i=0; i<num_joints; i++) {
             dsize += sprintf (dmsg + dsize, "%10d %10d %10f %10f %10d  ",
                               *(stepgen->pulse_pos),
                               *(stepgen->enc_pos),
@@ -895,7 +895,7 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         // align prev pos cmd and pos cmd;
         // machine_control->a_cmd_on_going = 0;
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
+        for (i=0; i<num_joints; i++) {
             stepgen->prev_pos_cmd = *stepgen->pos_cmd;
             stepgen++;
         }
@@ -1100,61 +1100,63 @@ int rtapi_app_main(void)
         assert(0);
     }
 
-    /* to clear PULSE/ENC/SWITCH/INDEX positions for 4 axes */
-    // issue a WOU_WRITE 
-    data[0] = 0x0F;
-    wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-    wou_flush(&w_param);
-    
-    data[0] = 0x00;
-    wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-    wou_flush(&w_param);
+    //obsolete: /* test for stepping motor current limit: step_cur */
+    //obsolete: num_joints = 0;
+    //obsolete: for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
+    //obsolete:     if ((step_cur[n] > MAX_STEP_CUR) || (step_cur[n] < 0)) {
+    //obsolete:         rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:     		    "WOU: ERROR: bad step_cur[%d]: '%i'\n",
+    //obsolete:     		    n, step_cur[n]);
+    //obsolete:         return -1;
+    //obsolete:     }
+    //obsolete:     data[n] = (uint8_t) step_cur[n];
+    //obsolete:     num_joints++;
+    //obsolete: }
+    //obsolete: if (num_joints > 0) {
+    //obsolete:     // wirte SSIF_MAX_PWM to USB with Automatically Address Increment
+    //obsolete:     wou_cmd(&w_param,
+    //obsolete:     	WB_WR_CMD, (SSIF_BASE | SSIF_MAX_PWM), num_joints, data);
+    //obsolete: }
+    //obsolete: wou_flush(&w_param);
 
-    /* test for stepping motor current limit: step_cur */
-    num_chan = 0;
-    for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
-	if ((step_cur[n] > MAX_STEP_CUR) || (step_cur[n] < 0)) {
-	    rtapi_print_msg(RTAPI_MSG_ERR,
-			    "WOU: ERROR: bad step_cur[%d]: '%i'\n",
-			    n, step_type[n]);
-	    return -1;
-	}
-	data[n] = (uint8_t) step_cur[n];
-	num_chan++;
-    }
-    if (num_chan > 0) {
-	// wirte SSIF_MAX_PWM to USB with Automatically Address Increment
-	wou_cmd(&w_param,
-		WB_WR_CMD, (SSIF_BASE | SSIF_MAX_PWM), num_chan, data);
-    }
-
-    wou_flush(&w_param);
-
-    num_chan = 0;
-    for (n = 0; n < MAX_CHAN && step_type[n] != -1; n++) {
-	if ((step_type[n] > MAX_STEP_TYPE) || (step_type[n] < 0)) {
-	    rtapi_print_msg(RTAPI_MSG_ERR,
-			    "STEPGEN: ERROR: bad stepping type '%i', axis %i\n",
-			    step_type[n], n);
-	    return -1;
-	}
+    num_joints = 0;
+    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') /* obsolete: step_type[n] != -1 */; n++) {
+	//obsolete: if ((step_type[n] > MAX_STEP_TYPE) || (step_type[n] < 0)) {
+	//obsolete:     rtapi_print_msg(RTAPI_MSG_ERR,
+	//obsolete: 		    "STEPGEN: ERROR: bad stepping type '%i', axis %i\n",
+	//obsolete: 		    step_type[n], n);
+	//obsolete:     return -1;
+	//obsolete: }
 	if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
 	    ctrl_type[n] = "p";
 	} else if ((ctrl_type[n][0] == 'v') || (ctrl_type[n][0] == 'V')) {
 	    ctrl_type[n] = "v";
 	} else {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
-			    "STEPGEN: ERROR: bad control type '%s' for axis %i (must be 'p' or 'v')\n",
+			    "STEPGEN: ERROR: bad control type '%s' for joint %i (must be 'p' or 'v')\n",
 			    ctrl_type[n], n);
 	    return -1;
 	}
-	num_chan++;
+	num_joints++;
     }
-    if (num_chan == 0) {
+    assert (num_joints <=6);  // support up to 6 joints for USB/7i43 
+    if (num_joints == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"STEPGEN: ERROR: no channels configured\n");
 	return -1;
     }
+
+    /* to clear PULSE/ENC/SWITCH/INDEX positions for all joints*/
+    // issue a WOU_WRITE to RESET SSIF position registers
+    data[0] = (1 << num_joints) - 1;  // bit-map-for-num_joints
+    wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
+    wou_flush(&w_param);
+    
+    // issue a WOU_WRITE to clear SSIF_RST_POS register
+    data[0] = 0x00;
+    wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
+    wou_flush(&w_param);
+
     /* test for dt: servo_period_ns */
     if ((servo_period_ns == -1)) {
         rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1176,7 +1178,7 @@ int rtapi_app_main(void)
     pid_str[7] = j7_pid_str;
 
     /* configure motion parameters */
-    for(n=0; n<num_chan; n++) {
+    for(n=0; n<num_joints; n++) {
         // const char **pid_str;
 
         /* compute fraction bits */
@@ -1253,15 +1255,11 @@ int rtapi_app_main(void)
             rtapi_print_msg(RTAPI_MSG_INFO, "\n");
         }
     }
+    
+    // configure NUM_JOINTS after all joint parameters are set
+    write_machine_param(NUM_JOINTS, (uint32_t) num_joints);
 
-    actual_joint_num = atoi(act_jnt_num);
-
-    /* to send position compensation velocity  of Z*/
-//    thc_vel = atof(thc_velocity);
-//    pos_scale = atof(pos_scale_str[2]);
-//    immediate_data = (uint32_t)(thc_vel*pos_scale*dt*(1 << FRACTION_BITS));
-//    immediate_data = immediate_data > 0? immediate_data:-immediate_data;
-//    write_mot_param (2, (COMP_VEL), immediate_data);
+    //obsolete: actual_joint_num = atoi(act_jnt_num);
 
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
@@ -1285,7 +1283,7 @@ int rtapi_app_main(void)
     }
 
     /* allocate shared memory for counter data */
-    stepgen_array = hal_malloc(num_chan * sizeof(stepgen_t));
+    stepgen_array = hal_malloc(num_joints * sizeof(stepgen_t));
     if (stepgen_array == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"STEPGEN: ERROR: hal_malloc() failed\n");
@@ -1318,10 +1316,10 @@ int rtapi_app_main(void)
     }
 
     /* export all the variables for each pulse generator */
-    for (n = 0; n < num_chan; n++) {
+    for (n = 0; n < num_joints; n++) {
 	/* export all vars */
 	retval = export_stepgen(n, &(stepgen_array[n]),
-				step_type[n], (ctrl_type[n][0] == 'p'));
+				/* step_type[n],*/ (ctrl_type[n][0] == 'p'));
 	if (retval != 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
 			    "STEPGEN: ERROR: stepgen %d var export failed\n",
@@ -1368,7 +1366,7 @@ int rtapi_app_main(void)
     }
     rtapi_print_msg(RTAPI_MSG_INFO,
 		    "STEPGEN: installed %d step pulse generators\n",
-		    num_chan);
+		    num_joints);
     
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
@@ -1596,6 +1594,8 @@ static void update_freq(void *arg, long period)
                 // write a wou frame for sync output into command FIFO
                 fprintf(stderr,"wou_stepgen.c: gpio_%02d => (%d)\n",
                         i,*(machine_control->out[i]));
+                fprintf(stderr,"wou_stepgen.c: num_joints(%d)\n",
+                        num_joints);
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
@@ -1629,14 +1629,14 @@ static void update_freq(void *arg, long period)
     }
 #endif
 
-    // num_chan: 4, calculated from step_type;
+    // num_joints: calculated from ctrl_type;
     /* loop thru generators */
 
     r_load_pos = 0;
     r_switch_en = 0;
 //TODO: RISC_HOMING:    r_index_en = prev_r_index_en;
     /* begin: homing logic */
-    for (n = 0; n < num_chan; n++) {
+    for (n = 0; n < num_joints; n++) {
 	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
 	    static hal_s32_t prev_switch_pos;
 	    hal_s32_t switch_pos_tmp;
@@ -1803,7 +1803,7 @@ static void update_freq(void *arg, long period)
         stepgen->prev_enable = *stepgen->enable;
         fprintf(stderr,"enable changed(%d)\n", *stepgen->enable);
         if (*stepgen->enable) {
-            for(i=0; i<num_chan; i++) {
+            for(i=0; i<num_joints; i++) {
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
                 immediate_data = NORMAL_MOVE;
@@ -1811,7 +1811,7 @@ static void update_freq(void *arg, long period)
             }
 
         } else {
-            for(i=0; i<num_chan; i++) {
+            for(i=0; i<num_joints; i++) {
                 immediate_data = 0;
                 write_mot_param (i, (ENABLE), immediate_data);
             }
@@ -1829,7 +1829,7 @@ static void update_freq(void *arg, long period)
     i = 0;
     stepgen = arg;
     enable = *stepgen->enable;            // take enable status of first joint
-    for (n = 0; n < num_chan; n++) {
+    for (n = 0; n < num_joints; n++) {
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         // update velocity-feedback only after encoder movement
@@ -1839,7 +1839,7 @@ static void update_freq(void *arg, long period)
                                  );
             stepgen->prev_pos_fb = *stepgen->pos_fb;
             stepgen->prev_enc_pos = *stepgen->enc_pos;
-            if (n == (num_chan - 1)) {
+            if (n == (num_joints - 1)) {
                 // update bp_tick for the last joint
                 //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
                 //DEBUG:                 "WOU: j[%d] bp(%u) prev_bp(%u) vel_fb(%f)\n",
@@ -1901,11 +1901,11 @@ static void update_freq(void *arg, long period)
 
             memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
                                sizeof(uint16_t));
-            if (n == (num_chan - 1)) {
+            if (n == (num_joints - 1)) {
                 // send to WOU when all axes commands are generated
                 wou_cmd(&w_param,
                         WB_WR_CMD,
-                        (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_chan, data);
+                        (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
             }
 
             // maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
@@ -2085,11 +2085,11 @@ static void update_freq(void *arg, long period)
 
 	}
 
-        if (n == (num_chan - 1)) {
+        if (n == (num_joints - 1)) {
             // send to WOU when all axes commands are generated
             wou_cmd(&w_param,
                     WB_WR_CMD,
-                    (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_chan, data);
+                    (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
         }
 	DPS("  0x%13X%15.7f%15.7f%3d",
 	    integer_pos_cmd, 
@@ -2207,7 +2207,7 @@ static int export_analog(analog_t * addr)
 } // export_analog ()
 
 
-static int export_stepgen(int num, stepgen_t * addr, int step_type,
+static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*/
 			  int pos_mode)
 {
     int retval, msg;
@@ -2352,15 +2352,15 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     if (retval != 0) {
         return retval;
     }
-    if (step_type < 2) {
-	/* step/dir and up/down use 'stepspace' */
-	retval = hal_param_u32_newf(HAL_RW, &(addr->step_space),
-				    comp_id, "wou.stepgen.%d.stepspace",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-    }
+    //obsolete: if (step_type < 2) {
+    //obsolete:     /* step/dir and up/down use 'stepspace' */
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->step_space),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.stepspace",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete: }
 
     /* export pin for control type switch (for vel control only) */
     retval = hal_pin_bit_newf(HAL_IN, &(addr->ctrl_type_switch), comp_id,
@@ -2382,15 +2382,15 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     addr->freq = 0.0;
     addr->maxvel = 0.0;
     addr->maxaccel = 0.0;
-    addr->step_type = step_type;
+    //obsolete: addr->step_type = step_type;
     addr->pos_mode = pos_mode;
     /* timing parameter defaults depend on step type */
     addr->step_len = 1;
-    if (step_type < 2) {
-	addr->step_space = 1;
-    } else {
-	addr->step_space = 0;
-    }
+    //obsolete: if (step_type < 2) {
+    //obsolete:     addr->step_space = 1;
+    //obsolete: } else {
+    //obsolete:     addr->step_space = 0;
+    //obsolete: }
     /* init the step generator core to zero output */
     /* accumulator gets a half step offset, so it will step half
        way between integer positions, not at the integer positions */
@@ -2690,25 +2690,25 @@ static int export_machine_control(machine_control_t * machine_control)
         *(machine_control->app_param[i]) = 0;
     }
 
-    assert(actual_joint_num<=8);
-    for (i=0; i<actual_joint_num; i++) {
-        retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->encoder_count[i]), comp_id,
-                "wou.risc.motion.joint.encoder-count.%02d", i);
-        *(machine_control->encoder_count[i]) = 0;
+    //obsolete: assert(actual_joint_num<=8);
+    //obsolete: for (i=0; i<actual_joint_num; i++) {
+    //obsolete:     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->encoder_count[i]), comp_id,
+    //obsolete:             "wou.risc.motion.joint.encoder-count.%02d", i);
+    //obsolete:     *(machine_control->encoder_count[i]) = 0;
 
-    }
-    for (i=0; i<actual_joint_num; i++) {
-        retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->pulse_count[i]), comp_id,
-                "wou.risc.motion.joint.pulse-count.%02d", i);
-        *(machine_control->pulse_count[i]) = 0;
+    //obsolete: }
+    //obsolete: for (i=0; i<actual_joint_num; i++) {
+    //obsolete:     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->pulse_count[i]), comp_id,
+    //obsolete:             "wou.risc.motion.joint.pulse-count.%02d", i);
+    //obsolete:     *(machine_control->pulse_count[i]) = 0;
 
-    }
-    for (i=0; i<actual_joint_num; i++) {
-        retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->ferror[i]), comp_id,
-                "wou.risc.motion.joint.ferror.%02d", i);
-        *(machine_control->ferror[i]) = 0;
+    //obsolete: }
+    //obsolete: for (i=0; i<actual_joint_num; i++) {
+    //obsolete:     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->ferror[i]), comp_id,
+    //obsolete:             "wou.risc.motion.joint.ferror.%02d", i);
+    //obsolete:     *(machine_control->ferror[i]) = 0;
 
-    }
+    //obsolete: }
 
     machine_control->prev_out = 0;
 
