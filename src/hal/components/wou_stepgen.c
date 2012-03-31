@@ -1397,7 +1397,7 @@ static double force_precision(double d)
 {
     return d;
 }
-static FILE *f_abort;
+//obsolete: static FILE *f_abort;
 static void update_rt_cmd(void)
 {
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
