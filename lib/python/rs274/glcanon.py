@@ -639,6 +639,7 @@ class GlCanonDraw:
         self.select_buffer_size = 100
         self.cached_tool = -1
         self.initialised = 0
+        self.fix_tool_size = False  # set to True to disable tool_size scaling
 
     def realize(self):
         self.hershey = hershey.Hershey()
@@ -1623,14 +1624,14 @@ class GlCanonDraw:
     def make_cone(self, n):
         q = gluNewQuadric()
         glNewList(n, GL_COMPILE)
-#        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHTING)
         glColor3f(*self.colors['cone'])
         gluCylinder(q, 0, .1, .25, 32, 1)
         glPushMatrix()
         glTranslatef(0,0,.25)
         gluDisk(q, 0, .1, 32, 1)
         glPopMatrix()
- #       glDisable(GL_LIGHTING)
+        glDisable(GL_LIGHTING)
         glEndList()
         gluDeleteQuadric(q)
 
