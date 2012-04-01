@@ -4,7 +4,7 @@
 ( Hint jog the Z axis down a bit then touch off )
 ( Also press the Toggle Skip Lines with "/" to see that part )
 ( If the program is too big or small for your machine, change the scale #3 )
-
+s3000m3
 (font: /usr/share/fonts/truetype/freefont/FreeSerifBoldItalic.ttf)
 (text: EMC2*4*AXIS)
 #1=0.1    (SafeHeight)
