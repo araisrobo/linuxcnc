@@ -271,17 +271,20 @@ int tpSetPos(TP_STRUCT * tp, EmcPose pos)
     return 0;
 }
 
-int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
-        double acc, unsigned char enables) 
+int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, 
+                  double ini_maxvel, double acc, 
+                  double jerk, unsigned char enables) 
 {
     TC_STRUCT tc;
     PmLine line_xyz;
     PmPose start_xyz, end_xyz;
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
-    rtapi_print_msg(RTAPI_MSG_ERR, "TODO: new CSS implementation breaks Rigid-Tapping\n");
-    assert(0);
+    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
+    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR, "TODO: new CSS implementation breaks Rigid-Tapping\n");
+    //obsolete: assert(0);
+    DP("tpAddRigidTap(): jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+        jerk, vel, acc, ini_maxvel);
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -320,11 +323,10 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
     tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
-    tc.maxaccel = acc;
-    DP("TODO: fix tc.jerk\n");
-    assert(0);
+    tc.maxvel = ini_maxvel * tp->cycleTime;
+    tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
+    tc.jerk = jerk * tp->cycleTime * tp->cycleTime * tp->cycleTime;
     tc.feed_override = 0.0;
-    tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
     tc.active = 0;
     tc.atspeed = 1;
@@ -387,7 +389,10 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
 // of the previous move to the new end specified here at the
 // currently-active accel and vel settings from the tp struct.
 // EMC_MOTION_TYPE_FEED
-int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk, unsigned char enables, char atspeed, int indexrotary)
+int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, 
+              double ini_maxvel, double acc, 
+              double ini_maxjerk, unsigned char enables, 
+              char atspeed, int indexrotary)
 {
     TC_STRUCT tc;
     PmLine line_xyz, line_uvw, line_abc;

@@ -1037,9 +1037,11 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     double ini_maxvel, vel, acc;
     EMC_TRAJ_RIGID_TAP rigidTapMsg;
     double unused=0;
-
+    
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
+
+    // printf ("debug: RIGID_TAP: x(%f) y(%f) z(%f)\n", x, y, z);
 
     vel = getStraightVelocity(x, y, z, 
                               canon.endPoint.a, canon.endPoint.b, canon.endPoint.c, 
@@ -1057,8 +1059,12 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     rigidTapMsg.vel = toExtVel(vel);
     rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
     rigidTapMsg.acc = toExtAcc(acc);
-
+    rigidTapMsg.ini_maxjerk = TO_EXT_LEN(getStraightJerk(x, y, z, 
+                                                         canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+                                                         canon.endPoint.u, canon.endPoint.v, canon.endPoint.w));
     flush_segments();
+    
+    // printf ("debug: RIGID_TAP: vel(%f) acc(%f) jerk(%f) \n", vel, acc, rigidTapMsg.ini_maxjerk);
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
