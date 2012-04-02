@@ -176,14 +176,15 @@ static FILE *debug_fp;
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
-int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-
-RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
-		   "stepping types for up to 8 channels");
+//obsolete: int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+//obsolete: 
+//obsolete: RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
+//obsolete: 		   "stepping types for up to 8 channels");
 const char *ctrl_type[MAX_CHAN] =
-    { "p", "p", "p", "p", "p", "p", "p", "p" };
+    { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 		      "control type (pos or vel) for up to 8 channels");
+
 
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
@@ -365,12 +366,12 @@ typedef struct {
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
-    int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
+    // int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
     int num_phases;		/* number of phases for types 2 and up */
     hal_bit_t *phase[5];	/* pins for output signals */
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
-    hal_u32_t step_space;	/* parameter: min step pulse spacing */
+    //obsolete: hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
@@ -559,7 +560,7 @@ static const unsigned char num_phases_lut[] =
 
 /* other globals */
 static int comp_id;		/* component ID */
-static int num_chan = 0;	/* number of step generators configured */
+static int num_joints = 0;	/* number of step generators configured */
 static double dt;		/* update_freq period in seconds */
 static double recip_dt;		/* reciprocal of period, avoids divides */
 
@@ -567,7 +568,7 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
 
-static int export_stepgen(int num, stepgen_t * addr, int step_type,
+static int export_stepgen(int num, stepgen_t * addr, /* obsolete: int step_type, */
 			  int pos_mode);
 static int export_gpio(gpio_t * addr);
 static int export_analog(analog_t * addr);
@@ -618,10 +619,10 @@ static void fetchmail(const uint8_t *buf_head)
         p = (uint32_t *) (buf_head + 4);
         bp_tick = *p;
         *machine_control->bp_tick = bp_tick;
-        assert(actual_joint_num>=num_chan);
+        assert(actual_joint_num>=num_joints);
         stepgen = stepgen_array;
         for (i=0; i<actual_joint_num; i++) {
-            if (i<num_chan) {
+            if (i<num_joints) {
                 // PULSE_POS
                 p += 1;
                 *(stepgen->pulse_pos) = *p;
@@ -727,7 +728,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         ferror_flag = *p;
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
+        for (i=0; i<num_joints; i++) {
             *stepgen->ferror_flag = ferror_flag & (1 << i);
             stepgen += 1;   // point to next joint
         }
@@ -746,7 +747,7 @@ static void fetchmail(const uint8_t *buf_head)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
+        for (i=0; i<num_joints; i++) {
             dsize += sprintf (dmsg + dsize, "%10d %10d %10f %10f %10d  ",
                               *(stepgen->pulse_pos),
                               *(stepgen->enc_pos),
@@ -942,7 +943,7 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         // align prev pos cmd and pos cmd;
         // machine_control->a_cmd_on_going = 0;
         stepgen = stepgen_array;
-        for (i=0; i<num_chan; i++) {
+        for (i=0; i<num_joints; i++) {
             stepgen->prev_pos_cmd = *stepgen->pos_cmd;
             stepgen++;
         }
@@ -1221,50 +1222,52 @@ int rtapi_app_main(void)
 //obsolete:    }
 
     /* test for stepping motor current limit: step_cur */
-    num_chan = 0;
-    for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
-	if ((step_cur[n] > MAX_STEP_CUR) || (step_cur[n] < 0)) {
-	    rtapi_print_msg(RTAPI_MSG_ERR,
-			    "WOU: ERROR: bad step_cur[%d]: '%i'\n",
-			    n, step_type[n]);
-	    return -1;
-	}
-	data[n] = (uint8_t) step_cur[n];
-	num_chan++;
-    }
-    if (num_chan > 0) {
-	// wirte SSIF_MAX_PWM to USB with Automatically Address Increment
-        // sim: wou_cmd(&w_param,
-        // sim: 	WB_WR_CMD, (SSIF_BASE | SSIF_MAX_PWM), num_chan, data);
-    }
+    //obsolete: num_joints = 0;
+    //obsolete: for (n = 0; n < MAX_CHAN && step_cur[n] != -1; n++) {
+    //obsolete:     if ((step_cur[n] > MAX_STEP_CUR) || (step_cur[n] < 0)) {
+    //obsolete:         rtapi_print_msg(RTAPI_MSG_ERR,
+    //obsolete:     		    "WOU: ERROR: bad step_cur[%d]: '%i'\n",
+    //obsolete:     		    n, step_type[n]);
+    //obsolete:         return -1;
+    //obsolete:     }
+    //obsolete:     data[n] = (uint8_t) step_cur[n];
+    //obsolete:     num_joints++;
+    //obsolete: }
+    //obsolete: if (num_joints > 0) {
+    //obsolete:     // wirte SSIF_MAX_PWM to USB with Automatically Address Increment
+    //obsolete:     // sim: wou_cmd(&w_param,
+    //obsolete:     // sim: 	WB_WR_CMD, (SSIF_BASE | SSIF_MAX_PWM), num_joints, data);
+    //obsolete: }
 
     // sim: wou_flush(&w_param);
-
-    num_chan = 0;
-    for (n = 0; n < MAX_CHAN && step_type[n] != -1; n++) {
-	if ((step_type[n] > MAX_STEP_TYPE) || (step_type[n] < 0)) {
-	    rtapi_print_msg(RTAPI_MSG_ERR,
-			    "STEPGEN: ERROR: bad stepping type '%i', axis %i\n",
-			    step_type[n], n);
-	    return -1;
-	}
+    num_joints = 0;
+    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') /* obsolete: step_type[n] != -1 */; n++) {
+	//obsolete: if ((step_type[n] > MAX_STEP_TYPE) || (step_type[n] < 0)) {
+	//obsolete:     rtapi_print_msg(RTAPI_MSG_ERR,
+	//obsolete: 		    "STEPGEN: ERROR: bad stepping type '%i', axis %i\n",
+	//obsolete: 		    step_type[n], n);
+	//obsolete:     return -1;
+	//obsolete: }
 	if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
 	    ctrl_type[n] = "p";
 	} else if ((ctrl_type[n][0] == 'v') || (ctrl_type[n][0] == 'V')) {
 	    ctrl_type[n] = "v";
 	} else {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
-			    "STEPGEN: ERROR: bad control type '%s' for axis %i (must be 'p' or 'v')\n",
+			    "STEPGEN: ERROR: bad control type '%s' for joint %i (must be 'p' or 'v')\n",
 			    ctrl_type[n], n);
 	    return -1;
 	}
-	num_chan++;
+	num_joints++;
     }
-    if (num_chan == 0) {
+    assert (num_joints <=6);  // support up to 6 joints for USB/7i43 
+    if (num_joints == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"STEPGEN: ERROR: no channels configured\n");
 	return -1;
     }
+
+
     /* test for dt: servo_period_ns */
     if ((servo_period_ns == -1)) {
         rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1286,7 +1289,7 @@ int rtapi_app_main(void)
     pid_str[7] = j7_pid_str;
 
     /* configure motion parameters */
-    for(n=0; n<num_chan; n++) {
+    for(n=0; n<num_joints; n++) {
         // const char **pid_str;
 
         /* compute fraction bits */
@@ -1393,7 +1396,7 @@ int rtapi_app_main(void)
     }
 
     /* allocate shared memory for counter data */
-    stepgen_array = hal_malloc(num_chan * sizeof(stepgen_t));
+    stepgen_array = hal_malloc(num_joints * sizeof(stepgen_t));
     if (stepgen_array == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"STEPGEN: ERROR: hal_malloc() failed\n");
@@ -1426,10 +1429,10 @@ int rtapi_app_main(void)
     }
 
     /* export all the variables for each pulse generator */
-    for (n = 0; n < num_chan; n++) {
+    for (n = 0; n < num_joints; n++) {
 	/* export all vars */
 	retval = export_stepgen(n, &(stepgen_array[n]),
-				step_type[n], (ctrl_type[n][0] == 'p'));
+				/*obsolete: step_type[n],*/ (ctrl_type[n][0] == 'p'));
 	if (retval != 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
 			    "STEPGEN: ERROR: stepgen %d var export failed\n",
@@ -1475,7 +1478,7 @@ int rtapi_app_main(void)
     }
     rtapi_print_msg(RTAPI_MSG_INFO,
 		    "STEPGEN: installed %d step pulse generators\n",
-		    num_chan);
+		    num_joints);
 
 /*   restore saved message level*/
     rtapi_set_msg_level(msg);
@@ -1716,14 +1719,14 @@ static void update_freq(void *arg, long period)
     }
 #endif
 
-    // num_chan: 4, calculated from step_type;
+    // num_joints: 4, calculated from step_type;
     /* loop thru generators */
 // sim:
 // sim:    r_load_pos = 0;
 // sim:    r_switch_en = 0;
 // sim:    r_index_en = prev_r_index_en;
 // sim:    /* begin: homing logic */
-// sim:    for (n = 0; n < num_chan; n++) {
+// sim:    for (n = 0; n < num_joints; n++) {
 // sim:	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
 // sim:	    static hal_s32_t prev_switch_pos;
 // sim:	    hal_s32_t switch_pos_tmp = 0;
@@ -1903,7 +1906,7 @@ static void update_freq(void *arg, long period)
         stepgen->prev_enable = *stepgen->enable;
         fprintf(stderr,"enable changed(%d)\n", *stepgen->enable);
         if (*stepgen->enable) {
-            for(i=0; i<num_chan; i++) {
+            for(i=0; i<num_joints; i++) {
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
                 immediate_data = NORMAL_MOVE;
@@ -1915,7 +1918,7 @@ static void update_freq(void *arg, long period)
 //            wou_cmd (&w_param, WB_WR_CMD,
 //                     (uint16_t) (GPIO_BASE | GPIO_OUT),
 //                     (uint8_t) 1, data);
-            for(i=0; i<num_chan; i++) {
+            for(i=0; i<num_joints; i++) {
                 immediate_data = 0;
                 write_mot_param (i, (ENABLE), immediate_data);
             }
@@ -1926,7 +1929,7 @@ static void update_freq(void *arg, long period)
     i = 0;
     stepgen = arg;
     enable = *stepgen->enable;            // take enable status of first joint
-    for (n = 0; n < num_chan; n++) {
+    for (n = 0; n < num_joints; n++) {
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
@@ -1938,7 +1941,7 @@ static void update_freq(void *arg, long period)
             *(stepgen->vel_fb) = stepgen->vel_cmd;
             stepgen->prev_pos_fb = *stepgen->pos_fb;
             stepgen->prev_enc_pos = *stepgen->enc_pos;
-            if (n == (num_chan - 1)) {
+            if (n == (num_joints - 1)) {
                 // update bp_tick for the last joint
                 //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
                 //DEBUG:                 "WOU: j[%d] bp(%u) prev_bp(%u) vel_fb(%f)\n",
@@ -2004,11 +2007,11 @@ static void update_freq(void *arg, long period)
 
             memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
                                sizeof(uint16_t));
-            if (n == (num_chan - 1)) {
+            if (n == (num_joints - 1)) {
                 // send to WOU when all axes commands are generated
                 // sim: wou_cmd(&w_param,
                 // sim:         WB_WR_CMD,
-                // sim:         (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_chan, data);
+                // sim:         (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
             }
 
             // maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
@@ -2200,11 +2203,11 @@ static void update_freq(void *arg, long period)
 
 	}
 
-        if (n == (num_chan - 1)) {
+        if (n == (num_joints - 1)) {
             // send to WOU when all axes commands are generated
             // sim: wou_cmd(&w_param,
             // sim:         WB_WR_CMD,
-            // sim:         (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_chan, data);
+            // sim:         (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
         }
 	DPS("  0x%13X%15.7f%15.7f%3d",
 	    integer_pos_cmd, 
@@ -2317,7 +2320,7 @@ static int export_analog(analog_t * addr)
 } // export_analog ()
 
 
-static int export_stepgen(int num, stepgen_t * addr, int step_type,
+static int export_stepgen(int num, stepgen_t * addr, /* int step_type, */
 			  int pos_mode)
 {
     int retval, msg;
@@ -2462,15 +2465,15 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     if (retval != 0) {
         return retval;
     }
-    if (step_type < 2) {
-	/* step/dir and up/down use 'stepspace' */
-	retval = hal_param_u32_newf(HAL_RW, &(addr->step_space),
-				    comp_id, "wou.stepgen.%d.stepspace",
-				    num);
-	if (retval != 0) {
-	    return retval;
-	}
-    }
+    //obsolete: if (step_type < 2) {
+    //obsolete:     /* step/dir and up/down use 'stepspace' */
+    //obsolete:     retval = hal_param_u32_newf(HAL_RW, &(addr->step_space),
+    //obsolete:     			    comp_id, "wou.stepgen.%d.stepspace",
+    //obsolete:     			    num);
+    //obsolete:     if (retval != 0) {
+    //obsolete:         return retval;
+    //obsolete:     }
+    //obsolete: }
 
     /* export pin for control type switch (for vel control only) */
     retval = hal_pin_bit_newf(HAL_IN, &(addr->ctrl_type_switch), comp_id,
@@ -2492,15 +2495,15 @@ static int export_stepgen(int num, stepgen_t * addr, int step_type,
     addr->freq = 0.0;
     addr->maxvel = 0.0;
     addr->maxaccel = 0.0;
-    addr->step_type = step_type;
+    //obsolete: addr->step_type = step_type;
     addr->pos_mode = pos_mode;
     /* timing parameter defaults depend on step type */
     addr->step_len = 1;
-    if (step_type < 2) {
-	addr->step_space = 1;
-    } else {
-	addr->step_space = 0;
-    }
+    //obsolete: if (step_type < 2) {
+    //obsolete:     addr->step_space = 1;
+    //obsolete: } else {
+    //obsolete:     addr->step_space = 0;
+    //obsolete: }
     //obsolete: if (step_type == 0) {
     //obsolete:     addr->dir_hold_dly = 1;
     //obsolete:     addr->dir_setup = 1;
