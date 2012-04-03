@@ -271,17 +271,18 @@ int tpSetPos(TP_STRUCT * tp, EmcPose pos)
     return 0;
 }
 
-int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
-        double acc, unsigned char enables) 
+int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, 
+                  double ini_maxvel, double acc, 
+                  double jerk, unsigned char enables) 
 {
     TC_STRUCT tc;
     PmLine line_xyz;
     PmPose start_xyz, end_xyz;
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
-    rtapi_print_msg(RTAPI_MSG_ERR, "TODO: new CSS implementation breaks Rigid-Tapping\n");
-    assert(0);
+    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
+    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR, "TODO: new CSS implementation breaks Rigid-Tapping\n");
+    //obsolete: assert(0);
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -314,17 +315,22 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
 
     // allow 10 turns of the spindle to stop - we don't want to just go on forever
     tc.target = line_xyz.tmag + 10. * tp->uu_per_rev;
+    
+    DP("tpAddRigidTap(): jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+        jerk, vel, acc, ini_maxvel);
+    DP("tpAddRigidTap(): reversal_target(%f) target(%f) uu_per_rev(%f)\n", 
+        tc.coords.rigidtap.reversal_target,
+        tc.target, tp->uu_per_rev);
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
     tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
-    tc.maxaccel = acc;
-    DP("TODO: fix tc.jerk\n");
-    assert(0);
+    tc.maxvel = ini_maxvel * tp->cycleTime;
+    tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
+    tc.jerk = jerk * tp->cycleTime * tp->cycleTime * tp->cycleTime;
     tc.feed_override = 0.0;
-    tc.maxvel = ini_maxvel;
     tc.id = tp->nextId;
     tc.active = 0;
     tc.atspeed = 1;
@@ -387,7 +393,10 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, double ini_maxvel,
 // of the previous move to the new end specified here at the
 // currently-active accel and vel settings from the tp struct.
 // EMC_MOTION_TYPE_FEED
-int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk, unsigned char enables, char atspeed, int indexrotary)
+int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, 
+              double ini_maxvel, double acc, 
+              double ini_maxjerk, unsigned char enables, 
+              char atspeed, int indexrotary)
 {
     TC_STRUCT tc;
     PmLine line_xyz, line_uvw, line_abc;
@@ -1619,10 +1628,10 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 tc->coords.rigidtap.reversal_target = aux->tmag;
                 tc->target = aux->tmag + 10. * tc->uu_per_rev;
                 tc->progress = 0.0;
+                tc->css_progress_cmd = 0;
 
                 tc->coords.rigidtap.state = RETRACTION;
             }
-            old_spindlepos = new_spindlepos;
             break;
         case RETRACTION:
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
@@ -1644,12 +1653,13 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
                 tc->coords.rigidtap.state = FINAL_PLACEMENT;
             }
-            old_spindlepos = new_spindlepos;
+            // old_spindlepos = new_spindlepos;
             break;
         case FINAL_PLACEMENT:
             // this is a regular move now, it'll stop at target above.
             break;
         }
+        old_spindlepos = new_spindlepos;
     }
 
 
@@ -1683,6 +1693,15 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
         if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
         revs = new_spindlepos;
+
+        if(tc->motion_type == TC_RIGIDTAP && 
+           (tc->coords.rigidtap.state == RETRACTION || 
+            tc->coords.rigidtap.state == FINAL_REVERSAL))
+            revs = tc->coords.rigidtap.spindlerevs_at_reversal - new_spindlepos;
+        else
+            revs = new_spindlepos;
+
+         // DPS("pos_error(%f) sync_accel(%d)\n", pos_error, tc->sync_accel);
         
         // feed-forward reqvel calculation for CSS motion
         css_progress_cmd = (revs - spindleoffset) * tc->uu_per_rev;
@@ -1696,6 +1715,9 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
         tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
         tc->css_progress_cmd = css_progress_cmd;
+        
+        DPS("revs(%f) tc_progress(%f) reqvel(%f) css_progress_cmd(%f)\n",
+             revs, tc->progress, tc->reqvel, css_progress_cmd);
         
 //        double pos_error;
 //        double oldrevs = revs;

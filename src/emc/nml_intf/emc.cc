@@ -2856,6 +2856,7 @@ void EMC_TRAJ_RIGID_TAP::update(CMS * cms)
     cms->update(vel);
     cms->update(ini_maxvel);
     cms->update(acc);
+    cms->update(ini_maxjerk);
 
 }
 
