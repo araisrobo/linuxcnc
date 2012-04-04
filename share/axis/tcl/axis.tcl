@@ -436,23 +436,23 @@ setup_menu_accel .menu.help end [_ "Quick _Reference"]
 # ----------------------------------------------------------------------
 .menu add cascade \
 	-menu .menu.file
-setup_menu_accel .menu end [_ File]
-# disable hotkeys:  setup_menu_accel .menu end [_ _File]
+setup_menu_accel .menu end [_ _File]
+# disable hotkeys: setup_menu_accel .menu end [_ File]
 
 .menu add cascade \
 	-menu .menu.machine
-setup_menu_accel .menu end [_ Machine]
-# disable hotkeys: setup_menu_accel .menu end [_ _Machine]
+setup_menu_accel .menu end [_ _Machine]
+# disable hotkeys: setup_menu_accel .menu end [_ Machine]
 
 .menu add cascade \
 	-menu .menu.view
-setup_menu_accel .menu end [_ View]
-# disable hotkeys: setup_menu_accel .menu end [_ _View]
+setup_menu_accel .menu end [_ _View]
+# disable hotkeys: setup_menu_accel .menu end [_ View]
 
 .menu add cascade \
 	-menu .menu.help
-setup_menu_accel .menu end [_ Help]
-# disable hotkeys: setup_menu_accel .menu end [_ _Help]
+setup_menu_accel .menu end [_ _Help]
+# disable hotkeys: setup_menu_accel .menu end [_ Help]
 
 frame .toolbar \
 	-borderwidth 1 \
@@ -2023,10 +2023,10 @@ proc update_state {args} {
     if {$::task_state == $::STATE_ON && $::interp_state == $::INTERP_IDLE &&
         ($::motion_mode != $::TRAJ_MODE_FREE
             || $::kinematics_type == $::KINEMATICS_IDENTITY)} {
-        # $::_tabs_manual.jogf.zerohome.zero configure -state normal
+        $::_tabs_manual.jogf.zerohome.zero configure -state normal
         # the "Touch Off" button is too close to "Home All";
         # always disable this botton for Cabot
-        $::_tabs_manual.jogf.zerohome.zero configure -state disabled
+        # $::_tabs_manual.jogf.zerohome.zero configure -state disabled
     } else {
         $::_tabs_manual.jogf.zerohome.zero configure -state disabled
     }
