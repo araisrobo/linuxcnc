@@ -1650,6 +1650,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 tc->progress = 0.0;
                 tc->synchronized = 0;
                 tc->reqvel = tc->maxvel;
+                tc->css_progress_cmd = 0;
 
                 tc->coords.rigidtap.state = FINAL_PLACEMENT;
             }
@@ -1683,8 +1684,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
 
     if(tc->synchronized) {
-        // NOTE: TC_RIGIDTAP is broken 
-        // for CSS motion only
+        // for CSS and TC_RIGIDTAP
         double css_progress_cmd;
         double pos_error;
         double new_spindlepos = emcmotStatus->spindleRevs;
@@ -1701,8 +1701,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         else
             revs = new_spindlepos;
 
-         // DPS("pos_error(%f) sync_accel(%d)\n", pos_error, tc->sync_accel);
-        
         // feed-forward reqvel calculation for CSS motion
         css_progress_cmd = (revs - spindleoffset) * tc->uu_per_rev;
         
