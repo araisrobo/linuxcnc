@@ -27,7 +27,7 @@
 
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -510,7 +510,21 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
+
     //    DP("tp->nextId(%d)\n", tp->nextId);
+    DP("line_xyz:\n");
+    DPS("\tuVec: x(%f) y(%f) z(%f)\n",
+        line_xyz.uVec.x,
+        line_xyz.uVec.y,
+        line_xyz.uVec.z);
+    DPS("\tqVec: s(%f) x(%f) y(%f) z(%f)\n",
+        line_xyz.qVec.s,
+        line_xyz.qVec.x,
+        line_xyz.qVec.y,
+        line_xyz.qVec.z);
+    DPS("\ttmag(%f) rmag(%f)\n",
+        line_xyz.tmag, 
+        line_xyz.rmag);
 
     return 0;
 }
@@ -536,6 +550,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     double helix_z_component; // z of the helix's cylindrical coord system
     double helix_length;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
+    PmCartesian tmp;
 
     //    fprintf(stderr,"tpAddCircle(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
     //                ini_maxjerk, vel, acc, ini_maxvel);
@@ -635,7 +650,42 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
     //    DP("tp->nextId(%d)\n", tp->nextId);
-
+    
+    DP("circle:\n");
+    DPS("\tcenter: x(%f) y(%f) z(%f)\n",
+        circle.center.x,
+        circle.center.y,
+        circle.center.z);
+    DPS("\tnormal: x(%f) y(%f) z(%f)\n",
+        circle.normal.x,
+        circle.normal.y,
+        circle.normal.z);
+    DPS("\trTan: x(%f) y(%f) z(%f)\n",
+        circle.rTan.x,
+        circle.rTan.y,
+        circle.rTan.z);
+    DPS("\trPerp: x(%f) y(%f) z(%f)\n",
+        circle.rPerp.x,
+        circle.rPerp.y,
+        circle.rPerp.z);
+    DPS("\trHelix: x(%f) y(%f) z(%f)\n",
+        circle.rHelix.x,
+        circle.rHelix.y,
+        circle.rHelix.z);
+    DPS("\tradius(%f) angle(%f) spiral(%f)\n",
+        circle.radius, 
+        circle.angle, 
+        circle.spiral);
+    // utvIn: unit tangent vector (Inward)
+    DPS("\tutvIn: x(%f) y(%f) z(%f)\n",
+        circle.utvIn.x,
+        circle.utvIn.y,
+        circle.utvIn.z);
+    // utvOut: unit tangent vector (Outward)
+    DPS("\tutvOut: x(%f) y(%f) z(%f)\n",
+        circle.utvOut.x,
+        circle.utvOut.y,
+        circle.utvOut.z);
     return 0;
 }
 
