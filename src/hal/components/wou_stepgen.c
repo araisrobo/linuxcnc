@@ -403,8 +403,8 @@ typedef struct {
     /* motion type be set */
     int32_t motion_type;          /* motion type wrote to risc */
     
-    hal_s32_t     *cmd_fbs;       /* position command risc received totally (unit: pulse) */
-    hal_float_t   *cmd_fbf;       /* position command risc received totally (cmd_fbs divided by scale) */
+    hal_s32_t     *cmd_fbs;       /* position command retained by RISC (unit: pulse) */
+    hal_float_t   *cmd_fbf;       /* position command retained by RISC (cmd_fbs divided by scale) */
 
 } stepgen_t;
 
