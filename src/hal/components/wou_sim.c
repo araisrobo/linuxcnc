@@ -411,7 +411,9 @@ typedef struct {
     int32_t motion_type;          /* motion type wrote to risc */
     
     /* debug info */
-    hal_s32_t   *joint_cmd;       /* increased pulse counts of this BP */
+    // hal_s32_t   *joint_cmd;       /* increased pulse counts of this BP */
+    hal_s32_t   *cmd_fbs;       /* increased pulse counts of this BP */
+    hal_float_t   *cmd_fbf;       /* increased pulse counts of this BP */
 
 } stepgen_t;
 
@@ -643,32 +645,13 @@ static void fetchmail(const uint8_t *buf_head)
                 *(machine_control->ferror[i]) = (int32_t)*p;
                 // joint_cmd of this BP
                 p += 1;
-                *(stepgen->joint_cmd) = ((int32_t)*p);
+//                *(stepgen->joint_cmd) = ((int32_t)*p);
+                *(stepgen->cmd_fbs) = ((int32_t)*p);
+                *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
+
 
                 stepgen += 1;   // point to next joint
-            } else {
-                // PULSE_POS
-                p += 1;
-//                *(stepgen->pulse_pos) = *p;
-//                *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
-                *(machine_control->pulse_count[i]) = *p;
-                // enc counter
-                p += 1;
-//                *(stepgen->enc_pos) = *p;
-                *(machine_control->encoder_count[i]) = *p;
-                // pid output
-                p +=1;
-                // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
-//                *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
-                // cmd error
-                p += 1;
-                // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-//                *(stepgen->cmd_error) = ((int32_t)*p)*(1.0);
-                *(machine_control->ferror[i]) = (int32_t)*p;
-                // joint_cmd of this BP
-                p += 1;
-//                *(stepgen->joint_cmd) = ((int32_t)*p);
-            }
+            } 
             
         }
 
@@ -2334,12 +2317,21 @@ static int export_stepgen(int num, stepgen_t * addr, /* int step_type, */
     rtapi_set_msg_level(RTAPI_MSG_ALL);
     
     /* debug info */
-    retval = hal_pin_s32_newf(HAL_OUT, &(addr->joint_cmd), comp_id,
-			      "wou.stepgen.%d.joint_cmd", num);
+    // obsolete: retval = hal_pin_s32_newf(HAL_OUT, &(addr->joint_cmd), comp_id,
+    // obsolete:     		      "wou.stepgen.%d.joint_cmd", num);
+    // obsolete: if (retval != 0) {
+    // obsolete:     return retval;
+    // obsolete: }
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->cmd_fbs), comp_id,
+			      "wou.stepgen.%d.cmd-fbs", num);
     if (retval != 0) {
 	return retval;
     }
-
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_fbf), comp_id,
+			      "wou.stepgen.%d.cmd-fbf", num);
+    if (retval != 0) {
+	return retval;
+    }
     /* export pin for counts captured by wou_update() */
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_pos), comp_id,
 			      "wou.stepgen.%d.pulse_pos", num);
