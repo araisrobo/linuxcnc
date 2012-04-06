@@ -427,6 +427,7 @@ typedef struct {
     hal_float_t *current_vel;
     hal_float_t *requested_vel;
     hal_float_t *feed_scale;
+    hal_bit_t   *vel_sync;  /* A pin to determine when (vel * feedscale) beyond (req_vel * vel_sync_scale) */
     hal_bit_t   *rt_abort;  // realtime abort to FPGA
     hal_bit_t   *cl_abort;  // realtime abort from CL to FPGA
     /* plasma control */
@@ -2133,17 +2134,16 @@ static void update_freq(void *arg, long period)
         (*(machine_control->requested_vel)) <
             *machine_control->current_vel) {
         sync_cmd = SYNC_VEL | 0x0001;
+        *machine_control->vel_sync = 1;
     } else {
         sync_cmd = SYNC_VEL;
+        *machine_control->vel_sync = 0;
     }
     if (sync_cmd != machine_control->prev_vel_sync) {
-//        if (sync_cmd == SYNC_VEL && *machine_control->motion_state == ACCEL_S3 &&
-//                *machine_control->requested_vel != 0.0) {
-//        }
         memcpy(data, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                     sizeof(uint16_t), data);
-        fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
+        // debug: fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
     }
     machine_control->prev_vel_sync = sync_cmd;
 //   if (*machine_control->motion_state != machine_control->prev_motion_state) {
@@ -2465,6 +2465,13 @@ static int export_machine_control(machine_control_t * machine_control)
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_WARN);
+
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->vel_sync), comp_id,
+                              "wou.motion.vel-sync");
+    if (retval != 0) {
+        return retval;
+    }
 
     retval = hal_pin_float_newf(HAL_IN, &(machine_control->vel_sync_scale), comp_id,
                              "wou.motion.vel-sync-scale");
