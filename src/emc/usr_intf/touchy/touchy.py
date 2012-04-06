@@ -389,7 +389,7 @@ class touchy:
                         "on_estop_reset_clicked" : self.emc.estop_reset,
                         "on_machine_off_clicked" : self.emc.machine_off,
                         "on_machine_on_clicked" : self.emc.machine_on,
-                        "on_power_off_clicked" : self.power_off,
+#                        "on_power_off_clicked" : self.power_off,
                         "on_mdi_clear_clicked" : self.mdi_control.clear,
                         "on_mdi_back_clicked" : self.mdi_control.back,
                         "on_mdi_next_clicked" : self.mdi_control.next,
@@ -936,35 +936,35 @@ class touchy:
 		inifile=self.emc.emc.ini(sys.argv[2])
 		postgui_halfile = inifile.find("HAL", "POSTGUI_HALFILE")
 		return postgui_halfile,sys.argv[2]
-        def power_off(self, w):
-            # quit()
-            label = gtk.Label("Click OK to Power off machine \nand quit program \nIt may take 5 seconds.")
-            dialog = gtk.Dialog("POWER OFF MACHINE",
-                               None,
-                               gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-                               (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-                                gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
-            dialog.vbox.pack_start(label)
-            label.show()
-            response = dialog.run()
-            if response == gtk.RESPONSE_ACCEPT:
-                count = 5 
-                self.emc.machine_off(w)
-                s = emc.stat()
-                s.poll()
-                while emc.stat.task_state == emc.STATE_ON:
-                    s.poll()
-                while count > 0:
-                    time.sleep(1.0) # to make sure power off command sent
-                    count = count - 1
-
-                dialog.destroy()
-                w = self.wTree.get_object("MainWindow").window
-                #w = self.wTree.get_widget("MainWindow").window
-#                w.destroy()
-                gtk.main_quit() 
-            else:
-                dialog.destroy()
+#         def power_off(self, w):
+#             # quit()
+#             label = gtk.Label("Click OK to Power off machine \nand quit program \nIt may take 5 seconds.")
+#             dialog = gtk.Dialog("POWER OFF MACHINE",
+#                                None,
+#                                gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+#                                (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+#                                 gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+#             dialog.vbox.pack_start(label)
+#             label.show()
+#             response = dialog.run()
+#             if response == gtk.RESPONSE_ACCEPT:
+#                 count = 5 
+#                 self.emc.machine_off(w)
+#                 s = emc.stat()
+#                 s.poll()
+#                 while emc.stat.task_state == emc.STATE_ON:
+#                     s.poll()
+#                 while count > 0:
+#                     time.sleep(1.0) # to make sure power off command sent
+#                     count = count - 1
+# 
+#                 dialog.destroy()
+#                 w = self.wTree.get_object("MainWindow").window
+#                 #w = self.wTree.get_widget("MainWindow").window
+# #                w.destroy()
+#                 gtk.main_quit() 
+#             else:
+#                 dialog.destroy()
 
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
