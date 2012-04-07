@@ -25,9 +25,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// #undef SMLBLND       // turn off seamless blending
+#define SMLBLND         // to evaluate seamless blending
+
 #define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -324,7 +327,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
-    tc.distance_to_go = tc.target;
+    //obsolete: tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -350,6 +353,8 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.canon_motion_type = 0;
     tc.blend_with_next = 0;
     tc.tolerance = tp->tolerance;
+    tc.seamless_blend_mode = SMLBLND_DISABLE;
+    tc.nexttc_target = 0;
 
     if (!tp->synchronized) {
         rtapi_print_msg(RTAPI_MSG_ERR,
@@ -459,7 +464,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
-    tc.distance_to_go = tc.target;
+    //obsolete: tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -484,6 +489,8 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.canon_motion_type = type;
     tc.blend_with_next = tp->termCond == TC_TERM_COND_BLEND;
     tc.tolerance = tp->tolerance;
+    tc.seamless_blend_mode = SMLBLND_INIT;
+    tc.nexttc_target = 0;
 
     tc.synchronized = tp->synchronized;
     tc.velocity_mode = tp->velocity_mode;
@@ -499,7 +506,10 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
-
+    
+    tc.utvIn = line_xyz.uVec;
+    tc.utvOut = line_xyz.uVec;
+    
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -550,7 +560,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     double helix_z_component; // z of the helix's cylindrical coord system
     double helix_length;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    PmCartesian tmp;
+    // PmCartesian tmp;
 
     //    fprintf(stderr,"tpAddCircle(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
     //                ini_maxjerk, vel, acc, ini_maxvel);
@@ -600,7 +610,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.target = helix_length;
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
-    tc.distance_to_go = tc.target;
+    //obsolete: tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -625,6 +635,8 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.canon_motion_type = type;
     tc.blend_with_next = tp->termCond == TC_TERM_COND_BLEND;
     tc.tolerance = tp->tolerance;
+    tc.seamless_blend_mode = SMLBLND_INIT;
+    tc.nexttc_target = 0;
 
     tc.synchronized = tp->synchronized;
     tc.velocity_mode = tp->velocity_mode;
@@ -640,6 +652,9 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
         tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
+
+    tc.utvIn = circle.utvIn;
+    tc.utvOut = circle.utvOut;
     
     if (tcqPut(&tp->queue, tc) == -1) {
         return -1;
@@ -787,7 +802,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 
         tc.progress = 0.0;
         tc.accel_state = ACCEL_S3;
-        tc.distance_to_go = tc.target;
+        //obsolete: tc.distance_to_go = tc.target;
         // tc.accel_time = 0.0;
         tc.reqvel = nurbs_to_tc->ctrl_pts_ptr[0].F;// the first feedrate for first cp for reqvel//vel;
         tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -811,6 +826,8 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.canon_motion_type = type;
         tc.blend_with_next = tp->termCond == TC_TERM_COND_BLEND;
         tc.tolerance = tp->tolerance;
+        tc.seamless_blend_mode = SMLBLND_INIT;
+        tc.nexttc_target = 0;
 
         tc.synchronized = tp->synchronized;
         tc.velocity_mode = tp->velocity_mode;
@@ -825,6 +842,9 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
             tc.syncdio.anychanged = 0;
             tc.syncdio.sync_input_triggered = 0;
         }
+    
+        //TODO: tc.utvIn = nurbs...;
+        //TODO: tc.utvOut = nurbs...;
         
         if (tcqPut(&tp->queue, tc) == -1) {
             rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
@@ -902,8 +922,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
     // double , accel_vel, t, t1, t2, decel_dist, a, v1, prog;
     double t, t1, vel, v1, dist, req_vel;
     int immediate_state;
+    double tc_target;
     
     if(!tc->blending) tc->vel_at_blend_start = tc->cur_vel;
+
+    if(tc->seamless_blend_mode == SMLBLND_ENABLE) {
+        tc_target = tc->target + tc->nexttc_target;
+    } else {
+        tc_target = tc->target;
+    }
 
     immediate_state = 0;
     do {
@@ -982,7 +1009,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 dist += t * vel;    // dist of (S4 + S6)
             }
 
-            if (tc->target < dist) {
+            if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
                 SP(" Leave S0 due to progress limit\n");
                 EXIT_STATE(s0);
@@ -1045,7 +1072,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 dist += t * vel;    // dist of (S4 + S6)
             }
 
-            if (tc->target < dist) {
+            if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
                 SP(" Leave S0 due to progress limit\n");
                 EXIT_STATE(s0);
@@ -1120,7 +1147,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 dist += t * vel;    // dist of (S4 + S6)
             }
 
-            if (tc->target < dist) {
+            if (tc_target < dist) {
                 tc->accel_state = ACCEL_S3;
                 DP(" Leave S2 due to progress limit\n");
                 break;
@@ -1172,8 +1199,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 dist = tc->progress + t * vel;    // dist of (S4 + S6)
             }
             tc->on_final_decel = 0;
-            if (tc->target < (dist - vel)) {    // vel: compensate for 1 more S3
-            // if (tc->target < dist) 
+            if (tc_target < (dist - vel)) {    // vel: compensate for 1 more S3
+            // if (tc_target < dist) 
                 tc->accel_state = ACCEL_S4;
                 tc->on_final_decel = 1;
                 DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
@@ -1242,7 +1269,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
                 //                 + 1.0 / 6.0 * jerk * t * t * t - target;
                 dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                       + 1.0 / 6 * tc->jerk * t * t * t - tc->target;
+                       + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
 #endif
                 // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
 
@@ -1303,7 +1330,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
                 //                 + 1.0 / 6.0 * jerk * t * t * t - target;
                 dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                       + 1.0 / 6 * tc->jerk * t * t * t - tc->target;
+                       + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
 #endif
                 DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
 
@@ -1380,25 +1407,27 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             assert(0);
         } // switch (tc->accel_state)
     } while (immediate_state);
-            
-    if (tc->progress > tc->target) {
-        // finished
-        DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
-        tc->progress = tc->target;
-        tc->cur_accel = 0;
-        tc->cur_vel = 0;
+    
+    if (tc->seamless_blend_mode != SMLBLND_ENABLE) {
+        if (tc->progress > tc->target) {
+            // finished
+            DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
+            tc->progress = tc->target;
+            tc->cur_accel = 0;
+            tc->cur_vel = 0;
+        }
     }
 
-    tc->motion_progress = tc->progress;
+    //obsolete: tc->motion_progress = tc->progress;
     // assert (tc->progress <= tc->target);
     assert (tc->cur_vel >= 0);
 
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
         _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time, 
         tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
-        tc->distance_to_go, tc->tolerance);
-    tc->distance_to_go = tc->target - tc->progress;
-    tc->motion_distance_to_go = tc->motion_target - tc->motion_progress;
+        (tc->target - tc->progress), tc->tolerance);
+    //obsolete: tc->distance_to_go = tc->target - tc->progress;
+    //obsolete: tc->motion_distance_to_go = tc->motion_target - tc->motion_progress;
     if (v)
         *v = tc->cur_vel;
 }
@@ -1517,10 +1546,11 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     // now we have the active tc.  get the upcoming one, if there is one.
     // it's not an error if there isn't another one - we just don't
     // do blending.  This happens in MDI for instance.
-    if(!emcmotDebug->stepping && tc->blend_with_next) 
+    if(!emcmotDebug->stepping && tc->blend_with_next) {
         nexttc = tcqItem(&tp->queue, 1, period);
-    else
+    } else {
         nexttc = NULL;
+    }
 
     {
         int this_synch_pos = tc->synchronized && !tc->velocity_mode;
@@ -1620,10 +1650,13 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tp->motionType = tc->canon_motion_type;
         tc->blending = 0;
 
+        // ysli: what if the maxaccel has already divided by 2 at previous
+        //       nexttc checking?
+        //       line-1740: nexttc->maxaccel /= 2.0;
         // honor accel constraint in case we happen to make an acute angle
         // with the next segment.
-        if (tc->blend_with_next)
-            tc->maxaccel /= 2.0;
+        //necessary? if (tc->blend_with_next)
+        //necessary?     tc->maxaccel /= 2.0;
 
         if (tc->synchronized) {
             if (!tc->velocity_mode && !emcmotStatus->spindleSync) {
@@ -1725,10 +1758,10 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         nexttc->active = 1;
         nexttc->blending = 0;
 
-        // honor accel constraint if we happen to make an acute angle with the
-        // above segment or the following one
-        if(tc->blend_with_next || nexttc->blend_with_next)
-            nexttc->maxaccel /= 2.0;
+        //necessary? // honor accel constraint if we happen to make an acute angle with the
+        //necessary? // above segment or the following one
+        //necessary? if(tc->blend_with_next || nexttc->blend_with_next)
+        //necessary?     nexttc->maxaccel /= 2.0;
     }
 
 
@@ -1927,11 +1960,111 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 if(tblend_vel < tc->blend_vel)
                     tc->blend_vel = tblend_vel;
             }
+        } 
+
+#ifdef SMLBLND
+        /**
+         * TODO: 
+         * G64 Q[01] seamless blending:
+         * where Q1 means "enable seamless blending";
+         *       Q0 means "disable seamless blending"
+         **/
+        if (tc->seamless_blend_mode == SMLBLND_INIT) {
+            double dot;
+            double k;   /* curvature */
+            double ca;  /* centripetal acceleration */
+            double rv;  /* request velocity per cycleTime */
+            rv = tc->reqvel * tp->cycleTime;
+            if (rv > tc->maxvel) {
+                rv = tc->maxvel;
+            }
+            // pmCartCartDisp(tc->utvOut, nexttc->utvIn, &k);
+            pmCartCartDot(tc->utvOut, nexttc->utvIn, &dot);
+            k = acos(dot)/rv;
+            ca = k * rv * rv;
+            if (ca < tc->maxaccel) {
+                // allow seamless blending, SMLBLND
+                // also, (nexttc->atspeed == 0)
+                tc->seamless_blend_mode = SMLBLND_ENABLE;
+                tc->nexttc_target = nexttc->target;
+            } else {
+                tc->seamless_blend_mode = SMLBLND_DISABLE;
+            }
+            DPS("tc->utvOut: x(%f) y(%f) z(%f)\n",
+                tc->utvOut.x,
+                tc->utvOut.y,
+                tc->utvOut.z);
+            DPS("nexttc->utvIn: x(%f) y(%f) z(%f)\n",
+                nexttc->utvIn.x,
+                nexttc->utvIn.y,
+                nexttc->utvIn.z);
+            DPS("k(%f) rv(%f) ca(%f) tc.maxaccel(%f) tc.jerk(%f)\n",
+                 k,
+                 rv * 1000000,
+                 ca * 1000000,
+                 tc->maxaccel * 1000000,
+                 tc->jerk * 1000000);
         }
+#endif // SMLBLND
     }
+        
 
     primary_before = tcGetPos(tc);
     tcRunCycle(tp, tc, &primary_vel/*, &on_final_decel*/);
+
+#ifdef SMLBLND
+    if ((tc->seamless_blend_mode == SMLBLND_ENABLE) && 
+        (tc->progress >= tc->target)) {
+        // update tc with nexttc
+        double next_vel;
+        double next_accel;
+        enum state_type next_accel_state;
+        double next_progress;
+
+        next_vel = tc->cur_vel;
+        next_accel = tc->cur_accel;
+        next_accel_state = tc->accel_state;
+        next_progress = tc->progress - tc->target;
+
+        // if we're synced, and this move is ending, save the
+        // spindle position so the next synced move can be in
+        // the right place.
+        if (tc->synchronized)
+            spindleoffset += tc->target / tc->uu_per_rev;
+        else
+            spindleoffset = 0.0;
+        
+        //unsure with the indexrotary checking
+        //unsure with the indexrotary checking
+        //unsure: if(tc->indexrotary != -1) {
+        //unsure:     // this was an indexing move, so before we remove it we must
+        //unsure:     // relock the axis
+        //unsure:     tpSetRotaryUnlock(tc->indexrotary, 0);
+        //unsure:     // if it is now locked, fall through and remove the finished move.
+        //unsure:     // otherwise, just come back later and check again
+        //unsure:     if(tpGetRotaryIsUnlocked(tc->indexrotary))
+        //unsure:         return 0;
+        //unsure: }
+
+        // done with this move
+        tcqRemove(&tp->queue, 1);
+
+        // so get next move
+        tc = tcqItem(&tp->queue, 0, period);
+        
+        assert(tc); // there must be nexttc in the tcq
+        assert(tc->atspeed == 0);
+        tc->active = 1;
+        tc->cur_vel = next_vel;
+        tc->cur_accel = next_accel;
+        tc->accel_state = next_accel_state;
+        tc->progress = next_progress;
+        tp->depth = tp->activeDepth = 1;
+        tp->motionType = tc->canon_motion_type;
+        tc->blending = 0;
+    }
+#endif // SMLBLND
+
     primary_after = tcGetPos(tc);
     pmCartCartSub(primary_after.tran, primary_before.tran, 
             &primary_displacement.tran);
@@ -1946,8 +2079,11 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     emcmotStatus->motionState = tc->accel_state;
         
     // blend criteria
-    if((tc->blending && nexttc) || 
-            (nexttc && tc->on_final_decel && (primary_vel < tc->blend_vel))) {
+    if( (tc->blending && nexttc) || 
+        (nexttc && 
+         (tc->seamless_blend_mode == SMLBLND_DISABLE) &&
+         tc->on_final_decel && 
+         (primary_vel < tc->blend_vel))) {
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)
         tc->blending = 1;

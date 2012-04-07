@@ -80,15 +80,21 @@ enum state_type {
   ACCEL_S6      // 6
 };
 
+enum smlblnd_type {
+  SMLBLND_INIT = 0, // 0
+  SMLBLND_ENABLE,   // 1
+  SMLBLND_DISABLE   // 2
+};
+
 typedef struct {
     double cycle_time;
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
-    double distance_to_go;  // distance to go for target target..0
     int    on_final_decel;
-    double motion_progress;
-    double motion_target;
-    double motion_distance_to_go;
+    //obsolete: double distance_to_go;  // distance to go for target target..0
+    //obsolete: double motion_progress;
+    //obsolete: double motion_target;
+    //obsolete: double motion_distance_to_go;
     int    motion_param_set;
     double ori_reqvel;      // track of original reqvel in this tc
     double ori_feed_override; // track of original feed override
@@ -103,8 +109,8 @@ typedef struct {
     double decel_dist;      // distance to start deceleration
     double accel_time;      // keep track of acceleration time
     double vel_from;        // track velocity before speed change
-    double rt_jerk;
-    double rt_maxaccel;
+    //obsolete: double rt_jerk;
+    //obsolete: double rt_maxaccel;
     double target_vel;
     double dist_comp;
     int    on_feed_change;
@@ -112,6 +118,8 @@ typedef struct {
     nurbs_block_t nurbs_block; // nurbs command block
     double *N;                  // nurbs basis function buffer
     enum state_type accel_state;
+    enum smlblnd_type seamless_blend_mode;
+    double nexttc_target;
     
     int id;                 // segment's serial number
 
@@ -144,6 +152,9 @@ typedef struct {
     char atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
     int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
+
+    PmCartesian utvIn;      // unit tangent vector inward
+    PmCartesian utvOut;     // unit tangent vector outward
 } TC_STRUCT;
 
 /* TC_STRUCT functions */
