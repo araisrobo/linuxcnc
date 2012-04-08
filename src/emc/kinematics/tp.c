@@ -66,7 +66,7 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
         dptrace = fopen("tp.log", "w");
         /* prepare header for gnuplot */
         DPS ("%11s%6s%15s%15s%15s%15s%15s%15s%15s\n",
-                "#dt", "state", "req_vel", "cur_accel", "cur_vel", "progress%", "target", "dist_to_go", "tolerance");
+                "#dt", "state", "req_vel", "cur_accel", "cur_vel", "progress%", "target", "dist_to_go", "tc_target");
         _dt = 0;
     }
     // _dt += 1;
@@ -409,8 +409,8 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     PmPose start_uvw, end_uvw;
     PmPose start_abc, end_abc;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    DP("tpAddline(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
-        ini_maxjerk, vel, acc, ini_maxvel);
+    //debug: DP("tpAddline(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+    //debug:     ini_maxjerk, vel, acc, ini_maxvel);
     if (ini_maxjerk == 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
         assert(ini_maxjerk > 0);
@@ -521,20 +521,20 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
 
-    //    DP("tp->nextId(%d)\n", tp->nextId);
-    DP("line_xyz:\n");
-    DPS("\tuVec: x(%f) y(%f) z(%f)\n",
-        line_xyz.uVec.x,
-        line_xyz.uVec.y,
-        line_xyz.uVec.z);
-    DPS("\tqVec: s(%f) x(%f) y(%f) z(%f)\n",
-        line_xyz.qVec.s,
-        line_xyz.qVec.x,
-        line_xyz.qVec.y,
-        line_xyz.qVec.z);
-    DPS("\ttmag(%f) rmag(%f)\n",
-        line_xyz.tmag, 
-        line_xyz.rmag);
+    //debug: DP("tp->nextId(%d)\n", tp->nextId);
+    //debug: DP("line_xyz:\n");
+    //debug: DPS("\tuVec: x(%f) y(%f) z(%f)\n",
+    //debug:     line_xyz.uVec.x,
+    //debug:     line_xyz.uVec.y,
+    //debug:     line_xyz.uVec.z);
+    //debug: DPS("\tqVec: s(%f) x(%f) y(%f) z(%f)\n",
+    //debug:     line_xyz.qVec.s,
+    //debug:     line_xyz.qVec.x,
+    //debug:     line_xyz.qVec.y,
+    //debug:     line_xyz.qVec.z);
+    //debug: DPS("\ttmag(%f) rmag(%f)\n",
+    //debug:     line_xyz.tmag, 
+    //debug:     line_xyz.rmag);
 
     return 0;
 }
@@ -666,41 +666,41 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tp->nextId++;
     //    DP("tp->nextId(%d)\n", tp->nextId);
     
-    DP("circle:\n");
-    DPS("\tcenter: x(%f) y(%f) z(%f)\n",
-        circle.center.x,
-        circle.center.y,
-        circle.center.z);
-    DPS("\tnormal: x(%f) y(%f) z(%f)\n",
-        circle.normal.x,
-        circle.normal.y,
-        circle.normal.z);
-    DPS("\trTan: x(%f) y(%f) z(%f)\n",
-        circle.rTan.x,
-        circle.rTan.y,
-        circle.rTan.z);
-    DPS("\trPerp: x(%f) y(%f) z(%f)\n",
-        circle.rPerp.x,
-        circle.rPerp.y,
-        circle.rPerp.z);
-    DPS("\trHelix: x(%f) y(%f) z(%f)\n",
-        circle.rHelix.x,
-        circle.rHelix.y,
-        circle.rHelix.z);
-    DPS("\tradius(%f) angle(%f) spiral(%f)\n",
-        circle.radius, 
-        circle.angle, 
-        circle.spiral);
-    // utvIn: unit tangent vector (Inward)
-    DPS("\tutvIn: x(%f) y(%f) z(%f)\n",
-        circle.utvIn.x,
-        circle.utvIn.y,
-        circle.utvIn.z);
-    // utvOut: unit tangent vector (Outward)
-    DPS("\tutvOut: x(%f) y(%f) z(%f)\n",
-        circle.utvOut.x,
-        circle.utvOut.y,
-        circle.utvOut.z);
+    //debug: DP("circle:\n");
+    //debug: DPS("\tcenter: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.center.x,
+    //debug:     circle.center.y,
+    //debug:     circle.center.z);
+    //debug: DPS("\tnormal: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.normal.x,
+    //debug:     circle.normal.y,
+    //debug:     circle.normal.z);
+    //debug: DPS("\trTan: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.rTan.x,
+    //debug:     circle.rTan.y,
+    //debug:     circle.rTan.z);
+    //debug: DPS("\trPerp: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.rPerp.x,
+    //debug:     circle.rPerp.y,
+    //debug:     circle.rPerp.z);
+    //debug: DPS("\trHelix: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.rHelix.x,
+    //debug:     circle.rHelix.y,
+    //debug:     circle.rHelix.z);
+    //debug: DPS("\tradius(%f) angle(%f) spiral(%f)\n",
+    //debug:     circle.radius, 
+    //debug:     circle.angle, 
+    //debug:     circle.spiral);
+    //debug: // utvIn: unit tangent vector (Inward)
+    //debug: DPS("\tutvIn: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.utvIn.x,
+    //debug:     circle.utvIn.y,
+    //debug:     circle.utvIn.z);
+    //debug: // utvOut: unit tangent vector (Outward)
+    //debug: DPS("\tutvOut: x(%f) y(%f) z(%f)\n",
+    //debug:     circle.utvOut.x,
+    //debug:     circle.utvOut.y,
+    //debug:     circle.utvOut.z);
     return 0;
 }
 
@@ -962,7 +962,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             if (req_vel > tc->maxvel) {
                 req_vel = tc->maxvel;
             }
-            //DPS("req_vel(%f)\n", req_vel);
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
                 tc->accel_state = ACCEL_S2;
@@ -983,16 +982,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             vel = tc->cur_vel + tc->cur_accel * t - 0.5 * tc->jerk * t * t;
             // distance for S3
             dist += (vel);
-            //DPS("vel_1(%f)\n", vel);
             
             /* 
             0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
             t1 = sqrt(vel/j)
             */
             t = ceil(sqrt(vel/tc->jerk));
-            //DPS("t1(%f)\n", t);
-            //DPS("accel_1(%f)\n", t * tc->jerk);
-            //DPS("decel position(%f)\n", dist);
             // AT = AT + JT
             t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
             if (t > t1) {
@@ -1096,7 +1091,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // check accel == 0
             if (tc->cur_accel <= 0) {
                 tc->accel_state = ACCEL_S3;
-                DP(" Leave S2 due to Acceleration == 0\n");
+                // DP(" Leave S2 due to Acceleration == 0\n");
                 EXIT_STATE(s2);
                 break;
             }
@@ -1128,9 +1123,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             t1 = sqrt(vel/j)
             */
             t = ceil(sqrt(vel/tc->jerk));
-            //DPS("t1(%f)\n", t);
-            //DPS("accel_1(%f)\n", t * tc->jerk);
-            //DPS("decel position(%f)\n", dist);
             // AT = AT + JT
             t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
             if (t > t1) {
@@ -1149,7 +1141,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S3;
-                DP(" Leave S2 due to progress limit\n");
+                // DP(" Leave S2 due to progress limit\n");
                 break;
             }
 
@@ -1176,9 +1168,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // t = floor(sqrt(vel/tc->jerk) - 0.5);
             t = sqrt(vel/tc->jerk) - 0.5;
             // t = sqrt(vel/tc->jerk);
-            //DPS("t1(%f)\n", t);
-            //DPS("accel_1(%f)\n", t * tc->jerk);
-            //DPS("decel position(%f)\n", dist);
             // AT = AT + JT
             // t1 = floor(tc->maxaccel / tc->jerk - 0.5);   // max time for S4
             t1 = tc->maxaccel / tc->jerk - 0.5;   // max time for S4
@@ -1203,8 +1192,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // if (tc_target < dist) 
                 tc->accel_state = ACCEL_S4;
                 tc->on_final_decel = 1;
-                DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
-                DP(" Leave S3 due to progress limit\n");
+                // DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
+                // DP(" Leave S3 due to progress limit\n");
                 EXIT_STATE(s3);
                 break;
             }
@@ -1287,16 +1276,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // AT = A0 + JT (let AT = 0 to calculate T)
             // VT = V0 + A0T + 1/2JT2
             // t = - tc->cur_accel / tc->jerk;
-            //DPS("s4: velocity.t(%f)\n", t);
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
             if (req_vel > tc->maxvel) {
                 req_vel = tc->maxvel;
             }
-            //DPS("s4: feed_override(%f)\n", tc->feed_override);
-            //DPS("s4: req_vel(%f)\n", req_vel);
             if ((tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t) <= req_vel) {
                 tc->accel_state = ACCEL_S6;
-                // DPS(" Leave S4 due to velocity limit\n");
                 break;
             }
             break;
@@ -1332,12 +1317,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
                        + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
 #endif
-                DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
+                // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
 
                 if (vel <= 0) {
                     // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
                     tc->accel_state = ACCEL_S6;
-                    DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
+                    // DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
                 }
 
                 break;
@@ -1353,10 +1338,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             if (req_vel > tc->maxvel) {
                 req_vel = tc->maxvel;
             }
-            //DPS("s5: req_vel(%f)\n", req_vel);
             if ((tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t) <= req_vel) {
                 tc->accel_state = ACCEL_S6;
-                DPS(" Leave S5 due to velocity limit\n");
+                // DPS(" Leave S5 due to velocity limit\n");
                 break;
             }
 
@@ -1394,7 +1378,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                     // has to decel until hitting the target
                     tc->cur_accel = 0;
                     tc->accel_state = ACCEL_S3;
-                    //DPS(" Leave S6 to S3 as approaching req_vel\n");
+                    // DPS(" Leave S6 to S3 as approaching req_vel\n");
                     break;
                 }
             }
@@ -1403,7 +1387,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
         
 
         default:
-            DP("accel_state: %d\n", tc->accel_state); 
+            // DP("accel_state: %d\n", tc->accel_state); 
             assert(0);
         } // switch (tc->accel_state)
     } while (immediate_state);
@@ -1411,7 +1395,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
     if (tc->seamless_blend_mode != SMLBLND_ENABLE) {
         if (tc->progress > tc->target) {
             // finished
-            DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
+            // DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
             tc->progress = tc->target;
             tc->cur_accel = 0;
             tc->cur_vel = 0;
@@ -1425,7 +1409,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
         _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time, 
         tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
-        (tc->target - tc->progress), tc->tolerance);
+        (tc->target - tc->progress), tc_target);
     //obsolete: tc->distance_to_go = tc->target - tc->progress;
     //obsolete: tc->motion_distance_to_go = tc->motion_target - tc->motion_progress;
     if (v)
@@ -1797,8 +1781,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
         tc->css_progress_cmd = css_progress_cmd;
         
-        DPS("revs(%f) tc_progress(%f) reqvel(%f) css_progress_cmd(%f)\n",
-             revs, tc->progress, tc->reqvel, css_progress_cmd);
+        //debug: DPS("revs(%f) tc_progress(%f) reqvel(%f) css_progress_cmd(%f)\n",
+        //debug:      revs, tc->progress, tc->reqvel, css_progress_cmd);
         
 //        double pos_error;
 //        double oldrevs = revs;
@@ -1990,20 +1974,20 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             } else {
                 tc->seamless_blend_mode = SMLBLND_DISABLE;
             }
-            DPS("tc->utvOut: x(%f) y(%f) z(%f)\n",
-                tc->utvOut.x,
-                tc->utvOut.y,
-                tc->utvOut.z);
-            DPS("nexttc->utvIn: x(%f) y(%f) z(%f)\n",
-                nexttc->utvIn.x,
-                nexttc->utvIn.y,
-                nexttc->utvIn.z);
-            DPS("k(%f) rv(%f) ca(%f) tc.maxaccel(%f) tc.jerk(%f)\n",
-                 k,
-                 rv * 1000000,
-                 ca * 1000000,
-                 tc->maxaccel * 1000000,
-                 tc->jerk * 1000000);
+            //debug: DPS("tc->utvOut: x(%f) y(%f) z(%f)\n",
+            //debug:     tc->utvOut.x,
+            //debug:     tc->utvOut.y,
+            //debug:     tc->utvOut.z);
+            //debug: DPS("nexttc->utvIn: x(%f) y(%f) z(%f)\n",
+            //debug:     nexttc->utvIn.x,
+            //debug:     nexttc->utvIn.y,
+            //debug:     nexttc->utvIn.z);
+            //debug: DPS("k(%f) rv(%f) ca(%f) tc.maxaccel(%f) tc.jerk(%f)\n",
+            //debug:      k,
+            //debug:      rv * 1000000,
+            //debug:      ca * 1000000,
+            //debug:      tc->maxaccel * 1000000,
+            //debug:      tc->jerk * 1000000);
         }
 #endif // SMLBLND
     }
@@ -2088,7 +2072,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         // accel reaches 0 (at the very end)
         tc->blending = 1;
     
-        DPS("primary_vel(%f) blend_vel(%f)\n", primary_vel, tc->blend_vel);
+        // DPS("primary_vel(%f) blend_vel(%f)\n", primary_vel, tc->blend_vel);
 
         // hack to show blends in axis
         // tp->motionType = 0;
