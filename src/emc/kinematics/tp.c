@@ -2042,6 +2042,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tc->cur_vel = next_vel;
         tc->cur_accel = next_accel;
         tc->accel_state = next_accel_state;
+        tc->on_final_decel = 0;
         tc->progress = next_progress;
         tp->depth = tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
