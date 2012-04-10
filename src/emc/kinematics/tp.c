@@ -1187,14 +1187,13 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 // S4 -> S6
                 dist = tc->progress + t * vel;    // dist of (S4 + S6)
             }
-            tc->on_final_decel = 0;
+            //obsolete: tc->on_final_decel = 0;
             if (tc_target < (dist - vel)) {    // vel: compensate for 1 more S3
-            // if (tc_target < dist) 
                 tc->accel_state = ACCEL_S4;
-                tc->on_final_decel = 1;
+                //obsolete: tc->on_final_decel = 1;
                 // DP("dist(%f)\n t(%f) t1(%f)", dist, t, t1);
                 // DP(" Leave S3 due to progress limit\n");
-                EXIT_STATE(s3);
+                //obsolete: EXIT_STATE(s3);
                 break;
             }
 
@@ -1226,7 +1225,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // PT = PT + VT + 1/2AT + 1/6JT
             tc->cur_accel = tc->cur_accel - tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
-            if (tc->cur_vel < 0) {
+            if (tc->cur_vel <= 0) {
                 tc->cur_vel = 0;
                 tc->accel_state = ACCEL_S3;
                 break;
@@ -1235,6 +1234,23 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
 
             // (accel < 0) and (jerk < 0)
             assert (tc->cur_accel < 0);
+           
+            //try: t = tc->cur_accel * tc->cur_accel - 2 * tc->jerk * tc->cur_vel;
+            //try: if (t > 0) {
+            //try:     // 若進入 S6，且VEL減速到0，會不會走到 tc_target?
+            //try:     // 二階方程式有解，進入 S6 之後 VEL 能夠減速到 0
+            //try:     // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
+            //try:     t = ((- tc->cur_accel) - sqrt(t)) / tc->jerk - 0.5;
+            //try:     dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+            //try:            + 1.0 / 6 * tc->jerk * t * t * t;
+            //try:     if (dist > tc_target) {
+            //try:         tc->accel_state = ACCEL_S6;
+            //try:         DPS("S4: hit distance rule; move to S6\n");
+            //try:         break;
+            //try:     }
+            //try: } else {
+            //try:     
+            //try: }
             
             // check if we hit accel limit at next BP
             if ((tc->cur_accel - tc->jerk) <= -tc->maxaccel) {
@@ -1243,47 +1259,87 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
                 break;
             }
             
+            // should we stay in S4 and keep decel?
+            // calculate dist for S6 -> S4 -> (maybe S5) -> S6
             // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
-            t = - tc->cur_accel / tc->jerk - 0.5;
-            if (tc->on_final_decel == 1) {
-                // on_final_decel flag has been set at ACCEL_S3
-                // has to decel until hitting the target
+            t = - tc->cur_accel / tc->jerk;
+            // target dist after switching to S6 (jerk is positive for S6)
+            dist = tc->progress + tc->cur_vel * t 
+                   + 0.5 * tc->cur_accel * t * t
+                   + 1.0 / 6.0 * tc->jerk * t * t * t;
+            // VT = V0 + A0T + 1/2JT2
+            // obtain vel for S6 -> S3
+            vel = tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t;
+            
+            /* 
+            0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
+            t1 = sqrt(vel/j)
+            */
+            t = ceil(sqrt(vel/tc->jerk));
+            // AT = AT + JT
+            t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
+            if (t > t1) {
+                // S4 -> S5 -> S6
+                dist += t1 * vel;    // dist of (S4 + S6)
+                // calc decel.dist for ACCEL_S5
+                // t: time for S5
+                t = (vel - tc->jerk * t1 * t1) / tc->maxaccel;
+                v1 = vel - 0.5 * tc->jerk * t1 * t1;
+                // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
+                dist += (v1 * t - 0.5 * tc->maxaccel * t * t);
+            } else {
+                // S4 -> S6
+                dist += t * vel;    // dist of (S4 + S6)
+            }
 
-                // VT = V0 + A0T + 1/2JT2
-                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * t + tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
-                // 讓 vel 比實際的值小 (cur_accel - 0.5 * tc->jerk) (cur_accel 是負值)
-
-#if(TRACE!=0)
-                // dist = estimated_target - target 
-                //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                //                 + 1.0 / 6.0 * jerk * t * t * t - target;
-                dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                       + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
-#endif
-                // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
-
-                if (vel <= 0) {
-                    // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
-                    tc->accel_state = ACCEL_S6;
-                    // DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
-                }
+            if (tc_target < dist) {
+                tc->accel_state = ACCEL_S4;
+                DPS("should stay in S4 and keep decel\n");
                 break;
             }
+                    
+//orig:            if (tc->on_final_decel == 1) {
+//orig:                // on_final_decel flag has been set at ACCEL_S3
+//orig:                // has to decel until hitting the target
+//orig:
+//orig:                // VT = V0 + A0T + 1/2JT2
+//orig:                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * t + tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
+//orig:                // 讓 vel 比實際的值小 (cur_accel - 0.5 * tc->jerk) (cur_accel 是負值)
+//orig:
+//orig:#if(TRACE!=0)
+//orig:                // dist = estimated_target - target 
+//orig:                //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+//orig:                //                 + 1.0 / 6.0 * jerk * t * t * t - target;
+//orig:                dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+//orig:                       + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
+//orig:#endif
+//orig:                // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
+//orig:
+//orig:                if (vel <= 0) {
+//orig:                    // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
+//orig:                    tc->accel_state = ACCEL_S6;
+//orig:                    // DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
+//orig:                }
+//orig:                break;
+//orig:            }
                 
             // check if we will approaching requested velocity
             // 從這一點開始加速到accel=0時, vel 不應超過 request velocity
             //
             // AT = A0 + JT (let AT = 0 to calculate T)
             // VT = V0 + A0T + 1/2JT2
-            // t = - tc->cur_accel / tc->jerk;
+            // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
+            t = - tc->cur_accel / tc->jerk;
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
             if (req_vel > tc->maxvel) {
                 req_vel = tc->maxvel;
             }
             if ((tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t) <= req_vel) {
                 tc->accel_state = ACCEL_S6;
+                DPS("S4: hit velocity rule; move to S6\n");
                 break;
             }
+            
             break;
         
         case ACCEL_S5:
@@ -1296,44 +1352,93 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             tc->cur_vel = tc->cur_vel + tc->cur_accel;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel;
             
-            // t: cycles for accel to decel to 0
+            //try: // 若進入 S6，且VEL減速到0，會不會走到 tc_target?
+            //try: t = tc->cur_accel * tc->cur_accel - 2 * tc->jerk * tc->cur_vel;
+            //try: if (t > 0) {
+            //try:     // 二階方程式有解，進入 S6 之後 VEL 能夠減速到 0
+            //try:     // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
+            //try:     t = ((- tc->cur_accel) - sqrt(t)) / tc->jerk - 0.5;
+            //try:     dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+            //try:            + 1.0 / 6 * tc->jerk * t * t * t;
+            //try:     if (dist > tc_target) {
+            //try:         tc->accel_state = ACCEL_S6;
+            //try:         break;
+            //try:     }
+            //try: }
+
+            // should we stay in S5 and keep decel?
+            // calculate dist for S6 -> S4 -> (maybe S5) -> S6
             // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
-            t = - tc->cur_accel / tc->jerk - 0.5;
+            t = - tc->cur_accel / tc->jerk;
+            // target dist after switching to S6 (jerk is positive for S6)
+            dist = tc->progress + tc->cur_vel * t 
+                   + 0.5 * tc->cur_accel * t * t
+                   + 1.0 / 6.0 * tc->jerk * t * t * t;
+            // VT = V0 + A0T + 1/2JT2
+            // obtain vel for S6 -> S3
+            vel = tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t;
+            
+            /* 
+            0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
+            t1 = sqrt(vel/j)
+            */
+            t = ceil(sqrt(vel/tc->jerk));
+            // AT = AT + JT
+            t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
+            if (t > t1) {
+                // S4 -> S5 -> S6
+                dist += t1 * vel;    // dist of (S4 + S6)
+                // calc decel.dist for ACCEL_S5
+                // t: time for S5
+                t = (vel - tc->jerk * t1 * t1) / tc->maxaccel;
+                v1 = vel - 0.5 * tc->jerk * t1 * t1;
+                // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
+                dist += (v1 * t - 0.5 * tc->maxaccel * t * t);
+            } else {
+                // S4 -> S6
+                dist += t * vel;    // dist of (S4 + S6)
+            }
 
-            if (tc->on_final_decel == 1) {
-                // on_final_decel flag has been set at ACCEL_S3
-                // has to decel until hitting the target
-
-                // VT = V0 + A0T + 1/2JT2
-                // vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
-                // 讓 vel 比實際的值小 1.05 cur_accel (cur_accel 是負值)
-                vel = 0.5 * tc->jerk * t * t + tc->cur_accel * t + tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
-                // 讓 vel 比實際的值小 (cur_accel - 0.5 * tc->jerk) (cur_accel 是負值)
-
-#if(TRACE!=0)
-                // dist = estimated_target - target 
-                //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                //                 + 1.0 / 6.0 * jerk * t * t * t - target;
-                dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                       + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
-#endif
-                // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
-
-                if (vel <= 0) {
-                    // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
-                    tc->accel_state = ACCEL_S6;
-                    // DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
-                }
-
+            if (tc_target < dist) {
+                tc->accel_state = ACCEL_S5;
+                DPS("should stay in S5 and keep decel\n");
                 break;
             }
+
+//orig:             if (tc->on_final_decel == 1) {
+//orig:                 // on_final_decel flag has been set at ACCEL_S3
+//orig:                 // has to decel until hitting the target
+//orig: 
+//orig:                 // VT = V0 + A0T + 1/2JT2
+//orig:                 // vel = 0.5 * tc->jerk * t * t + tc->cur_accel * (t + 1.05) + tc->cur_vel;
+//orig:                 // 讓 vel 比實際的值小 1.05 cur_accel (cur_accel 是負值)
+//orig:                 vel = 0.5 * tc->jerk * t * t + tc->cur_accel * t + tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
+//orig:                 // 讓 vel 比實際的值小 (cur_accel - 0.5 * tc->jerk) (cur_accel 是負值)
+//orig: #if(TRACE!=0)
+//orig:                 // dist = estimated_target - target 
+//orig:                 //      = progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+//orig:                 //                 + 1.0 / 6.0 * jerk * t * t * t - target;
+//orig:                 dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
+//orig:                        + 1.0 / 6 * tc->jerk * t * t * t - tc_target;
+//orig: #endif
+//orig:                 // DP ("t(%f) vel(%f) dist(%f) \n", t, vel, dist);
+//orig: 
+//orig:                 if (vel <= 0) {
+//orig:                     // 設計目標：抵達 target 時，vel 還是正的，但儘可能接近零
+//orig:                     tc->accel_state = ACCEL_S6;
+//orig:                     // DP ("t(%f) vel(%.15f) dist(%.15f)\n", t, vel, dist);
+//orig:                 }
+//orig:                 break;
+//orig:             }
                 
             // check if we will approaching requested velocity
             // 從這一點開始加速到accel=0時, vel 不應超過 request velocity
             //
             // AT = A0 + JT (let AT = 0 to calculate T)
             // VT = V0 + A0T + 1/2JT2
-            // t: already calculated, t = -1 * tc->cur_accel / tc->jerk;
+            // t: cycles for accel to decel to 0
+            // t 的值取中間數，是為了讓 continus_form 的計算較接近 discrete_form 的結果
+            t = - tc->cur_accel / tc->jerk;
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
             if (req_vel > tc->maxvel) {
                 req_vel = tc->maxvel;
@@ -1356,31 +1461,27 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
             if (tc->cur_vel <= 0) {
                 tc->cur_accel = 0;
-                if (tc->on_final_decel == 1) {
-                    tc->cur_vel = 0.5 * tc->jerk;   // give some velocity for approaching target
-                } else {
-                    tc->cur_vel = 0;
-                    tc->accel_state = ACCEL_S3;
-                    break;
-                }
+                // if (tc->on_final_decel == 1) {
+                tc->cur_vel = 0.5 * tc->jerk;   // give some velocity for approaching target
+                // } else {
+                //     tc->cur_vel = 0;
+                //     tc->accel_state = ACCEL_S3;
+                //     break;
+                // }
             }
             dist = tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
-            // never: if (dist <= 0) {
-            // never:     tc->cur_accel = 0;
-            // never:     tc->cur_vel = 0;
-            // never:     dist = 0;
-            // never: }
             tc->progress = tc->progress + dist;
 
             if (tc->cur_accel >= 0) {
-                if (tc->on_final_decel == 0) {
-                    // on_final_decel flag has been set at ACCEL_S3
-                    // has to decel until hitting the target
-                    tc->cur_accel = 0;
-                    tc->accel_state = ACCEL_S3;
-                    // DPS(" Leave S6 to S3 as approaching req_vel\n");
-                    break;
-                }
+                tc->accel_state = ACCEL_S3;
+                //orig: if (tc->on_final_decel == 0) {
+                //orig:     // on_final_decel flag has been set at ACCEL_S3
+                //orig:     // has to decel until hitting the target
+                //orig:     tc->cur_accel = 0;
+                //orig:     tc->accel_state = ACCEL_S3;
+                //orig:     // DPS(" Leave S6 to S3 as approaching req_vel\n");
+                //orig:     break;
+                //orig: }
             }
             
             break;
@@ -1393,7 +1494,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
     } while (immediate_state);
     
     if (tc->seamless_blend_mode != SMLBLND_ENABLE) {
-        if (tc->progress > tc->target) {
+        if (tc->progress >= tc->target) {
             // finished
             // DPS("hit target, cur_accel(%f), cur_vel(%f)\n", tc->cur_accel, tc->cur_vel);
             tc->progress = tc->target;
@@ -1402,16 +1503,21 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
         }
     }
 
-    //obsolete: tc->motion_progress = tc->progress;
-    // assert (tc->progress <= tc->target);
-    assert (tc->cur_vel >= 0);
-
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
         _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time, 
         tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
         (tc->target - tc->progress), tc_target);
     //obsolete: tc->distance_to_go = tc->target - tc->progress;
     //obsolete: tc->motion_distance_to_go = tc->motion_target - tc->motion_progress;
+    
+    //obsolete: tc->motion_progress = tc->progress;
+    // assert (tc->progress <= tc->target);
+    if (tc->cur_vel < 0) {
+        DPS("tc->cur_vel(%32.16f) tc->cur_accel(%32.16f)\n", 
+            tc->cur_vel, tc->cur_accel);
+    }
+    assert (tc->cur_vel >= 0);
+
     if (v)
         *v = tc->cur_vel;
 }
@@ -1519,6 +1625,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         }
 
         // done with this move
+        DPS("tcqRemove-0\n");
         tcqRemove(&tp->queue, 1);
 
         // so get next move
@@ -1974,20 +2081,25 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             } else {
                 tc->seamless_blend_mode = SMLBLND_DISABLE;
             }
-            //debug: DPS("tc->utvOut: x(%f) y(%f) z(%f)\n",
-            //debug:     tc->utvOut.x,
-            //debug:     tc->utvOut.y,
-            //debug:     tc->utvOut.z);
-            //debug: DPS("nexttc->utvIn: x(%f) y(%f) z(%f)\n",
-            //debug:     nexttc->utvIn.x,
-            //debug:     nexttc->utvIn.y,
-            //debug:     nexttc->utvIn.z);
-            //debug: DPS("k(%f) rv(%f) ca(%f) tc.maxaccel(%f) tc.jerk(%f)\n",
-            //debug:      k,
-            //debug:      rv * 1000000,
-            //debug:      ca * 1000000,
-            //debug:      tc->maxaccel * 1000000,
-            //debug:      tc->jerk * 1000000);
+            DPS("tc->utvOut: x(%f) y(%f) z(%f)\n",
+                tc->utvOut.x,
+                tc->utvOut.y,
+                tc->utvOut.z);
+            DPS("nexttc->utvIn: x(%f) y(%f) z(%f)\n",
+                nexttc->utvIn.x,
+                nexttc->utvIn.y,
+                nexttc->utvIn.z);
+            DPS("k(%f) rv(%f) ca(%f) tc.maxaccel(%f) tc.jerk(%f)\n",
+                 k,
+                 rv * 1000000,
+                 ca * 1000000,
+                 tc->maxaccel * 1000000,
+                 tc->jerk * 1000000);
+            if (tc->seamless_blend_mode == SMLBLND_ENABLE) {
+                DPS("SMLBLND_ENABLE\n");
+            } else {
+                DPS("SMLBLND_DISABLE\n");
+            }
         }
 #endif // SMLBLND
     }
@@ -2031,6 +2143,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         //unsure: }
 
         // done with this move
+        DPS("tcqRemove-1\n");
         tcqRemove(&tp->queue, 1);
 
         // so get next move
@@ -2042,7 +2155,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tc->cur_vel = next_vel;
         tc->cur_accel = next_accel;
         tc->accel_state = next_accel_state;
-        tc->on_final_decel = 0;
+        //obsolete: tc->on_final_decel = 0;
         tc->progress = next_progress;
         tp->depth = tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
@@ -2067,7 +2180,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     if( (tc->blending && nexttc) || 
         (nexttc && 
          (tc->seamless_blend_mode == SMLBLND_DISABLE) &&
-         tc->on_final_decel && 
+         /* tc->on_final_decel && */
+         (tc->accel_state == ACCEL_S6)&&
          (primary_vel < tc->blend_vel))) {
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)

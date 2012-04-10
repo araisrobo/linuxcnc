@@ -90,7 +90,7 @@ typedef struct {
     double cycle_time;
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
-    int    on_final_decel;
+    //obsolete: int    on_final_decel;
     //obsolete: double distance_to_go;  // distance to go for target target..0
     //obsolete: double motion_progress;
     //obsolete: double motion_target;
