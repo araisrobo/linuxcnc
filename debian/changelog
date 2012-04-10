@@ -1,3 +1,9 @@
+emc2 (1:2.5.0-2012.04.10) lucid; urgency=low
+
+  * SMLBLND: seamless blending for s-curve velocity profile
+
+ -- Yishin Li <ysli@araisrobo.com>  Tue, 10 Apr 2012 10:17:37 +0800
+
 emc2 (1:2.5.0-2012.03.28) lucid; urgency=low
 
   * BUGFIX to RT_ABORT command for WOU interface
