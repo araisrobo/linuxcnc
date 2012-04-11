@@ -1752,7 +1752,9 @@ class GlCanonDraw:
             self.stale_dlist('select_norapids')
         else:
             error_str = _(gcode.strerror(result))
-            print 'glcanon error msg:', error_str
+            print self
+            print 'Near about line %d: %s' % (seq, error_str)
+            self.canon_error = [seq, error_str] 
         return result, seq
 
     def from_internal_units(self, pos, unit=None):

@@ -42,6 +42,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     program_pos = [0, 0, 0, 0, 0, 0, 0, 0]
     path_tracking = False
     __gsignals__ = {'line-selected': (gobject.SIGNAL_RUN_FIRST, gobject.TYPE_NONE, (gobject.TYPE_INT,))}
+    canon_error = [None, None]
     def __init__(self, inifile):
         gobject.GObject.__init__(self)
 
