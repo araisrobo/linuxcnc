@@ -1,10 +1,15 @@
-User Manuelle V0.1, {localdate}
+User Manuelle V2.5, {localdate}
 =============================
-The EMC Team
 
 :lang: de
 
 :masterdir: {indir}
+
+The LinuxCNC Team
+
+:leveloffset: 0
+
+= LinuxCNC Introduction
 
 :leveloffset: 1
 
@@ -30,7 +35,7 @@ include::gui/ngcgui_de.txt[]
 
 include::gui/touchy_de.txt[]
 
-include::gui/tkemc_de.txt[]
+include::gui/tklinuxcnc_de.txt[]
 
 include::gui/mini_de.txt[]
 
@@ -40,23 +45,27 @@ include::gui/keystick_de.txt[]
 = Using EMC
 :leveloffset: 1
 
-include::common/machining_center_de.txt[]
-
-include::gcode/overview_de.txt[]
+include::gcode/machining_center_de.txt[]
 
 include::gcode/coordinates_de.txt[]
 
 include::gcode/tool_compensation_de.txt[]
 
+include::gcode/overview_de.txt[]
+
 include::gcode/gcode_de.txt[]
 
-include::gcode/mill_canned_de.txt[]
+include::examples/gcode_de.txt[]
 
 include::lathe/lathe-user_de.txt[]
 
 include::gcode/rs274ngc_de.txt[]
 
-include::examples/gcode_de.txt[]
+include::gcode/m-code_de.txt[]
+
+include::gcode/o-code_de.txt[]
+
+include::gcode/other-code_de.txt[]
 
 include::gui/image-to-gcode_de.txt[]
 

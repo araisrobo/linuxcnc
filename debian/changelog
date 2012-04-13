@@ -1,10 +1,10 @@
-emc2 (1:2.5.0-2012.04.10) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.04.10) lucid; urgency=low
 
   * SMLBLND: seamless blending for s-curve velocity profile
 
  -- Yishin Li <ysli@araisrobo.com>  Tue, 10 Apr 2012 10:17:37 +0800
 
-emc2 (1:2.5.0-2012.03.28) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.03.28) lucid; urgency=low
 
   * BUGFIX to RT_ABORT command for WOU interface
   * BUGFIX to JOG_CONTINUOUS
@@ -12,32 +12,32 @@ emc2 (1:2.5.0-2012.03.28) lucid; urgency=low
 
  -- Yishin Li <ysli@araisrobo.com>  Wed, 28 Mar 2012 16:14:43 +0800
 
-emc2 (1:2.5.0-2012.03.20) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.03.20) lucid; urgency=low
 
   * Support S-Curve velocity profile for Jogging
 
  -- Yishin Li <ysli@araisrobo.com>  Tue, 20 Mar 2012 20:11:32 +0800
 
-emc2 (1:2.5.0-2012.03.19) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.03.19) lucid; urgency=low
 
   * BUGFIX for interrupt under Cutter Radius Compensation (G41) is enabled
 
  -- Yishin Li <ysli@araisrobo.com>  Mon, 19 Mar 2012 15:23:55 +0800
 
-emc2 (1:2.5.0-2012.03.05) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.03.05) lucid; urgency=low
 
   * Implemented WOU.RT_CMD protocol: realtime wou command
   * BUGFIX for WOU.MAILBOX protocol: fetchmail()
 
  -- Yishin Li <ysli@araisrobo.com>  Mon, 05 Mar 2012 13:27:51 +0800
 
-emc2 (1:2.5.0-2012.01.11) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.01.11) lucid; urgency=low
 
   * improve fetchmail() of WOU for better USB bandwidth utilization
 
  -- Yishin Li <ysli@araisrobo.com>  Wed, 11 Jan 2012 16:29:23 +0800
 
-emc2 (1:2.5.0-2011.12.26) lucid; urgency=low
+linuxcnc (1:2.5.0-2011.12.26) lucid; urgency=low
 
   * merge upstream master (linuxcnc/master)
   * update touchy
@@ -45,19 +45,19 @@ emc2 (1:2.5.0-2011.12.26) lucid; urgency=low
 
  -- Yishin Li <ysli@araisrobo.com>  Mon, 26 Dec 2011 10:34:21 +0800
 
-emc2 (1:2.4.0-nurbs-2011.12.11) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.12.11) lucid; urgency=low
 
   * new algorighm for CSS request velocity calculation
 
  -- Yishin Li <ysli@araisrobo.com>  Sun, 11 Dec 2011 15:15:42 +0800
 
-emc2 (1:2.4.0-nurbs-2011.12.06) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.12.06) lucid; urgency=low
 
   * enable new s-curve velocity profile
 
  -- Yishin Li <ysli@araisrobo.com>  Tue, 06 Dec 2011 10:18:18 +0800
 
-emc2 (1:2.5.0-pre2) lucid; urgency=low
+linuxcnc (1:2.5.0) lucid; urgency=low
 
   * AXIS: dynamic tabs can embed other applications, including virtual
     control panels
@@ -71,6 +71,8 @@ emc2 (1:2.5.0-pre2) lucid; urgency=low
   * AXIS: show all offsets and rotation separately in the BIG DRO
   * AXIS: show G5x and G92 offsets graphically in the preview
   * AXIS: user-configurable MDI history file
+  * AXIS: A comment (AXIS,notify,message) will print "message" when the
+    preview is generated, instead of just at run-time.
 
   * Configs: many configuration updates for Smithy machines
   * Configs: update motenc sample configs for encoder index
@@ -96,6 +98,9 @@ emc2 (1:2.5.0-pre2) lucid; urgency=low
   * HAL: new watchdog component
   * HAL: remove deprecated hal_m5i20 driver
   * HAL: new component for ShuttleXpress USB jog dongle
+  * HAL: support names= options for encoder_ratio, sim_encoder, at_pid, siggen
+  * HAL: a new component, message, to display user messages from HAL
+  * HAL: a new component, multiswitch, to toggle through bits with one button
 
   * Halshow: add menu with load/save/exit
   * Halshow: fix the tree to not cut off after a certain depth
@@ -114,6 +119,7 @@ emc2 (1:2.5.0-pre2) lucid; urgency=low
   * Hostmot2: support for multiplexed encoders like on the 7i48
   * Hostmot2: support for onboard diagnostic LEDs
   * Hostmot2: support for three phase PWM
+  * Hostmot2: improve watchdog reliability and defaults
 
   * Interpreter: fixes to always use . for a decimal, no matter the locale
   * Interpreter: fix G83 peck retract to match fanuc
@@ -139,22 +145,31 @@ emc2 (1:2.5.0-pre2) lucid; urgency=low
     parameter exists
   * Interpreter: search path for subroutines: [RS274NGC]SUBROUTINE_PATH
   * Interpreter: search path for user M codes: [RS274NGC]USER_M_PATH
+  * Interpreter: detect and error on malformed O-if[] statements
 
   * IOcontrol: make aborting tool changes work
 
   * Kinematics: several improvements to the general serial kinematics module
 
+  * Motenc, VTI, Opto_ac5: PCI-related update for new kernel versions
+
   * Motion: allow translations of more error messages
   * Motion: fix stuttering motion in NURBS
   * Motion: support for indexing/locking rotary axes
 
+  * ngcgui: many new features and bugfixes
+
   * PID: accept external command-deriv and feedback-deriv connections to
     use a high quality velocity signal when it is available
+
+  * pncconf: many new features and bugfixes
 
   * PPMC: improve error messages when cards are not found
 
   * Probing: correctly abort motion when the probe trips during a non-probe
     MDI command
+
+  * Rebranding: rename EMC to LinuxCNC
 
   * TkEMC: display and allow entry of all tool offsets
   * TkEMC: in Set Coordinates, display the correct axes
@@ -183,7 +198,7 @@ emc2 (1:2.5.0-pre2) lucid; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Thu, 22 Sep 2011 10:50:38 -0500
 
-emc2 (1:2.4.7) lucid; urgency=low
+linuxcnc (1:2.4.7) lucid; urgency=low
 
   * axis: fix problem removing a single notification
   * axis: fix jog after ctrl-alt-left or -right in mdi
@@ -232,7 +247,7 @@ emc2 (1:2.4.7) lucid; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 15 Oct 2011 12:23:30 -0500
 
-emc2 (1:2.4.0-nurbs-2011.11.17) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.11.17) lucid; urgency=low
 
   * Add power-off callback
   * Add auto-jogging mechanism
@@ -240,177 +255,177 @@ emc2 (1:2.4.0-nurbs-2011.11.17) lucid; urgency=low
 
  -- Yishin Li <ysli@araisrobo.com>  Thu, 17 Nov 2011 11:36:19 +0800
 
-emc2 (1:2.4.0-nurbs-2011.11.08) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.11.08) lucid; urgency=low
 
   * BUGFIX for RISC Probing
 
  -- Yishin Li <ysli@araisrobo.com>  Tue, 08 Nov 2011 13:56:55 +0800
 
-emc2 (1:2.4.0-nurbs-2011.10.25) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.10.25) lucid; urgency=low
 
   * BUGFIX for S-curve motion profile
 
  -- Yishin Li <ysli@araisrobo.com>  Tue, 25 Oct 2011 09:30:45 +0800
 
-emc2 (1:2.4.0-nurbs-2011.10.21) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.10.21) lucid; urgency=low
 
   * BUGFIX for CSS motion error
 
  -- Yishin Li <ysli@araisrobo.com>  Fri, 21 Oct 2011 09:33:26 +0800
 
-emc2 (1:2.4.0-nurbs-2011.10.17) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.10.17) lucid; urgency=low
 
   * Fixed CSS error
 
  -- Yishin Li <ysli@araisrobo.com>  Mon, 17 Oct 2011 10:31:14 +0800
 
-emc2 (1:2.4.0-nurbs-2011.09.27) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.09.27) lucid; urgency=low
 
   * RISC probing
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 27 Sep 2011 15:34:36 +0800
 
-emc2 (1:2.4.0-nurbs-2011.08.31) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.08.31) lucid; urgency=low
 
   * Remove hotkeys for AXIS GUI
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 31 Aug 2011 13:45:31 +0800
 
-emc2 (1:2.4.0-nurbs-2011.08.24) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.08.24) lucid; urgency=low
 
   * Workaround for "Queue is not empty after probing"
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 24 Aug 2011 09:42:26 +0800
 
-emc2 (1:2.4.0-nurbs-2011.08.19) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.08.19) lucid; urgency=low
 
   * 1st Binary Release for PLASMA
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 19 Aug 2011 14:53:25 +0800
 
-emc2 (1:2.4.0-nurbs-2011.08.17) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.08.17) lucid; urgency=low
 
   * BUGFIX for S-Curve velocity profile (for speed down algorithm)
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Wed, 17 Aug 2011 12:48:04 +0800
 
-emc2 (1:2.4.0-nurbs-2011.08.12) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.08.12) lucid; urgency=low
 
   * BUGFIX for S-Curve velocity profile (for small velocity changing)
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 12 Aug 2011 04:53:11 +0800
  
-emc2 (1:2.4.0-nurbs-2011.08.05) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.08.05) lucid; urgency=low
 
   * BUGFIX for S-Curve velocity profile (for LATHE operation)
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 05 Aug 2011 11:58:43 +0800
  
-emc2 (1:2.4.0-nurbs-2011.07.29) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.07.29) lucid; urgency=low
 
   * BUGFIX for S-Curve velocity profile
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 29 Jul 2011 11:32:17 +0800
  
-emc2 (1:2.4.0-nurbs-2011.07.25) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.07.25) lucid; urgency=low
 
   * Improve USB-PROBE
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 25 Jul 2011 09:22:02 +0800
  
-emc2 (1:2.4.0-nurbs-2011.07.14) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.07.14) lucid; urgency=low
 
   * Improve USB-PROBE
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 14 Jul 2011 08:25:38 +0800
  
-emc2 (1:2.4.0-nurbs-2011.07.01) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.07.01) lucid; urgency=low
 
   * Update for USB-PROBE
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 01 Jul 2011 11:59:58 +0800
  
-emc2 (1:2.4.0-nurbs-2011.06.17) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.06.17) lucid; urgency=low
 
   * Update for AHC (Automatic Height Control)
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 17 Jun 2011 07:55:56 +0800
  
-emc2 (1:2.4.0-nurbs-2011.06.08) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.06.08) lucid; urgency=low
 
   * BUGFIX for USB-HOMING
   * Add libwou callback for CRC-ERROR-COUNT
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 08 Jun 2011 17:43:06 +0800
  
-emc2 (1:2.4.0-nurbs-2011.06.04) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.06.04) lucid; urgency=low
 
   * Improve PLASMA-CUTTING commands
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Sat, 04 Jun 2011 08:34:09 +0800
  
-emc2 (1:2.4.0-nurbs-2011.05.23) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.05.23) lucid; urgency=low
 
   * BUGFIX for USB-HOMING with HOME_OFFSET
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 23 May 2011 06:20:57 +0800
  
-emc2 (1:2.4.0-nurbs-2011.05.20) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.05.20) lucid; urgency=low
 
   * BUGFIX for open-loop control firmware
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 20 May 2011 18:16:30 +0800
  
-emc2 (1:2.4.0-nurbs-2011.05.13) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.05.13) lucid; urgency=low
 
   * Add machine type support
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Fri, 13 May 2011 12:05:08 +0800
  
-emc2 (1:2.4.0-nurbs-2011.05.08) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.05.08) lucid; urgency=low
 
   * Improve G96 and G33 commands
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Sun, 08 May 2011 23:08:08 +0800
  
-emc2 (1:2.4.0-nurbs-2011.04.27) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.04.27) lucid; urgency=low
 
   * Update fixed porint calculation for JOINT-CMD
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 27 Apr 2011 18:08:37 +0800
  
-emc2 (1:2.4.0-nurbs-2011.04.22) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.04.22) lucid; urgency=low
 
   * Update settings for stepper machines in configs/ara/
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 22 Apr 2011 09:34:10 +0800
  
-emc2 (1:2.4.0-nurbs-2011.04.19) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.04.19) lucid; urgency=low
 
   * BUGFIX for CSS calculation
   * Update Following-Error calculation method for USB step generator
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 19 Apr 2011 19:59:49 +0800
  
-emc2 (1:2.4.0-nurbs-2011.04.13) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.04.13) lucid; urgency=low
 
   * Release for Cabot on 2011-04-13
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 13 Apr 2011 19:15:02 +0800
  
-emc2 (1:2.4.0-nurbs-2011.04.06) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.04.06) lucid; urgency=low
 
   * Release for Cabot on 2011-04-07
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 06 Apr 2011 19:29:03 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.28) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.28) lucid; urgency=low
 
   * clear SSIF_RST_POS after resetting position registers
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 28 Mar 2011 06:33:29 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.23) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.23) lucid; urgency=low
 
   * Support MPG Count readback from WOU_STEPGEN
   * BUGFIX for MPG: handle_jog_wheel()
@@ -418,63 +433,63 @@ emc2 (1:2.4.0-nurbs-2011.03.23) lucid; urgency=low
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 23 Mar 2011 02:21:59 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.19) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.19) lucid; urgency=low
 
   * Update velocity-feedback calculation method for wou_stepgen
   * Add data_log user space component for data-logging
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Sat, 19 Mar 2011 12:19:38 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.15.01) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.15.01) lucid; urgency=low
 
   * Bug fix to burst motion
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 15 Mar 2011 18:59:05 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.15) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.15) lucid; urgency=low
 
   * Improve spindle velocity control quality by feed-forward its position
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 15 Mar 2011 06:53:27 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.13) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.13) lucid; urgency=low
 
   * Bug fix for G33
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Sun, 13 Mar 2011 21:20:12 +0800
  
-emc2 (1:2.4.0-nurbs-2011.03.06) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.03.06) lucid; urgency=low
 
   * add SPI DIO
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com> Sun, 06 Mar 2011 17:41:49 +0800
 
-emc2 (1:2.4.0-nurbs-2011.01.19) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.01.19) lucid; urgency=low
 
   * pulse fract no longer share same fract with velocity, acceleration and
     acceleration recip.
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com> Wed, 19 Jan 2011 10:44:19 +0800
 
-emc2 (1:2.4.0-nurbs-2011.01.03) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2011.01.03) lucid; urgency=low
 
   * support for USB homing
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com> Mon, 03 Jan 2011 15:51:55 +0800
 
-emc2 (1:2.4.0-nurbs-2010.10.18) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.10.18) lucid; urgency=low
 
   * Update for USB motion control
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com> Mon, 18 Oct 2010 11:12:28 +0800
 
-emc2 (1:2.4.0-nurbs-2010.09.02) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.09.02) lucid; urgency=low
 
   * Bug fix for jogging
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 02 Sep 2010 06:08:02 +0800
  
-emc2 (1:2.4.0-nurbs-2010.07.29) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.07.29) lucid; urgency=low
 
   * Resolved world mode jogging issue
   * Revised teach-in
@@ -482,14 +497,14 @@ emc2 (1:2.4.0-nurbs-2010.07.29) lucid; urgency=low
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 29 Jul 2010 07:23:06 +0800
  
-emc2 (1:2.4.0-nurbs-2010.07.27) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.07.27) lucid; urgency=low
 
   * Resolved non-smooth S-curve acceleration issue for short distance
   * Resolved HOMING with INDEX issue
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 27 Jul 2010 07:40:48 +0800
  
-emc2 (1:2.4.0-nurbs-2010.07.14) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.07.14) lucid; urgency=low
 
   * Makefile for upstream homing.c and usb_homing.c
   * Fixed the INACCURATE bug for position control loop
@@ -498,20 +513,20 @@ emc2 (1:2.4.0-nurbs-2010.07.14) lucid; urgency=low
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 14 Jul 2010 12:58:13 +0800
 
-emc2 (1:2.4.0-nurbs-2010.07.12) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.07.12) lucid; urgency=low
 
   * pulled from master for S-curve acceleration
   * build against libftdi-1.0 and libwou with async-usb-mode
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 12 Jul 2010 02:10:56 +0800
 
-emc2 (1:2.4.0-nurbs-2010.07.06) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.07.06) lucid; urgency=low
 
   * update to fit new libwou
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Tue, 06 Jul 2010 22:24:14 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.28) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.28) lucid; urgency=low
 
   * wou_stepgen.c: enalbe JCMD_FIFO inside update_freq() when SVO-ON
     + for WATCHDOG Timer
@@ -519,26 +534,26 @@ emc2 (1:2.4.0-nurbs-2010.05.28) lucid; urgency=low
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 28 May 2010 15:18:45 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.27) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.27) lucid; urgency=low
 
   * Fix Jogging issue when feedrate below 99%
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Thu, 27 May 2010 13:18:39 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.25) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.25) lucid; urgency=low
 
   * Update do_homing() with SWITCH_POSITION and INDEX_POSITION
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 25 May 2010 19:37:45 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.17) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.17) lucid; urgency=low
 
   * Synchronized with joints_axes3
   * Fixed the Jogging Speed Limitation Error
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 17 May 2010 12:04:27 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.12) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.12) lucid; urgency=low
 
   * wou_stepgen.c: load FPGA bitfile and WOU_Register settings from 
                    HAL configuration file. 
@@ -547,7 +562,7 @@ emc2 (1:2.4.0-nurbs-2010.05.12) lucid; urgency=low
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Wed, 12 May 2010 10:11:54 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.10) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.10) lucid; urgency=low
 
   * wou_stepgen.c: load FPGA bitfile and WOU_Register settings from 
                    HAL configuration file. 
@@ -555,13 +570,13 @@ emc2 (1:2.4.0-nurbs-2010.05.10) lucid; urgency=low
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Mon, 10 May 2010 15:10:13 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.07) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.07) lucid; urgency=low
 
   * Fix assertion when pausing and stopping machine
 
  -- Hsu-yao Tsai <hsuyao.tsai@araisrobo.com>  Fri, 07 May 2010 11:14:12 +0800
 
-emc2 (1:2.4.0-nurbs-2010.05.05) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.05.05) lucid; urgency=low
 
   * Bug Fixed: Jerk calculation for tcAddCircle()
   * Simplify the VEL/ACC/JERK calculation for ARC_FEED()
@@ -569,44 +584,44 @@ emc2 (1:2.4.0-nurbs-2010.05.05) lucid; urgency=low
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Wed, 05 May 2010 11:43:59 +0800
 
-emc2 (1:2.4.0-nurbs-2010.04.23) lucid; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.04.23) lucid; urgency=low
 
   * Fix wou_stepgen.c for new SSIF MACROS
   * First build for Ubuntu 10.04 (lucid)
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Fri, 23 Apr 2010 18:16:06 +0800
 
-emc2 (1:2.4.0-nurbs-2010.04.12) karmic; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.04.12) karmic; urgency=low
 
   * Fix ARTEK_NURBS(G6.2) command: rush to (x(-1), y(-1), z(-1))
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Mon, 12 Apr 2010 11:04:23 +0800
 
-emc2 (1:2.4.0-nurbs-2010.04.08) karmic; urgency=low
+linuxcnc (1:2.4.0-nurbs-2010.04.08) karmic; urgency=low
 
   * Added ARTEK_NURBS(G6.2) command
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 08 Apr 2010 12:21:05 +0800
 
-emc2 (1:2.4.0-alpha1) karmic; urgency=low
+linuxcnc (1:2.4.0-alpha1) karmic; urgency=low
 
   * fixed NURBS(G5.2/G5.3) command
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 05 Jan 2010 15:59:32 +0800
 
-emc2 (1:2.4.0-alpha0) karmic; urgency=low
+linuxcnc (1:2.4.0-alpha0) karmic; urgency=low
 
   * implement S-Curve Acceleration
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Tue, 05 Jan 2010 15:59:32 +0800
 
-emc2 (1:2.4.0~pre) karmic; urgency=low
+linuxcnc (1:2.4.0~pre) karmic; urgency=low
 
   * dryrun SCARA
 
  -- Yi-Shin Li <ysli@araisrobo.com>  Thu, 24 Dec 2009 13:57:09 +0800
 
-emc2 (1:2.4.6) lucid; urgency=low
+linuxcnc (1:2.4.6) lucid; urgency=low
 
   * documentation: various improvements
 
@@ -639,7 +654,7 @@ emc2 (1:2.4.6) lucid; urgency=low
 
  -- jepler <jepler@unlucky.unpythonic.net>  Fri, 26 Nov 2010 11:34:57 -0600
 
-emc2 (1:2.4.5) lucid; urgency=low
+linuxcnc (1:2.4.5) lucid; urgency=low
 
   * interp: fix bug that made axis "touch off" frequently crash
 
@@ -651,7 +666,7 @@ emc2 (1:2.4.5) lucid; urgency=low
  
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 09 Oct 2010 08:07:30 -0500
 
-emc2 (1:2.4.4) lucid; urgency=low
+linuxcnc (1:2.4.4) lucid; urgency=low
 
   * axis: improve preview of programs that use tool length parameters
   * axis: disable "run from here" when machine is off / estopped
@@ -688,7 +703,7 @@ emc2 (1:2.4.4) lucid; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 18 Sep 2010 13:22:23 -0500
 
-emc2 (1:2.4.3) lucid; urgency=low
+linuxcnc (1:2.4.3) lucid; urgency=low
 
   * axis: fix jogs after selecting increment (SF#3028917)
   * axis: fix high CPU usage with certain window managers
@@ -728,7 +743,7 @@ emc2 (1:2.4.3) lucid; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 31 Jul 2010 12:41:10 -0500
 
-emc2 (1:2.4.2) lucid; urgency=low
+linuxcnc (1:2.4.2) lucid; urgency=low
 
   * axis: fix crash when environment variable AXIS_NO_HAL is set
 
@@ -803,7 +818,7 @@ emc2 (1:2.4.2) lucid; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 04 Jul 2010 14:00:38 -0500
 
-emc2 (1:2.4.1) hardy; urgency=low
+linuxcnc (1:2.4.1) hardy; urgency=low
 
   * tooledit: fix display of angles for lathe tools
   * tkemc: fix "Tool Table Editor" menu item
@@ -830,7 +845,7 @@ emc2 (1:2.4.1) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 29 May 2010 10:17:11 -0500
 
-emc2 (1:2.4.0) hardy; urgency=low
+linuxcnc (1:2.4.0) hardy; urgency=low
 
   * configs: add GEOMETRY=AXYZ to Sherline4Axis so A rotates
   * configs: DOS-damaged inifiles are detected with a clear error
@@ -932,7 +947,7 @@ emc2 (1:2.4.0) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 09 May 2010 11:07:19 -0500
 
-emc2 (1:2.3.5~pre) hardy; urgency=low
+linuxcnc (1:2.3.5~pre) hardy; urgency=low
 
   * fix jog increments for mini
   * interpreter: detect gouging in last corner before turning off cutter comp
@@ -945,13 +960,13 @@ emc2 (1:2.3.5~pre) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 06 Feb 2010 08:43:22 -0600
 
-emc2 (1:2.3.4-1) hardy; urgency=low
+linuxcnc (1:2.3.4-1) hardy; urgency=low
 
   * Rebuild packages to get rid of spurious python2.4 dependency
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 24 Oct 2009 18:52:16 -0500
 
-emc2 (1:2.3.4) hardy; urgency=low
+linuxcnc (1:2.3.4) hardy; urgency=low
 
   * Fix two constant surface speed bugs
   * Allow M66 timeout to be a fractional number
@@ -973,7 +988,7 @@ emc2 (1:2.3.4) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 24 Oct 2009 14:15:39 -0500
 
-emc2 (1:2.3.3) hardy; urgency=low
+linuxcnc (1:2.3.3) hardy; urgency=low
 
   * Stepconf: fix error "global name 'machinename' is not defined"
   * comp: fix building userspace .comps
@@ -988,7 +1003,7 @@ emc2 (1:2.3.3) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 26 Jul 2009 08:39:44 -0500
 
-emc2 (1:2.3.2) hardy; urgency=low
+linuxcnc (1:2.3.2) hardy; urgency=low
 
   * pyvcp: New "-g" flag to specify window size and position
   * classicladder:Fix crash from clicking on comparison objects
@@ -1036,7 +1051,7 @@ emc2 (1:2.3.2) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Thu, 02 Jul 2009 13:46:13 -0500
 
-emc2 (1:2.3.1) hardy; urgency=low
+linuxcnc (1:2.3.1) hardy; urgency=low
 
   * hm2: fixed a bug that would cause the stepgen to oscillate by one
     step when the scale was negative
@@ -1052,7 +1067,7 @@ emc2 (1:2.3.1) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 16 May 2009 19:52:54 -0500
 
-emc2 (1:2.3.0) hardy; urgency=low
+linuxcnc (1:2.3.0) hardy; urgency=low
 
   * hostmot2: allow stepgen maxaccel=0 for 'no acceleration limit'.  This is a
     slightly experimental mode, and using acceleration headroom in the hal
@@ -1071,7 +1086,7 @@ emc2 (1:2.3.0) hardy; urgency=low
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 19 Apr 2009 12:11:26 -0500
 
 
-emc2 (1:2.3.0~beta2) hardy; urgency=low
+linuxcnc (1:2.3.0~beta2) hardy; urgency=low
 
   * tweak firmware package building: not on sim, arch "all".
   * rename sim's emc2-dev to emc2-sim-dev
@@ -1102,7 +1117,7 @@ emc2 (1:2.3.0~beta2) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 22 Mar 2009 13:40:43 -0500
 
-emc2 (1:2.3.0~beta1) unstable; urgency=low
+linuxcnc (1:2.3.0~beta1) unstable; urgency=low
 
   * install sample configurations to /usr/share/doc/emc2/examples/sample-configs/
   * fix halui - MDI number limited to 10 (SF#2607450)
@@ -1248,7 +1263,7 @@ emc2 (1:2.3.0~beta1) unstable; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sat, 28 Feb 2009 11:16:38 -0600
 
-emc2 (1:2.2.9~cvs) hardy; urgency=low
+linuxcnc (1:2.2.9~cvs) hardy; urgency=low
 
   * Add Sherline lathe, 3- and 4-axis mill configurations from Heinz Reimer
   * Fix several problems with CSS mode with reversed (M4) spindle,
@@ -1257,7 +1272,7 @@ emc2 (1:2.2.9~cvs) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Tue, 13 Jan 2009 19:13:30 -0600
 
-emc2 (1:2.2.8) hardy; urgency=low
+linuxcnc (1:2.2.8) hardy; urgency=low
 
   * Documentation improvements
   * Fix rare incorrect movement for G2 and G3 arc moves
@@ -1267,7 +1282,7 @@ emc2 (1:2.2.8) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Tue, 11 Nov 2008 20:48:20 -0600
 
-emc2 (1:2.2.7) hardy; urgency=low
+linuxcnc (1:2.2.7) hardy; urgency=low
 
   * pop up a message when the right kernel isn't running
   * halcmd will now show an error message instead of segfaulting when
@@ -1294,7 +1309,7 @@ emc2 (1:2.2.7) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Tue, 11 Nov 2008 20:48:18 -0600
 
-emc2 (1:2.2.6) hardy; urgency=low
+linuxcnc (1:2.2.6) hardy; urgency=low
 
   * fix hal_input manpage
   * Fix FTBFS on hardy (texlive-extra-utils)
@@ -1328,7 +1343,7 @@ emc2 (1:2.2.6) hardy; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 10 Aug 2008 09:30:15 -0500
 
-emc2 (1:2.2.5) unstable; urgency=low
+linuxcnc (1:2.2.5) unstable; urgency=low
 
   * Include license statement for the 'Togl' software, which is incorporated
     in emc2
@@ -1346,7 +1361,7 @@ emc2 (1:2.2.5) unstable; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 27 Apr 2008 14:39:40 -0500
 
-emc2 (1:2.2.4) unstable; urgency=low
+linuxcnc (1:2.2.4) unstable; urgency=low
 
   * make xxxmach exit reliably with 'halcmd unload' (SF#1816781)
   * hook up encoder index for homing in the motenc sample configuration
@@ -1377,7 +1392,7 @@ emc2 (1:2.2.4) unstable; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 16 Mar 2008 12:15:28 -0500
 
-emc2 (1:2.2.3) unstable; urgency=low
+linuxcnc (1:2.2.3) unstable; urgency=low
 
   * gcode quick reference had G98, G99 transposed
   * gcode quick reference had wrong links to G18, G19 documentation
@@ -1406,7 +1421,7 @@ emc2 (1:2.2.3) unstable; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun, 27 Jan 2008 20:26:21 -0600
 
-emc2 (1:2.2.2) unstable; urgency=low
+linuxcnc (1:2.2.2) unstable; urgency=low
 
   * move hal_unlink manpage to development package
   * make gcode quick reference link into our own full gcode reference
@@ -1446,7 +1461,7 @@ emc2 (1:2.2.2) unstable; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Sun,  2 Dec 2007 16:12:46 -0600
 
-emc2 (1:2.2.1) unstable; urgency=low
+linuxcnc (1:2.2.1) unstable; urgency=low
 
   * fix packaging of stepconf.glade
   * german translation improvements
@@ -1459,7 +1474,7 @@ emc2 (1:2.2.1) unstable; urgency=low
 
  -- Jeff Epler <jepler@unpythonic.net>  Wed,  7 Nov 2007 20:18:34 -0600
 
-emc2 (1:2.2.0) unstable; urgency=low
+linuxcnc (1:2.2.0) unstable; urgency=low
 
   * Bump version for release
   * G41.1, G42.1, G43.1 to take tool parameters from gcode instead of tool
@@ -1532,7 +1547,7 @@ emc2 (1:2.2.0) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun,  5 Aug 2007 20:07:45 -0500
 
-emc2 (1:2.1.8~pre) unstable; urgency=low
+linuxcnc (1:2.1.8~pre) unstable; urgency=low
 
   * Fix SF#1772411: parameters incorrectly restored by O- endsub
   * Fix SF#1743942: MDI should not be allowed in OFF, ESTOP, or ESTOP RESET
@@ -1541,7 +1556,7 @@ emc2 (1:2.1.8~pre) unstable; urgency=low
 
  -- jepler <jepler@unpythonic.net>  Wed, 29 Aug 2007 09:26:39 -0500
 
-emc2 (1:2.1.7) unstable; urgency=low
+linuxcnc (1:2.1.7) unstable; urgency=low
 
   * additional PPMC indexing fixes
   * motenc indexing fixes
@@ -1555,7 +1570,7 @@ emc2 (1:2.1.7) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 29 Jul 2007 19:26:46 -0500
 
-emc2 (1:2.1.6) unstable; urgency=low
+linuxcnc (1:2.1.6) unstable; urgency=low
 
   * fix TkEMC jog increment/continuous doesn't show on screen
   * fix ppmc index polarity and HAL hookups
@@ -1565,7 +1580,7 @@ emc2 (1:2.1.6) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Thu,  7 Jun 2007 19:48:45 -0500
 
-emc2 (1:2.1.5) unstable; urgency=low
+linuxcnc (1:2.1.5) unstable; urgency=low
 
   * set default gains in sum2 component to one instead of zero, so by default
     it sums its inputs
@@ -1585,7 +1600,7 @@ emc2 (1:2.1.5) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun,  6 May 2007 14:48:22 -0500
 
-emc2 (1:2.1.4) unstable; urgency=low
+linuxcnc (1:2.1.4) unstable; urgency=low
 
   * fix image-to-gcode
   * fix jog wheel moves that were stopped too soon
@@ -1601,7 +1616,7 @@ emc2 (1:2.1.4) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 25 Mar 2007 21:50:59 -0500
 
-emc2 (1:2.1.3) unstable; urgency=low
+linuxcnc (1:2.1.3) unstable; urgency=low
 
   * make 'load' button work in classicladder
   * add french translation of axis
@@ -1621,7 +1636,7 @@ emc2 (1:2.1.3) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 18 Mar 2007 01:38:52 -0500
 
-emc2 (1:2.1.2) testing; urgency=low
+linuxcnc (1:2.1.2) testing; urgency=low
 
   * change axis.N.homing from HAL parameter to pin, to allow external logic
   * add russian translation of AXIS
@@ -1646,7 +1661,7 @@ emc2 (1:2.1.2) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 11 Mar 2007 19:43:03 -0500
 
-emc2 (1:2.1.1) testing; urgency=low
+linuxcnc (1:2.1.1) testing; urgency=low
 
   * fix behavior of certain keys in the AXIS MDI entry field, particularly the
     numeric keypad arrows
@@ -1664,7 +1679,7 @@ emc2 (1:2.1.1) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 25 Feb 2007 19:28:58 -0600
 
-emc2 (1:2.1.0) testing; urgency=low
+linuxcnc (1:2.1.0) testing; urgency=low
 
   * Prepare for release
   * AXIS debug level dialog. Users can now choose verbosity directly from AXIS
@@ -1748,14 +1763,14 @@ emc2 (1:2.1.0) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 28 Jan 2007 16:11:12 -0600
 
-emc2 (1:2.0.5) unstable; urgency=low
+linuxcnc (1:2.0.5) unstable; urgency=low
 
   * fix units problem with G92/G92.3
   * fix typo in the license statement in a few files
 
  -- Chris Radek <chris@timeguy.com>  Sat,  2 Dec 2006 16:54:00 -0600
 
-emc2 (1:2.0.4) unstable; urgency=low
+linuxcnc (1:2.0.4) unstable; urgency=low
 
   * use scientific notation in halmeter only when really necessary
   * fix a position jump on stepper machines when reenabling after estop
@@ -1767,13 +1782,13 @@ emc2 (1:2.0.4) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Fri, 20 Oct 2006 22:20:34 -0500
 
-emc2 (1:2.0.3) unstable; urgency=low
+linuxcnc (1:2.0.3) unstable; urgency=low
 
   * stupid bugfix - I forgot to enable the loading of probe_parport.
 
  -- Chris Radek <chris@timeguy.com>  Wed,  2 Aug 2006 21:51:29 -0500
 
-emc2 (1:2.0.2) unstable; urgency=low
+linuxcnc (1:2.0.2) unstable; urgency=low
 
   * add probe_parport module for machines with plug-and-play parports that
     require initialization before working
@@ -1785,7 +1800,7 @@ emc2 (1:2.0.2) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Mon, 31 Jul 2006 19:32:54 -0500
 
-emc2 (1:2.0.1) unstable; urgency=low
+linuxcnc (1:2.0.1) unstable; urgency=low
 
   * several fixes for blending of very short segments
   * fix for occasional following error while decelerating after abort
@@ -1810,7 +1825,7 @@ emc2 (1:2.0.1) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun,  4 Jun 2006 19:37:05 -0500
 
-emc2 (1:2.0.0) unstable; urgency=low
+linuxcnc (1:2.0.0) unstable; urgency=low
 
   * fix tkemc's help
   * halshow, a way to view the state of the running hal
@@ -1821,7 +1836,7 @@ emc2 (1:2.0.0) unstable; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun,  7 May 2006 16:41:49 -0500
 
-emc2 (TESTING-2006-05-02) testing; urgency=low
+linuxcnc (TESTING-2006-05-02) testing; urgency=low
 
   * fix wrong center point position in XZ and YZ arcs while using tool
     length offsets
@@ -1835,7 +1850,7 @@ emc2 (TESTING-2006-05-02) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Tue,  2 May 2006 13:11:46 -0500
 
-emc2 (TESTING-2006-04-29) testing; urgency=low
+linuxcnc (TESTING-2006-04-29) testing; urgency=low
 
   * improvement to the validation of arcs using the R format (which
     fixes unnecessary errors about endpoint radii not matching)
@@ -1850,7 +1865,7 @@ emc2 (TESTING-2006-04-29) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sat, 29 Apr 2006 18:27:11 -0500
 
-emc2 (TESTING-2006-04-09) testing; urgency=low
+linuxcnc (TESTING-2006-04-09) testing; urgency=low
 
   * Modified the motion control module to behave more like
     other HAL modules - it no longer adds its functions to threads
@@ -1897,13 +1912,13 @@ emc2 (TESTING-2006-04-09) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Mon, 10 Apr 2006 21:08:37 -0500
 
-emc2 (TESTING-2006-03-12) testing; urgency=low
+linuxcnc (TESTING-2006-03-12) testing; urgency=low
 
   * make blend tolerance match the current program units (G20/G21)
 
  -- Chris Radek <chris@timeguy.com>  Sun, 12 Mar 2006 14:16:24 -0600
 
-emc2 (TESTING-2006-03-11) testing; urgency=low
+linuxcnc (TESTING-2006-03-11) testing; urgency=low
 
   * an entirely new trajectory planner with many, many bugfixes
   * new blend tolerance mode
@@ -1913,7 +1928,7 @@ emc2 (TESTING-2006-03-11) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sat, 11 Mar 2006 21:56:24 -0600
 
-emc2 (TESTING-2006-03-02) testing; urgency=low
+linuxcnc (TESTING-2006-03-02) testing; urgency=low
 
   * the mini GUI has a fix in font handling (for the large XYZ readout)
   * M6 now correctly causes an error if there is no prepped tool (Txx)
@@ -1925,7 +1940,7 @@ emc2 (TESTING-2006-03-02) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Thu,  2 Mar 2006 20:04:28 -0600
 
-emc2 (TESTING-2006-02-26) testing; urgency=low
+linuxcnc (TESTING-2006-02-26) testing; urgency=low
 
   * new emc(1) manpage that shows the usage and the config search path
   * the mini gui's startup is now much faster
@@ -1936,7 +1951,7 @@ emc2 (TESTING-2006-02-26) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 26 Feb 2006 20:05:58 -0600
 
-emc2 (TESTING-2006-02-19) testing; urgency=low
+linuxcnc (TESTING-2006-02-19) testing; urgency=low
 
   * enable the Mxxx commands
   * install M101 executable
@@ -1950,7 +1965,7 @@ emc2 (TESTING-2006-02-19) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 19 Feb 2006 16:29:26 -0600
 
-emc2 (2.0.0-alpha21) testing; urgency=low
+linuxcnc (2.0.0-alpha21) testing; urgency=low
 
   * Security enhancement: halcmd now loads modules using 
     emc_module_helper, so it no longer needs to be setuid root.
@@ -1961,13 +1976,13 @@ emc2 (2.0.0-alpha21) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Tue, 14 Feb 2006 20:16:44 -0600
 
-emc2 (2.0.0-alpha20) testing; urgency=low
+linuxcnc (2.0.0-alpha20) testing; urgency=low
 
   * /usr/lib/librs274.so in emc2, not emc2-dev
 
  -- Chris Radek <chris@timeguy.com>  Mon, 13 Feb 2006 10:03:00 -0600
 
-emc2 (2.0.0-alpha19) testing; urgency=low
+linuxcnc (2.0.0-alpha19) testing; urgency=low
 
   * fix a few bugs in the config picker and emc script
   * speed up realtime tasks markedly (fix problem requiring large
@@ -1975,44 +1990,44 @@ emc2 (2.0.0-alpha19) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Sun, 12 Feb 2006 22:03:00 -0600
 
-emc2 (2.0.0-alpha18) testing; urgency=low
+linuxcnc (2.0.0-alpha18) testing; urgency=low
 
   * new build system, new config picker
 
  -- Chris Radek <chris@timeguy.com>  Sat, 11 Feb 2006 22:25:02 -0600
 
-emc2 (2.0.0-alpha17) testing; urgency=low
+linuxcnc (2.0.0-alpha17) testing; urgency=low
 
   * alex's fixes to tkemc, univpwm setup changes
 
  -- Chris Radek <chris@timeguy.com>  Tue,  7 Feb 2006 22:25:02 -0600
 
-emc2 (2.0.0-alpha16) testing; urgency=low
+linuxcnc (2.0.0-alpha16) testing; urgency=low
 
   * rebuild for 2.6.12-magma_cjr10
 
  -- Chris Radek <chris@timeguy.com>  Mon,  6 Feb 2006 21:00:00 -0600
 
-emc2 (2.0.0-alpha15) testing; urgency=low
+linuxcnc (2.0.0-alpha15) testing; urgency=low
 
   * turn off debug output for sim-AXIS since the madly-scrolling
     gnome-terminal is rough on the x-server.
 
  -- Chris Radek <chris@timeguy.com>  Sun,  5 Feb 2006 13:47:24 -0600
 
-emc2 (2.0.0-alpha14) testing; urgency=low
+linuxcnc (2.0.0-alpha14) testing; urgency=low
 
   * tkemc font fix (wasn't big enough)
 
  -- Chris Radek <chris@timeguy.com>  Sat,  4 Feb 2006 17:34:00 -0600
 
-emc2 (2.0.0-alpha13) testing; urgency=low
+linuxcnc (2.0.0-alpha13) testing; urgency=low
 
   * tkemc help files
 
  -- Chris Radek <chris@timeguy.com>  Sat,  4 Feb 2006 14:41:00 -0600
 
-emc2 (2.0.0-alpha12) testing; urgency=low
+linuxcnc (2.0.0-alpha12) testing; urgency=low
 
   * move doc files to the right location
   * move TkEmc to the right location
@@ -2020,75 +2035,75 @@ emc2 (2.0.0-alpha12) testing; urgency=low
 
  -- Chris Radek <chris@timeguy.com>  Wed,  1 Feb 2006 14:11:36 -0600
 
-emc2 (2.0.0-alpha11) testing; urgency=low
+linuxcnc (2.0.0-alpha11) testing; urgency=low
 
   * -dev package
 
  -- Chris Radek <chris@timeguy.com>  Wed,  1 Feb 2006 14:11:36 -0600
 
-emc2 (2.0.0-alpha10) testing; urgency=low
+linuxcnc (2.0.0-alpha10) testing; urgency=low
 
   * Fix Suggest due to renamed AXIS package
   * Source package build stuff and build cleanup, thanks jepler
 
  -- Chris Radek <chris@timeguy.com>  Wed,  1 Feb 2006 10:59:36 -0600
 
-emc2 (2.0.0-alpha9) testing; urgency=low
+linuxcnc (2.0.0-alpha9) testing; urgency=low
 
   * AXIS sim configuration
 
  -- Chris Radek <chris@timeguy.com>  Mon, 30 Jan 2006 23:00:59 -0600
 
-emc2 (2.0.0-alpha8) testing; urgency=low
+linuxcnc (2.0.0-alpha8) testing; urgency=low
 
   * cosmetic changes
   * fix tkemc resources (again?)
 
  -- Chris Radek <chris@timeguy.com>  Mon, 30 Jan 2006 18:08:56 -0600
 
-emc2 (2.0.0-alpha7) testing; urgency=low
+linuxcnc (2.0.0-alpha7) testing; urgency=low
 
   * fix dependencies
 
  -- Chris Radek <chris@timeguy.com>  Mon, 30 Jan 2006 14:05:41 -0600
 
-emc2 (2.0.0-alpha6) testing; urgency=low
+linuxcnc (2.0.0-alpha6) testing; urgency=low
 
   * fix tkemc resources, fix program path /usr/share/emc/ncfiles
 
  -- Chris Radek <chris@timeguy.com>  Mon, 30 Jan 2006 14:05:41 -0600
 
-emc2 (2.0.0-alpha5) testing; urgency=low
+linuxcnc (2.0.0-alpha5) testing; urgency=low
 
   * finish removing sudo dependencies
 
  -- Chris Radek <chris@timeguy.com>  Sun, 29 Jan 2006 17:40:38 -0600
 
-emc2 (2.0.0-alpha4) testing; urgency=low
+linuxcnc (2.0.0-alpha4) testing; urgency=low
 
   * fix sudo problems by using emc_module_helper
 
  -- Chris Radek <chris@timeguy.com>  Sat, 28 Jan 2006 18:42:00 -0600
 
-emc2 (2.0.0-alpha3) testing; urgency=low
+linuxcnc (2.0.0-alpha3) testing; urgency=low
 
   * fix for bug 1205237 (getting stuck in MANUAL mode), thanks alex_joni
 
  -- Chris Radek <chris@timeguy.com>  Sat, 28 Jan 2006 12:14:00 -0600
 
-emc2 (2.0.0-alpha2) testing; urgency=low
+linuxcnc (2.0.0-alpha2) testing; urgency=low
 
   * wizard image fix
 
  -- Chris Radek <chris@timeguy.com>  Sat, 28 Jan 2006 12:14:00 -0600
 
-emc2 (2.0.0-alpha1) testing; urgency=low
+linuxcnc (2.0.0-alpha1) testing; urgency=low
 
   * udev fix
 
  -- Chris Radek <chris@timeguy.com>  Sat, 28 Jan 2006 10:52:57 -0600
 
-emc2 (2.0.0-alpha0) testing; urgency=low
+linuxcnc (2.0.0-alpha0) testing; urgency=low
 
   * Initial build.
 

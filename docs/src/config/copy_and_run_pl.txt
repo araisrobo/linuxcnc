@@ -1,29 +1,25 @@
-:lang: en
-:toc:
+= Running LinuxCNC
 
-= Running EMC2(((Running EMC2)))
+[[cha:running-emc]] (((Running LinuxCNC)))
 
-== Invoking EMC2
+== Invoking LinuxCNC
 
-After installation, EMC2 starts just like any other Linux program: 
-run it from the terminal by issuing the command `emc`, 
-or select it in the Applications -> CNC menu.
+After installation, LinuxCNC starts just like any other Linux program: 
+run it from the terminal by issuing the command 'emc', 
+or select it in the Applications - CNC menu.
 
 == Configuration Selector
 
 By default, the Configuration Selector dialog 
-is shown when you first run EMC2. 
+is shown when you first run LinuxCNC. 
 Your own personalized configurations are shown at the top of the list, 
 followed by sample configurations. 
 Because each sample configuration is for a different type of hardware interface, 
 almost all will not run without the hardware installed. 
-The configurations listed under the category "sim" run entirely 
+The configurations listed under the category 'sim' run entirely 
 without attached hardware.
 
-Figure <<cap:EMC2-Configuration-Selector>> shows the appearance 
-of the configuration selector window. 
-
-.EMC2 Configuration Selector[[cap:EMC2-Configuration-Selector]]
+.LinuxCNC Configuration Selector[[cap:LinuxCNC-Configuration-Selector]]
 
 image::images/configuration-selector.png[]
 
@@ -31,7 +27,7 @@ Click any of the listed configurations
 to display specific information about it. 
 Double-click a configuration or click OK 
 to start the configuration. 
-Select "Create Desktop Shortcut" and then click OK 
+Select 'Create Desktop Shortcut' and then click OK 
 to add an icon on the Ubuntu desktop 
 to directly launch this configuration 
 without showing the Configuration Selector screen. 

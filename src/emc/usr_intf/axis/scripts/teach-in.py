@@ -3,7 +3,7 @@
     python teach.py outputfile nmlfile
 If outputfile is not specified, writes to standard output.
 
-You must ". scripts/emc-environment" before running this script, if you use
+You must ". scripts/rip-environment" before running this script, if you use
 run-in-place.
 """
 #    Copyright 2007 Jeff Epler <jepler@unpythonic.net>
@@ -22,25 +22,14 @@ run-in-place.
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-import sys, os
-BASE = os.environ['EMC2_HOME']
-sys.path.insert(0, os.path.join(BASE, "lib", "python"))
-
-import gettext;
-gettext.install("emc2", localedir=os.path.join(BASE, "share", "locale"), unicode=True)
-
-import emc
-import Tkinter 
-import tkMessageBox
-from Tkinter import *
-from scipy import mat
-from scipy import linalg
-
+import linuxcnc
+import Tkinter
+import sys
 
 linenumber = 1;
 
-if len(sys.argv) > 2:
-    emc.nmlfile = sys.argv[1]
+if len(sys.argv) > 1:
+    linuxcnc.nmlfile = sys.argv[1]
 
 #if len(sys.argv) > 1:
 #    outfile = sys.argv[1]
@@ -69,67 +58,7 @@ output_string = "F#3000 \n\
 (Learned Path)\n\
 "
 
-s = emc.stat()
-   
-def save_quit():
-    if len(sys.argv) > 1:
-        outfile = sys.argv[1]
-    if tkMessageBox.askokcancel( \
-            "Save and Quit", \
-            "Save to %s and quit now?" % outfile):
-        outfile = sys.argv[1]
-        f = open(outfile, 'w')
-        text.insert(END, "M2")
-        f.write(text.get(1.0, END))
-        f.close()
-        app.destroy()
-    return
-
-def get_textbox_data():
-    global file_header
-    global feed_rate_string
-    global output_string
-    file_header = text.get(0.0, 9.0)
-#    print file_header
-    feed_rate_string = text.get(9.0,"13.0")
-    output_string = text.get(13.0,END)
-    entry1.delete(0, END)
-    entry1.insert(0, text.get("9.8","9.end"))
-    entry2.delete(0, END)
-    entry2.insert(0, text.get("10.8","10.end"))
-    entry3.delete(0, END)
-    entry3.insert(0, text.get("11.8","11.end"))
-    button4.config(state=DISABLED)
-    return
-
-def textbox_changed(event):
-# disable apply button
-    button4.config(state=NORMAL)
-    return
-
-def feedrate_press(event):
-    update_feed_string()
-    return
-
-def update_textbox():
-    global file_header
-    global feed_rate_string
-    global output_string
-    text.delete(0.0,END)
-    text.insert(INSERT, file_header)
-    text.insert(INSERT, feed_rate_string)
-    text.insert(INSERT, output_string)
-    return
-
-def update_feed_string():
-    global file_header
-    global feed_rate_string
-    global output_string
-    feed_rate_string = "#3000 = " + entry1.get() +"\n"
-    feed_rate_string = feed_rate_string+"#3001 = " + entry2.get() +"\n"
-    feed_rate_string = feed_rate_string+"#3002 = " + entry3.get() +"\n\n"
-    update_textbox()
-    return
+s = linuxcnc.stat()
 
 def get_cart():
     s.poll()
@@ -223,45 +152,7 @@ def show():
 #    labAval.configure(text='%s' % p.split(' ')[3])
     app.after(100, show)
 
-det = 0
-def destory_bind(x):
-    global det
-    global file_header
-    global feed_rate_string
-    global output_string
-    if det == 0:   
-        output_string = file_header+feed_rate_string+output_string + "M2\n"
-        print output_string
-    det = 1
-
-total_pts = 2
-cur_pt = 0
-def points_init(*args):
-    global total_pts
-    global cur_pt
-    global msg
-    global v
-
-    cur_pt = 0
-    s.poll()
-    points[cur_pt] = s.position[:s.axes]
-    position = " ".join(["%-8.4f"] * s.axes)
-    position = position % points[cur_pt][:s.axes]
-    cur_pt += 1
-
-    mode=v.get()
-    if ((mode == "G0") or (mode == "G1")):
-        total_pts = 2
-    elif ((mode == "G2") or (mode == "G3")):
-        total_pts = 3
-    
-    tmp = "%s: points(%d/%d)" % (mode, cur_pt, total_pts)
-    tmp = tmp + "\n%s" % position 
-    msg.set("%s" % tmp)
-
-app = Tkinter.Tk(); app.wm_title('EMC2 Teach-In')
-app.bind('<Destroy>',destory_bind)
-app.protocol("WM_DELETE_WINDOW", save_quit)
+app = Tkinter.Tk(); app.wm_title('LinuxCNC Teach-In')
 
 world = Tkinter.IntVar(app)
 

@@ -19,7 +19,7 @@ from gladevcp.gladebuilder import GladeBuilder
 import sys, os, time
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
-datadir = os.path.join(BASE, "share", "emc")
+datadir = os.path.join(BASE, "share", "linuxcnc")
 sys.path.insert(0, libdir)
 themedir = "/usr/share/themes"
 try:
@@ -43,10 +43,10 @@ empty_program.write("%\n%\n")
 empty_program.flush()
 
 import gettext
-# LOCALEDIR = os.path.join(BASE, "share", "locale")
-# gettext.install("emc2", localedir=LOCALEDIR, unicode=True)
-# gtk.glade.bindtextdomain("emc2", LOCALEDIR)
-# gtk.glade.textdomain("emc2")
+LOCALEDIR = os.path.join(BASE, "share", "locale")
+gettext.install("linuxcnc", localedir=LOCALEDIR, unicode=True)
+gtk.glade.bindtextdomain("linuxcnc", LOCALEDIR)
+gtk.glade.textdomain("linuxcnc")
 
 def set_active(w, s):
 	if not w: return
@@ -63,7 +63,7 @@ def set_text(w, t):
 	ot = w.get_label()
 	if ot != t: w.set_label(t)
 
-import emc
+import linuxcnc
 from touchy import emc_interface
 from touchy import mdi
 from touchy import hal_interface
@@ -86,7 +86,7 @@ class touchy:
         def __init__(self, inifile):
                 # begin: read glade file name from ini file
                 if inifile:
-                    ini = emc.ini(inifile)
+                    ini = linuxcnc.ini(inifile)
                     self.ini = ini
                 else:
                     self.ini = None
@@ -210,13 +210,11 @@ class touchy:
                 mdi_eventboxes = []
                 for i in range(self.num_mdi_labels):
                         mdi_labels.append(self.wTree.get_object("mdi%d" % i))
-                        # mdi_labels.append(self.wTree.get_widget("mdi%d" % i))
                         mdi_eventboxes.append(self.wTree.get_object("eventbox_mdi%d" % i))
-                        # mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
-                self.mdi_control = mdi.mdi_control(gtk, emc, mdi_labels, mdi_eventboxes)
+                self.mdi_control = mdi.mdi_control(gtk, linuxcnc, mdi_labels, mdi_eventboxes)
 
                 if inifile:
-                    ini = emc.ini(inifile)
+                    ini = linuxcnc.ini(inifile)
                     self.mdi_control.mdi.add_macros(
                         ini.findall("TOUCHY", "MACRO"))
                     self.ini = ini
@@ -226,17 +224,13 @@ class touchy:
                 listing_labels = []
                 listing_eventboxes = []
                 for i in range(self.num_listing_labels):
-                        # listing_labels.append(self.wTree.get_widget("listing%d" % i))
-                        # listing_eventboxes.append(self.wTree.get_widget("eventbox_listing%d" % i))
                         listing_labels.append(self.wTree.get_object("listing%d" % i))
                         listing_eventboxes.append(self.wTree.get_object("eventbox_listing%d" % i))
-                self.listing = listing.listing(gtk, emc, listing_labels, listing_eventboxes)
+                self.listing = listing.listing(gtk, linuxcnc, listing_labels, listing_eventboxes)
 
                 # emc interface
-                self.emc = emc_interface.emc_control(emc, self.listing,
-                            self.wTree.get_object("error"))
-                # self.emc = emc_interface.emc_control(emc, self.listing, self.wTree.get_widget("error"))
-                self.emc.continuous_jog_velocity(self.mv_val)
+                self.linuxcnc = emc_interface.emc_control(linuxcnc, self.listing, self.wTree.get_object("error"))
+                self.linuxcnc.continuous_jog_velocity(self.mv_val)
 
                 # set injector to 1 if use_injection is set
                 # don't instance injector before halcomp is initialized
@@ -247,7 +241,8 @@ class touchy:
                   if o == 'yes':
                     from injector import InjectorClass
                     self.injector = 1
-                self.hal = hal_interface.hal_interface(self, self.emc, self.mdi_control, emc)
+  
+                self.hal = hal_interface.hal_interface(self, self.linuxcnc, self.mdi_control, linuxcnc)
                 if self.injector == 1:
                     # instance injector after halcomp initialized
                     # make hal pin depends description from the xml file
@@ -259,11 +254,9 @@ class touchy:
                 filechooser_labels = []
                 filechooser_eventboxes = []
                 for i in range(self.num_filechooser_labels):
-                        # filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
-                        # filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
                         filechooser_labels.append(self.wTree.get_object("filechooser%d" % i))
                         filechooser_eventboxes.append(self.wTree.get_object("eventbox_filechooser%d" % i))
-                self.filechooser = filechooser.filechooser(gtk, emc, filechooser_labels, filechooser_eventboxes, self.listing)
+                self.filechooser = filechooser.filechooser(gtk, linuxcnc, filechooser_labels, filechooser_eventboxes, self.listing)
 
                 relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
                 absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
@@ -304,10 +297,7 @@ class touchy:
                 # opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
                 blockdel = ['on', 'off']
                 blockdel = dict((i, self.wTree.get_object("blockdel_" + i)) for i in blockdel)
-                # blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
-                self.status = emc_interface.emc_status(gtk, emc, self.listing, relative, absolute, distance,
-                                                       # self.wTree.get_widget("dro_table"),
-                                                       # self.wTree.get_widget("error"),
+                self.status = emc_interface.emc_status(gtk, linuxcnc, self.listing, relative, absolute, distance,
                                                        self.wTree.get_object("dro_table"),
                                                        self.wTree.get_object("error"),
                                                        estops, machines,
@@ -318,7 +308,7 @@ class touchy:
                                                        opstop, blockdel)
 
                 # check the ini file if UNITS are set to mm"
-                inifile=self.emc.emc.ini(sys.argv[2])
+                inifile=self.linuxcnc.emc.ini(sys.argv[2])
                 # first check the global settings
                 units=inifile.find("TRAJ","LINEAR_UNITS")
 
@@ -350,18 +340,18 @@ class touchy:
                         self.status.dro_commanded(0)
 
                 if self.prefs.getpref('blockdel', 0):
-                        self.emc.blockdel_on(0)
+                        self.linuxcnc.blockdel_on(0)
                 else:
-                        self.emc.blockdel_off(0)
+                        self.linuxcnc.blockdel_off(0)
 
                 if self.prefs.getpref('opstop', 1):
-                        self.emc.opstop_on(0)
+                        self.linuxcnc.opstop_on(0)
                 else:
-                        self.emc.opstop_off(0)                        
+                        self.linuxcnc.opstop_off(0)                        
 
-		# self.emc.emccommand.program_open(empty_program.name)
+# TODO:		self.linuxcnc.emccommand.program_open(empty_program.name)
 
-                self.emc.max_velocity(self.mv_val)
+                self.linuxcnc.max_velocity(self.mv_val)
                                 
                 gobject.timeout_add(50, self.periodic_status)
                 gobject.timeout_add(100, self.periodic_radiobuttons)
@@ -375,7 +365,7 @@ class touchy:
                         "on_opstop_off_clicked" : self.opstop_off,
                         "on_blockdel_on_clicked" : self.blockdel_on,
                         "on_blockdel_off_clicked" : self.blockdel_off,
-                        "on_reload_tooltable_clicked" : self.emc.reload_tooltable,
+                        "on_reload_tooltable_clicked" : self.linuxcnc.reload_tooltable,
                         "on_notebook1_switch_page" : self.tabselect,
                         "on_controlfontbutton_font_set" : self.change_control_font,
                         "on_drofontbutton_font_set" : self.change_dro_font,
@@ -385,11 +375,10 @@ class touchy:
                         "on_dro_mm_clicked" : self.dro_mm,
                         "on_errorfontbutton_font_set" : self.change_error_font,
                         "on_listingfontbutton_font_set" : self.change_listing_font,
-                        "on_estop_clicked" : self.emc.estop,
-                        "on_estop_reset_clicked" : self.emc.estop_reset,
-                        "on_machine_off_clicked" : self.emc.machine_off,
-                        "on_machine_on_clicked" : self.emc.machine_on,
-#                        "on_power_off_clicked" : self.power_off,
+                        "on_estop_clicked" : self.linuxcnc.estop,
+                        "on_estop_reset_clicked" : self.linuxcnc.estop_reset,
+                        "on_machine_off_clicked" : self.linuxcnc.machine_off,
+                        "on_machine_on_clicked" : self.linuxcnc.machine_on,
                         "on_mdi_clear_clicked" : self.mdi_control.clear,
                         "on_mdi_back_clicked" : self.mdi_control.back,
                         "on_mdi_next_clicked" : self.mdi_control.next,
@@ -412,12 +401,12 @@ class touchy:
                         "on_listing_down_clicked" : self.listing.down,
                         "on_listing_previous_clicked" : self.listing.previous,
                         "on_listing_next_clicked" : self.listing.next,
-                        "on_mist_on_clicked" : self.emc.mist_on,
-                        "on_mist_off_clicked" : self.emc.mist_off,
-                        "on_flood_on_clicked" : self.emc.flood_on,
-                        "on_flood_off_clicked" : self.emc.flood_off,
-                        "on_home_all_clicked" : self.emc.home_all,
-                        "on_unhome_all_clicked" : self.emc.unhome_all,
+                        "on_mist_on_clicked" : self.linuxcnc.mist_on,
+                        "on_mist_off_clicked" : self.linuxcnc.mist_off,
+                        "on_flood_on_clicked" : self.linuxcnc.flood_on,
+                        "on_flood_off_clicked" : self.linuxcnc.flood_off,
+                        "on_home_all_clicked" : self.linuxcnc.home_all,
+                        "on_unhome_all_clicked" : self.linuxcnc.unhome_all,
                         "on_home_selected_clicked" : self.home_selected,
                         "on_unhome_selected_clicked" : self.unhome_selected,
                         "on_fo_clicked" : self.fo,
@@ -436,12 +425,12 @@ class touchy:
                         "on_wheelinc1_clicked" : self.wheelinc1,
                         "on_wheelinc2_clicked" : self.wheelinc2,
                         "on_wheelinc3_clicked" : self.wheelinc3,
-                        "on_override_limits_clicked" : self.emc.override_limits,
-                        "on_spindle_forward_clicked" : self.emc.spindle_forward,
-                        "on_spindle_off_clicked" : self.emc.spindle_off,
-                        "on_spindle_reverse_clicked" : self.emc.spindle_reverse,
-                        "on_spindle_slower_clicked" : self.emc.spindle_slower,
-                        "on_spindle_faster_clicked" : self.emc.spindle_faster,
+                        "on_override_limits_clicked" : self.linuxcnc.override_limits,
+                        "on_spindle_forward_clicked" : self.linuxcnc.spindle_forward,
+                        "on_spindle_off_clicked" : self.linuxcnc.spindle_off,
+                        "on_spindle_reverse_clicked" : self.linuxcnc.spindle_reverse,
+                        "on_spindle_slower_clicked" : self.linuxcnc.spindle_slower,
+                        "on_spindle_faster_clicked" : self.linuxcnc.spindle_faster,
                         "on_toolset_fixture_clicked" : self.toolset_fixture,
                         "on_toolset_workpiece_clicked" : self.toolset_workpiece,
                         "on_changetheme_clicked" : self.change_theme,
@@ -513,22 +502,22 @@ class touchy:
         def opstop_on(self, b):
                 if self.radiobutton_mask: return
                 self.prefs.putpref('opstop', 1)
-                self.emc.opstop_on(b)
+                self.linuxcnc.opstop_on(b)
 
         def opstop_off(self, b):
                 if self.radiobutton_mask: return
                 self.prefs.putpref('opstop', 0)
-                self.emc.opstop_off(b)
+                self.linuxcnc.opstop_off(b)
 
         def blockdel_on(self, b):
                 if self.radiobutton_mask: return
                 self.prefs.putpref('blockdel', 1)
-                self.emc.blockdel_on(b)
+                self.linuxcnc.blockdel_on(b)
 
         def blockdel_off(self, b):
                 if self.radiobutton_mask: return
                 self.prefs.putpref('blockdel', 0)
-                self.emc.blockdel_off(b)
+                self.linuxcnc.blockdel_off(b)
 
         def wheelx(self, b):
                 if self.radiobutton_mask: return
@@ -571,10 +560,10 @@ class touchy:
                 self.wheelinc = 0
 
         def home_selected(self, b):
-                self.emc.home_selected(self.wheelxyz)
+                self.linuxcnc.home_selected(self.wheelxyz)
 
         def unhome_selected(self, b):
-                self.emc.unhome_selected(self.wheelxyz)
+                self.linuxcnc.unhome_selected(self.wheelxyz)
 
         def wheelinc2(self, b):
                 if self.radiobutton_mask: return
@@ -602,7 +591,7 @@ class touchy:
         def jogging(self, b):
                 if self.radiobutton_mask: return
                 self.wheel = "jogging"
-                self.emc.jogging(b)
+                self.linuxcnc.jogging(b)
                 self.jogsettings_activate(1)
 
         def toolset_fixture(self, b):
@@ -744,17 +733,17 @@ class touchy:
                 self.listing.clear_startline()
 
         def periodic_status(self):
-                self.emc.mask()
+                self.linuxcnc.mask()
                 self.radiobutton_mask = 1
                 self.status.periodic()
                 self.radiobutton_mask = 0
-                self.emc.unmask()
+                self.linuxcnc.unmask()
                 self.hal.periodic(self.tab == 1) # MDI tab?
                 return True
 
         def periodic_radiobuttons(self):
                 self.radiobutton_mask = 1
-                s = emc.stat()
+                s = linuxcnc.stat()
                 s.poll()
                 am = s.axis_mask
                 if not self.resized_wheelbuttons:
@@ -844,12 +833,12 @@ class touchy:
                 if self.wheel == "fo":
                         self.fo_val += d
                         if self.fo_val < 0: self.fo_val = 0
-                        if d != 0: self.emc.feed_override(self.fo_val)
+                        if d != 0: self.linuxcnc.feed_override(self.fo_val)
 
                 if self.wheel == "so":
                         self.so_val += d
                         if self.so_val < 0: self.so_val = 0
-                        if d != 0: self.emc.spindle_override(self.so_val)
+                        if d != 0: self.linuxcnc.spindle_override(self.so_val)
 
                 if self.wheel == "mv":
                         if self.machine_units_mm:
@@ -858,8 +847,8 @@ class touchy:
                                 self.mv_val += d
                         if self.mv_val < 0: self.mv_val = 0
                         if d != 0:
-                                self.emc.max_velocity(self.mv_val)
-                                self.emc.continuous_jog_velocity(self.mv_val)
+                                self.linuxcnc.max_velocity(self.mv_val)
+                                self.linuxcnc.continuous_jog_velocity(self.mv_val)
                         
 
                 # set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
@@ -933,7 +922,7 @@ class touchy:
                 self.prefs.putpref('maxvel', self.mv_val, int)
 
 	def postgui(self):
-		inifile=self.emc.emc.ini(sys.argv[2])
+		inifile=self.linuxcnc.emc.ini(sys.argv[2])
 		postgui_halfile = inifile.find("HAL", "POSTGUI_HALFILE")
 		return postgui_halfile,sys.argv[2]
 #         def power_off(self, w):

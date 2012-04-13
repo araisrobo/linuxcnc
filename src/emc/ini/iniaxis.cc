@@ -61,6 +61,7 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     char axisString[16];
     //obsolete: double units;
     double limit;
+    double home;
     double maxVelocity;
     double maxAcceleration;
     double maxJerk;
@@ -82,6 +83,15 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     axisIniFile->EnableExceptions(EmcIniFile::ERR_CONVERSION);
     
     try {
+        home = 0;
+        axisIniFile->Find(&home, "HOME", axisString);
+        if (0 != emcAxisSetHome(axis, home)) {
+            if (emc_debug & EMC_DEBUG_CONFIG) {
+                rcs_print_error("bad return from emcAxisSetHome\n");
+            }
+            return -1;
+        };
+
         // set min position limit
         limit = -1e99;	                // default
         axisIniFile->Find(&limit, "MIN_LIMIT", axisString);
@@ -133,7 +143,7 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
             }
             return -1;
         }
-    }
+                }
 
     catch(EmcIniFile::Exception &e){
         e.Print();

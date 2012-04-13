@@ -24,16 +24,13 @@
 extern "C" {
 #endif
 
-// <<<<<<< HEAD
-//     extern char EMC_INIFILE[LINELEN];
-// =======
 #define EMC_AXIS_MAX EMCMOT_MAX_AXIS
 
 #define EMC_MAX_DIO EMCMOT_MAX_DIO
 #define EMC_MAX_AIO EMCMOT_MAX_AIO
 
     extern char emc_inifile[LINELEN];
-// >>>>>>> b6bc519757120b4945c2c4e81ddd14658ce7d14d
+    extern char emc_inifile[LINELEN];
 
     extern char emc_nmlfile[LINELEN];
 
@@ -57,25 +54,12 @@ extern "C" {
 
     extern int emc_task_interp_max_len;
 
-// <<<<<<< HEAD
-//     extern struct EmcPose TOOL_CHANGE_POSITION;
-//     extern unsigned char HAVE_TOOL_CHANGE_POSITION;
-//     extern struct EmcPose TOOL_HOLDER_CLEAR;
-//     extern unsigned char HAVE_TOOL_HOLDER_CLEAR;
-// =======
     extern char tool_table_file[LINELEN];
-
-    extern double traj_default_velocity;
-    extern double traj_max_velocity;
-
-    extern double axis_max_velocity[EMC_AXIS_MAX];
-    extern double axis_max_acceleration[EMC_AXIS_MAX];
 
     extern struct EmcPose tool_change_position;
     extern unsigned char have_tool_change_position;
     extern struct EmcPose tool_holder_clear;
     extern unsigned char have_tool_holder_clear;
-// >>>>>>> b6bc519757120b4945c2c4e81ddd14658ce7d14d
 
 /*just used to keep track of unneccessary debug printing. */
     extern int taskplanopen;

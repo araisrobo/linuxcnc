@@ -132,7 +132,7 @@ NMLmsg *emcTaskCommand = 0;
 // signal handling code to stop main loop
 int done;
 static int emctask_shutdown(void);
-static int pseudoMdiLineNumber = INT_MIN;
+static int pseudoMdiLineNumber = MOTION_INVALID_ID + 1;
 extern void backtrace(int signo);
 int _task = 1; // control preview behaviour when remapping
 
@@ -461,9 +461,7 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 	    emcOperatorError(operator_error_msg->id, "%s",
 			     operator_error_msg->error);
 	    break;
-
-//FIXME-AJ: investigate removing these tests. it seems odd to test only a few.
-//otoh, they are busted. they check axis limits, but refer joints
+//FIXME: there was limit checking tests below, see if they were needed
 	case EMC_TRAJ_NURBS_MOVE_TYPE:
 	    if (nurbs_move->end.tran.x >
                 stat->motion.joint[0].maxPositionLimit) {
@@ -495,72 +493,12 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
                 emcOperatorError(0, _("%s exceeds -Z limit"), stat->task.command);
                 return -1;
             }
-//TODO-eric: NURBS check
-		break;
+            break;
+//FIXME: there was limit checking tests below, see if they were needed
 	case EMC_TRAJ_LINEAR_MOVE_TYPE:
-	    if (linear_move->end.tran.x >
-		stat->motion.joint[0].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.y >
-		stat->motion.joint[1].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.z >
-		stat->motion.joint[2].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Z limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.x <
-		stat->motion.joint[0].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.y <
-		stat->motion.joint[1].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.z <
-		stat->motion.joint[2].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Z limit"), stat->task.command);
-		return -1;
-	    }
 	    break;
 
 	case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
-	    if (circular_move->end.tran.x >
-		stat->motion.joint[0].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.y >
-		stat->motion.joint[1].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.z >
-		stat->motion.joint[2].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Z limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.x <
-		stat->motion.joint[0].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.y <
-		stat->motion.joint[1].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.z <
-		stat->motion.joint[2].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Z limit"), stat->task.command);
-		return -1;
-	    }
 	    break;
 
 	default:
@@ -2108,7 +2046,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
 		// now queue up command to resynch interpreter
 		emcTaskQueueCommand(&taskPlanSynchCmd);
-		retval = 0;
 	    }
 	    retval = emcTaskSetMode(mode_msg->mode);
 	}
@@ -2565,26 +2502,29 @@ static int emcTaskExecute(void)
 	}
 	break;
 
-    case EMC_TASK_EXEC_WAITING_FOR_PAUSE:
-        //printf("EMC_TASK_EXEC_WAITING_FOR_PAUSE\n");
-	STEPPING_CHECK();
-	if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-	    if (0 != emcTaskCommand) {
-		if (emcStatus->motion.traj.queue > 0) {
-		    emcStatus->task.execState =
-			EMC_TASK_EXEC_WAITING_FOR_MOTION_QUEUE;
-		} else {
-		    emcStatus->task.execState = (enum EMC_TASK_EXEC_ENUM)
-			emcTaskCheckPreconditions(emcTaskCommand);
-		    emcTaskEager = 1;
-		}
-	    } else {
-		emcStatus->task.execState = EMC_TASK_EXEC_DONE;
-		emcTaskEager = 1;
-	    }
-	}
-	break;
-
+// <<<<<<< HEAD
+//     case EMC_TASK_EXEC_WAITING_FOR_PAUSE:
+//         //printf("EMC_TASK_EXEC_WAITING_FOR_PAUSE\n");
+// 	STEPPING_CHECK();
+// 	if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
+// 	    if (0 != emcTaskCommand) {
+// 		if (emcStatus->motion.traj.queue > 0) {
+// 		    emcStatus->task.execState =
+// 			EMC_TASK_EXEC_WAITING_FOR_MOTION_QUEUE;
+// 		} else {
+// 		    emcStatus->task.execState = (enum EMC_TASK_EXEC_ENUM)
+// 			emcTaskCheckPreconditions(emcTaskCommand);
+// 		    emcTaskEager = 1;
+// 		}
+// 	    } else {
+// 		emcStatus->task.execState = EMC_TASK_EXEC_DONE;
+// 		emcTaskEager = 1;
+// 	    }
+// 	}
+// 	break;
+// 
+// =======
+// >>>>>>> lcnc-ja3
     case EMC_TASK_EXEC_WAITING_FOR_MOTION:
         //printf("EMC_TASK_EXEC_WAITING_FOR_MOTION\n");
 	STEPPING_CHECK();
@@ -3202,10 +3142,10 @@ int main(int argc, char *argv[])
     int taskExecuteError = 0;
     double startTime, endTime, deltaTime;
     double minTime, maxTime;
-    bindtextdomain("emc2", EMC2_PO_DIR);
+    bindtextdomain("linuxcnc", EMC2_PO_DIR);
     setlocale(LC_MESSAGES,"");
     setlocale(LC_CTYPE,"");
-    textdomain("emc2");
+    textdomain("linuxcnc");
 
     // copy command line args
     Argc = argc;
@@ -3310,7 +3250,7 @@ int main(int argc, char *argv[])
 	    if (emcStatus->motion.traj.enabled) {
 		emcTrajDisable();
 		emcTaskAbort();
-		emcIoAbort(EMC_ABORT_AUX_ESTOP);
+                emcIoAbort(EMC_ABORT_AUX_ESTOP);
                 emcSpindleAbort();
                 emcJointUnhome(-2); // only those joints which are volatile_home
 		mdi_execute_abort();

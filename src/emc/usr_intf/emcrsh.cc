@@ -1976,7 +1976,7 @@ static cmdResponseType getJointType(char *s, connectionRecType *context)
       switch (emcStatus->motion.joint[i].jointType) {
         case EMC_LINEAR: strcat(context->outBuf, " LINEAR"); break;
 	case EMC_ANGULAR: strcat(context->outBuf, " ANGULAR"); break;
-	default: strcat(context->outBuf, " CUSTOM");
+	default: strcat(context->outBuf, "CUSTOM");
 	}
       }
     }

@@ -263,10 +263,13 @@ void emcmotController(void *arg, long period)
     // check below if you set this under 5
 #define CYCLE_HISTORY 5
 
-    static long int cycles[CYCLE_HISTORY];
-    static long long int last = 0;
 
-    static int index = 0, priming = 1;
+    static long long int last = 0;
+#ifndef RTAPI_SIM
+    static int index = 0;
+    static long int cycles[CYCLE_HISTORY];
+    static int priming = 1;
+#endif
 
     long long int now = rtapi_get_clocks();
     long int this_run = (long int)(now - last);
@@ -318,7 +321,6 @@ void emcmotController(void *arg, long period)
 	    }
         }
     }
-#endif
     if(last) {
         cycles[index++] = this_run;
     }
@@ -328,6 +330,7 @@ void emcmotController(void *arg, long period)
         // we now have CYCLE_HISTORY good samples, so start checking times
         priming = 0;
     }
+#endif
     // we need this for next time
     last = now;
 
@@ -1016,8 +1019,10 @@ static void check_for_faults(void)
 
 static void set_operating_mode(void)
 {
-    int joint_num;
+    int joint_num, axis_num;
     emcmot_joint_t *joint;
+    emcmot_axis_t *axis;
+    joint_hal_t *joint_data;
     double positions[EMCMOT_MAX_JOINTS];
 
     /* check for disabling */
@@ -1041,6 +1046,15 @@ static void set_operating_mode(void)
 	    /* don't clear the joint error flag, since that may signify why
 	       we just went into disabled state */
 	}
+
+	for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
+	    /* point to axis data */
+	    axis = &axes[axis_num];
+	    /* disable teleop mode planner */
+	    axis->teleop_tp.enable = 0;
+	    axis->teleop_tp.curr_vel = 0.0;
+        }
+
 	SET_MOTION_ENABLE_FLAG(0);
 	/* don't clear the motion error flag, since that may signify why we
 	   just went into disabled state */
@@ -1281,8 +1295,7 @@ static void handle_jogwheels(void)
 
 static void get_pos_cmds(long period)
 {
-    int joint_num, result;
-    // int joint_num, axis_num, all_homed, all_at_home, result, limit;
+    int joint_num, axis_num, result;
     emcmot_joint_t *joint;
     //obsolete: emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
@@ -2185,9 +2198,11 @@ static void output_to_hal(void)
 
 static void update_status(void)
 {
-    int joint_num, dio, aio;
+    int joint_num, axis_num, dio, aio;
     emcmot_joint_t *joint;
     emcmot_joint_status_t *joint_status;
+    emcmot_axis_t *axis;
+    emcmot_axis_status_t *axis_status;
 #ifdef WATCH_FLAGS
     static int old_joint_flags[8];
     static int old_motion_flag;
@@ -2221,6 +2236,16 @@ static void update_status(void)
 	joint_status->max_ferror = joint->max_ferror;
 	joint_status->home_offset = joint->home_offset;
     }
+
+    for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
+	/* point to axis data */
+	axis = &axes[axis_num];
+	/* point to axis status */
+	axis_status = &(emcmotStatus->axis_status[axis_num]);
+
+	axis_status->vel_cmd = axis->vel_cmd;
+    }
+
 
     for (dio = 0; dio < emcmotConfig->numDIO; dio++) {
 	emcmotStatus->synch_di[dio] = *(emcmot_hal_data->synch_di[dio]);

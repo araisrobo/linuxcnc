@@ -1550,7 +1550,6 @@ int NML::format_output()
 	return (-1);
     }
     if (forced_type > 0) {
-	new_type = forced_type;
 	((NMLmsg *) cms->subdiv_data)->type = forced_type;
     }
 

@@ -70,6 +70,7 @@ mesa_7i65.9
 message.9
 minmax.9
 mult2.9
+multiswitch.9
 mux2.9
 mux4.9
 mux8.9
@@ -88,6 +89,7 @@ scale.9
 select8.9
 serport.9
 sphereprobe.9
+sim_spindle.9
 steptest.9
 sum2.9
 thc.9

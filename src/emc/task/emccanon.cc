@@ -620,8 +620,8 @@ double getStraightAcceleration(double x, double y, double z,
                                double u, double v, double w)
 {
     double dx, dy, dz, du, dv, dw, da, db, dc;
-//    double tx, ty, tz, tu, tv, tw, ta, tb, tc, tmax;
-    double acc;//, dtot;
+    double tx, ty, tz, tu, tv, tw, ta, tb, tc, tmax;
+    double acc, dtot, ang_acc;
 
     acc = 0.0; // if a move to nowhere
 
@@ -665,30 +665,61 @@ double getStraightAcceleration(double x, double y, double z,
     }
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
+	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
+	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
+	tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
+	tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
+	tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
+	tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
+        tmax = MAX3(tx, ty ,tz);
+        tmax = MAX4(tu, tv, tw, tmax);
 
-        acc = MIN3((dx?emcAxisGetMaxAcceleration(0): 1e9),
-                    (dy?emcAxisGetMaxAcceleration(1): 1e9),
-                    (dz?emcAxisGetMaxAcceleration(2): 1e9));
-        acc = FROM_EXT_LEN(MIN4((acc),
-                        (du?emcAxisGetMaxAcceleration(6): 1e9),
-                        (dv?emcAxisGetMaxAcceleration(7): 1e9),
-                        (dw?emcAxisGetMaxAcceleration(8): 1e9)));
-        assert(acc > 0);
+        if(dx || dy || dz)
+            dtot = sqrt(dx * dx + dy * dy + dz * dz);
+        else
+            dtot = sqrt(du * du + dv * dv + dw * dw);
+        
+	if (tmax > 0.0) {
+	    acc = dtot / tmax;
+	}
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-        acc = FROM_EXT_ANG(MIN3(
-                    (da?emcAxisGetMaxAcceleration(3): 1e9),
-                    (db?emcAxisGetMaxAcceleration(4): 1e9),
-                    (dc?emcAxisGetMaxAcceleration(5): 1e9)));
-        assert(acc > 0);
+	ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
+	tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
+	tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
+        tmax = MAX3(ta, tb, tc);
+
+	dtot = sqrt(da * da + db * db + dc * dc);
+	if (tmax > 0.0) {
+	    acc = dtot / tmax;
+	}
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-        double ang_acc;
-        acc = MIN3( (dx?emcAxisGetMaxAcceleration(0): 1e9),
-                    (dy?emcAxisGetMaxAcceleration(1): 1e9),
-                    (dz?emcAxisGetMaxAcceleration(2): 1e9));
+	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
+	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
+	tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
+	ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
+	tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
+	tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
+	tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
+	tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
+	tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
+        tmax = MAX9(tx, ty, tz,
+                    ta, tb, tc,
+                    tu, tv, tw);
+
+/*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
+    a combnation move is handled like a linear move, except
+    that the angular axes are allowed sufficient time to
+    complete their motion coordinated with the motion of
+    the linear axes.
+*/
+        if(dx || dy || dz)
+            dtot = sqrt(dx * dx + dy * dy + dz * dz);
+        else
+            dtot = sqrt(du * du + dv * dv + dw * dw);
 
         acc = FROM_EXT_LEN(MIN4( acc,
                                 (du?emcAxisGetMaxAcceleration(6): 1e9),
@@ -715,9 +746,9 @@ double getStraightVelocity(double x, double y, double z,
                            double u, double v, double w)
 {
     double dx, dy, dz, da, db, dc, du, dv, dw;
-//    double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
-    double vel;//, dtot;
-
+    double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
+    double vel, dtot, ang_vel;
+    vel = 1e99;
 /* If we get a move to nowhere (!canon.cartesian_move && !canon.angular_move)
    we might as well go there at the canon.linearFeedRate...
 */
@@ -765,6 +796,20 @@ double getStraightVelocity(double x, double y, double z,
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
+        // calculate travel time for linear  
+	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
+	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
+	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
+	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
+	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
+        tmax = MAX3(tx, ty ,tz);
+        tmax = MAX4(tu, tv, tw, tmax);
+
+        if(dx || dy || dz)
+            dtot = sqrt(dx * dx + dy * dy + dz * dz);
+        else
+            dtot = sqrt(du * du + dv * dv + dw * dw);
 
         vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
                     (dy?emcAxisGetMaxVelocity(1): 1e9),
@@ -777,18 +822,43 @@ double getStraightVelocity(double x, double y, double z,
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-        vel = FROM_EXT_ANG(MIN3(
-                    (da?emcAxisGetMaxVelocity(3): 1e9),
-                    (db?emcAxisGetMaxVelocity(4): 1e9),
-                    (dc?emcAxisGetMaxVelocity(5): 1e9)));
-        assert(vel > 0);
+	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
+	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
+	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
+        tmax = MAX3(ta, tb, tc);
+
+	dtot = sqrt(da * da + db * db + dc * dc);
+	if (tmax <= 0.0) {
+	    vel = canon.angularFeedRate;
+	} else {
+	    vel = dtot / tmax;
+	}
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-        double ang_vel;
-        vel = MIN3( (dx?emcAxisGetMaxVelocity(0): 1e9),
-                    (dy?emcAxisGetMaxVelocity(1): 1e9),
-                    (dz?emcAxisGetMaxVelocity(2): 1e9));
+	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
+	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
+	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
+	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
+	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
+	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
+	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
+	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
+        tmax = MAX9(tx, ty, tz,
+                    ta, tb, tc,
+                    tu, tv, tw);
+
+/*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
+    a combnation move is handled like a linear move, except
+    that the angular axes are allowed sufficient time to
+    complete their motion coordinated with the motion of
+    the linear axes.
+*/
+        if(dx || dy || dz)
+            dtot = sqrt(dx * dx + dy * dy + dz * dz);
+        else
+            dtot = sqrt(du * du + dv * dv + dw * dw);
 
         vel = FROM_EXT_LEN(MIN4( vel,
                                 (du?emcAxisGetMaxVelocity(6): 1e9),
@@ -1607,7 +1677,7 @@ void ARC_FEED(int line_number,
     PM_CARTESIAN center, normal;
     EMC_TRAJ_CIRCULAR_MOVE circularMoveMsg;
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
-    double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel, axial_maxvel=0.0, circ_acc, axial_acc, acc=0.0;
+    double v1, v2,  a1, a2, vel, ini_maxvel, circ_maxvel, axial_maxvel=0.0, circ_acc, acc=0.0;
     double j1, j2, ini_maxjerk;
     double radius, angle, theta1, theta2, helical_length, axis_len;
     double tcircle, taxial, tmax, thelix, ta, tb, tc, da, db, dc;
@@ -1726,7 +1796,7 @@ void ARC_FEED(int line_number,
         ini_maxjerk = MIN(j1, j2);
         if(axis_valid(2) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[2];
-            axial_acc = a1 = axis_max_acc[2];
+            a1 = axis_max_acc[2];
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
             ini_maxjerk = MIN(ini_maxjerk, j1);
@@ -1766,7 +1836,7 @@ void ARC_FEED(int line_number,
         ini_maxjerk = MIN(j1, j2);
         if(axis_valid(0) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[0];
-            axial_acc = a1 = axis_max_acc[0];
+            a1 = axis_max_acc[0];
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
             ini_maxjerk = MIN(ini_maxjerk, j1);
@@ -1807,7 +1877,7 @@ void ARC_FEED(int line_number,
         ini_maxjerk = MIN(j1, j2);
         if(axis_valid(1) && axis_len > 0.001) {
             axial_maxvel = v1 = axis_max_vel[1];
-            axial_acc = a1 = axis_max_acc[1];
+            a1 = axis_max_acc[1];
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
             ini_maxjerk = MIN(ini_maxjerk, j1);
@@ -2033,7 +2103,11 @@ void START_SPINDLE_COUNTERCLOCKWISE(int l)
 	    canon.css_numerator = -12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
 	else
 	    canon.css_numerator = -1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
-	emc_spindle_on_msg.speed = -canon.css_maximum;
+// <<<<<<< HEAD
+// 	emc_spindle_on_msg.speed = -canon.css_maximum;
+// =======
+	emc_spindle_on_msg.speed = canon.css_maximum;
+//>>>>>>> lcnc-ja3
 	emc_spindle_on_msg.factor = canon.css_numerator;
 	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
@@ -2056,11 +2130,14 @@ void SET_SPINDLE_SPEED(double r)
 
     if(canon.css_maximum) {
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
+// <<<<<<< HEAD
 	    // fix: numerator was wrong	    
 	    //      factor = cs * 60 / 2pi
 	    //      factor = css / 2pi
 	    canon.css_numerator = 1 / (2 * M_PI) * canon.spindleSpeed;
-	    // css_numerator = 12 / (2 * M_PI) * spindleSpeed * TO_EXT_LEN(25.4);
+// =======
+//	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
+// >>>>>>> lcnc-ja3
 	else
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
 	emc_spindle_speed_msg.speed = canon.css_maximum;

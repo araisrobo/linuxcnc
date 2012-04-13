@@ -5,11 +5,11 @@ Integrator Manual V2.5, {localdate}
 
 :masterdir: {indir}
 
-The EMC Team
+The LinuxCNC Team
 
 :leveloffset: 0
 
-= EMC2 Introduction
+= LinuxCNC Introduction
 
 :leveloffset: 1
 
@@ -33,9 +33,13 @@ include::config/ini_homing.txt[]
 
 include::config/lathe_config.txt[]
 
+include::hal/haltcl.txt[]
+
 include::config/emc2hal.txt[]
 
 include::config/stepper.txt[]
+
+include::hal/basic_hal.txt[]
 
 include::remap/structure.txt[]
 
@@ -50,6 +54,34 @@ include::hal/pyvcp.txt[]
 include::hal/pyvcp_examples.txt[]
 
 include::gui/gladevcp.txt[]
+
+include::gui/halui.txt[]
+
+:leveloffset: 0
+
+= Hardware Drivers
+
+:leveloffset: 1
+
+include::hal/parallel_port.txt[]
+
+include::drivers/AX5214H.txt[]
+
+include::drivers/GS2.txt[]
+
+include::drivers/hostmot2.txt[]
+
+include::drivers/motenc.txt[]
+
+include::drivers/opto22.txt[]
+
+include::drivers/pico_ppmc.txt[]
+
+include::drivers/pluto_p.txt[]
+
+include::drivers/servo_to_go.txt[]
+
+include::drivers/shuttlexpress.txt[]
 
 :leveloffset: 0
 

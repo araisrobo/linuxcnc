@@ -14,6 +14,7 @@
 * Last change:
 ********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -4329,7 +4330,7 @@ static int setupMenu(Widget *menu, const char *label,
                      MenuSelectFunc *func)
 {
   Widget *popup = new Widget;   // this will be freed automatically at exit
-  int t;
+  intptr_t t;
 
   if (NULL != horiz)
     {
@@ -4516,27 +4517,51 @@ static int iniLoad(const char *filename)
     strcpy(PARAMETER_FILE, "rs274ngc.var"); // FIXME-- hardcoded
   }
 
-  if (NULL != (inistring = inifile.Find("DEFAULT_VELOCITY", "TRAJ"))) {
-    if (1 != sscanf(inistring, "%lf", &traj_default_velocity)) {
-      traj_default_velocity = DEFAULT_TRAJ_DEFAULT_VELOCITY;
-    }
-  }
-  else {
-    traj_default_velocity = DEFAULT_TRAJ_DEFAULT_VELOCITY;
-  }
-  // round jogSpeed in display to integer, per-minute
-  jogSpeed = (int) (traj_default_velocity * 60.0 + 0.5);
-
-  if (NULL != (inistring = inifile.Find("MAX_VELOCITY", "TRAJ"))) {
-    if (1 != sscanf(inistring, "%lf", &traj_max_velocity)) {
-      traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
-    }
-  }
-  else {
-    traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
-  }
-  // round maxJogSpeed in display to integer, per-minute
-  maxJogSpeed = (int) (traj_max_velocity * 60.0 + 0.5);
+// <<<<<<< HEAD
+//   if (NULL != (inistring = inifile.Find("DEFAULT_VELOCITY", "TRAJ"))) {
+//     if (1 != sscanf(inistring, "%lf", &traj_default_velocity)) {
+//       traj_default_velocity = DEFAULT_TRAJ_DEFAULT_VELOCITY;
+//     }
+//   }
+//   else {
+//     traj_default_velocity = DEFAULT_TRAJ_DEFAULT_VELOCITY;
+//   }
+//   // round jogSpeed in display to integer, per-minute
+//   jogSpeed = (int) (traj_default_velocity * 60.0 + 0.5);
+// 
+//   if (NULL != (inistring = inifile.Find("MAX_VELOCITY", "TRAJ"))) {
+//     if (1 != sscanf(inistring, "%lf", &traj_max_velocity)) {
+//       traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
+//     }
+//   }
+//   else {
+//     traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
+//   }
+//   // round maxJogSpeed in display to integer, per-minute
+//   maxJogSpeed = (int) (traj_max_velocity * 60.0 + 0.5);
+// =======
+   if (NULL != (inistring = inifile.Find("DEFAULT_LINEAR_VELOCITY", "TRAJ"))) {
+     if (1 != sscanf(inistring, "%lf", &traj_defvel)) {
+       traj_defvel = DEFAULT_TRAJ_DEFAULT_VELOCITY;
+     }
+   }
+   else {
+     traj_defvel = DEFAULT_TRAJ_DEFAULT_VELOCITY;
+   }
+   // round jogSpeed in display to integer, per-minute
+   jogSpeed = (int) (traj_defvel * 60.0 + 0.5);
+ 
+   if (NULL != (inistring = inifile.Find("MAX_VELOCITY", "TRAJ"))) {
+     if (1 != sscanf(inistring, "%lf", &traj_maxvel)) {
+       traj_maxvel = DEFAULT_TRAJ_MAX_VELOCITY;
+     }
+   }
+   else {
+     traj_maxvel = DEFAULT_TRAJ_MAX_VELOCITY;
+   }
+   // round maxJogSpeed in display to integer, per-minute
+   maxJogSpeed = (int) (traj_maxvel * 60.0 + 0.5);
+// >>>>>>> lcnc-ja3
 
   if (NULL != (inistring = inifile.Find("HELP_FILE", "DISPLAY"))) {
     strcpy(HELP_FILE, inistring);

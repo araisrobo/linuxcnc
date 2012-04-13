@@ -1,10 +1,15 @@
-Integrator Manuelle V0.1, {localdate}
+Integrator Manuelle V2.5, {localdate}
 ===================================
-The EMC Team
 
-:lang: pl
+//:lang: pl
 
 :masterdir: {indir}
+
+The LinuxCNC Team
+
+:leveloffset: 0
+
+= LinuxCNC Introduction
 
 :leveloffset: 1
 
@@ -15,7 +20,9 @@ include::common/overleaf.txt[]
 include::common/Integrator_Concepts_pl.txt[]
 
 :leveloffset: 0
+
 = Configuration
+
 :leveloffset: 1
 
 include::install/Latency_Test_pl.txt[]
@@ -26,12 +33,16 @@ include::config/ini_homing_pl.txt[]
 
 include::config/lathe_config_pl.txt[]
 
+include::hal/haltcl_pl.txt[]
+
 include::config/emc2hal_pl.txt[]
 
 include::config/stepper_pl.txt[]
 
 :leveloffset: 0
+
 = GUI
+
 :leveloffset: 1
 
 include::hal/pyvcp_pl.txt[]
@@ -40,8 +51,38 @@ include::hal/pyvcp_examples_pl.txt[]
 
 include::gui/gladevcp_pl.txt[]
 
+include::gui/halui.txt[]
+
 :leveloffset: 0
+
+= Hardware Drivers
+
+:leveloffset: 1
+
+include::hal/parallel_port_pl.txt[]
+
+include::drivers/AX5214H_pl.txt[]
+
+include::drivers/GS2_pl.txt[]
+
+include::drivers/hostmot2_pl.txt[]
+
+include::drivers/motenc_pl.txt[]
+
+include::drivers/opto22_pl.txt[]
+
+include::drivers/pico_ppmc_pl.txt[]
+
+include::drivers/pluto_p_pl.txt[]
+
+include::drivers/servo_to_go_pl.txt[]
+
+include::drivers/shuttlexpress_pl.txt[]
+
+:leveloffset: 0
+
 = Advanced Topics
+
 :leveloffset: 1
 
 include::motion/kinematics_pl.txt[]
@@ -51,7 +92,9 @@ include::motion/tweaking_steppers_pl.txt[]
 include::motion/pid_theory_pl.txt[]
 
 :leveloffset: 0
+
 = Ladder Logic
+
 :leveloffset: 1
 
 include::ladder/ladder_intro_pl.txt[]
@@ -61,7 +104,9 @@ include::ladder/classic_ladder_pl.txt[]
 include::ladder/ladder_examples_pl.txt[]
 
 :leveloffset: 0
+
 = Hardware Examples
+
 :leveloffset: 1
 
 include::examples/pci_parallel_port_pl.txt[]
@@ -73,7 +118,9 @@ include::examples/mpg_pl.txt[]
 include::examples/gs2_example_pl.txt[]
 
 :leveloffset: 0
+
 = Diagnostics & FAQ
+
 :leveloffset: 1
 
 include::common/Stepper_Diagnostics_pl.txt[]

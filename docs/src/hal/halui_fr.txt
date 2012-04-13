@@ -1,11 +1,13 @@
 :lang: fr
 :toc:
 
-= L'interface Halui[[cha:Halui]]
+= L'interface Halui
+
+[[cha:Halui]] (((HAL User Interface)))
 
 == Introduction[[sec:HaluiIntroduction]]
 
-Halui est une interface utilisateur pour EMC s'appuyant sur HAL, elle
+Halui est une interface utilisateur pour LinuxCNC s'appuyant sur HAL, elle
 connecte les pins de HAL à des commandes NML. La plupart des
 fonctionnalités (boutons, indicateurs etc.) utilisées par les
 interfaces graphiques traditionnelles (mini, Axis, etc.), sont fournies
@@ -13,38 +15,36 @@ par des pins de HAL dans Halui.
 
 La façon la plus facile pour utiliser halui est de modifier votre
 dossier d'ini pour inclure
-
-    HALUI = halui
+----
+HALUI = halui
+----
 
 dans la section [HAL].
 
 Une solution alternative pour l'invoquer (surtout si vous générez la
 config avec stepconf) est d'inclure
-
-    loadusr halui -ini /path/to/inifile.ini
+----
+loadusr halui -ini /path/to/inifile.ini
+----
 
 dans votre fichier custom.hal.
 
 == Nomenclature des pins d'Halui[[sec:Halui-pin-reference]]
 
-=== Abandon (abort)
-
+Abandon:: (abort)
  - halui.abort (bit, in) - pin de requête d'abandon (efface les erreurs)
 
-== Axes (axis)
-
+Axes:: (axis)
  - halui.axis.n.pos-commanded (float, out) - Position de l'axe commandée, en coordonnées machine
  - halui.axis.n.pos-feedback (float, out) - Position de l'axe lue, en coordonnées machine
  - halui.axis.n.pos-relative (float, out) - Position de l'axe, en coordonnées relatives
 
-=== Arrêt d'urgence (E-Stop)
-
+Arrêt d'urgence:: (E-Stop)
  - halui.estop.activate (bit, in) - pin de requête d'arrêt d'urgence (E-Stop)
  - halui.estop.is-activated (bit, in) - indique si l'arrêt d'urgence est actif
  - halui.estop.reset (bit, out) - pin de requête de relâchement de l'arrêt d'urgence (E-Stop reset)
 
-=== Correcteur de vitesse d'avance (Feed override)
-
+Correcteur de vitesse d'avance:: (Feed override)
  - halui.feed-override.count-enable (bit, in) - doit être vraie pour activer le comptage.
  - halui.feed-override.counts (s32, in) - comptage depuis un codeur, par
  - halui.feed-override.decrease (bit, in) - pin pour diminuer la correction (-=scale)
@@ -54,27 +54,22 @@ dans votre fichier custom.hal.
    exemple pour modifier la correction de vitesse d'avance
  - halui.feed-override.value (float, out) - Valeur de la correction courante de vitesse d'avance
 
-=== Arrosage par gouttelettes (Mist) 
-
+Arrosage par gouttelettes:: (Mist) 
  - halui.mist.is-on (bit, out) - indique si l'arrosage par gouttelettes est actif
  - halui.mist.off (bit, in) - pin de requête d'arrêt de l'arrosage par gouttelettes
  - halui.mist.on (bit, in) - pin de requête de l'attosage par gouttelettes
 
-=== Arrosage fluide (Flood)
-
+Arrosage fluide:: (Flood)
  - halui.flood.is-on (bit, out) - indique si l'arrosage fluide est actif
  - halui.flood.off (bit, in) - pin de requête d'arrêt d'arrosage fluide
  - halui.flood.on (bit, in) - pin de requête d'arrosage fluide
 
-=== Prise d'origine machine de tous les axes (Homing)
-
+Prise d'origine machine de tous les axes:: (Homing)
  - halui.home-all (bit, in) - pin de requête de prise d'origine machine de tous les axes. 
    Cette pin sera présente seulement si HOME_SEQUENCE est fixée dans le fichier ini.
 
-=== Jog
-
+Jog:: (Manivelle)
 <n> est un nombre compris entre 0 et 8, ou <selected>.
-
  - halui.jog-deadband (float, in)- bande morte pour le jogging analogique 
    (les petites vitesses de jog sont sans effet)
  - halui.jog.speed (float, in) - positionne la vitesse de jog
@@ -87,10 +82,8 @@ dans votre fichier custom.hal.
  - halui.jog.<selected>.plus (bit, in) - jog l'axe <selected> en 
    direction positive et à la vitesse de halui.jog.speed velocity
 
-=== Articulations (Joints) 
-
+Articulations:: (Joints) 
 <n> est un nombre compris entre 0 et 8, ou <selected>.
-
  - halui.joint.<n>.has-fault (bit, out) - pin de status indiquant que l'articulation est en défaut
  - halui.joint.<n>.home (bit, in) - pin pour la prise d'origine d'une articulation spécifique 
  - halui.joint.<n>.is-homed (bit, out) - pin de status indiquant que l'articulation est référencée
@@ -121,23 +114,19 @@ dans votre fichier custom.hal.
    indiquant que le joint <selected> est sur sa limite logicielle négative
  - halui.joint.selected.unhome (bit, in) - pin for unhoming  l'articulation selected. 
 
-=== Graissage centralisé (Lube)
-
+Graissage centralisé:: (Lube)
  - halui.lube.is-on (bit, out) - indique si le graissage est actif
  - halui.lube.off (bit, in) - pin de requête d'arrêt du graissage
  - halui.lube.on (bit, in) - pin de requête de graissage
 
-=== Machine (Marche / Arrêt)
-
+Machine:: (Marche / Arrêt)
  - halui.machine.is-on (bit, out) - indique que la machine est en marche
  - halui.machine.off (bit, in) - pin de requête d'arrêt machine
  - halui.machine.on (bit, in) - pin de requête de marche machine
 
-=== Vitesse maximum
-
+Vitesse maximum::
 La vitesse linéaire maximum peut être ajustée entre 0 et la valeur de
 la variable MAX_VELOCITY dans la section [TRAJ] du fichier ini.
-
  - halui.max-velocity.count-enable (bit, in) - Si TRUE, la vitesse 
    max est modifiée quand le comptage change
  - halui.max-velocity.counts (s32, in) - vous permet, en agissant sur un 
@@ -150,19 +139,17 @@ la variable MAX_VELOCITY dans la section [TRAJ] du fichier ini.
  - halui.max-velocity.value (float, out) - Valeur de la vitesse 
    linéaire maximum en unités machine par seconde.
 
-=== Données manuelles[[sub:MDI]]
-(((MDI)))
-
+Données manuelles:: [[sub:MDI]] (((MDI)))
 Il arrive que l'utilisateur veuille ajouter des tâches plus complexes 
 devant être effectuées par l'activation d'une pin de HAL. C'est 
 possible en utilisant le schéma de commande en données manuelles (MDI) 
 suivant: 
-
- - Une MDI_COMMAND est ajoutée dans la section [HALUI] du fichier ini, par exemple
-
+ - Une MDI_COMMAND est ajoutée dans la section [HALUI] du fichier ini, 
+par exemple:
+----
     [HALUI] 
     MDI_COMMAND = G0 X0
-
+----
  - Quand halui démarre il va lire/détecter le champ MDI_COMMAND dans le
    fichier ini et exporter les pins de type (bit)
    halui.mdi-command-<nr>, <nr> est un nombre compris entre 00 et le
@@ -171,18 +158,16 @@ suivant:
  - Quand la pin halui.mdi-command-<nr> est activée, halui va essayer
    d'envoyer au MDI la commande définie dans le fichier ini. Ca ne
    fonctionnera pas dans tous les modes de fonctionnement où se trouve
-   EMC2, par exemple, tant qu'il est en AUTO halui ne peut pas envoyer de
+   LinuxCNC, par exemple, tant qu'il est en AUTO halui ne peut pas envoyer de
    commande MDI. 
 
-=== Sélection d'une articulation
-
+Sélection d'une articulation:: (Joint Selection)
  - halui.joint.select (u32, in) - sélectionne l'articulation (0..7) - internal halui
  - halui.joint.selected (u32, out) - articulation (0..7) sélectionnée - internal halui
  - halui.joint.x.select bit (bit, in) - pins pour sélectinner une articulation - internal halui
  - halui.joint.x.is-selected bit (bit, out) - pin de status indiquant une articulation sélectionné - internal halui
 
-=== Mode de fonctionnement
-
+Mode de fonctionnement:: (Mode)
  - halui.mode.auto (bit, in) - pin de requête du mode auto
  - halui.mode.is_auto (bit, out)- indique si le mode auto est actif
  - halui.mode.is-joint (bit, out) - indique si le mode articulation par articulation est actif
@@ -194,8 +179,7 @@ suivant:
  - halui.mode.mdi (bit, in) - pin de requête du mode données manuelles
  - halui.mode.teleop (bit, in) - pin de requête du mode jog coordonné
 
-=== Programme
-
+Programme:: (Program)
  - halui.program.block-delete.is-on (bit, out) - status pin telling that block delete is on
  - halui.program.block-delete.off (bit, in) - pin for requesting that block delete is off
  - halui.program.block-delete.on (bit, in) - pin for requesting that block delete is on
@@ -211,8 +195,7 @@ suivant:
  - halui.program.step (bit, in) - pin pour avancer d'une ligne de programme
  - halui.program.stop (bit, in) - pin pour stopper un programme
 
-=== Correcteur de vitesse de broche (Spindle Override)
-
+Correcteur de vitesse de broche:: (Spindle Override)
  - halui.spindle-override.count-enable (bit, in) - Si TRUE, la
    correction de vitesse broche varie quand le comptage change.
  - halui.spindle-override.counts (s32, in) - comptage depuis un codeur,
@@ -228,8 +211,7 @@ suivant:
  - halui.spindle-override.value (float, out) - Valeur courante de la
    correction de vitesse de broche
 
-=== Broche (Spindle)
-
+Broche:: (Spindle)
  - halui.spindle.brake-is-on (bit, out) - indique si le frein est actif
  - halui.spindle.brake-off (bit, in) - pin de désactivation du frein de broche
  - halui.spindle.brake-on (bit, in) - pin d'activation du frein de broche
@@ -243,8 +225,7 @@ suivant:
  - halui.spindle.start (bit, in) - Marche de la broche
  - halui.spindle.stop (bit, in) - Arrêt de la broche
 
-=== Outil (Tool)
-
+Outil:: (Tool)
  - halui.tool.length-offset (float, out) - indique la correction de longueur d'outil appliquée
  - halui.tool.number (u32, out) - indique l'outil courant sélectionné
 
@@ -252,23 +233,24 @@ suivant:
 
 Pour que ces exemples fonctionnent, il faut ajouter la ligne
 suivante dans la section [HAL] du fichier ini.
-
-+*HALUI = halui*+ 
+----
+HALUI = halui
+----
 
 === Démarrage à distance
 
-Pour connecter un bouton de démarrage à distance à EMC il faut utiliser
-la pin *halui.program.run* et la pin *halui.mode.auto*. 
+Pour connecter un bouton de démarrage à distance à LinuxCNC il faut utiliser
+la pin _halui.program.run_ et la pin _halui.mode.auto_. 
 
 Il faut s'assurer qu'il est possible de démarrer en utilisant la 
-pin *halui.mode.is-auto*. On peut faire cela avec un composant de HAL *and2*. 
+pin _halui.mode.is-auto_. On peut faire cela avec un composant de HAL _and2_. 
 La figure suivante montre comment faire. 
 
 Quand le bouton de commande à distance est pressé, il est connecté à 
-*halui.mode.auto* et à l'entrée *and2.0.in0*. Si le le mode auto est activé,
-la pin *halui.mode.is-auto* sera TRUE. 
+_halui.mode.auto_ et à l'entrée _and2.0.in0_. Si le le mode auto est activé,
+la pin _halui.mode.is-auto_ sera TRUE. 
 
-Si les deux entrées du composant *and2.0* sont TRUE, la sortie *and2.0.out* 
+Si les deux entrées du composant _and2.0_ sont TRUE, la sortie _and2.0.out_ 
 sera TRUE également et le programme sera démarré. 
 
 [[fig:Remote-Start-Example]]
@@ -292,17 +274,17 @@ net program-start-btn and2.0.in0
 
 === Pause et Reprise
 
-Cet exemple a été developpé pour permettre à EMC2 de déplacer un
+Cet exemple a été developpé pour permettre à LinuxCNC de déplacer un
 axe rotatif selon un signal provenant d'une machine extérieure. La
 coordination entre les deux systèmes est assurée par deux composants de Halui: 
 
  - halui.program.is-paused
  - halui.program.resume
 
-Dans le fichier *custom.hal*, ajoutez les deux lignes suivantes
+Dans le fichier _custom.hal_, ajoutez les deux lignes suivantes
 qui seront connectées à vos entrées/sorties pour mettre le
 programme en pause ou pour le reprendre quand l'autre système veut
-qu'EMC2 soit relancé.
+qu'LinuxCNC soit relancé.
 ----
 net ispaused halui.program.is paused => "la pin de sortie" 
 net resume halui.program.resume <= "la pin d'entrée" 
@@ -313,23 +295,23 @@ câblées vers l'autre contrôleur. Elles peuvent être des broches du
 port parallèle ou toutes autres broches auquelles nous avons accès.
 
 Le fonctionnement est le suivant, quand un M0 est rencontré dans le
-programme G-code, *halui.program.is-paused* devient TRUE. Ce
+programme G-code, _halui.program.is-paused_ devient TRUE. Ce
 qui rend la broche de sortie également TRUE de sorte que
-l'autre contrôleur sait qu'EMC2 est arrêté.
+l'autre contrôleur sait que LinuxCNC est arrêté.
 
 Pour reprendre l'exécution du G-code, l'autre contrôleur devra rendre
-l'entrée TRUE. Ce qui relancera EMC2 jusqu'au prochain M0.
+l'entrée TRUE. Ce qui relancera LinuxCNC jusqu'au prochain M0.
 
 Difficultés de timing
 
  - Le signal de reprise ne doit pas être plus long que le temps
    nécessaire pour exécuter le G-code.
 
- - Le signal *Is Paused* ne doit plus être actif quand le signal
+ - Le signal _Is Paused_ ne doit plus être actif quand le signal
    suivant de reprise arrive.
 
 Ces problèmes de timming pourraient être évités, en utilisant
-ClassicLadder pour activer le signal *is paused* avec une tempo
+ClassicLadder pour activer le signal _is paused_ avec une tempo
 et le désactiver en fin de tempo. La reprise pourrait également
 être fournie par un signal monostable très court.
 

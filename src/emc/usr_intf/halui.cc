@@ -731,6 +731,7 @@ int halui_hal_init(void)
     retval = halui_export_pin_OUT_bit(&(halui_data->mode_is_mdi), "halui.mode.is-mdi"); 
     if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->mode_is_teleop), "halui.mode.is-teleop"); 
+    if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->mode_is_joint), "halui.mode.is-joint"); 
     if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->mist_is_on), "halui.mist.is-on"); 
@@ -1003,7 +1004,6 @@ int halui_hal_init(void)
 static int sendMachineOn()
 {
     EMC_TASK_SET_STATE state_msg;
-
     state_msg.state = EMC_TASK_STATE_ON;
     state_msg.serial_number = ++emcCommandSerialNumber;
     emcCommandBuffer->write(state_msg);
@@ -1384,6 +1384,9 @@ int sendJogIncr(int axis, double speed, double incr)
 {
     EMC_JOG_INCR emc_jog_incr_msg;
 
+    if ((emcStatus->task.state != EMC_TASK_STATE_ON) || (emcStatus->task.mode != EMC_TASK_MODE_MANUAL))
+	return -1;
+
     emc_jog_incr_msg.serial_number = ++emcCommandSerialNumber;
     emc_jog_incr_msg.axis = axis;
     emc_jog_incr_msg.vel = speed / 60.0;
@@ -1395,30 +1398,6 @@ int sendJogIncr(int axis, double speed, double incr)
 
     return 0;
 }
-
-static int sendJogInc(int axis, double speed, double inc)
-{
-    EMC_JOG_INCR emc_axis_jog_msg;
-
-    if ((emcStatus->task.state != EMC_TASK_STATE_ON) || (emcStatus->task.mode != EMC_TASK_MODE_MANUAL))
-	return -1;
-
-    // if (axis < 0 || axis >= EMC_AXIS_MAX)
-    if (axis < 0 || axis >= EMCMOT_MAX_JOINTS)
-	return -1;
-
-    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP)
-    	return -1;
-
-    emc_axis_jog_msg.serial_number = ++emcCommandSerialNumber;
-    emc_axis_jog_msg.axis = axis;
-    emc_axis_jog_msg.vel = speed / 60.0;
-    emc_axis_jog_msg.incr = inc;
-    emcCommandBuffer->write(emc_axis_jog_msg);
-
-    return emcCommandWaitReceived(emcCommandSerialNumber);
-}
-
 
 static int sendFeedOverride(double override)
 {
@@ -1579,7 +1558,6 @@ static int iniLoad(const char *filename)
 static void hal_init_pins()
 {
     int joint;
-
     *(halui_data->machine_on) = old_halui_data.machine_on = 0;
     *(halui_data->machine_off) = old_halui_data.machine_off = 0;
 
@@ -1602,9 +1580,6 @@ static void hal_init_pins()
     *(halui_data->joint_home[num_joints]) = old_halui_data.joint_home[num_joints] = 0;
     *(halui_data->jog_minus[num_joints]) = old_halui_data.jog_minus[num_joints] = 0;
     *(halui_data->jog_plus[num_joints]) = old_halui_data.jog_plus[num_joints] = 0;
-    *(halui_data->jog_increment[num_axes]) = old_halui_data.jog_increment[num_axes] = 0.0;
-    *(halui_data->jog_increment_plus[num_axes]) = old_halui_data.jog_increment_plus[num_axes] = 0;
-    *(halui_data->jog_increment_minus[num_axes]) = old_halui_data.jog_increment_minus[num_axes] = 0;
     *(halui_data->jog_deadband) = 0.2;
     *(halui_data->jog_speed) = 0;
 
@@ -1872,14 +1847,14 @@ static void check_hal_changes()
 	bit = new_halui_data.jog_increment_plus[joint];
 	if (bit != old_halui_data.jog_increment_plus[joint]) {
 	    if (bit)
-		sendJogInc(joint, new_halui_data.jog_speed, new_halui_data.jog_increment[joint]);
+		sendJogIncr(joint, new_halui_data.jog_speed, new_halui_data.jog_increment[joint]);
 	    old_halui_data.jog_increment_plus[joint] = bit;
 	}
 
 	bit = new_halui_data.jog_increment_minus[joint];
 	if (bit != old_halui_data.jog_increment_minus[joint]) {
 	    if (bit)
-		sendJogInc(joint, new_halui_data.jog_speed, -(new_halui_data.jog_increment[joint]));
+		sendJogIncr(joint, new_halui_data.jog_speed, -(new_halui_data.jog_increment[joint]));
 	    old_halui_data.jog_increment_minus[joint] = bit;
 	}
 
@@ -1934,7 +1909,7 @@ static void check_hal_changes()
     js = new_halui_data.joint_selected;
     if (bit != old_halui_data.jog_increment_plus[num_axes]) {
 	if (bit)
-	    sendJogInc(js, new_halui_data.jog_speed, new_halui_data.jog_increment[num_axes]);
+	    sendJogIncr(js, new_halui_data.jog_speed, new_halui_data.jog_increment[num_axes]);
 	old_halui_data.jog_increment_plus[num_axes] = bit;
     }
 
@@ -1942,7 +1917,7 @@ static void check_hal_changes()
     js = new_halui_data.joint_selected;
     if (bit != old_halui_data.jog_increment_minus[num_axes]) {
 	if (bit)
-	    sendJogInc(js, new_halui_data.jog_speed, -(new_halui_data.jog_increment[num_axes]));
+	    sendJogIncr(js, new_halui_data.jog_speed, -(new_halui_data.jog_increment[num_axes]));
 	old_halui_data.jog_increment_minus[num_axes] = bit;
     }
 
@@ -2133,7 +2108,6 @@ int main(int argc, char *argv[])
     signal(SIGTERM, quit);
 
     while (!done) {
-
 	check_hal_changes(); //if anything changed send NML messages
 
 	modify_hal_pins(); //if status changed modify HAL too
