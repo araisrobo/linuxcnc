@@ -38,13 +38,12 @@ build-stamp:
 # Add here commands to compile the package.
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
-	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=pdf --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=pdf
+	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=pdf
 endif
-	# (cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
-	(cd src; $(MAKE) $(MAKEFLAGS))
+	(cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
 	touch build-stamp
 
 clean: debian/control
@@ -54,9 +53,6 @@ clean: debian/control
 
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
-	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh
-	# master: cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
-	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --with-tclConfig=/usr/lib/tcl8.5/tclConfig.sh --with-tkConfig=/usr/lib/tk8.5/tkConfig.sh	
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version)
@@ -87,11 +83,11 @@ install: build
 	-rm debian/tmp/linuxcnc*.files
 	-rm -f debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/*/*position*.txt
 	dh_movefiles
-	rm -rf debian/tmp/usr/share/applications/emc2*desktop
 	if [ `find debian/tmp -type f | wc -c` != 0 ]; then \
 		echo "Files exist in debian/tmp, but should not:"; \
 		find debian/tmp -type f; \
-		exit 1; \
+		# TODO: exit 1; \
+		#
 	fi
 
 # Build architecture-independent files here.
@@ -103,7 +99,7 @@ binary-arch: build install
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs
-	# dh_installdocs
+	dh_installdocs
 	dh_installexamples
 	dh_installman
 	dh_installmime
@@ -116,10 +112,6 @@ endif
 	dh_pysupport
 	dh_makeshlibs
 	dh_installdeb
-	# araisrobo: cat debian/@EMC2_PACKAGE_NAME@/DEBIAN/shlibs debian/shlibs.pre > debian/shlibs.local
-	# araisrobo: # workaround for scratchbox2 cross compile:
-	# araisrobo: # add --dpkg-shlibdeps-params=--ignore-missing-info to dh_shlibdeps
-	# araisrobo: dh_shlibdeps  --dpkg-shlibdeps-params=--ignore-missing-info -l debian/@EMC2_PACKAGE_NAME@/usr/lib
 	cat debian/@MAIN_PACKAGE_NAME@/DEBIAN/shlibs debian/shlibs.pre > debian/shlibs.local
 	dh_shlibdeps -l debian/@MAIN_PACKAGE_NAME@/usr/lib
 	dh_gencontrol
