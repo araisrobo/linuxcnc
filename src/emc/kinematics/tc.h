@@ -90,11 +90,7 @@ typedef struct {
     double cycle_time;
     double progress;        // where are we in the segment?  0..target
     double target;          // segment length
-    //obsolete: int    on_final_decel;
-    //obsolete: double distance_to_go;  // distance to go for target target..0
-    //obsolete: double motion_progress;
-    //obsolete: double motion_target;
-    //obsolete: double motion_distance_to_go;
+    double distance_to_go;  // distance to go for target target..0
     int    motion_param_set;
     double ori_reqvel;      // track of original reqvel in this tc
     double ori_feed_override; // track of original feed override
@@ -109,8 +105,6 @@ typedef struct {
     double decel_dist;      // distance to start deceleration
     double accel_time;      // keep track of acceleration time
     double vel_from;        // track velocity before speed change
-    //obsolete: double rt_jerk;
-    //obsolete: double rt_maxaccel;
     double target_vel;
     double dist_comp;
     int    on_feed_change;
@@ -137,11 +131,8 @@ typedef struct {
     int blend_with_next;    // gcode requests continuous feed at the end of 
                             // this segment (g64 mode)
     int blending;           // segment is being blended into following segment
-    double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move, 
                             // stay within this distance from the path.
-    double vel_at_blend_start;
-    // double nexttc_vel;
     
     int synchronized;       // spindle sync required for this move
     int velocity_mode;	    // TRUE if spindle sync is in velocity mode, FALSE if in position mode
