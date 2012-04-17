@@ -28,7 +28,6 @@
 // #undef SMLBLND       // turn off seamless blending
 #define SMLBLND         // to evaluate seamless blending
 
-#define STATE_DEBUG 0  // for state machine debug
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include <stdint.h>
@@ -138,7 +137,6 @@ int tpInit(TP_STRUCT * tp) {
     tp->cycleTime = 0.0;
     tp->vLimit = 0.0;
     tp->vScale = 1.0;
-    //obsolete: tp->aMax = 0.0;
     tp->vMax = 0.0;
     tp->ini_maxvel = 0.0;
     tp->wMax = 0.0;
@@ -195,18 +193,6 @@ int tpSetVlimit(TP_STRUCT * tp, double vLimit) {
     return 0;
 }
 
-//obsolete: // Set max accel
-//obsolete: int tpSetAmax(TP_STRUCT * tp, double aMax) 
-//obsolete: {
-//obsolete:     if (0 == tp || aMax <= 0.0) {
-//obsolete:         return -1;
-//obsolete:     }
-//obsolete: 
-//obsolete:     tp->aMax = aMax;
-//obsolete: 
-//obsolete:     return 0;
-//obsolete: }
-
 /*
  tpSetId() sets the id that will be used for the next appended motions.
  nextId is incremented so that the next time a motion is appended its id
@@ -227,7 +213,6 @@ int tpSetId(TP_STRUCT * tp, int id)
     }
 
     tp->nextId = id;
-    //    DP("tp->nextId(%d) emcmotCommand->id(%d)\n", tp->nextId, emcmotCommand->id);
 
     return 0;
 }
@@ -290,9 +275,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     PmPose start_xyz, end_xyz;
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR, "TODO: add jerk infomation\n");
-    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR, "TODO: new CSS implementation breaks Rigid-Tapping\n");
-    //obsolete: assert(0);
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -334,7 +316,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
-    //obsolete: tc.distance_to_go = tc.target;
+    tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -348,8 +330,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.cur_accel = 0.0;
     tc.cur_vel = 0.0;
     tc.blending = 0;
-    tc.blend_vel = 0.0;
-    tc.vel_at_blend_start = 0.0;
 
     tc.coords.rigidtap.xyz = line_xyz;
     tc.coords.rigidtap.abc = abc;
@@ -471,7 +451,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
-    //obsolete: tc.distance_to_go = tc.target;
+    tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -485,8 +465,6 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.cur_accel = 0.0;
     tc.cur_vel = 0.0;
     tc.blending = 0;
-    tc.blend_vel = 0.0;
-    tc.vel_at_blend_start = 0.0;
 
     tc.coords.line.xyz = line_xyz;
     tc.coords.line.uvw = line_uvw;
@@ -617,7 +595,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.target = helix_length;
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
-    //obsolete: tc.distance_to_go = tc.target;
+    tc.distance_to_go = tc.target;
     // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -631,8 +609,6 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.cur_accel = 0.0;
     tc.cur_vel = 0.0;
     tc.blending = 0;
-    tc.blend_vel = 0.0;
-    tc.vel_at_blend_start = 0.0;
 
     tc.coords.circle.xyz = circle;
     tc.coords.circle.uvw = line_uvw;
@@ -809,7 +785,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 
         tc.progress = 0.0;
         tc.accel_state = ACCEL_S3;
-        //obsolete: tc.distance_to_go = tc.target;
+        tc.distance_to_go = tc.target;
         // tc.accel_time = 0.0;
         tc.reqvel = nurbs_to_tc->ctrl_pts_ptr[0].F;// the first feedrate for first cp for reqvel//vel;
         tc.maxvel = ini_maxvel * tp->cycleTime;
@@ -867,47 +843,6 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
     return 0;
 }
 
-//FIXME: eric affection of feed override for velocity is disabled
-//       dynamic adjust of feed override affect S-curve speed decrease
-#if STATE_DEBUG
-/* state flag for debug */
-static int s0 = 0,
-s1 = 0,
-s2 = 0,
-s3 = 0,
-s4 = 0,
-s5 = 0,
-s6 = 0,
-s7 = 0,
-s8 = 0, /*s0_8_3 = 0, s1_8_3 = 0,*/
-s9 = 0, /*s4_9_3 = 0, s5_9_3 = 0, s6_9_3 = 0,*/
-s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
-
-#define ENTER_STATE(s) {\
-                         if(s == 0) { \
-                            fprintf(stderr,"%s(bgn):vel(%.4f)accel(%.3f)jerk(%.3f)dtg(%.3f)prog(%.3f)reqvel(%.4f)\n",#s,\
-                                    tc->cur_vel,tc->cur_accel,tc->rt_jerk,tc->target-tc->progress,tc->progress, tc->reqvel * tc->feed_override * tc->cycle_time);\
-                            s = 1;\
-                         }\
-                     }
-#define EXIT_STATE(s) {\
-                        if(s == 1) { \
-                            fprintf(stderr,"%s(end):vel(%.4f)accel(%.3f)jerk(%.3f)dtg(%.3f)prog(%.3f)reqvel(%.4f)\n",#s,\
-                                    tc->cur_vel,tc->cur_accel,tc->rt_jerk,tc->target-tc->progress,tc->progress, tc->reqvel * tc->feed_override * tc->cycle_time);\
-                           s = 0;\
-                        }\
-                     }
-// state machine fprintf
-#define SP(fmt, args...) {\
-            fprintf(stderr, fmt, ##args); \
-        }\
-
-#else
-#define ENTER_STATE(s) do{}while(0)
-#define EXIT_STATE(s)  do{}while(0)
-#define SP(fmt, args...) do {} while(0)
-#endif
-
 /*
  Continuous form
  PT = P0 + V0T + 1/2A0T2 + 1/6JT3
@@ -924,15 +859,12 @@ s10 = 0, s2_10 = 0, s4_10 = 0, s5_10 = 0, s6_10 = 0, reach_target = 0;
  * Yishin Li <ysli@araisrobo.com>
  * ARAIS ROBOT TECHNOLOGY, http://www.araisrobo.com/
  **/
-void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_final_decel*/) 
+void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc) 
 {
-    // double , accel_vel, t, t1, t2, decel_dist, a, v1, prog;
     double t, t1, vel, v1, dist, req_vel;
     int immediate_state;
     double tc_target;
     
-    if(!tc->blending) tc->vel_at_blend_start = tc->cur_vel;
-
     if(tc->seamless_blend_mode == SMLBLND_ENABLE) {
         tc_target = tc->target + tc->nexttc_target;
     } else {
@@ -943,8 +875,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
     do {
         switch (tc->accel_state) {
         case ACCEL_S0:
-            ENTER_STATE(s0);
-
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
@@ -956,8 +886,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             if ((tc->cur_accel + tc->jerk) >= tc->maxaccel) {
                 tc->cur_accel = tc->maxaccel;
                 tc->accel_state = ACCEL_S1;
-                SP(" Leave S0 due to Acceleration limit\n");
-                EXIT_STATE(s0);
                 break;
             }
             
@@ -974,8 +902,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
                 tc->accel_state = ACCEL_S2;
-                SP(" Leave S0 due to velocity limit\n");
-                EXIT_STATE(s0);
                 break;
             }
 
@@ -1014,8 +940,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
-                SP(" Leave S0 due to progress limit\n");
-                EXIT_STATE(s0);
                 break;
             }
 
@@ -1042,8 +966,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
                 tc->accel_state = ACCEL_S2;
-                SP(" Leave S0 due to velocity limit\n");
-                EXIT_STATE(s0);
                 break;
             }
             
@@ -1079,8 +1001,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
-                SP(" Leave S0 due to progress limit\n");
-                EXIT_STATE(s0);
                 break;
             }
             break;
@@ -1099,8 +1019,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             // check accel == 0
             if (tc->cur_accel <= 0) {
                 tc->accel_state = ACCEL_S3;
-                // DP(" Leave S2 due to Acceleration == 0\n");
-                EXIT_STATE(s2);
                 break;
             }
 
@@ -1156,8 +1074,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             break;
         
         case ACCEL_S3:
-            ENTER_STATE(s3);
-            
             // PT = PT + VT + 1/2AT + 1/6JT
             // , where (jerk == 0) and (accel == 0)
             tc->cur_accel = 0;
@@ -1219,8 +1135,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
 
 
         case ACCEL_S4:
-            ENTER_STATE(s4);
-
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
@@ -1304,8 +1218,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             break;
         
         case ACCEL_S5:
-            ENTER_STATE(s5);
-            
             // jerk is 0 at this state
             // accel < 0
             // VT = VT + AT + 1/2JT
@@ -1375,8 +1287,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
             break;
         
         case ACCEL_S6:
-            ENTER_STATE(s6);
-                
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
@@ -1414,19 +1324,12 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc, double *v /*obsolete: , int *on_fi
         _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time, 
         tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
         (tc->target - tc->progress), tc_target);
-    //obsolete: tc->distance_to_go = tc->target - tc->progress;
-    //obsolete: tc->motion_distance_to_go = tc->motion_target - tc->motion_progress;
-    
-    //obsolete: tc->motion_progress = tc->progress;
-    // assert (tc->progress <= tc->target);
+    tc->distance_to_go = tc->target - tc->progress;
     if (tc->cur_vel < 0) {
         DPS("tc->cur_vel(%32.16f) tc->cur_accel(%32.16f)\n", 
             tc->cur_vel, tc->cur_accel);
     }
     assert (tc->cur_vel >= 0);
-
-    if (v)
-        *v = tc->cur_vel;
 }
 
 void tpToggleDIOs(TC_STRUCT * tc) 
@@ -1469,26 +1372,17 @@ static int tpGetRotaryIsUnlocked(int axis) {
 // stuff outside this directory, I'm going to leave it for now.
 
 int tpRunCycle(TP_STRUCT * tp, long period) {
-    // vel = (new position - old position) / cycle time
-    // (two position points required)
-    //
-    // acc = (new vel - old vel) / cycle time
-    // (three position points required)
-
 #if (TRACE!=0)
     _dt += 1;
 #endif
 
     TC_STRUCT *tc, *nexttc;
-    double primary_vel;
-    // int on_final_decel;
     EmcPose primary_before, primary_after;
     EmcPose secondary_before, secondary_after;
     EmcPose primary_displacement, secondary_displacement;
     static double spindleoffset;
     static int waiting_for_index = MOTION_INVALID_ID;
     static int waiting_for_atspeed = MOTION_INVALID_ID;
-    double save_vel;
     static double revs;
     EmcPose target;
 
@@ -1921,46 +1815,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     // we know to start blending it in when the current tc goes below
     // this velocity...
     if(nexttc && nexttc->maxaccel) {
-        tc->blend_vel = nexttc->maxaccel * pmSqrt(nexttc->target / nexttc->maxaccel);
-        if(tc->blend_vel > nexttc->reqvel * nexttc->feed_override * tc->cycle_time) {
-            // segment has a cruise phase so let's blend over the 
-            // whole accel period if possible
-            tc->blend_vel = nexttc->reqvel * nexttc->feed_override * tc->cycle_time;
-        }
-        if(tc->maxaccel < nexttc->maxaccel)
-            tc->blend_vel *= tc->maxaccel/nexttc->maxaccel;
-
-        if(tc->tolerance) {
-            /* see diagram blend.fig.  T (blend tolerance) is given, theta
-             * is calculated from dot(s1,s2)
-             *
-             * blend criteria: we are decelerating at the end of segment s1
-             * and we pass distance d from the end.  
-             * find the corresponding velocity v when passing d.
-             *
-             * in the drawing note d = 2T/cos(theta)
-             *
-             * when v1 is decelerating at a to stop, v = at, t = v/a
-             * so required d = .5 a (v/a)^2
-             *
-             * equate the two expressions for d and solve for v
-             */
-            double tblend_vel;
-            double dot;
-            double theta;
-            PmCartesian v1, v2;
-
-            v1 = tcGetEndingUnitVector(tc);
-            v2 = tcGetStartingUnitVector(nexttc);
-            pmCartCartDot(v1, v2, &dot);
-
-            theta = acos(-dot)/2.0; 
-            if(cos(theta) > 0.001) {
-                tblend_vel = 2.0 * pmSqrt(tc->maxaccel * tc->tolerance / cos(theta));
-                if(tblend_vel < tc->blend_vel)
-                    tc->blend_vel = tblend_vel;
-            }
-        } 
 
 #ifdef SMLBLND
         /**
@@ -2014,7 +1868,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     }
         
     primary_before = tcGetPos(tc);
-    tcRunCycle(tp, tc, &primary_vel/*, &on_final_decel*/);
+    tcRunCycle(tp, tc);
 
 #ifdef SMLBLND
     if ((tc->seamless_blend_mode == SMLBLND_ENABLE) && 
@@ -2062,7 +1916,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tc->cur_vel = next_vel;
         tc->cur_accel = next_accel;
         tc->accel_state = next_accel_state;
-        //obsolete: tc->on_final_decel = 0;
         tc->progress = next_progress;
         tp->depth = tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
@@ -2087,15 +1940,13 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
     if( (tc->blending && nexttc) || 
         (nexttc && 
          (tc->seamless_blend_mode == SMLBLND_DISABLE) &&
-         /* tc->on_final_decel && */
-         (tc->accel_state == ACCEL_S6)&&
-         (primary_vel < tc->blend_vel))) {
+         (tc->distance_to_go <= tc->tolerance) &&
+         (nexttc->target >= (tc->distance_to_go * 2)))) {
+        
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)
         tc->blending = 1;
     
-        // DPS("primary_vel(%f) blend_vel(%f)\n", primary_vel, tc->blend_vel);
-
         // hack to show blends in axis
         // tp->motionType = 0;
 
@@ -2121,12 +1972,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         emcmotStatus->current_vel = (tc->cur_vel + nexttc->cur_vel) / tc->cycle_time;
 
         secondary_before = tcGetPos(nexttc);
-        save_vel = nexttc->reqvel;
-        nexttc->reqvel = nexttc->feed_override > 0.0 ? 
-            ((tc->vel_at_blend_start - primary_vel) / (nexttc->feed_override * tc->cycle_time)) :
-            0.0;
-        tcRunCycle(tp, nexttc, NULL/*, NULL*/);
-        nexttc->reqvel = save_vel;
+        tcRunCycle(tp, nexttc);
 
         secondary_after = tcGetPos(nexttc);
         pmCartCartSub(secondary_after.tran, secondary_before.tran, 
