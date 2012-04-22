@@ -1,5 +1,3 @@
-loadusr audio
-
 # core HAL config file for simulation - 4 joint
 
 # load RT modules
