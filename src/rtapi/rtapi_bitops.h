@@ -283,7 +283,7 @@ static __inline__ int test_and_clear_bit(unsigned long nr,
 /*
  * CPU interrupt mask handling.
  */
-#if ( __ARM_ARCH_6ZK__ )
+#if ( __ARM_ARCH_6ZK__ | __ARM_ARCH_7A__ )
 
 /** 
  * Yishin Li, ysli@araisrobo.com, 2011-12-30: 
