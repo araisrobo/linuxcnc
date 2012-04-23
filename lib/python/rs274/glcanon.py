@@ -348,26 +348,27 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         coords = []
         for i in range(0,len(self.blocks)):
             if lineno >= self.blocks[i][0]  and lineno <= self.blocks[i][1]:
-                # DEBUG: print 'block(%d) selected start(%d) end(%d)' % (i, self.blocks[i][0], self.blocks[i][1])
+                print 'block(%d) selected start(%d) end(%d)' % (i, self.blocks[i][0], self.blocks[i][1])
                 self.selected_block = i
                 for j in range(self.blocks[i][0], self.blocks[i][1]):
                     for line in self.traverse:
                         if line[0] != j: continue
+                        print 'append traverse'
                         coords.append(line[1][:3])
                         coords.append(line[2][:3])
                     for line in self.arcfeed:
                         if line[0] != j: continue
-                        emc.line9(geometry, line[1], line[2])
+                        linuxcnc.line9(geometry, line[1], line[2])
                         coords.append(line[1][:3])
                         coords.append(line[2][:3])
                     for line in self.arcfeed:
                         if line[0] != j: continue
-                        emc.line9(geometry, line[1], line[2])
+                        linuxcnc.line9(geometry, line[1], line[2])
                         coords.append(line[1][:3])
                         coords.append(line[2][:3])
                     for line in self.feed:
                         if line[0] != j: continue
-                        emc.line9(geometry, line[1], line[2])
+                        linuxcnc.line9(geometry, line[1], line[2])
                         coords.append(line[1][:3])
                         coords.append(line[2][:3])
                 glEnd()
@@ -551,6 +552,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             self.highlight_mode = 'line'
     def highlight(self, lineno, geometry):
         if self.highlight_mode is 'block':
+            print 'highlighting ',lineno,' block'
             return self.highlight2(lineno, geometry)
         glLineWidth(3)
         c = self.colors['selected']
@@ -559,7 +561,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         coords = []
         for line in self.traverse:
             if line[0] != lineno: continue
-            linuxcnc.line9(geometry, line[1], line[2]) # we don't have this line
             coords.append(line[1][:3])
             coords.append(line[2][:3])
         for line in self.arcfeed:
@@ -569,7 +570,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             coords.append(line[2][:3])
         for line in self.arcfeed:                 # duplicated?     
             if line[0] != lineno: continue        # duplicated?      
-            emc.line9(geometry, line[1], line[2]) # duplicated?        
+            linuxcnc.line9(geometry, line[1], line[2]) # duplicated?        
             coords.append(line[1][:3])            # duplicated?      
             coords.append(line[2][:3])            # duplicated?    
         for line in self.feed:
@@ -601,11 +602,14 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def draw(self, for_selection=0, no_traverse=True):
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
+            print 'colored :traverse', 'for_selection:',for_selection
             self.colored_lines('traverse', self.traverse, for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
+            print 'colored : straight_feed', 'for_selection:',for_selection
             self.colored_lines('straight_feed', self.feed, for_selection, len(self.traverse))
 
+            print 'colored : arc_feed', 'for_selection:',for_selection
             self.colored_lines('arc_feed', self.arcfeed, for_selection, len(self.traverse) + len(self.feed))
 
             glLineWidth(2)
@@ -753,6 +757,7 @@ class GlCanonDraw:
 
         if buffer:
             min_depth, max_depth, names = min(buffer)
+            print 'names', names
             # call to draw highlight line
             self.set_highlight_line(names[0]) # input lineno to find block
             if self.canon.highlight_mode is 'block':
@@ -1853,8 +1858,8 @@ class GlCanonDraw:
             self.stale_dlist('select_norapids')
         else:
             error_str = _(gcode.strerror(result))
-            print self
-            print 'Near about line %d: %s' % (seq, error_str)
+            # print self
+            # print 'Near about line %d: %s' % (seq, error_str)
             self.canon_error = [seq, error_str] 
         return result, seq
 
