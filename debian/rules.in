@@ -38,10 +38,10 @@ build-stamp:
 # Add here commands to compile the package.
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=pdf
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
 	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
 else
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=pdf
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=no
 endif
 	(cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
 	touch build-stamp
@@ -78,9 +78,9 @@ install: build
 	mv debian/tmp/usr/share/doc/linuxcnc/LinuxCNC_Developer_Manual.pdf \
 		debian/tmp/usr/share/doc/linuxcnc-dev/
 	cp docs/html/gcode*.html debian/tmp/usr/share/doc/linuxcnc/
-	rm debian/tmp/usr/share/doc/linuxcnc/LinuxCNC_Manual_Pages.pdf 
+	rm -f debian/tmp/usr/share/doc/linuxcnc/LinuxCNC_Manual_Pages.pdf 
 	rm -rf debian/tmp/usr/share/doc/linuxcnc/html
-	-rm debian/tmp/linuxcnc*.files
+	-rm -f debian/tmp/linuxcnc*.files
 	-rm -f debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/*/*position*.txt
 	dh_movefiles
 	if [ `find debian/tmp -type f | wc -c` != 0 ]; then \

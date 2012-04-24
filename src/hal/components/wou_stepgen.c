@@ -356,23 +356,23 @@ static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
 /* structure members are ordered to optimize caching for makepulses,
    which runs in the fastest thread */
 
+// #pragma pack(push)  /* push current alignment to stack */
+// #pragma pack(1)     /* set alignment to 1 byte boundary */
 typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
     /* stuff that is read but not written by makepulses */
-    int64_t rawcount;
+    int32_t rawcount;
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
-    //obsolete: int step_type;		/* stepping type - see list { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };above */
-    int num_phases;		/* number of phases for types 2 and up */
-    hal_bit_t *phase[5];	/* pins for output signals */
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
     //obsolete: hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
+
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
@@ -397,8 +397,6 @@ typedef struct {
 
     hal_s32_t *home_state;	/* pin: home_state from homing.c */
     hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-    double sum_err_0;
-    double sum_err_1;
     
     /* pid info */
     hal_float_t *pid_cmd;
@@ -408,16 +406,11 @@ typedef struct {
     /* motion type be set */
     int32_t motion_type;          /* motion type wrote to risc */
     
-    hal_s32_t     *cmd_fbs;       /* position command retained by RISC (unit: pulse) */
-    hal_float_t   *cmd_fbf;       /* position command retained by RISC (cmd_fbs divided by scale) */
+    hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
+    hal_float_t   *cmd_fbf;     /* position command retained by RISC (cmd_fbs divided by scale) */
 
 } stepgen_t;
-
-//obsolete: typedef struct {
-//obsolete:     // Digital I/O: 16in 8out
-//obsolete:     // Analog I/O: 32bit
-//obsolete:     hal_float_t *a_in[1];
-//obsolete: } gpio_t;
+// #pragma pack(pop)   /* restore original alignment from stack */
 
 typedef struct {
     // Analog input: 0~4.096VDC, up to 16 channel
@@ -575,7 +568,7 @@ static void fetchmail(const uint8_t *buf_head)
     
     // buf_head = (char *) wou_mbox_ptr (&w_param);
     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
-    
+
     // BP_TICK
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
@@ -584,62 +577,39 @@ static void fetchmail(const uint8_t *buf_head)
         return;
     }
     *machine_control->bp_tick = bp_tick;
-    
+
     switch(mail_tag)
     {
     case MT_MOTION_STATUS:
-
         /* for PLASMA with ADC_SPI */
-        // BP_TICK
-        p = (uint32_t *) (buf_head + 4);
-        //? bp_tick = *p;
-        //? *machine_control->bp_tick = bp_tick;
-        //obsolete: assert(actual_joint_num>=num_joints);
+        //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
         stepgen = stepgen_array;
-        for (i=0; i<num_joints/*obsolete: actual_joint_num */; i++) {
-            //obsolete: if (i<num_joints) {
-                // PULSE_POS
-                p += 1;
-                *(stepgen->pulse_pos) = *p;
-                *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
-                //obsolete: *(machine_control->pulse_count[i]) = (int32_t)*p;
-                // enc counter
-                p += 1;
-                *(stepgen->enc_pos) = *p;
-                //obsolete: *(machine_control->encoder_count[i]) = (int32_t) *p;
-                // pid output
-                p +=1;
-                // *(stepgen->pid_output) = ((int32_t)*p)*(stepgen->scale_recip);
-                // *(stepgen->pid_output) = ((int32_t)*p)*(1.0);
-                *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
-                // cmd error
-                p += 1;
-                // *(stepgen->cmd_error) = ((int32_t)*p)*(stepgen->scale_recip);
-                *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
-                //obsolete: *(machine_control->ferror[i]) = (int32_t)*p;
-                // joint_cmd of this BP
-                p += 1;
-//                *(stepgen->joint_cmd) = ((int32_t)*p);
-                *(stepgen->cmd_fbs) = ((int32_t)*p);
-                *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
-
-                stepgen += 1;   // point to next joint
-            //obsolete: } else {
-            //obsolete:     // PULSE_POS
-            //obsolete:     p += 1;
-            //obsolete:     *(machine_control->pulse_count[i]) = (int32_t) *p;
-            //obsolete:     // enc counter
-            //obsolete:     p += 1;
-            //obsolete:     *(machine_control->encoder_count[i]) = (int32_t) *p;
-            //obsolete:     // pid output
-            //obsolete:     p +=1;
-            //obsolete:     // cmd error
-            //obsolete:     p += 1;
-            //obsolete:     *(machine_control->ferror[i]) = (int32_t)*p;
-            //obsolete:     // joint_cmd of this BP
-            //obsolete:     p += 1;
-            //obsolete: }
+        for (i=0; i<num_joints; i++) {
+            // PULSE_POS
+            p += 1;
+            *(stepgen->pulse_pos) = *p;
+            //TODO: confirm necessary: 
+            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
+            // enc counter
+            p += 1;
+            *(stepgen->enc_pos) = *p;
+            // pid output
+            p += 1;
+            *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
+            // cmd error
+            p += 1;
+            *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
             
+            // joint_cmd of this BP
+            p += 1;
+#ifndef __ARMEL__
+            // for unknown reason, the next expression will cause alignment
+            // trap for ARM processor (observed with dmesg)
+            *(stepgen->cmd_fbs) = ((int32_t)*p);
+            //TODO: confirm necessary: 
+            *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
+#endif
+            stepgen += 1;   // point to next joint
         }
 
         // digital input
@@ -803,7 +773,6 @@ static void fetchmail(const uint8_t *buf_head)
         //? assert(0);
         break;
     }
-
 }
 
 static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
@@ -1422,43 +1391,19 @@ static void update_rt_cmd(void)
 {
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     int32_t immediate_data = 0;
-    static int32_t counter = 0;
-//    int32_t abort;
-//    char str[256], *homedir;
-//    homedir = getenv("HOME");
-//    strcat(str,homedir);
-//    strcat(str,"/rt_abort.tmp");
-//    f_abort = fopen(str, "r");
-//    if (f_abort != NULL) {
-//        fread(str,sizeof(char), 1, f_abort);
-//        fclose(f_abort);
-//        str[1] = 0;
-//        abort = atoi(str);
-//        fprintf(stderr,"read abort value(%d)\n", abort);
-//    } else {
-//        abort = 0;
-//    }
-
-    // rtapi_print_msg(RTAPI_MSG_ERR,
-    //                 "update_rt_cmd:debug: begin\n");
     if (machine_control) {
         if (*machine_control->rt_abort == 1 ||
                 *machine_control->cl_abort == 1) {
-//        if (*machine_control->rt_abort == 1 || abort == 1) {
-//            counter++;
-//            if (counter > 10) {
-                // TODO: replace debug 4 (motion_content.machine_status)
-                immediate_data = RT_ABORT;
-                memcpy(data, &immediate_data, sizeof(uint32_t));
-                rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-                        sizeof(uint32_t), data);
-                rt_wou_flush(&w_param);
-                counter = 0;
-//            }
+            immediate_data = RT_ABORT;
+            memcpy(data, &immediate_data, sizeof(uint32_t));
+            rt_wou_cmd (&w_param, 
+                        WB_WR_CMD, 
+                        (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+                        sizeof(uint32_t), 
+                        data);
+            rt_wou_flush(&w_param);
         }
     }
-    // rtapi_print_msg(RTAPI_MSG_ERR,
-    //                 "update_rt_cmd:debug: end\n");
 }
 
 static void update_freq(void *arg, long period)
@@ -2448,8 +2393,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     addr->rawcount = 0;
     addr->prev_pos_cmd = 0;
     addr->prev_pos_fb = 0;
-    addr->sum_err_0 = 0;
-    addr->sum_err_1 = 0;
 
     *(addr->enable) = 0;
     /* other init */

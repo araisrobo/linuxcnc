@@ -106,7 +106,8 @@ int tpClearDIOs() {
  This function is intended to put the motion queue in the state it would
  be if all queued motions finished at the current position.
  */
-int tpClear(TP_STRUCT * tp) {
+int tpClear(TP_STRUCT * tp)
+{
     tcqInit(&tp->queue);
     tp->queueSize = 0;
     tp->goalPos = tp->currentPos;
@@ -133,7 +134,9 @@ int tpClear(TP_STRUCT * tp) {
     return tpClearDIOs();
 }
 
-int tpInit(TP_STRUCT * tp) {
+
+int tpInit(TP_STRUCT * tp)
+{
     tp->cycleTime = 0.0;
     tp->vLimit = 0.0;
     tp->vScale = 1.0;
@@ -147,7 +150,8 @@ int tpInit(TP_STRUCT * tp) {
     return tpClear(tp);
 }
 
-int tpSetCycleTime(TP_STRUCT * tp, double secs) {
+int tpSetCycleTime(TP_STRUCT * tp, double secs)
+{
     if (0 == tp || secs <= 0.0) {
         return -1;
     }
@@ -165,7 +169,8 @@ int tpSetCycleTime(TP_STRUCT * tp, double secs) {
 // override >100% is requested)  These settings apply to
 // subsequent moves until changed.
 
-int tpSetVmax(TP_STRUCT * tp, double vMax, double ini_maxvel) {
+int tpSetVmax(TP_STRUCT * tp, double vMax, double ini_maxvel)
+{
     if (0 == tp || vMax <= 0.0 || ini_maxvel <= 0.0) {
         return -1;
     }
@@ -181,9 +186,9 @@ int tpSetVmax(TP_STRUCT * tp, double vMax, double ini_maxvel) {
 // any particular axis.  This applies to subsequent moves
 // until changed.
 
-int tpSetVlimit(TP_STRUCT * tp, double vLimit) {
-    if (!tp)
-        return -1;
+int tpSetVlimit(TP_STRUCT * tp, double vLimit)
+{
+    if (!tp) return -1;
 
     if (vLimit < 0.)
         tp->vLimit = 0.;
@@ -218,10 +223,11 @@ int tpSetId(TP_STRUCT * tp, int id)
 }
 
 /*
- tpGetExecId() returns the id of the last motion that is currently
- executing.
- */
-int tpGetExecId(TP_STRUCT * tp) {
+  tpGetExecId() returns the id of the last motion that is currently
+  executing.
+  */
+int tpGetExecId(TP_STRUCT * tp)
+{
     if (0 == tp) {
         return -1;
     }
@@ -230,12 +236,13 @@ int tpGetExecId(TP_STRUCT * tp) {
 }
 
 /*
- tpSetTermCond(tp, cond) sets the termination condition for all subsequent
- queued moves. If cond is TC_TERM_STOP, motion comes to a stop before
- a subsequent move begins. If cond is TC_TERM_BLEND, the following move
- is begun when the current move decelerates.
- */
-int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance) {
+  tpSetTermCond(tp, cond) sets the termination condition for all subsequent
+  queued moves. If cond is TC_TERM_STOP, motion comes to a stop before
+  a subsequent move begins. If cond is TC_TERM_BLEND, the following move
+  is begun when the current move decelerates.
+  */
+int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance)
+{
     if (0 == tp) {
         return -1;
     }
@@ -254,7 +261,7 @@ int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance) {
 // the current position AND the goal position to be the same.  
 // Used only at TP initialization and when switching modes.
 
-int tpSetPos(TP_STRUCT * tp, EmcPose pos) 
+int tpSetPos(TP_STRUCT * tp, EmcPose pos)
 {
     if (0 == tp) {
         return -1;
@@ -275,6 +282,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     PmPose start_xyz, end_xyz;
     PmCartesian abc, uvw;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
+
     if (!tp) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
         return -1;
@@ -289,7 +297,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
 
     start_xyz.rot = identity_quat;
     end_xyz.rot = identity_quat;
-
+    
     // abc cannot move
     abc.x = tp->goalPos.a;
     abc.y = tp->goalPos.b;
@@ -317,7 +325,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
     tc.distance_to_go = tc.target;
-    // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
     tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
@@ -452,7 +459,6 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
     tc.distance_to_go = tc.target;
-    // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
     tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
@@ -506,21 +512,6 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
 
-    //debug: DP("tp->nextId(%d)\n", tp->nextId);
-    //debug: DP("line_xyz:\n");
-    //debug: DPS("\tuVec: x(%f) y(%f) z(%f)\n",
-    //debug:     line_xyz.uVec.x,
-    //debug:     line_xyz.uVec.y,
-    //debug:     line_xyz.uVec.z);
-    //debug: DPS("\tqVec: s(%f) x(%f) y(%f) z(%f)\n",
-    //debug:     line_xyz.qVec.s,
-    //debug:     line_xyz.qVec.x,
-    //debug:     line_xyz.qVec.y,
-    //debug:     line_xyz.qVec.z);
-    //debug: DPS("\ttmag(%f) rmag(%f)\n",
-    //debug:     line_xyz.tmag, 
-    //debug:     line_xyz.rmag);
-
     return 0;
 }
 
@@ -542,13 +533,9 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     PmPose start_xyz, end_xyz;
     PmPose start_uvw, end_uvw;
     PmPose start_abc, end_abc;
-    double helix_z_component; // z of the helix's cylindrical coord system
+    double helix_z_component;   // z of the helix's cylindrical coord system
     double helix_length;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    // PmCartesian tmp;
-
-    //    fprintf(stderr,"tpAddCircle(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
-    //                ini_maxjerk, vel, acc, ini_maxvel);
 
     if (ini_maxjerk == 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
@@ -587,8 +574,8 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
 
     // find helix length
     pmCartMag(circle.rHelix, &helix_z_component);
-    helix_length = pmSqrt(pmSq(circle.angle * circle.radius)
-            + pmSq(helix_z_component));
+    helix_length = pmSqrt(pmSq(circle.angle * circle.radius) +
+                          pmSq(helix_z_component));
 
     tc.sync_accel = 0;
     tc.cycle_time = tp->cycleTime;
@@ -596,7 +583,6 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
     tc.distance_to_go = tc.target;
-    // tc.accel_time = 0.0;
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
     tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
@@ -613,7 +599,6 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.coords.circle.xyz = circle;
     tc.coords.circle.uvw = line_uvw;
     tc.coords.circle.abc = line_abc;
-
     tc.motion_type = TC_CIRCULAR;
     tc.canon_motion_type = type;
     tc.blend_with_next = tp->termCond == TC_TERM_COND_BLEND;
@@ -647,43 +632,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
-    //    DP("tp->nextId(%d)\n", tp->nextId);
-    
-    //debug: DP("circle:\n");
-    //debug: DPS("\tcenter: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.center.x,
-    //debug:     circle.center.y,
-    //debug:     circle.center.z);
-    //debug: DPS("\tnormal: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.normal.x,
-    //debug:     circle.normal.y,
-    //debug:     circle.normal.z);
-    //debug: DPS("\trTan: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.rTan.x,
-    //debug:     circle.rTan.y,
-    //debug:     circle.rTan.z);
-    //debug: DPS("\trPerp: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.rPerp.x,
-    //debug:     circle.rPerp.y,
-    //debug:     circle.rPerp.z);
-    //debug: DPS("\trHelix: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.rHelix.x,
-    //debug:     circle.rHelix.y,
-    //debug:     circle.rHelix.z);
-    //debug: DPS("\tradius(%f) angle(%f) spiral(%f)\n",
-    //debug:     circle.radius, 
-    //debug:     circle.angle, 
-    //debug:     circle.spiral);
-    //debug: // utvIn: unit tangent vector (Inward)
-    //debug: DPS("\tutvIn: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.utvIn.x,
-    //debug:     circle.utvIn.y,
-    //debug:     circle.utvIn.z);
-    //debug: // utvOut: unit tangent vector (Outward)
-    //debug: DPS("\tutvOut: x(%f) y(%f) z(%f)\n",
-    //debug:     circle.utvOut.x,
-    //debug:     circle.utvOut.y,
-    //debug:     circle.utvOut.z);
+
     return 0;
 }
 
@@ -1067,7 +1016,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S3;
-                // DP(" Leave S2 due to progress limit\n");
                 break;
             }
 
@@ -1325,10 +1273,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
         tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
         (tc->target - tc->progress), tc_target);
     tc->distance_to_go = tc->target - tc->progress;
-    if (tc->cur_vel < 0) {
-        DPS("tc->cur_vel(%32.16f) tc->cur_accel(%32.16f)\n", 
-            tc->cur_vel, tc->cur_accel);
-    }
     assert (tc->cur_vel >= 0);
 }
 
@@ -1371,7 +1315,8 @@ static int tpGetRotaryIsUnlocked(int axis) {
 // to motion.  It's not THAT bad and in the interest of not touching
 // stuff outside this directory, I'm going to leave it for now.
 
-int tpRunCycle(TP_STRUCT * tp, long period) {
+int tpRunCycle(TP_STRUCT * tp, long period)
+{
 #if (TRACE!=0)
     _dt += 1;
 #endif
@@ -1401,8 +1346,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tp->execId = 0;
         tp->motionType = 0;
         tpResume(tp);
-        // when not executing a move, use the current enable flags
-        emcmotStatus->enables_queued = emcmotStatus->enables_new;
+	// when not executing a move, use the current enable flags
+	emcmotStatus->enables_queued = emcmotStatus->enables_new;
         return 0;
     }
 
@@ -1410,8 +1355,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         // if we're synced, and this move is ending, save the
         // spindle position so the next synced move can be in
         // the right place.
-        if (tc->synchronized)
-            spindleoffset += tc->target / tc->uu_per_rev;
+        if(tc->synchronized)
+            spindleoffset += tc->target/tc->uu_per_rev;
         else
             spindleoffset = 0.0;
 
@@ -1430,18 +1375,16 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
         // so get next move
         tc = tcqItem(&tp->queue, 0, period);
-        if (!tc)
-            return 0;
+        if(!tc) return 0;
     }
 
     // now we have the active tc.  get the upcoming one, if there is one.
     // it's not an error if there isn't another one - we just don't
     // do blending.  This happens in MDI for instance.
-    if(!emcmotDebug->stepping && tc->blend_with_next) {
+    if(!emcmotDebug->stepping && tc->blend_with_next) 
         nexttc = tcqItem(&tp->queue, 1, period);
-    } else {
+    else
         nexttc = NULL;
-    }
 
     {
         int this_synch_pos = tc->synchronized && !tc->velocity_mode;
@@ -1484,8 +1427,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
             return 0;
         } else {
             tc->reqvel = 0.0;
-            if (nexttc)
-                nexttc->reqvel = 0.0;
+            if(nexttc) nexttc->reqvel = 0.0;
         }
     }
 
@@ -1544,16 +1486,11 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tp->motionType = tc->canon_motion_type;
         tc->blending = 0;
 
-        // ysli: what if the maxaccel has already divided by 2 at previous
-        //       nexttc checking?
-        //       line-1740: nexttc->maxaccel /= 2.0;
         // honor accel constraint in case we happen to make an acute angle
         // with the next segment.
-        //necessary? if (tc->blend_with_next)
-        //necessary?     tc->maxaccel /= 2.0;
 
-        if (tc->synchronized) {
-            if (!tc->velocity_mode && !emcmotStatus->spindleSync) {
+        if(tc->synchronized) {
+            if(!tc->velocity_mode && !emcmotStatus->spindleSync) {
                 // if we aren't already synced, wait
                 waiting_for_index = tc->id;
                 // ask for an index reset
@@ -1596,9 +1533,8 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
                 PmPose start, end;
                 PmLine *aux = &tc->coords.rigidtap.aux_xyz;
                 // we've stopped, so set a new target at the original position
-                tc->coords.rigidtap.spindlerevs_at_reversal = new_spindlepos
-                        + spindleoffset;
-
+                tc->coords.rigidtap.spindlerevs_at_reversal = new_spindlepos + spindleoffset;
+                
                 pmLinePoint(&tc->coords.rigidtap.xyz, tc->progress, &start);
                 end = tc->coords.rigidtap.xyz.start;
                 pmLineInit(aux, start, end);
@@ -1631,7 +1567,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
 
                 tc->coords.rigidtap.state = FINAL_PLACEMENT;
             }
-            // old_spindlepos = new_spindlepos;
             break;
         case FINAL_PLACEMENT:
             // this is a regular move now, it'll stop at target above.
@@ -1652,12 +1587,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         nexttc->active = 1;
         nexttc->blending = 0;
 
-        //necessary? // honor accel constraint if we happen to make an acute angle with the
-        //necessary? // above segment or the following one
-        //necessary? if(tc->blend_with_next || nexttc->blend_with_next)
-        //necessary?     nexttc->maxaccel /= 2.0;
     }
-
 
 
     if(tc->synchronized) {
@@ -1691,97 +1621,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
         tc->css_progress_cmd = css_progress_cmd;
         
-        //debug: DPS("revs(%f) tc_progress(%f) reqvel(%f) css_progress_cmd(%f)\n",
-        //debug:      revs, tc->progress, tc->reqvel, css_progress_cmd);
-        
-//        double pos_error;
-//        double oldrevs = revs;
-//    
-//        DP("tc->uu_per_rev(%f)\n", tc->uu_per_rev);
-
-//        if(tc->velocity_mode) {
-//            pos_error = fabs(emcmotStatus->spindleSpeedIn) * tc->uu_per_rev;
-//            if(nexttc) pos_error -= nexttc->progress; /* ?? */
-//            if(!tp->aborting) {
-//                tc->feed_override = emcmotStatus->net_feed_scale;
-//                tc->reqvel = pos_error;
-//            }
-//        } else {
-//            double spindle_vel, target_vel;
-//            double new_spindlepos = emcmotStatus->spindleRevs;
-//            if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
-//
-//            if(tc->motion_type == TC_RIGIDTAP && 
-//               (tc->coords.rigidtap.state == RETRACTION || 
-//                tc->coords.rigidtap.state == FINAL_REVERSAL))
-//                revs = tc->coords.rigidtap.spindlerevs_at_reversal - 
-//                    new_spindlepos;
-//            else
-//                revs = new_spindlepos;
-
-// //            pos_error = (revs - spindleoffset) * tc->uu_per_rev - tc->progress;
-// //            if(nexttc) pos_error -= nexttc->progress;
-// 
-//             DPS("revs(%f) spindleoffset(%f) tc_progress(%f) reqvel(%f) tc(%p)\n",
-//                 revs, spindleoffset, tc->progress, tc->reqvel, tc);
-//             DPS("pos_error(%f) sync_accel(%d)\n", pos_error, tc->sync_accel);
-// 
-//             // tc->reqvel = pos_error / tc->cycle_time;
-//             
-//             if (tc->sync_accel) {
-//                 // NOTE(eric):
-//                 //      detect when velocities match, and move the target accordingly.
-//                 //      acceleration will abruptly stop and we will be on our new target.
-//                 //      sync_accel: use max reqvel to match the actual req_vel sync with spindle.
-//                 //                     when reach the req vel.
-//                 //      spindleoffset: record the spindle offset before reach the reqested vel.
-//                 // spindle_vel = revs / (tc->cycle_time * tc->sync_accel++);
-//                 spindle_vel = revs / (tc->sync_accel++);
-//                 target_vel = spindle_vel * tc->uu_per_rev;
-//                 if (tc->cur_vel >= target_vel) {
-//                     // move target so as to drive pos_error to 0 next cycle;
-//                     spindleoffset = revs - tc->progress / tc->uu_per_rev;
-//                     tc->sync_accel = 0;
-//                     tc->reqvel = target_vel / tc->cycle_time;
-//                 } else {
-//                     // beginning of move and we are behind: accel as fast as we can
-//                     tc->reqvel = tc->maxvel / tc->cycle_time;
-//                 }
-//                 DPS("spindle_vel(%f) target_vel(%f)\n", 
-//                     spindle_vel, target_vel);
-//             } else {
-//                 // we have synced the beginning of the move as best we can -
-//                 // track position (minimize pos_error).
-// 
-//                 // we have to consider the pos_error (exceedness).
-//                 double errorvel;
-//                 // spindle_vel = (revs - oldrevs) / tc->cycle_time;
-//                 spindle_vel = (revs - oldrevs);
-//                 target_vel = spindle_vel * tc->uu_per_rev;
-//                 // assume pos_error could be matched in a cycle.
-//                 // d = 1/2*a*t^2
-//                 // get acceleration a = sqrt(pos_error * 2/t)
-//                 // the velocity modular would be v = a*t
-//                 // errorvel = pmSqrt(fabs(pos_error*2/tc->cycle_time)) * tc->cycle_time;
-//                 //orig: errorvel = pmSqrt(fabs(pos_error*2)*tc->maxaccel);
-//                 //orig: if (pos_error < 0)
-//                 //orig:     errorvel = -errorvel;
-//                 //orig: tc->reqvel = (target_vel + errorvel) / tc->cycle_time;
-// 
-//                 tc->reqvel = (target_vel + pos_error) / tc->cycle_time;
-// 
-//                 // fprintf(stderr, "spindle_vel(%f) pos_error(%f) target_vel(%f) tc->reqvel(%f)\n", 
-//                 //    spindle_vel, pos_error, target_vel, tc->reqvel);
-//                 DPS("spindle_vel(%f) pos_error(%f) target_vel(%f) errorvel(%f)\n", 
-//                     spindle_vel, pos_error, target_vel, errorvel);
-//             }
-// 
-//             DPS("revs(%f) spindleoffset(%f) tc_progress(%f) reqvel(%f)\n",
-//                 revs, spindleoffset, tc->progress, tc->reqvel);
-//             tc->feed_override = 1.0;
-// //        }
-//         if (tc->reqvel < 0.0)
-//             tc->reqvel = 0.0;
         if (nexttc) {
             if (nexttc->synchronized) {
                 // nexttc->reqvel = tc->reqvel;
@@ -1892,19 +1731,6 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         else
             spindleoffset = 0.0;
         
-        //unsure with the indexrotary checking
-        //unsure with the indexrotary checking
-        //unsure: if(tc->indexrotary != -1) {
-        //unsure:     // this was an indexing move, so before we remove it we must
-        //unsure:     // relock the axis
-        //unsure:     tpSetRotaryUnlock(tc->indexrotary, 0);
-        //unsure:     // if it is now locked, fall through and remove the finished move.
-        //unsure:     // otherwise, just come back later and check again
-        //unsure:     if(tpGetRotaryIsUnlocked(tc->indexrotary))
-        //unsure:         return 0;
-        //unsure: }
-
-        // done with this move
         tcqRemove(&tp->queue, 1);
 
         // so get next move
@@ -1946,7 +1772,7 @@ int tpRunCycle(TP_STRUCT * tp, long period) {
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)
         tc->blending = 1;
-    
+
         // hack to show blends in axis
         // tp->motionType = 0;
 
@@ -2036,7 +1862,6 @@ int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode) {
 
 int tpPause(TP_STRUCT * tp)
 {
-    // DP("begin\n");
     if (0 == tp) {
 	return -1;
     }
@@ -2105,7 +1930,7 @@ int tpQueueDepth(TP_STRUCT * tp)
 int tpActiveDepth(TP_STRUCT * tp)
 {
     if (0 == tp) {
-        return 0;
+	return 0;
     }
 
     return tp->activeDepth;
@@ -2123,15 +1948,15 @@ int tpSetAout(TP_STRUCT *tp, unsigned char index, double start, double end) {
 
 int tpSetDout(TP_STRUCT *tp, int index, unsigned char start, unsigned char end) {
     if (0 == tp) {
-        return -1;
+	return -1;
     }
     syncdio.anychanged = 1; //something has changed
     syncdio.dio_mask |= (1 << index);
     if (start > 0)
-        syncdio.dios[index] = 1; // the end value can't be set from canon currently, and has the same value as start
-    else
-        syncdio.dios[index] = -1;
-    return 0;
+	syncdio.dios[index] = 1; // the end value can't be set from canon currently, and has the same value as start
+    else 
+	syncdio.dios[index] = -1;
+    return 0;    
 }
 
 int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type) {
