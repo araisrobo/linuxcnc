@@ -1,3 +1,10 @@
+linuxcnc (1:2.5.0-2012.04.24) lucid; urgency=low
+
+  * Merge upstream master
+  * S-Curve: add JERK limitation to wou_stepgen.c
+
+ -- Yishin Li <ysli@araisrobo.com>  Tue, 24 Apr 2012 20:31:38 +0800
+
 linuxcnc (1:2.5.0-2012.04.10) lucid; urgency=low
 
   * SMLBLND: seamless blending for s-curve velocity profile
