@@ -893,7 +893,8 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    double max_vel, max_accel, pos_scale, value, max_following_error, probe_decel, max_jerk;
+    double max_vel, max_accel, pos_scale, value, max_following_error, probe_decel;
+    double max_jerk;
     int msg;
 
     msg = rtapi_get_msg_level();
@@ -1201,10 +1202,12 @@ int rtapi_app_main(void)
                         n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_JERK), immediate_data);
+        
         /* config max jerk recip */
         immediate_data = (uint32_t)(FIXED_POINT_SCALE/(max_jerk * pos_scale * dt * dt * dt));
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
+
         /* config max following error */
         // following error send with unit pulse
         max_following_error = atof(ferror_str[n]);
