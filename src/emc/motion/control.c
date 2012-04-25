@@ -465,7 +465,6 @@ static void process_inputs(void)
 	joint->motor_pos_fb = *(joint_data->motor_pos_fb);  // absolute motor position
         joint->switch_pos = *(joint_data->switch_pos_pin);  // absolute switch position
         joint->index_pos = *(joint_data->index_pos_pin);  // absolute switch position
-        joint->ferror = *(joint_data->usb_ferror);        // without considering comp.
 	/* calculate pos_fb */
 #ifndef MOTION_OVER_USB
      	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
@@ -481,8 +480,6 @@ static void process_inputs(void)
 	    joint->pos_fb = joint->motor_pos_fb -
 		(joint->backlash_filt + joint->motor_offset);
 	}
-	/* calculate following error */
-	joint->ferror = joint->pos_cmd - joint->pos_fb;
 #else
         // MOTION_OVER_USB
 	/* normal case: subtract backlash comp and motor offset */
@@ -491,6 +488,8 @@ static void process_inputs(void)
 	/* calculate following error for motion over usb */
 	/* joint->ferror updated above */
 #endif
+	/* calculate following error */
+	joint->ferror = joint->pos_cmd - joint->pos_fb;
 	abs_ferror = fabs(joint->ferror);
 	/* update maximum ferror if needed */
 	if (abs_ferror > joint->ferror_high_mark) {

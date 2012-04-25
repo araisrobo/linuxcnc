@@ -553,7 +553,6 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(addr->home_state_pin), mot_comp_id, "joint.%d.home-state", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->switch_pos_pin), mot_comp_id, "joint.%d.switch-pos", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->index_pos_pin), mot_comp_id, "joint.%d.index-pos", num)) != 0) return retval;
-    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->usb_ferror), mot_comp_id, "joint.%d.usb-ferror", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->usb_ferror_flag), mot_comp_id, "joint.%d.usb-ferror-flag", num)) != 0) return retval;
     if(num >= 3 && num <= 5) {
         // for rotaries only...

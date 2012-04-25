@@ -67,7 +67,6 @@ typedef struct {
     hal_s32_t *home_state_pin;	/* WPI: homing state machine state */
     hal_float_t *switch_pos_pin;/* RPI: home switch position (absolute motor position count) */
     hal_float_t *index_pos_pin; /* RPI: motor index position (absolute motor position count) */
-    hal_float_t *usb_ferror;
     hal_bit_t *usb_ferror_flag;
 
     hal_bit_t *unlock;          /* WPI: command that axis should unlock for rotation */
