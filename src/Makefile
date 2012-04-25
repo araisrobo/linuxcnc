@@ -112,8 +112,12 @@ SUBDIRS := \
     module_helper \
     \
     po \
-    \
-    ../docs/src
+    # \
+    # ../docs/src
+
+ifneq ($(BUILD_DOCS),no)
+	SUBDIRS += ../docs/src
+endif
 
 ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c
 
@@ -376,8 +380,14 @@ pythonclean:
 	find ../lib/python -name '*.so' -exec rm {} +
 python: $(PYTARGETS)
 userspace: python
-clean: docclean pythonclean
+# clean: docclean pythonclean
+clean: pythonclean
 endif
+
+ifneq ($(BUILD_DOCS),no)
+clean: docclean
+endif
+
 
 # This is the gateway into the crazy world of "kbuild", the linux 2.6 system
 # for building kernel modules.	Other kernel module build styles need to be

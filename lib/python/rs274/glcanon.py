@@ -348,12 +348,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         coords = []
         for i in range(0,len(self.blocks)):
             if lineno >= self.blocks[i][0]  and lineno <= self.blocks[i][1]:
-                print 'block(%d) selected start(%d) end(%d)' % (i, self.blocks[i][0], self.blocks[i][1])
+                # print 'block(%d) selected start(%d) end(%d)' % (i, self.blocks[i][0], self.blocks[i][1])
                 self.selected_block = i
                 for j in range(self.blocks[i][0], self.blocks[i][1]):
                     for line in self.traverse:
                         if line[0] != j: continue
-                        print 'append traverse'
+                        # print 'append traverse'
                         coords.append(line[1][:3])
                         coords.append(line[2][:3])
                     for line in self.arcfeed:
@@ -479,7 +479,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             arcfeed_line = self.arcfeed[len(self.arcfeed)-1][0]
         else:
             arcfeed_line = 0
-        print 'max line = %f' % (max(traverse_line, feed_line, arcfeed_line))
+        # print 'max line = %f' % (max(traverse_line, feed_line, arcfeed_line))
         return max(traverse_line, feed_line, arcfeed_line)
     def get_last_pos_of_prog(self):
         if len(self.blocks) > 0:
@@ -552,7 +552,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             self.highlight_mode = 'line'
     def highlight(self, lineno, geometry):
         if self.highlight_mode is 'block':
-            print 'highlighting ',lineno,' block'
+            # print 'highlighting ',lineno,' block'
             return self.highlight2(lineno, geometry)
         glLineWidth(3)
         c = self.colors['selected']
@@ -602,14 +602,14 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def draw(self, for_selection=0, no_traverse=True):
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
-            print 'colored :traverse', 'for_selection:',for_selection
+            # print 'colored :traverse', 'for_selection:',for_selection
             self.colored_lines('traverse', self.traverse, for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
-            print 'colored : straight_feed', 'for_selection:',for_selection
+            # print 'colored : straight_feed', 'for_selection:',for_selection
             self.colored_lines('straight_feed', self.feed, for_selection, len(self.traverse))
 
-            print 'colored : arc_feed', 'for_selection:',for_selection
+            # print 'colored : arc_feed', 'for_selection:',for_selection
             self.colored_lines('arc_feed', self.arcfeed, for_selection, len(self.traverse) + len(self.feed))
 
             glLineWidth(2)
@@ -757,7 +757,7 @@ class GlCanonDraw:
 
         if buffer:
             min_depth, max_depth, names = min(buffer)
-            print 'names', names
+            # print 'names', names
             # call to draw highlight line
             self.set_highlight_line(names[0]) # input lineno to find block
             if self.canon.highlight_mode is 'block':

@@ -263,6 +263,11 @@ const char *max_accel_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(max_accel_str, MAX_CHAN,
                       "max acceleration value for up to 8 channels");
 
+const char *max_jerk_str[MAX_CHAN] =
+    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+RTAPI_MP_ARRAY_STRING(max_jerk_str, MAX_CHAN,
+                      "max jerk value for up to 8 channels");
+
 const char *pos_scale_str[MAX_CHAN] =
     { "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
 RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
@@ -889,6 +894,7 @@ int rtapi_app_main(void)
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
     double max_vel, max_accel, pos_scale, value, max_following_error, probe_decel;
+    double max_jerk;
     int msg;
 
     msg = rtapi_get_msg_level();
@@ -1161,6 +1167,7 @@ int rtapi_app_main(void)
         pos_scale   = fabs(atof(pos_scale_str[n]));
         max_vel     = atof(max_vel_str[n]);
         max_accel   = atof(max_accel_str[n]);
+        max_jerk    = atof(max_jerk_str[n]);
         
         /* config MAX velocity */
         // +1: rounding to last fixed point unit
@@ -1187,6 +1194,19 @@ int rtapi_app_main(void)
                         n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
+
+        /* config max jerk */
+        immediate_data = (uint32_t)((max_jerk * pos_scale * dt * dt * dt * FIXED_POINT_SCALE )+1);
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_jerk(%d) = (%f * %f * %f * %f^3)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
+        assert(immediate_data > 0);
+        write_mot_param (n, (MAX_JERK), immediate_data);
+        
+        /* config max jerk recip */
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(max_jerk * pos_scale * dt * dt * dt));
+        assert(immediate_data > 0);
+        write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
 
         /* config max following error */
         // following error send with unit pulse
@@ -1562,10 +1582,10 @@ static void update_freq(void *arg, long period)
                 (*(machine_control->out[i]))) {
             {
                 // write a wou frame for sync output into command FIFO
-                fprintf(stderr,"wou_stepgen.c: gpio_%02d => (%d)\n",
-                        i,*(machine_control->out[i]));
-                fprintf(stderr,"wou_stepgen.c: num_joints(%d)\n",
-                        num_joints);
+//                fprintf(stderr,"wou_stepgen.c: gpio_%02d => (%d)\n",
+//                        i,*(machine_control->out[i]));
+//                fprintf(stderr,"wou_stepgen.c: num_joints(%d)\n",
+//                        num_joints);
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
