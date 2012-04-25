@@ -580,6 +580,17 @@ static void fetchmail(const uint8_t *buf_head)
 
     switch(mail_tag)
     {
+    case MT_PID:
+        stepgen = stepgen_array;
+        for (i=0; i<num_joints; i++) {
+            p += 1;
+            *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
+            // cmd error
+            p += 1;
+            *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
+            stepgen += 1;   // point to next joint
+        }
+        break;
     case MT_MOTION_STATUS:
         /* for PLASMA with ADC_SPI */
         //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
@@ -593,13 +604,6 @@ static void fetchmail(const uint8_t *buf_head)
             // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
-            // pid output
-            p += 1;
-            *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
-            // cmd error
-            p += 1;
-            *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
-            
             // joint_cmd of this BP
             p += 1;
 #ifndef __ARMEL__
