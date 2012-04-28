@@ -1063,6 +1063,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // check if dist would be greater than tc_target at next cycle
             if (tc_target < (dist - vel)) {
                 tc->accel_state = ACCEL_S4;
+                // blending at largest velocity for G64 w/o P<tolerance>
+                if (!tc->tolerance) {
+                    tc->tolerance = tc->target - tc->progress; // tc->distance_to_go
+                } 
                 break;
             }
 
