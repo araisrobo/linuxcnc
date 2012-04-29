@@ -12,7 +12,6 @@
 *
 * Last change:
 ********************************************************************/
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -131,7 +130,7 @@ typedef enum {
   AXIS_NONE = 1,
   AXIS_X,
   AXIS_Y,
-  AXIS_Z
+  AXIS_Z,
 } AXIS_TYPE;
 
 static AXIS_TYPE axisSelected = AXIS_X;
@@ -212,7 +211,7 @@ static char active_m_codes_string[ASCLINELEN] = "";
 static char bottom_string[ASCLINELEN + 1] = "";
 
 // key repeat delays, in microseconds
-#define DEFAULT_FIRST_KEYUP_DELAY 300000 // works w/ 50000 alarm
+#define DEFAULT_FIRST_KEYUP_DELAY 400000 // works w/ 50000 alarm
 static int FIRST_KEYUP_DELAY = DEFAULT_FIRST_KEYUP_DELAY;
 #define DEFAULT_NEXT_KEYUP_DELAY  100000 // works w/ 50000 alarm
 static int NEXT_KEYUP_DELAY = DEFAULT_NEXT_KEYUP_DELAY;
@@ -1247,6 +1246,7 @@ static void idleHandler()
     like this:
 
     if (myFlag && keyup_count == 0)
+
       {
         // do stuff for key up here
 
@@ -1263,6 +1263,8 @@ static void idleHandler()
       emcCommandBuffer->write(emc_jog_stop_msg);
       emcCommandWait(emcCommandSerialNumber);
       axisJogging = AXIS_NONE;
+      oldch = 0;
+      ch = 0;
     }
 
   // key up for spindle speed changes
@@ -1626,7 +1628,6 @@ int main(int argc, char *argv[])
         IACT_END} interactive = IACT_NONE;
   //char keystick[] = "keystick";
   int charHandled;
-
   // process command line args, indexing argv[] from [1]
   for (t = 1; t < argc; t++)
     {
@@ -1809,7 +1810,6 @@ int main(int argc, char *argv[])
     {
       startTimer(usecs);
     }
-
   while (! done)
     {
       oldch = ch;
@@ -2120,6 +2120,7 @@ int main(int argc, char *argv[])
                 }
               else
                 {
+
                   jogMode = JOG_CONTINUOUS;
                   emc_jog_cont_msg.serial_number = ++emcCommandSerialNumber;
                   emc_jog_cont_msg.axis = axisIndex(AXIS_X);
