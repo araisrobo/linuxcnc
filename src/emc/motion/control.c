@@ -1006,7 +1006,7 @@ static void check_for_faults(void)
 	    if (abort_reason == RISC_PROBE_END) {
             fprintf(stderr, "enabling = 0 (USB_STATUS_RISC_PROBE_ERROR)\n");
             SET_MOTION_ERROR_FLAG(1);
-            emcmotDebug->enabling = 0;
+            //emcmotDebug->enabling = 0;
             abort_reason = NO_REASON;
 
         }
