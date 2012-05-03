@@ -40,24 +40,25 @@ static uint32_t _dt = 0;
 
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
-// static int immediate_state;
+
 int output_chan = 0;
 syncdio_t syncdio; //record tpSetDout's here
 
-int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
+int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
+{
     if (0 == tp) {
-        return -1;
+	return -1;
     }
 
     if (_queueSize <= 0) {
-        tp->queueSize = TP_DEFAULT_QUEUE_SIZE;
+	tp->queueSize = TP_DEFAULT_QUEUE_SIZE;
     } else {
-        tp->queueSize = _queueSize;
+	tp->queueSize = _queueSize;
     }
 
     /* create the queue */
     if (-1 == tcqCreate(&tp->queue, tp->queueSize, tcSpace)) {
-        return -1;
+	return -1;
     }
 
 #if (TRACE!=0)
@@ -68,12 +69,12 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace) {
                 "#dt", "state", "req_vel", "cur_accel", "cur_vel", "progress%", "target", "dist_to_go", "tc_target");
         _dt = 0;
     }
-    // _dt += 1;
 #endif
 
     /* init the rest of our data */
     return tpInit(tp);
 }
+
 
 // this clears any potential DIO toggles
 // anychanged signals if any DIOs need to be changed
@@ -98,13 +99,13 @@ int tpClearDIOs() {
 }
 
 /*
- tpClear() is a "soft init" in the sense that the TP_STRUCT configuration
- parameters (cycleTime, vMax, and aMax) are left alone, but the queue is
- cleared, and the flags are set to an empty, ready queue. The currentPos
- is left alone, and goalPos is set to this position.
+  tpClear() is a "soft init" in the sense that the TP_STRUCT configuration
+  parameters (cycleTime, vMax, and aMax) are left alone, but the queue is
+  cleared, and the flags are set to an empty, ready queue. The currentPos
+  is left alone, and goalPos is set to this position.
 
- This function is intended to put the motion queue in the state it would
- be if all queued motions finished at the current position.
+  This function is intended to put the motion queue in the state it would
+  be if all queued motions finished at the current position.
  */
 int tpClear(TP_STRUCT * tp)
 {
@@ -112,7 +113,6 @@ int tpClear(TP_STRUCT * tp)
     tp->queueSize = 0;
     tp->goalPos = tp->currentPos;
     tp->nextId = 0;
-    //    DP("tp->nextId(%d)\n", tp->nextId);
     tp->execId = 0;
     tp->motionType = 0;
     tp->termCond = TC_TERM_COND_BLEND;
@@ -146,14 +146,14 @@ int tpInit(TP_STRUCT * tp)
     tp->wDotMax = 0.0;
 
     ZERO_EMC_POSE(tp->currentPos);
-
+    
     return tpClear(tp);
 }
 
 int tpSetCycleTime(TP_STRUCT * tp, double secs)
 {
     if (0 == tp || secs <= 0.0) {
-        return -1;
+	return -1;
     }
 
     tp->cycleTime = secs;
@@ -172,7 +172,7 @@ int tpSetCycleTime(TP_STRUCT * tp, double secs)
 int tpSetVmax(TP_STRUCT * tp, double vMax, double ini_maxvel)
 {
     if (0 == tp || vMax <= 0.0 || ini_maxvel <= 0.0) {
-        return -1;
+	return -1;
     }
 
     tp->vMax = vMax;
@@ -190,7 +190,7 @@ int tpSetVlimit(TP_STRUCT * tp, double vLimit)
 {
     if (!tp) return -1;
 
-    if (vLimit < 0.)
+    if (vLimit < 0.) 
         tp->vLimit = 0.;
     else
         tp->vLimit = vLimit;
@@ -198,13 +198,14 @@ int tpSetVlimit(TP_STRUCT * tp, double vLimit)
     return 0;
 }
 
+
 /*
- tpSetId() sets the id that will be used for the next appended motions.
- nextId is incremented so that the next time a motion is appended its id
- will be one more than the previous one, modulo a signed int. If
- you want your own ids for each motion, call this before each motion
- you append and stick what you want in here.
- */
+  tpSetId() sets the id that will be used for the next appended motions.
+  nextId is incremented so that the next time a motion is appended its id
+  will be one more than the previous one, modulo a signed int. If
+  you want your own ids for each motion, call this before each motion
+  you append and stick what you want in here.
+  */
 int tpSetId(TP_STRUCT * tp, int id)
 {
 
@@ -214,7 +215,7 @@ int tpSetId(TP_STRUCT * tp, int id)
     }
 	
     if (0 == tp) {
-        return -1;
+	return -1;
     }
 
     tp->nextId = id;
@@ -229,7 +230,7 @@ int tpSetId(TP_STRUCT * tp, int id)
 int tpGetExecId(TP_STRUCT * tp)
 {
     if (0 == tp) {
-        return -1;
+	return -1;
     }
 
     return tp->execId;
@@ -244,11 +245,11 @@ int tpGetExecId(TP_STRUCT * tp)
 int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance)
 {
     if (0 == tp) {
-        return -1;
+	return -1;
     }
 
     if (cond != TC_TERM_COND_STOP && cond != TC_TERM_COND_BLEND) {
-        return -1;
+	return -1;
     }
 
     tp->termCond = cond;
@@ -264,7 +265,7 @@ int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance)
 int tpSetPos(TP_STRUCT * tp, EmcPose pos)
 {
     if (0 == tp) {
-        return -1;
+	return -1;
     }
 
     tp->currentPos = pos;
@@ -289,7 +290,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     }
     if (tp->aborting) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is aborting\n");
-        return -1;
+	return -1;
     }
 
     start_xyz.tran = tp->goalPos.tran;
@@ -350,13 +351,12 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.seamless_blend_mode = SMLBLND_DISABLE;
     tc.nexttc_target = 0;
 
-    if (!tp->synchronized) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                "Cannot add unsynchronized rigid tap move.\n");
+    if(!tp->synchronized) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot add unsynchronized rigid tap move.\n");
         return -1;
     }
     tc.synchronized = tp->synchronized;
-
+    
     tc.uu_per_rev = tp->uu_per_rev;
     tc.css_progress_cmd = 0;
     tc.velocity_mode = tp->velocity_mode;
@@ -364,25 +364,24 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.indexrotary = -1;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
-        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-        tc.syncdio.anychanged = 0;
+	tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
 
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
-        return -1;
+	return -1;
     }
-
+    
     // do not change tp->goalPos here,
     // since this move will end just where it started
 
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
-    //   DP("tp->nextId(%d)\n", tp->nextId);
 
     return 0;
 }
@@ -403,8 +402,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     PmPose start_uvw, end_uvw;
     PmPose start_abc, end_abc;
     PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };
-    //debug: DP("tpAddline(): ini_maxjerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
-    //debug:     ini_maxjerk, vel, acc, ini_maxvel);
+
     if (ini_maxjerk == 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, "jerk is not provided or jerk is 0\n");
         assert(ini_maxjerk > 0);
@@ -415,7 +413,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     }
     if (tp->aborting) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is aborting\n");
-        return -1;
+	return -1;
     }
 
     start_xyz.tran = tp->goalPos.tran;
@@ -449,7 +447,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.sync_accel = 0;
     tc.cycle_time = tp->cycleTime;
 
-    if (!line_xyz.tmag_zero)
+    if (!line_xyz.tmag_zero) 
         tc.target = line_xyz.tmag;
     else if (!line_uvw.tmag_zero)
         tc.target = line_uvw.tmag;
@@ -476,7 +474,6 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.coords.line.uvw = line_uvw;
     tc.coords.line.abc = line_abc;
     tc.motion_type = TC_LINEAR;
-
     tc.canon_motion_type = type;
     tc.blend_with_next = tp->termCond == TC_TERM_COND_BLEND;
     tc.tolerance = tp->tolerance;
@@ -491,10 +488,10 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.indexrotary = indexrotary;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
-        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-        tc.syncdio.anychanged = 0;
+	tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
     
@@ -503,11 +500,11 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
-        return -1;
+	return -1;
     }
 
-    tp->goalPos = end; // remember the end of this move, as it's
-    // the start of the next one.
+    tp->goalPos = end;      // remember the end of this move, as it's
+                            // the start of the next one.
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
@@ -612,12 +609,12 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.css_progress_cmd = 0;
     tc.enables = enables;
     tc.indexrotary = -1;
-
+    
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
-        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-        tc.syncdio.anychanged = 0;
+	tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
 
@@ -625,7 +622,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.utvOut = circle.utvOut;
     
     if (tcqPut(&tp->queue, tc) == -1) {
-        return -1;
+	return -1;
     }
 
     tp->goalPos = end;
@@ -1063,6 +1060,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // check if dist would be greater than tc_target at next cycle
             if (tc_target < (dist - vel)) {
                 tc->accel_state = ACCEL_S4;
+                // blending at largest velocity for G64 w/o P<tolerance>
+                if (!tc->tolerance) {
+                    tc->tolerance = tc->target - tc->progress; // tc->distance_to_go
+                } 
                 break;
             }
 
@@ -1387,25 +1388,24 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         nexttc = NULL;
 
     {
-        int this_synch_pos = tc->synchronized && !tc->velocity_mode;
-        int next_synch_pos = nexttc && nexttc->synchronized
-                && !nexttc->velocity_mode;
-        if (!this_synch_pos && next_synch_pos) {
-            // we'll have to wait for spindle sync; might as well
-            // stop at the right place (don't blend)
-            tc->blend_with_next = 0;
-            nexttc = NULL;
-        }
+	int this_synch_pos = tc->synchronized && !tc->velocity_mode;
+	int next_synch_pos = nexttc && nexttc->synchronized && !nexttc->velocity_mode;
+	if(!this_synch_pos && next_synch_pos) {
+	    // we'll have to wait for spindle sync; might as well
+	    // stop at the right place (don't blend)
+	    tc->blend_with_next = 0;
+	    nexttc = NULL;
+	}
     }
 
-    if (nexttc && nexttc->atspeed) {
+    if(nexttc && nexttc->atspeed) {
         // we'll have to wait for the spindle to be at-speed; might as well
         // stop at the right place (don't blend), like above
         tc->blend_with_next = 0;
         nexttc = NULL;
     }
 
-    if (tp->aborting) {
+    if(tp->aborting) {
         // an abort message has come
         if( MOTION_ID_VALID(waiting_for_index) ||
 	    MOTION_ID_VALID(waiting_for_atspeed) ||
@@ -1458,15 +1458,14 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         }
     }
 
-    if (tc->active == 0) {
+    if(tc->active == 0) {
         // this means this tc is being read for the first time.
 
         // wait for atspeed, if motion requested it.  also, force
         // atspeed check for the start of all spindle synchronized
         // moves.
-        if ((tc->atspeed || (tc->synchronized && !tc->velocity_mode
-                && !emcmotStatus->spindleSync))
-                && !emcmotStatus->spindle_is_atspeed) {
+        if((tc->atspeed || (tc->synchronized && !tc->velocity_mode && !emcmotStatus->spindleSync)) && 
+           !emcmotStatus->spindle_is_atspeed) {
             waiting_for_atspeed = tc->id;
             return 0;
         }
