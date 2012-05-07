@@ -885,6 +885,15 @@ static void parse_usb_cmd (uint32_t usb_cmd)
         fprintf(stderr, "issue command while another command is ongoing.\n");
         assert(0);
     }
+    if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
+    // align prev pos cmd and pos cmd;
+    // machine_control->a_cmd_on_going = 0;
+        stepgen = stepgen_array;
+        for (i=0; i<num_joints; i++) {
+            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+            stepgen++;
+        }
+    }
 }
 
 /***********************************************************************
