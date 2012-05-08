@@ -19,17 +19,7 @@
 python_version = @PYTHON_VERSION@
 kernel_version = @KERNEL_VERSION@
 
-# ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-#     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-#     MAKEFLAGS += -j$(NUMJOBS)
-# endif
 MAKEFLAGS += -j@CONCURRENCY_LEVEL@
-
-
-#need? debian/control:
-#need? 	error echo '# THIS FILE IS AUTO-GENERATED FROM control.in' > debian/control
-#need? 	error sed -e 's/@@KVERSION@@/$(kernel_version)/g' \
-#need? 	    debian/control.in >> debian/control
 
 build: build-stamp
 build-stamp:
