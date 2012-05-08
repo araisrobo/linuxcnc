@@ -812,6 +812,7 @@ static void process_probe_inputs(void)
 
         	} else {
         	    abort_reason = RISC_PROBE_END;
+        		reportError("RISC probe finished without tripping probe");
         	}
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
@@ -819,7 +820,6 @@ static void process_probe_inputs(void)
             tpAbort(&emcmotDebug->coord_tp);
             aborted = 1;
             emcmotStatus->usb_cmd = USB_CMD_WOU_CMD_SYNC; 
-            fprintf(stderr, "probe error USB_STATUS_READY\n");
         } else if (emcmotStatus->usb_cmd == USB_CMD_STATUS_ACK) {
             // probe hit case
 //            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
@@ -851,7 +851,7 @@ static void process_probe_inputs(void)
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             SET_MOTION_ERROR_FLAG(1);
             tpAbort(&emcmotDebug->coord_tp);
-            reportError("probing error.");
+            reportError("RISC probing error.");
         }
         emcmotStatus->usb_cmd = USB_CMD_ABORT;//USB_CMD_NOOP; // use ACK?
 
@@ -1004,9 +1004,9 @@ static void check_for_faults(void)
 	    /* risc probe error */
 //        if (emcmotStatus->usb_status == USB_STATUS_RISC_PROBE_ERROR) {
 	    if (abort_reason == RISC_PROBE_END) {
-            fprintf(stderr, "enabling = 0 (USB_STATUS_RISC_PROBE_ERROR)\n");
+            fprintf(stderr, "(USB_STATUS_RISC_PROBE_ERROR)\n");
             SET_MOTION_ERROR_FLAG(1);
-            emcmotDebug->enabling = 0;
+            //emcmotDebug->enabling = 0;
             abort_reason = NO_REASON;
 
         }
