@@ -1218,6 +1218,9 @@ int rtapi_app_main(void)
         
         /* config max jerk recip */
         immediate_data = (uint32_t)(FIXED_POINT_SCALE/(max_jerk * pos_scale * dt * dt * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_jerk_recip(%d) = %f/(%f * %f * %f^3)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
 
