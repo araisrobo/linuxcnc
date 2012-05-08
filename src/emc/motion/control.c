@@ -12,7 +12,7 @@
 *
 * Copyright (c) 2004 All rights reserved.
 ********************************************************************/
-
+// TODO: To add a new control block for USB protocol.
 #include <stdint.h>
 
 #include "posemath.h"
@@ -497,6 +497,9 @@ static void process_inputs(void)
 	}
 
 	/* calculate following error limit */
+	// TODO: port ferror limit to risc
+	// (curr_vel / max_vel) * max_ferror = current_ferror_limit
+	// if current_ferror_limit > min_ferror => issue ferror
 	if (joint->vel_limit > 0.0) {
 	    joint->ferror_limit =
 		joint->max_ferror * fabs(joint->vel_cmd) / joint->vel_limit;
