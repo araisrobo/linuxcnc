@@ -33,11 +33,6 @@ net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
 net Apos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
 
-net X_ferror   wou.stepgen.0.pid.error => joint.0.usb-ferror
-net Y1_ferror  wou.stepgen.1.pid.error => joint.1.usb-ferror
-net Y2_ferror  wou.stepgen.3.pid.error => joint.3.usb-ferror
-net Z_ferror   wou.stepgen.2.pid.error => joint.2.usb-ferror
-
 # home_switch positions
 net J0_switch-pos wou.stepgen.0.switch-pos => joint.0.switch-pos
 net J1_switch-pos wou.stepgen.1.switch-pos => joint.1.switch-pos
