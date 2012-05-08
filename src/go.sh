@@ -1,9 +1,15 @@
 #!/bin/bash
 
 ./autogen.sh
-# run-in-place:
+
+#sim: ./configure --enable-simulator \
+#sim:             --enable-build-documentation=no
+
+#sim-nox:
+./autogen.sh
 ./configure --enable-simulator \
-            --enable-build-documentation=no
+	    --enable-build-documentation=no \
+	    --disable-gtk --without-x
 # install to /opt/emc2:
 # ./configure --prefix=/opt/emc2 --enable-simulator \
 #             --enable-build-documentation=no
