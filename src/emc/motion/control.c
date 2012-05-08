@@ -480,8 +480,6 @@ static void process_inputs(void)
 	    joint->pos_fb = joint->motor_pos_fb -
 		(joint->backlash_filt + joint->motor_offset);
 	}
-	/* calculate following error */
-	joint->ferror = joint->pos_cmd - joint->pos_fb;
 #else
         // MOTION_OVER_USB
 	/* normal case: subtract backlash comp and motor offset */
@@ -490,6 +488,8 @@ static void process_inputs(void)
 	/* calculate following error for motion over usb */
 	/* joint->ferror updated above */
 #endif
+	/* calculate following error */
+	joint->ferror = joint->pos_cmd - joint->pos_fb;
 	abs_ferror = fabs(joint->ferror);
 	/* update maximum ferror if needed */
 	if (abs_ferror > joint->ferror_high_mark) {

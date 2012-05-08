@@ -980,11 +980,11 @@ int halui_hal_init(void)
     if (retval < 0) return retval;
     retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->jog_minus[num_joints]), comp_id, "halui.jog.selected.minus"); 
     if (retval < 0) return retval;
-    retval =  hal_pin_float_newf(HAL_IN, &(halui_data->jog_increment[num_axes]), comp_id, "halui.jog.selected.increment");
+    retval =  hal_pin_float_newf(HAL_IN, &(halui_data->jog_increment[num_joints]), comp_id, "halui.jog.selected.increment");
     if (retval < 0) return retval;
-    retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->jog_increment_plus[num_axes]), comp_id, "halui.jog.selected.increment-plus");
+    retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->jog_increment_plus[num_joints]), comp_id, "halui.jog.selected.increment-plus");
     if (retval < 0) return retval;
-    retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->jog_increment_minus[num_axes]), comp_id, "halui.jog.selected.increment-minus");
+    retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->jog_increment_minus[num_joints]), comp_id, "halui.jog.selected.increment-minus");
     if (retval < 0) return retval;
     retval = halui_export_pin_IN_float(&(halui_data->jog_speed), "halui.jog-speed");
     if (retval < 0) return retval;

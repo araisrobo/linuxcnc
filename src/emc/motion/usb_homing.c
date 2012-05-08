@@ -9,6 +9,7 @@
 * System: Linux
 *
 * Copyright (c) 2004 All rights reserved.
+*
 ********************************************************************/
 
 #include "rtapi.h"
@@ -241,63 +242,70 @@ void do_homing(void)
 		break;
 
 	    case HOME_START:
-		/* This state is responsible for getting the homing process
-		   started.  It doesn't actually do anything, it simply
-		   determines what state is next */
-		if (joint->home_flags & HOME_IS_SHARED && home_sw_active) {
-		    reportError(
-			_("Cannot home while shared home switch is closed"));
-		    joint->home_state = HOME_IDLE;
-		    break;
-		}
-		/* set flags that communicate with the rest of EMC */
-		SET_JOINT_HOMING_FLAG(joint, 1);
-		SET_JOINT_HOMED_FLAG(joint, 0);
-		SET_JOINT_AT_HOME_FLAG(joint, 0);
-                /* is the joint already moving? */
-		if (joint->free_tp.active) {
-		    /* yes, reset delay, wait until joint stops */
-		    joint->home_pause_timer = 0;
-		    break;
-		}
-                /* wou_stepgen should have given a SSIF_LOAD_POS command */
-		/* add this to wait USB to update its registers */
-                /* has delay timed out? */
-		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
-		    /* no, update timer and wait some more */
-		    joint->home_pause_timer++;
-		    break;
-		}
-		
-		/* stop any existing motion */
-		joint->free_tp.enable = 0;
-		/* reset delay counter */
-		joint->home_pause_timer = 0;
-		/* figure out exactly what homing sequence is needed */
-		if (joint->home_search_vel == 0.0) {
-		    if (joint->home_latch_vel == 0.0) {
-			/* both vels == 0 means home at current position */
-			joint->home_state = HOME_SET_SWITCH_POSITION;
-			immediate_state = 1;
-		    } else if (joint->home_flags & HOME_USE_INDEX) {
-			/* home using index pulse only */
-			joint->home_state = HOME_INDEX_ONLY_START;
-			immediate_state = 1;
-		    } else {
-			reportError(_("invalid homing config: non-zero LATCH_VEL needs either SEARCH_VEL or USE_INDEX"));
-			joint->home_state = HOME_IDLE;
-		    }
-		} else {
-		    if (joint->home_latch_vel != 0.0) {
-			/* need to find home switch */
-			joint->home_state = HOME_INITIAL_SEARCH_START;
-			immediate_state = 1;
-		    } else {
-			reportError(_("invalid homing config: non-zero SEARCH_VEL needs LATCH_VEL"));
-			joint->home_state = HOME_IDLE;
-		    }
-		}
-		break;
+	    /* for disable homing */
+        joint->free_tp.enable = 0;
+        /* we're finally done */
+        joint->home_state = HOME_FINISHED;
+        immediate_state = 1;
+        break;
+//     <DISABLE HOMING>
+//		/* This state is responsible for getting the homing process
+//		   started.  It doesn't actually do anything, it simply
+//		   determines what state is next */
+//		if (joint->home_flags & HOME_IS_SHARED && home_sw_active) {
+//		    reportError(
+//			_("Cannot home while shared home switch is closed"));
+//		    joint->home_state = HOME_IDLE;
+//		    break;
+//		}
+//		/* set flags that communicate with the rest of EMC */
+//		SET_JOINT_HOMING_FLAG(joint, 1);
+//		SET_JOINT_HOMED_FLAG(joint, 0);
+//		SET_JOINT_AT_HOME_FLAG(joint, 0);
+//                /* is the joint already moving? */
+//		if (joint->free_tp.active) {
+//		    /* yes, reset delay, wait until joint stops */
+//		    joint->home_pause_timer = 0;
+//		    break;
+//		}
+//                /* wou_stepgen should have given a SSIF_LOAD_POS command */
+//		/* add this to wait USB to update its registers */
+//                /* has delay timed out? */
+//		if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
+//		    /* no, update timer and wait some more */
+//		    joint->home_pause_timer++;
+//		    break;
+//		}
+//
+//		/* stop any existing motion */
+//		joint->free_tp.enable = 0;
+//		/* reset delay counter */
+//		joint->home_pause_timer = 0;
+//		/* figure out exactly what homing sequence is needed */
+//		if (joint->home_search_vel == 0.0) {
+//		    if (joint->home_latch_vel == 0.0) {
+//			/* both vels == 0 means home at current position */
+//			joint->home_state = HOME_SET_SWITCH_POSITION;
+//			immediate_state = 1;
+//		    } else if (joint->home_flags & HOME_USE_INDEX) {
+//			/* home using index pulse only */
+//			joint->home_state = HOME_INDEX_ONLY_START;
+//			immediate_state = 1;
+//		    } else {
+//			reportError(_("invalid homing config: non-zero LATCH_VEL needs either SEARCH_VEL or USE_INDEX"));
+//			joint->home_state = HOME_IDLE;
+//		    }
+//		} else {
+//		    if (joint->home_latch_vel != 0.0) {
+//			/* need to find home switch */
+//			joint->home_state = HOME_INITIAL_SEARCH_START;
+//			immediate_state = 1;
+//		    } else {
+//			reportError(_("invalid homing config: non-zero SEARCH_VEL needs LATCH_VEL"));
+//			joint->home_state = HOME_IDLE;
+//		    }
+//		}
+//		break;
 
 	    case HOME_INITIAL_BACKOFF_START:
 		/* This state is called if the homing sequence starts at a
