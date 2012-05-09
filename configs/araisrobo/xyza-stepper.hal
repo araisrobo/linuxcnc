@@ -52,7 +52,10 @@ net J2home-state joint.2.home-state => wou.stepgen.2.home-state
 net J3home-state joint.3.home-state => wou.stepgen.3.home-state
 
 # estop loopback
-net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
+# net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
+# net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
+# to CL: net alarm => not.0.in
+# to CL: net estop not.0.out => iocontrol.0.emc-enable-in
 
 # create signals for tool loading loopback
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
