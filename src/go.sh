@@ -7,12 +7,12 @@
 
 #sim-nox:
 ./autogen.sh
-./configure --enable-simulator \
-	    --enable-build-documentation=no \
-	    --disable-gtk --without-x
+# ./configure --enable-simulator \
+# 	    --enable-build-documentation=no \
+# 	    --disable-gtk --without-x
 # install to /opt/emc2:
-# ./configure --prefix=/opt/emc2 --enable-simulator \
-#             --enable-build-documentation=no
+./configure --enable-simulator \
+            --enable-build-documentation=no
 
 CONCURRENCY_LEVEL=`getconf _NPROCESSORS_ONLN`
 echo "make -j${CONCURRENCY_LEVEL}"

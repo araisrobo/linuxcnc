@@ -1341,8 +1341,8 @@ int rtapi_app_main(void)
         write_mot_param (n, (PROBE_DECEL_CMD), immediate_data);
 
         // set move type as normal by default
-        immediate_data = NORMAL_MOVE;
-        write_mot_param (n, (MOTION_TYPE), immediate_data);
+//        immediate_data = NORMAL_MOVE;
+//        write_mot_param (n, (MOTION_TYPE), immediate_data);
     }
 
     // config PID parameter
@@ -1910,8 +1910,8 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_joints; i++) {
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
-                immediate_data = NORMAL_MOVE;
-                write_mot_param (i, (MOTION_TYPE), immediate_data);
+//                immediate_data = NORMAL_MOVE;
+//                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
 
         } else {

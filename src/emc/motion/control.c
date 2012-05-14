@@ -466,28 +466,40 @@ static void process_inputs(void)
         joint->switch_pos = *(joint_data->switch_pos_pin);  // absolute switch position
         joint->index_pos = *(joint_data->index_pos_pin);  // absolute switch position
 	/* calculate pos_fb */
-#ifndef MOTION_OVER_USB
-     	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
-     	    ( joint->index_enable == 0 )) {
-     	    /* special case - we're homing the joint, and it just
-     	       hit the index.  The encoder count might have made a
-     	       step change.  The homing code will correct for it
-     	       later, so we ignore motor_pos_fb and set pos_fb
-     	       to match the commanded value instead. */
-     	    joint->pos_fb = joint->pos_cmd;
-	} else {
-	    /* normal case: subtract backlash comp and motor offset */
-	    joint->pos_fb = joint->motor_pos_fb -
-		(joint->backlash_filt + joint->motor_offset);
-	}
-#else
-        // MOTION_OVER_USB
-	/* normal case: subtract backlash comp and motor offset */
-	joint->pos_fb = joint->motor_pos_fb -
-	                (joint->backlash_filt + joint->motor_offset);
-	/* calculate following error for motion over usb */
-	/* joint->ferror updated above */
-#endif
+//        if (joint->home_state == HOME_SET_SWITCH_POSITION) {
+//            fprintf(stderr, "setting pos_fb(%f)\n", joint->pos_cmd);
+//            joint->pos_fb = joint->pos_cmd;
+//        } else
+
+//        joint->pos_fb = joint->motor_pos_fb -
+//                (joint->backlash_filt + joint->motor_offset);
+        joint->pos_fb = joint->motor_pos_fb -
+                        (joint->backlash_filt + joint->motor_offset_fb);
+
+
+//#ifndef MOTION_OVER_USB
+//     	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
+//     	    ( joint->index_enable == 0 )) {
+//     	    /* special case - we're homing the joint, and it just
+//     	       hit the index.  The encoder count might have made a
+//     	       step change.  The homing code will correct for it
+//     	       later, so we ignore motor_pos_fb and set pos_fb
+//     	       to match the commanded value instead. */
+//     	    joint->pos_fb = joint->pos_cmd;
+//	} else {
+//	    /* normal case: subtract backlash comp and motor offset */
+//	    fprintf(stderr, "pos_fb(%f)\n", joint->pos_fb);
+//	    joint->pos_fb = joint->motor_pos_fb -
+//		(joint->backlash_filt + joint->motor_offset);
+//	}
+//#else
+//        // MOTION_OVER_USB
+//	/* normal case: subtract backlash comp and motor offset */
+//	joint->pos_fb = joint->motor_pos_fb -
+//	                (joint->backlash_filt + joint->motor_offset);
+//	/* calculate following error for motion over usb */
+//	/* joint->ferror updated above */
+//#endif
 	/* calculate following error */
 	joint->ferror = joint->pos_cmd - joint->pos_fb;
 	abs_ferror = fabs(joint->ferror);
@@ -2022,7 +2034,7 @@ static void compute_screw_comp(void)
 
 static void output_to_hal(void)
 {
-    int joint_num, axis_num;
+    int joint_num, axis_num, i;
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
     joint_hal_t *joint_data;
@@ -2030,8 +2042,12 @@ static void output_to_hal(void)
     static int old_motion_index=0, old_hal_index=0;
     
     /* output USB command to HAL */
-    *(emcmot_hal_data->usb_cmd) = emcmotStatus->usb_cmd;
 
+    for (i=0; i<4;i++) {
+        *(emcmot_hal_data->usb_cmd_param[i]) = emcmotStatus->usb_cmd_param[i];
+    }
+    *(emcmot_hal_data->usb_cmd) = emcmotStatus->usb_cmd;
+    emcmotStatus->usb_cmd = 0;
     /* output machine info to HAL for scoping, etc */
     *(emcmot_hal_data->motion_enabled) = GET_MOTION_ENABLE_FLAG();
     *(emcmot_hal_data->in_position) = GET_MOTION_INPOS_FLAG();
