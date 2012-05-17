@@ -811,6 +811,17 @@ static void write_usb_cmd(machine_control_t *mc)
   uint16_t sync_cmd;
   double pos_scale;
   switch(*mc->usb_cmd) {
+  case PROBE_CMD_TYPE:
+    for (i=0; i<4; i++) {
+        data = (int32_t)(*machine_control->usb_cmd_param[i]);
+        for(j=0; j<sizeof(int32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+            memcpy(buf, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                  sizeof(uint16_t), buf);
+        }
+    }
+    break;
   case HOME_CMD_TYPE:
     n = ((int32_t)(*machine_control->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
     fprintf(stderr,"get home command for (%d) joint\n", n);
@@ -858,7 +869,7 @@ static void write_usb_cmd(machine_control_t *mc)
   wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
           sizeof(uint16_t), buf);
   wou_flush(&w_param);
-  *mc->usb_cmd;
+  *mc->usb_cmd = 0;
   return;
 }
 static void write_machine_param (uint32_t addr, int32_t data)
@@ -885,75 +896,75 @@ static void write_machine_param (uint32_t addr, int32_t data)
     return;
 }
 
-static void parse_usb_cmd (uint32_t usb_cmd)
-{
-    int i;
-    stepgen_t   *stepgen;
-
-    if (machine_control->a_cmd_on_going == 0) {
-
-        // issue a command relative to the usb_cmd
-        switch(usb_cmd) {
-        case USB_CMD_PROBE_HIGH:
-            machine_control->a_cmd_on_going = 1;
-            write_machine_param(PROBE_CMD, PROBE_HIGH);
-            break;
-        case USB_CMD_PROBE_LOW:
-            machine_control->a_cmd_on_going = 1;
-            write_machine_param(PROBE_CMD, PROBE_LOW);
-            break;
-        case USB_CMD_ABORT:  // for risc probing
-            fprintf(stderr,"output PROBE_END\n");
-            write_machine_param(PROBE_CMD, PROBE_END);
-            break;
-        }
-    } else if (usb_cmd == USB_CMD_STATUS_ACK){
-
-        // issue a command to clear or abort previous command
-        switch(machine_control->prev_wou_cmd) {
-        case USB_CMD_PROBE_HIGH:
-        case USB_CMD_PROBE_LOW:
-//            machine_control->a_cmd_on_going = 0;
-            fprintf(stderr,"output PROBE_END\n");
-            write_machine_param(PROBE_CMD, PROBE_END);
-            break;
-        }
-
-    } else if (usb_cmd == USB_CMD_ABORT) {
-        switch(machine_control->prev_wou_cmd) {
-            case USB_CMD_PROBE_HIGH:
-            case USB_CMD_PROBE_LOW:
-                machine_control->a_cmd_on_going = 0;
-                write_machine_param(PROBE_CMD, PROBE_END);
-            break;
-        }
-
-    } else if (usb_cmd == USB_CMD_NOOP) {
-        machine_control->a_cmd_on_going = 0;
-        write_machine_param(PROBE_CMD, PROBE_STOP_REPORT);
-        *machine_control->wou_status = USB_STATUS_READY;
-    } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
-        // align prev pos cmd and pos cmd;
-        // machine_control->a_cmd_on_going = 0;
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-            stepgen++;
-        }
-    } else {
-        fprintf(stderr, "issue command while another command is ongoing.\n");
-        assert(0);
-    }
-    if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
-    // align prev pos cmd and pos cmd;
-    // machine_control->a_cmd_on_going = 0;
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-            stepgen++;
-        }
-    }
-}
+//static void parse_usb_cmd (uint32_t usb_cmd)
+//{
+//    int i;
+//    stepgen_t   *stepgen;
+//
+//    if (machine_control->a_cmd_on_going == 0) {
+//
+//        // issue a command relative to the usb_cmd
+//        switch(usb_cmd) {
+//        case USB_CMD_PROBE_HIGH:
+//            machine_control->a_cmd_on_going = 1;
+//            write_machine_param(PROBE_CMD, PROBE_HIGH);
+//            break;
+//        case USB_CMD_PROBE_LOW:
+//            machine_control->a_cmd_on_going = 1;
+//            write_machine_param(PROBE_CMD, PROBE_LOW);
+//            break;
+//        case USB_CMD_ABORT:  // for risc probing
+//            fprintf(stderr,"output PROBE_END\n");
+//            write_machine_param(PROBE_CMD, PROBE_END);
+//            break;
+//        }
+//    } else if (usb_cmd == USB_CMD_STATUS_ACK){
+//
+//        // issue a command to clear or abort previous command
+//        switch(machine_control->prev_wou_cmd) {
+//        case USB_CMD_PROBE_HIGH:
+//        case USB_CMD_PROBE_LOW:
+////            machine_control->a_cmd_on_going = 0;
+//            fprintf(stderr,"output PROBE_END\n");
+//            write_machine_param(PROBE_CMD, PROBE_END);
+//            break;
+//        }
+//
+//    } else if (usb_cmd == USB_CMD_ABORT) {
+//        switch(machine_control->prev_wou_cmd) {
+//            case USB_CMD_PROBE_HIGH:
+//            case USB_CMD_PROBE_LOW:
+//                machine_control->a_cmd_on_going = 0;
+//                write_machine_param(PROBE_CMD, PROBE_END);
+//            break;
+//        }
+//
+//    } else if (usb_cmd == USB_CMD_NOOP) {
+//        machine_control->a_cmd_on_going = 0;
+//        write_machine_param(PROBE_CMD, PROBE_STOP_REPORT);
+//        *machine_control->wou_status = USB_STATUS_READY;
+//    } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
+//        // align prev pos cmd and pos cmd;
+//        // machine_control->a_cmd_on_going = 0;
+//        stepgen = stepgen_array;
+//        for (i=0; i<num_joints; i++) {
+//            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+//            stepgen++;
+//        }
+//    } else {
+//        fprintf(stderr, "issue command while another command is ongoing.\n");
+//        assert(0);
+//    }
+//    if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
+//    // align prev pos cmd and pos cmd;
+//    // machine_control->a_cmd_on_going = 0;
+//        stepgen = stepgen_array;
+//        for (i=0; i<num_joints; i++) {
+//            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+//            stepgen++;
+//        }
+//    }
+//}
 
 /***********************************************************************
 *                       INIT AND EXIT CODE                             *
@@ -1575,13 +1586,13 @@ static void update_freq(void *arg, long period)
 
     /* begin: handle usb cmd */
     /* OLD ONE */
-    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
-        // call api to parse wou_cmd to risc
-        parse_usb_cmd (*machine_control->wou_cmd);
-        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
-                machine_control->prev_wou_cmd);
-    }
-    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
+//    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
+//        // call api to parse wou_cmd to risc
+//        parse_usb_cmd (*machine_control->wou_cmd);
+//        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
+//                machine_control->prev_wou_cmd);
+//    }
+//    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
     /* NEW ONE*/
     if (*machine_control->usb_cmd != 0) {
         write_usb_cmd(machine_control);
