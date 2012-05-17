@@ -107,9 +107,6 @@ else
    AC_MSG_RESULT(not required)
 fi
 
-
-
-
 AC_MSG_CHECKING(build toplevel)
 BUILD_TOPLEVEL="$(cd ..; pwd -P)"
 AC_MSG_RESULT($BUILD_TOPLEVEL)
@@ -1614,8 +1611,10 @@ Install this version and specify --with-tclConfig and --with-tkConfig if necessa
 	
     )
 
-    AC_MSG_CHECKING(for Xmu headers)
-    AC_CHECK_HEADERS(X11/Xmu/Xmu.h,[],[AC_MSG_ERROR([Required Xmu header missing.  Install it, or specify --disable-python to skip the parts of emc2 that depend on Python])])
+    if test "$have_x" = "yes"; then
+	AC_MSG_CHECKING(for Xmu headers)
+	AC_CHECK_HEADERS(X11/Xmu/Xmu.h,[],[AC_MSG_ERROR([Required Xmu header missing.  Install it, or specify --disable-python to skip the parts of emc2 that depend on Python])])
+    fi
 fi
 
 AC_SUBST([BUILD_PYTHON])

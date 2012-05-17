@@ -749,10 +749,10 @@ double getStraightVelocity(double x, double y, double z,
     double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
     double vel, dtot, ang_vel;
     vel = 1e99;
+
 /* If we get a move to nowhere (!canon.cartesian_move && !canon.angular_move)
    we might as well go there at the canon.linearFeedRate...
 */
-
 
     // Compute absolute travel distance for each axis:
     dx = fabs(x - canon.endPoint.x);
@@ -917,8 +917,11 @@ static void flush_segments(void)
     printf("\n");
 #endif
 
-    double ini_maxvel = getStraightVelocity(x, y, z, a, b, c, u, v, w),
-           vel = ini_maxvel;
+    double ini_maxvel;
+    double vel;
+
+    ini_maxvel = getStraightVelocity(x, y, z, a, b, c, u, v, w);
+    vel = ini_maxvel;
 
     if (canon.cartesian_move && !canon.angular_move) {
 	if (vel > canon.linearFeedRate) {
@@ -1380,13 +1383,20 @@ void NURBS_FEED_3D (
     nurbsMoveMsg.feed_mode = canon.feed_mode;
     nurbsMoveMsg.type = EMC_MOTION_TYPE_FEED;
 
-//    nurbsMoveMsg.nurbs_block.uofl_order = 1+1;    // TODO-eric:implement uofl order
-
     nr_of_ctrl_pt = nurbs_control_points.size();
     nr_of_knot = nurbs_knot_vector.size();
     // assume NURBS_3D considered only xyz coord.
-//TODO-eric: do simplify numerical compare mechanism ( form ini load)
     // Figure out what kind of move we're making:
+
+    dx=0;
+    dy=0;
+    dz=0;
+    da=0;
+    db=0;
+    dc=0;
+    du=0;
+    dv=0;
+    dw=0;
 
     assert(nr_of_ctrl_pt > 1);
 
@@ -1401,8 +1411,7 @@ void NURBS_FEED_3D (
         dv += fabs(nurbs_control_points[i+1].V - nurbs_control_points[i].V);
         dw += fabs(nurbs_control_points[i+1].W - nurbs_control_points[i].W);
     }
-
-
+        
     if(!axis_valid(0) || dx < tiny) dx = 0.0;
     if(!axis_valid(1) || dy < tiny) dy = 0.0;
     if(!axis_valid(2) || dz < tiny) dz = 0.0;
@@ -1424,7 +1433,31 @@ void NURBS_FEED_3D (
         canon.cartesian_move = 0;
         canon.angular_move = 1;
     } else {
-        fprintf(stderr,"emccanon.cc: unknown case for nurbs motion type\n");
+        fprintf(stderr, "emccanon.cc: unknown case for nurbs motion type\n");
+        fprintf(stderr, "NURBS_FEED_3D: dx%g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n",
+                        dx, dy, dz, da, db, dc, du, dv, dw);
+        fprintf(stderr, "cp[%d]: x%g y %g z %g a %g b %g c %g u %g v %g w %g \n",
+                        i,
+                        nurbs_control_points[i].X,
+                        nurbs_control_points[i].Y,
+                        nurbs_control_points[i].Z,
+                        nurbs_control_points[i].A,
+                        nurbs_control_points[i].B,
+                        nurbs_control_points[i].C,
+                        nurbs_control_points[i].U,
+                        nurbs_control_points[i].V,
+                        nurbs_control_points[i].W);
+        fprintf(stderr, "cp[%d]: x%g y %g z %g a %g b %g c %g u %g v %g w %g \n",
+                        i+1,
+                        nurbs_control_points[i+1].X,
+                        nurbs_control_points[i+1].Y,
+                        nurbs_control_points[i+1].Z,
+                        nurbs_control_points[i+1].A,
+                        nurbs_control_points[i+1].B,
+                        nurbs_control_points[i+1].C,
+                        nurbs_control_points[i+1].U,
+                        nurbs_control_points[i+1].V,
+                        nurbs_control_points[i+1].W);
         assert(0);
     }
     if (canon.cartesian_move ) {

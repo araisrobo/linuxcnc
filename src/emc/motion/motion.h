@@ -427,14 +427,14 @@ Suggestion: Split this in to an Error and a Status flag register..
     typedef enum {
 	HOME_IDLE = 0,
 	HOME_START,			// 1 
-	HOME_UNLOCK,			// 2 
-	HOME_UNLOCK_WAIT,		// 3 
-	HOME_INITIAL_BACKOFF_START,	// 4 
-	HOME_INITIAL_BACKOFF_WAIT,	// 5 
-	HOME_INITIAL_SEARCH_START,	// 6 
-	HOME_INITIAL_SEARCH_WAIT,	// 7 
-	HOME_SET_COARSE_POSITION,	// 8 
-	HOME_FINAL_BACKOFF_START,	// 9 
+	HOME_UNLOCK,			// 2
+	HOME_UNLOCK_WAIT,		// 3
+	HOME_INITIAL_BACKOFF_START,	// 4
+	HOME_INITIAL_BACKOFF_WAIT,	// 5
+	HOME_INITIAL_SEARCH_START,	// 6
+	HOME_INITIAL_SEARCH_WAIT,	// 7
+	HOME_SET_COARSE_POSITION,	// 8
+	HOME_FINAL_BACKOFF_START,	// 9
 	HOME_FINAL_BACKOFF_WAIT,	// 10
 	HOME_RISE_SEARCH_START,		// 11
 	HOME_RISE_SEARCH_WAIT,		// 12
@@ -449,8 +449,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 	HOME_FINAL_MOVE_WAIT,		// 21
 	HOME_LOCK,			// 22
 	HOME_LOCK_WAIT,			// 23
-	HOME_FINISHED,			// 24
-	HOME_ABORT			// 25
+	HOME_WAIT,                      // 24
+	HOME_FINISHED,			// 25
+	HOME_ABORT			// 26
     } home_state_t;
 
     typedef enum {
@@ -552,6 +553,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         double index_pos;       /* motor index position in absolute motor pulse counts */
 	double motor_offset;	/* diff between internal and motor pos, used
 				   to set position to zero during homing */
+	double motor_offset_fb;
 	int old_jog_counts;	/* prior value, used for deltas */
     } emcmot_joint_t;
 
@@ -634,6 +636,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 
     typedef struct emcmot_status_t {
         uint32_t usb_cmd;
+        double usb_cmd_param[4];
         uint32_t usb_status;
 
 	unsigned char head;	/* flag count for mutex detect */

@@ -19,29 +19,22 @@
 python_version = @PYTHON_VERSION@
 kernel_version = @KERNEL_VERSION@
 
-# ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-#     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-#     MAKEFLAGS += -j$(NUMJOBS)
-# endif
-MAKEFLAGS += -j5
-
-
-debian/control:
-	echo '# THIS FILE IS AUTO-GENERATED FROM control.in' > debian/control
-	sed -e 's/@@KVERSION@@/$(kernel_version)/g' \
-	    debian/control.in >> debian/control
+MAKEFLAGS += -j@CONCURRENCY_LEVEL@
 
 build: build-stamp
 build-stamp:
 	dh_testdir
 
-# Add here commands to compile the package.
+	# Add here commands to compile the package.
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
-	# cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
+else
+ifeq "$(kernel_version)" "sim-nox"
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no --disable-gtk --without-x
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version) --enable-build-documentation=no
+endif
 endif
 	# build with docs: (cd src; $(MAKE) $(MAKEFLAGS) && $(MAKE) $(MAKEFLAGS) docs)
 	(cd src; $(MAKE) $(MAKEFLAGS))
@@ -54,9 +47,13 @@ clean: debian/control
 
 	cd src && ./autogen.sh
 ifeq "$(kernel_version)" "sim"
-	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no
+else
+ifeq "$(kernel_version)" "sim-nox"
+	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --enable-simulator --enable-build-documentation=no --disable-gtk --without-x
 else
 	cd src && ./configure --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man --with-realtime=/usr/realtime-$(kernel_version)
+endif
 endif
 	cd src && $(MAKE) clean -s
 	rm -f Makefile.inc

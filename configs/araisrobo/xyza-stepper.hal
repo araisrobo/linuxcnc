@@ -18,7 +18,11 @@ addf not.0  servo-thread
 
 # link usb command and status
 # (MUST add the following lines for USB-MOTION protocol)
-net usb-cmd wou.motion.cmd <= motion.wou.cmd
+net usb-cmd wou.usb.cmd <= motion.usb.cmd
+net usb-cmd-param0 wou.usb.param-00 <= motion.usb.param-00
+net usb-cmd-param1 wou.usb.param-01 <= motion.usb.param-01
+net usb-cmd-param2 wou.usb.param-02 <= motion.usb.param-02
+net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
 
@@ -32,11 +36,6 @@ net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
 net Apos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
-
-net X_ferror   wou.stepgen.0.pid.error => joint.0.usb-ferror
-net Y1_ferror  wou.stepgen.1.pid.error => joint.1.usb-ferror
-net Y2_ferror  wou.stepgen.3.pid.error => joint.3.usb-ferror
-net Z_ferror   wou.stepgen.2.pid.error => joint.2.usb-ferror
 
 # home_switch positions
 net J0_switch-pos wou.stepgen.0.switch-pos => joint.0.switch-pos
