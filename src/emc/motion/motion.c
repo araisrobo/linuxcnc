@@ -20,7 +20,8 @@
 #include "motion_struct.h"
 #include "mot_priv.h"
 #include "rtapi_math.h"
-#include "usb.h"
+#include <sync_cmd.h>
+//#include "usb.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)

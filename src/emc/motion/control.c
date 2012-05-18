@@ -868,6 +868,7 @@ static void process_probe_inputs(void)
         emcmotStatus->usb_cmd &= ~(0x00000001);
         emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
         emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+        fprintf(stderr,"set probe_cmd (%d)\n", emcmotStatus->usb_cmd_param[0] );
         break;
     default:
         // deal with PROBE related status only

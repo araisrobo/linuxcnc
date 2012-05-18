@@ -804,7 +804,6 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 }
 static void write_usb_cmd(machine_control_t *mc)
 {
-  fprintf(stderr,"writing usb command\n");
   /* write parameters */
   int32_t i,j,data, n;
   uint8_t     buf[MAX_DSIZE];
@@ -812,6 +811,7 @@ static void write_usb_cmd(machine_control_t *mc)
   double pos_scale;
   switch(*mc->usb_cmd) {
   case PROBE_CMD_TYPE:
+    fprintf(stderr,"get probe command (%d)\n", (*machine_control->usb_cmd_param[0]));
     for (i=0; i<4; i++) {
         data = (int32_t)(*machine_control->usb_cmd_param[i]);
         for(j=0; j<sizeof(int32_t); j++) {
