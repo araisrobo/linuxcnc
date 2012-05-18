@@ -639,6 +639,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         uint32_t probe_cmd;
         double usb_cmd_param[4];
         uint32_t usb_status;
+        int align_pos_cmd;
 
 	unsigned char head;	/* flag count for mutex detect */
 	/* these three are updated only when a new command is handled */

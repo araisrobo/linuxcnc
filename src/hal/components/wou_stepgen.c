@@ -384,6 +384,7 @@ typedef struct {
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
+    hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
@@ -420,6 +421,7 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
+    hal_bit_t *align_pos_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -811,8 +813,8 @@ static void write_usb_cmd(machine_control_t *mc)
   double pos_scale;
   switch(*mc->usb_cmd) {
   case PROBE_CMD_TYPE:
-    fprintf(stderr,"get probe command (%d)\n", (*machine_control->usb_cmd_param[0]));
     for (i=0; i<4; i++) {
+        fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*machine_control->usb_cmd_param[i]));
         data = (int32_t)(*machine_control->usb_cmd_param[i]);
         for(j=0; j<sizeof(int32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -2031,6 +2033,9 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
 	    /* position command mode */
+	    if (*machine_control->align_pos_cmd == 1) {
+	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
+	    }
 	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 //	    if (n==0) {
 //	        fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",
@@ -2191,6 +2196,7 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
+//    *machine_control->align_pos_cmd = 0;
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     sync_cmd = SYNC_VEL;
@@ -2381,6 +2387,7 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
 	return retval;
     }
 
+
     /* export parameter to obtain homing state */
     retval = hal_pin_s32_newf(HAL_IN, &(addr->home_state), comp_id,
 			      "wou.stepgen.%d.home-state", num);
@@ -2565,6 +2572,11 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->cl_abort) = 0;
 
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->align_pos_cmd), comp_id,
+                                    "wou.align-pos-cmd");
+    if (retval != 0) {
+        return retval;
+    }
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,

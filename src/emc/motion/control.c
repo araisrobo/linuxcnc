@@ -701,7 +701,7 @@ typedef enum {
 	TIPPED_BEFORE_START,
 	RISC_PROBE_END,
 } abort_reason_t;
-static int aborted = 0, abort_reason = NO_REASON;
+static int aborted = 0, abort_reason = NO_REASON, wait_resume = 0;
 #define PROBE_CMD_TYPE 0x0001
 static void process_probe_inputs(void)
 {
@@ -718,6 +718,10 @@ static void process_probe_inputs(void)
 
     switch ( emcmotStatus->usb_status & 0x0000000F) { // probe status mask
     case USB_STATUS_PROBING:
+        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+            // already sent acked
+            break;
+        }
         if (GET_MOTION_INPOS_FLAG()) {
             tpPause(&emcmotDebug->coord_tp);
         }
@@ -729,131 +733,156 @@ static void process_probe_inputs(void)
                     return;
                 }
             }
-            if (probe_suppress == 0) {  // just stop motion
-                tpPause(&emcmotDebug->coord_tp);
-            if (abort_reason == NO_REASON) {
-                fprintf(stderr,"PROBE: TP_END\n");
-            }
-            abort_reason = TP_END;
-
-            }
-        }
-        break;
-    case USB_STATUS_PROBE_HIT:
-        /* stop! */
-        emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-        tpPause(&emcmotDebug->coord_tp);
-
-        for (i = 0; i < emcmotConfig->numJoints; i++) {
-            joint_status = &(emcmotStatus->joint_status[i]);
-            if (joint_status->vel_cmd != 0) {
-                return;
-            }
-        }
-
-        if (emcmotStatus->probe_cmd != USB_CMD_STATUS_ACK) {
-        	fprintf(stderr,"PROBE: USB_STATUS_PROBE_HIT\n");
-        }
-        /* tell USB that we've got the status */
-        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-        emcmotStatus->usb_cmd &= ~(0x00000001);
-        emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-
-        break;
-    case USB_STATUS_PROBE_ERROR:
-        emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-        tpPause(&emcmotDebug->coord_tp);
-        for (i = 0; i < emcmotConfig->numJoints; i++) {
-            joint_status = &(emcmotStatus->joint_status[i]);
-            if (joint_status->vel_cmd != 0) {
-                return;
-            }
-        }
-        if (probe_suppress == 0) {
-        	tpPause(&emcmotDebug->coord_tp);
-            if (emcmotStatus->probe_cmd != USB_CMD_ABORT) {
-            	fprintf(stderr,"PROBE: USB_CMD_ABORT\n");
-            }
-            emcmotStatus->probe_cmd = USB_CMD_ABORT;
-            emcmotStatus->usb_cmd &= ~(0x00000001);
-            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-
-            if (abort_reason == NO_REASON) {
-            	abort_reason = TIPPED_BEFORE_START;
-            }
-            aborted = 1;
-
-        } else {
-        	tpPause(&emcmotDebug->coord_tp);
-        	if (emcmotStatus->probe_cmd != USB_CMD_STATUS_ACK) {
-        		fprintf(stderr,"PROBE: USB_CMD_ABORT no suppress\n");
-        		abort_reason = NO_REASON;
-			}
+//            if (probe_suppress == 0) {  // just stop motion
+//                tpPause(&emcmotDebug->coord_tp);
+//                reportError("G38.X probe move finished without tripping probe");
+//                if (abort_reason == NO_REASON) {
+//                    fprintf(stderr,"PROBE: TP_END\n");
+//                }
+//                abort_reason = TP_END;
+//
+//            }
+            reportError("G38.X probe move finished without tripping probe");
+            SET_MOTION_ERROR_FLAG(1);
+            // ack risc to stop probing
             emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
             emcmotStatus->usb_cmd &= ~(0x00000001);
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
         }
         break;
-
-    case USB_STATUS_READY:
-        // send cmd to stop risc report status
-        if (emcmotStatus->probe_cmd == USB_CMD_ABORT) {
-            // probe error case.
-            /* the TRAJ-PLANNER is already stopped, but we need to remember the current
-                               position here, because it will still be queried */
-            // TODO: to handle suppress error mode. refer to command.c EMCMOT_PROBE
-        	tpPause(&emcmotDebug->coord_tp);
-        	if (abort_reason == TIPPED_BEFORE_START) {
-        		reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
-
-        	} else if (abort_reason == TP_END) {
-        		reportError("G38.X probe move finished without tripping probe");
-
-        	} else {
-        	    abort_reason = RISC_PROBE_END;
-        		reportError("RISC probe finished without tripping probe");
-        	}
-            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-            SET_MOTION_ERROR_FLAG(1);
+    case USB_STATUS_PROBE_HIT:
+      /* 先將當前的tp pause然後適合的時機abort他，之後呼叫resume繼續後面的tp */
+        wait_resume = 1;
+        tpPause(&emcmotDebug->coord_tp);
+        // wait till command paused
+        for (i = 0; i < emcmotConfig->numJoints; i++) {
+            joint_status = &(emcmotStatus->joint_status[i]);
+            if (joint_status->vel_cmd != 0) {
+                return;
+            }
+        }
+        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+            // already sent acked
+        } else {
+            fprintf(stderr,"PROBE: USB_STATUS_PROBE_HIT\n");
             tpAbort(&emcmotDebug->coord_tp);
-            aborted = 1;
-            emcmotStatus->probe_cmd = USB_CMD_WOU_CMD_SYNC;
-//            emcmotStatus->usb_cmd &= ~(0x00000001);
-//            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-//            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-
-
-        } else if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
-            // probe hit case
-            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-            if (abort_reason != TP_END) {
-                tpAbort(&emcmotDebug->coord_tp);
-            }
-            emcmotStatus->probe_cmd = USB_CMD_WOU_CMD_SYNC;
-//            emcmotStatus->usb_cmd &= ~(0x00000001);
-//            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-//            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-            fprintf(stderr, "probe hit USB_STATUS_READY\n");
-        } else if (emcmotStatus->probe_cmd == USB_CMD_WOU_CMD_SYNC){
-            if (aborted) {
-                tpPause(&emcmotDebug->coord_tp);
-            } else {
-                tpResume(&emcmotDebug->coord_tp);
-            }
-            emcmotStatus->probe_cmd = USB_CMD_NOOP;
+            /* tell USB that we've got the status */
+            emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
             emcmotStatus->usb_cmd &= ~(0x00000001);
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-        } else if (emcmotStatus->probe_cmd == USB_CMD_NOOP) {
-
-            aborted = 0;
-            abort_reason = NO_REASON;
-            report_risc_probing_error = 0;
+            /* record current pos as probed pos */
+            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+            /* sync current pos-cmd with pos-fb */
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; // handle wou assertion
+            fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
+            emcmotStatus->align_pos_cmd = 1;
         }
         break;
+    case USB_STATUS_PROBE_ERROR:// only one error reason from risc
+        SET_MOTION_ERROR_FLAG(1);
+        for (i = 0; i < emcmotConfig->numJoints; i++) {
+            joint_status = &(emcmotStatus->joint_status[i]);
+            if (joint_status->vel_cmd != 0) {
+                return;
+            }
+        }
+        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+            // already sent acked
+            ;
+        } else {
+          emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+          emcmotStatus->usb_cmd &= ~(0x00000001);
+          emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+          emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+          reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
+          // TODO: the following thing to do is sync pos_fb and pos_cmd
+          tpPause(&emcmotDebug->coord_tp);
+          emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+          emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+          fprintf(stderr,"USB_STATUS_PROBE_ERROR setting align pos cmd 1\n");
+          emcmotStatus->align_pos_cmd = 1;
+        }
+
+//        if (probe_suppress == 0) {
+//            tpPause(&emcmotDebug->coord_tp);
+//            if (emcmotStatus->probe_cmd != USB_CMD_STATUS_ACK) {
+//            	fprintf(stderr,"PROBE: USB_CMD_ABORT\n");
+//            }
+//
+//
+//            if (abort_reason == NO_REASON) {
+//            	abort_reason = TIPPED_BEFORE_START;
+//            }
+//            aborted = 1;
+//
+//        } else {
+//            tpPause(&emcmotDebug->coord_tp);
+//            if (emcmotStatus->probe_cmd != USB_CMD_STATUS_ACK) {
+//                fprintf(stderr,"PROBE: USB_CMD_ABORT no suppress\n");
+//                abort_reason = NO_REASON;
+//            }
+//        }
+
+        break;
+//
+//    case USB_STATUS_READY:
+//        // send cmd to stop risc report status
+//        if (emcmotStatus->probe_cmd == USB_CMD_ABORT) {
+//            // probe error case.
+//            /* the TRAJ-PLANNER is already stopped, but we need to remember the current
+//                               position here, because it will still be queried */
+//            // TODO: to handle suppress error mode. refer to command.c EMCMOT_PROBE
+//        	tpPause(&emcmotDebug->coord_tp);
+//        	if (abort_reason == TIPPED_BEFORE_START) {
+//        		reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
+//
+//        	} else if (abort_reason == TP_END) {
+//        		reportError("G38.X probe move finished without tripping probe");
+//
+//        	} else {
+//        	    abort_reason = RISC_PROBE_END;
+//        		reportError("RISC probe finished without tripping probe");
+//        	}
+//            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+//            SET_MOTION_ERROR_FLAG(1);
+//            tpAbort(&emcmotDebug->coord_tp);
+//            aborted = 1;
+//            emcmotStatus->probe_cmd = USB_CMD_WOU_CMD_SYNC;
+////            emcmotStatus->usb_cmd &= ~(0x00000001);
+////            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+////            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//
+//
+//        } else if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+//            // probe hit case
+//            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+//            if (abort_reason != TP_END) {
+//                tpAbort(&emcmotDebug->coord_tp);
+//            }
+//            emcmotStatus->probe_cmd = USB_CMD_WOU_CMD_SYNC;
+////            emcmotStatus->usb_cmd &= ~(0x00000001);
+////            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+////            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//            fprintf(stderr, "probe hit USB_STATUS_READY\n");
+//        } else if (emcmotStatus->probe_cmd == USB_CMD_WOU_CMD_SYNC){
+//            if (aborted) {
+//                tpPause(&emcmotDebug->coord_tp);
+//            } else {
+//                tpResume(&emcmotDebug->coord_tp);
+//            }
+//            emcmotStatus->probe_cmd = USB_CMD_NOOP;
+//            emcmotStatus->usb_cmd &= ~(0x00000001);
+//            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+//            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//        } else if (emcmotStatus->probe_cmd == USB_CMD_NOOP) {
+//
+//            aborted = 0;
+//            abort_reason = NO_REASON;
+//            report_risc_probing_error = 0;
+//        }
+//        break;
     case USB_STATUS_RISC_PROBE_ERROR:
         if (report_risc_probing_error == 0) {
             report_risc_probing_error = 1;
@@ -864,7 +893,7 @@ static void process_probe_inputs(void)
             tpAbort(&emcmotDebug->coord_tp);
             reportError("RISC probing error.");
         }
-        emcmotStatus->probe_cmd = USB_CMD_ABORT;
+        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
         emcmotStatus->usb_cmd &= ~(0x00000001);
         emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
         emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
@@ -872,6 +901,10 @@ static void process_probe_inputs(void)
         break;
     default:
         // deal with PROBE related status only
+        if (wait_resume == 1 && emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+            tpResume(&emcmotDebug->coord_tp);
+            wait_resume = 0;
+        }
         break;
     }
 }
@@ -1973,6 +2006,20 @@ static void output_to_hal(void)
         *(emcmot_hal_data->usb_cmd_param[i]) = emcmotStatus->usb_cmd_param[i];
     }
     *(emcmot_hal_data->usb_cmd) = emcmotStatus->usb_cmd;
+    // WORKAROUND: raise align pos cmd flag at least 3 cycles to
+    //             make sure the pos_cmd is aligned with pos_fb
+    if (emcmotStatus->align_pos_cmd) {
+        if (emcmotStatus->align_pos_cmd  > 3) {
+            emcmotStatus->align_pos_cmd = 0;
+        } else {
+            *(emcmot_hal_data->align_pos_cmd) = 1;
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+            emcmotStatus->align_pos_cmd ++;
+        }
+    } else {
+        *(emcmot_hal_data->align_pos_cmd) = 0;
+    }
+
     emcmotStatus->usb_cmd = 0;
     /* output machine info to HAL for scoping, etc */
     *(emcmot_hal_data->motion_enabled) = GET_MOTION_ENABLE_FLAG();

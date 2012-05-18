@@ -1417,18 +1417,11 @@ void emcmotCommandHandler(void *arg, long period)
             break;
 
 	case EMCMOT_CLEAR_PROBE_FLAGS:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
-	    if (emcmotStatus->usb_cmd != USB_CMD_NOOP) {
-	        reportError(_("initiate probe command while usb_cmd is not USB_CMD_NOOP"));
-	        fprintf(stderr,"initiate probe command while usb_cmd is not USB_CMD_NOOP");
-	        // give warning only :assert(0);
-	    }
-//	    if (emcmotStatus->usb_status != USB_STATUS_READY) {
-//	        assert(0);
+//	    rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
+//	    if (emcmotStatus->probe_cmd != USB_CMD_NOOP) {
+//	        reportError(_("initiate probe command while usb_cmd is not USB_CMD_NOOP"));
+//	        fprintf(stderr,"initiate probe command while usb_cmd is not USB_CMD_NOOP");
 //	    }
-//	    emcmotStatus->probing = 0;
-//            emcmotStatus->probeTripped = 0;
-//            assert(0);
 	    break;
 
 	case EMCMOT_PROBE:
@@ -1496,11 +1489,19 @@ void emcmotCommandHandler(void *arg, long period)
 
                 if (emcmotCommand->probe_type & 2) {
                   // G38.2, G38.3  
-                  emcmotStatus->usb_cmd = USB_CMD_PROBE_HIGH;
+                  emcmotStatus->probe_cmd = USB_CMD_PROBE_HIGH;
+                  emcmotStatus->usb_cmd &= ~(0x00000001);
+                  emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+                  emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
                 } else {
                   // G38.4, G38.5  
-                  emcmotStatus->usb_cmd = USB_CMD_PROBE_LOW;
+                  emcmotStatus->probe_cmd = USB_CMD_PROBE_LOW;
+                  emcmotStatus->usb_cmd &= ~(0x00000001);
+                  emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+                  emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
                 }
+                fprintf(stderr,"usb_cmd(0x%0x) usb_cmd_param(%f)\n",
+                    emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
 	    }
 	    break;
 
