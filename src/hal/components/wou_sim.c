@@ -316,18 +316,10 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
                 "indicate test pattern type");
 
-const char *probe_pin_type="DIGITAL_PIN"; // ANALOG_IN
-RTAPI_MP_STRING(probe_pin_type,
-                "indicate probing type");
-
-const char *probe_pin_id= "0";         // probing input channel
-RTAPI_MP_STRING(probe_pin_id,
-                "indicate probing channel");
-
-const char *probe_decel_cmd= "0";         // deceleration command for probing in user-unit/s
-RTAPI_MP_STRING(probe_decel_cmd,
-                "deceleration for probing");
-
+const char *probe_config= "0x00010000";         // probing input channel
+RTAPI_MP_STRING(probe_config,
+                "Probe Config");
+                
 const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
                 "indicate probing level used by analog probing");
@@ -1046,25 +1038,12 @@ int rtapi_app_main(void)
     write_machine_param(ALR_OUTPUT, alr_output);
     // config probe parameters
     // probe_decel_cmd
-    immediate_data = atoi(probe_pin_id);
-    fprintf(stderr,"wou_stgepgen.c: probe_pin_id(%d)\n", immediate_data);
-    write_machine_param(PROBE_PIN_ID, immediate_data);
+    // immediate_data = atoi(probe_pin_id);
+    // fprintf(stderr,"wou_stgepgen.c: probe_pin_id(%d)\n", immediate_data);
+    // write_machine_param(PROBE_PIN_ID, immediate_data);
     
     immediate_data = atoi(probe_analog_ref_level);
     write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);
-    
-    if (strcmp(probe_pin_type, "ANALOG_PIN") == 0) {
-        immediate_data = ANALOG_PIN;
-    } else if (strcmp(probe_pin_type, "DIGITAL_PIN") == 0){
-        immediate_data = DIGITAL_PIN;
-    } else {
-        fprintf(stderr,"ERROR: wou_stepgen.c unknown probe_pin_type\n");
-        assert(0);
-    }
-
-    write_machine_param(PROBE_PIN_TYPE, immediate_data);
-    // we use this value later.
-    probe_decel = atoi(probe_decel_cmd);
 
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
@@ -1319,18 +1298,6 @@ int rtapi_app_main(void)
         immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
         rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
-
-        // set probe decel cmd
-        immediate_data = (uint32_t)(probe_decel * pos_scale * dt * FIXED_POINT_SCALE * dt);
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                        "j[%d] probe_decel(%d) = %f*%f*(%f^2)*%f\n",
-                        n, immediate_data, probe_decel, pos_scale, dt, FIXED_POINT_SCALE);
-        assert(immediate_data > 0);
-        write_mot_param (n, (PROBE_DECEL_CMD), immediate_data);
-
-        // set move type as normal by default
-//        immediate_data = NORMAL_MOVE;
-//        write_mot_param (n, (MOTION_TYPE), immediate_data);
     }
 
     // config PID parameter
