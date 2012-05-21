@@ -440,6 +440,7 @@ typedef struct {
     hal_bit_t   *vel_sync;
     hal_bit_t   *rt_abort;  // realtime abort to FPGA
     hal_bit_t   *cl_abort;  // realtime abort from CL or other hardware pin
+    hal_bit_t   *align_pos_cmd;
     /* plasma control */
     hal_bit_t *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
@@ -485,8 +486,8 @@ typedef struct {
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
     /* command channel for emc2 */
-    hal_u32_t *wou_cmd;
-    uint32_t prev_wou_cmd;
+    hal_u32_t *usb_cmd;
+    hal_float_t *usb_cmd_param[4];
     hal_u32_t *wou_status;
     uint32_t a_cmd_on_going;
     /* spindle */
@@ -779,19 +780,6 @@ static void fetchmail(const uint8_t *buf_head)
 #endif
         break;
     case MT_USB_STATUS:
-            // update wou status only if a cmd ongoing
-        p = (uint32_t *) (buf_head + 4);
-        /* probe status */
-        p += 1;
-        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
-            *machine_control->wou_status = *p;
-        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
-            // section report status normally
-            *machine_control->wou_status = *p;
-        } else {
-            *machine_control->wou_status = USB_STATUS_READY;
-        }
-//        fprintf(stderr, "wou_stepgen.c: probe_level(%d) probe_ref(%d)\n", *(p+1), *(p+2));
         break;
     case MT_DEBUG:
         p = (uint32_t *) (buf_head + 4);
@@ -2597,6 +2585,10 @@ static int export_machine_control(machine_control_t * machine_control)
                               "wou.cl.abort");
     if (retval != 0) { return retval; }
     *(machine_control->cl_abort) = 0;
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->align_pos_cmd), comp_id,
+                              "wou.align-pos-cmd");
+    if (retval != 0) { return retval; }
+    *(machine_control->align_pos_cmd) = 0;
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
@@ -2699,6 +2691,22 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->ahc_min_level) = 0;
 
+    /* usb command */
+    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->usb_cmd), comp_id,
+                             "wou.usb.cmd");
+    *(machine_control->usb_cmd) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    for (i = 0; i < 4; i++) {
+        retval =
+            hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id,
+                             "wou.usb.param-%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->usb_cmd_param[i]) = 0;
+    }
     /* auto height control switches */
 // TODO: replace by CL
 //    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
@@ -2718,13 +2726,13 @@ static int export_machine_control(machine_control_t * machine_control)
 //    }
 
     /* wou command */
-    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
-                             "wou.motion.cmd");
-    *(machine_control->wou_cmd) = 0;    // pin index must not beyond index
-    machine_control->prev_wou_cmd = 0;
-    if (retval != 0) {
-        return retval;
-    }
+//     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
+//                              "wou.motion.cmd");
+//     *(machine_control->wou_cmd) = 0;    // pin index must not beyond index
+//     machine_control->prev_wou_cmd = 0;
+//     if (retval != 0) {
+//         return retval;
+//     }
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id,
                              "wou.motion.status");
