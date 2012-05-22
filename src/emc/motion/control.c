@@ -559,6 +559,7 @@ static void process_inputs(void)
 	} else {
 	    SET_JOINT_HOME_SWITCH_FLAG(joint, 0);
 	}
+	joint->probed_pos = *(joint_data->probed_pos);
 	/* end of read and process joint inputs loop */
     }
 
@@ -765,6 +766,18 @@ static void process_probe_inputs(void)
         if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
         } else {
+            KINEMATICS_FORWARD_FLAGS fflags = 0;
+            KINEMATICS_INVERSE_FLAGS iflags = 0;
+            int32_t i = 0, joint_num;
+            emcmot_joint_t *joint;
+            double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
+            for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
+                 /* point to joint struct */
+                 joint = &joints[joint_num];
+                 /* update probed pos  */
+                 joint_pos[joint_num] =  joint->probed_pos -
+                                         (joint->backlash_filt + joint->motor_offset_fb);
+             }
             fprintf(stderr,"PROBE: USB_STATUS_PROBE_HIT\n");
             tpAbort(&emcmotDebug->coord_tp);
             /* tell USB that we've got the status */
@@ -773,11 +786,32 @@ static void process_probe_inputs(void)
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
             /* record current pos as probed pos */
-            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+            kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags,
+                        &iflags);
             /* sync current pos-cmd with pos-fb */
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; // handle wou assertion
             fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
             emcmotStatus->align_pos_cmd = 1;
+//            fprintf(stderr,"Probed_pos_joint(J0%f, J1%f, J2%f, J3%f, J4%f, J5%f, J6%f, J7%f, J8%f\n",
+//                joints[0].probed_pos,
+//                joints[1].probed_pos,
+//                joints[2].probed_pos,
+//                joints[3].probed_pos,
+//                joints[4].probed_pos,
+//                joints[5].probed_pos,
+//                joints[6].probed_pos,
+//                joints[7].probed_pos,
+//                joints[8].probed_pos);
+//            fprintf(stderr,"Probed_pos(X%f, Y%f, Z%f, A%f, B%f, C%f, U%f, V%f, W%f\n",
+//                emcmotStatus->probedPos.tran.x,
+//                emcmotStatus->probedPos.tran.y,
+//                emcmotStatus->probedPos.tran.z,
+//                emcmotStatus->probedPos.a,
+//                emcmotStatus->probedPos.b,
+//                emcmotStatus->probedPos.c,
+//                emcmotStatus->probedPos.u,
+//                emcmotStatus->probedPos.v,
+//                emcmotStatus->probedPos.w);
         }
         break;
     case USB_STATUS_PROBE_ERROR:// only one error reason from risc
@@ -2170,6 +2204,7 @@ static void output_to_hal(void)
 	*(joint_data->f_errored) = GET_JOINT_FERROR_FLAG(joint);
 	*(joint_data->faulted) = GET_JOINT_FAULT_FLAG(joint);
 	*(joint_data->home_state_pin) = joint->home_state;
+
     }
 
     /* output axis info to HAL for scoping, etc */

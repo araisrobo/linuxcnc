@@ -76,7 +76,7 @@ typedef struct {
     hal_bit_t *jog_enable;	/* RPI: enable jogwheel */
     hal_float_t *jog_scale;	/* RPI: distance to jog on each count */
     hal_bit_t *jog_vel_mode;	/* RPI: true for "velocity mode" jogwheel */
-
+    hal_float_t *probed_pos;
 } joint_hal_t;
 
 typedef struct {

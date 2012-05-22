@@ -26,6 +26,10 @@ net usb-cmd-param2 wou.usb.param-02 <= motion.usb.param-02
 net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
+net x-probed joint.0.probed-pos <= wou.stepgen.0.probed-pos
+net y-probed joint.1.probed-pos <= wou.stepgen.1.probed-pos
+net z-probed joint.2.probed-pos <= wou.stepgen.2.probed-pos
+net a-probed joint.3.probed-pos <= wou.stepgen.3.probed-pos
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd # joint.0.motor-pos-fb 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd # joint.1.motor-pos-fb

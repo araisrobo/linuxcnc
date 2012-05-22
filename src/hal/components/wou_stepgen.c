@@ -384,6 +384,7 @@ typedef struct {
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
+    hal_float_t *probed_pos;
     hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
@@ -773,6 +774,15 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *machine_control->tick[i] = *p;
         }
+        break;
+    case MT_PROBED_POS:
+        stepgen = stepgen_array;
+        for (i=0; i<num_joints; i++) {
+            p += 1;
+            *(stepgen->probed_pos) = (double) (*p) * (stepgen->scale_recip);
+            stepgen += 1;   // point to next joint
+        }
+        break;
         break;
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
@@ -2386,7 +2396,12 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
 	return retval;
     }
 
-
+    /* export pin for pos/vel command */
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->probed_pos), comp_id,
+                                    "wou.stepgen.%d.probed-pos", num);
+    if (retval != 0) {
+        return retval;
+    }
     /* export parameter to obtain homing state */
     retval = hal_pin_s32_newf(HAL_IN, &(addr->home_state), comp_id,
 			      "wou.stepgen.%d.home-state", num);

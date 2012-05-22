@@ -681,6 +681,7 @@ void do_homing(void)
 
 	        pos_fb = joint->pos_fb; // store original pos_fb
 	        // TODO: pos_fb要改為switch_pos(由wou更新)
+	        //       目前因為tp會起震所以暫時不用switch pos
 	        offset = joint->home_offset - joint->pos_fb;
 //		offset = joint->home_offset -
 //                         (joint->switch_pos - joint->motor_offset);
