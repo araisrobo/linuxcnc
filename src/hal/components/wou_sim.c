@@ -1887,7 +1887,9 @@ static void update_freq(void *arg, long period)
     enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_joints; n++) {
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
-        *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+        *(stepgen->pos_fb) = *stepgen->pos_cmd;//(*stepgen->enc_pos) * stepgen->scale_recip;
+        *(stepgen->cmd_fbf) = *(stepgen->pos_fb);
+        *(stepgen->cmd_fbs) = (int32_t) (*(stepgen->pos_fb) * stepgen->pos_scale);
 //        if (*stepgen->enc_pos != stepgen->prev_enc_pos) {
 //        if ((*machine_control->bp_tick - machine_control->prev_bp) > ((int32_t)VEL_UPDATE_BP)) {
             // update velocity-feedback only after encoder movement
