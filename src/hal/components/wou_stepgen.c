@@ -1502,6 +1502,7 @@ static void update_rt_cmd(void)
                         sizeof(uint32_t), 
                         data);
             rt_wou_flush(&w_param);
+            *machine_control->align_pos_cmd = 2;
         }
     }
 }

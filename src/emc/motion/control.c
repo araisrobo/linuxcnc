@@ -237,6 +237,8 @@ static void output_to_hal(void);
 */
 static void update_status(void);
 
+static void handle_special_cmd(void);
+
 /***********************************************************************
 *                        PUBLIC FUNCTION CODE                          *
 ************************************************************************/
@@ -358,6 +360,7 @@ check_stuff ( "after process_inputs()" );
     do_forward_kins();
 check_stuff ( "after do_forward_kins()" );
     process_probe_inputs();
+    handle_special_cmd();
 check_stuff ( "after process_probe_inputs()" );
     check_for_faults();
 check_stuff ( "after check_for_faults()" );
@@ -695,7 +698,7 @@ static void do_forward_kins(void)
 	break;
     }
 }
-
+//
 typedef enum {
 	NO_REASON,
 	TP_END,
@@ -860,63 +863,6 @@ static void process_probe_inputs(void)
 //        }
 
         break;
-//
-//    case USB_STATUS_READY:
-//        // send cmd to stop risc report status
-//        if (emcmotStatus->probe_cmd == USB_CMD_ABORT) {
-//            // probe error case.
-//            /* the TRAJ-PLANNER is already stopped, but we need to remember the current
-//                               position here, because it will still be queried */
-//            // TODO: to handle suppress error mode. refer to command.c EMCMOT_PROBE
-//        	tpPause(&emcmotDebug->coord_tp);
-//        	if (abort_reason == TIPPED_BEFORE_START) {
-//        		reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
-//
-//        	} else if (abort_reason == TP_END) {
-//        		reportError("G38.X probe move finished without tripping probe");
-//
-//        	} else {
-//        	    abort_reason = RISC_PROBE_END;
-//        		reportError("RISC probe finished without tripping probe");
-//        	}
-//            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-//            SET_MOTION_ERROR_FLAG(1);
-//            tpAbort(&emcmotDebug->coord_tp);
-//            aborted = 1;
-//            emcmotStatus->probe_cmd = USB_CMD_WOU_CMD_SYNC;
-////            emcmotStatus->usb_cmd &= ~(0x00000001);
-////            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-////            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-//
-//
-//        } else if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
-//            // probe hit case
-//            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-//            if (abort_reason != TP_END) {
-//                tpAbort(&emcmotDebug->coord_tp);
-//            }
-//            emcmotStatus->probe_cmd = USB_CMD_WOU_CMD_SYNC;
-////            emcmotStatus->usb_cmd &= ~(0x00000001);
-////            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-////            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-//            fprintf(stderr, "probe hit USB_STATUS_READY\n");
-//        } else if (emcmotStatus->probe_cmd == USB_CMD_WOU_CMD_SYNC){
-//            if (aborted) {
-//                tpPause(&emcmotDebug->coord_tp);
-//            } else {
-//                tpResume(&emcmotDebug->coord_tp);
-//            }
-//            emcmotStatus->probe_cmd = USB_CMD_NOOP;
-//            emcmotStatus->usb_cmd &= ~(0x00000001);
-//            emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-//            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-//        } else if (emcmotStatus->probe_cmd == USB_CMD_NOOP) {
-//
-//            aborted = 0;
-//            abort_reason = NO_REASON;
-//            report_risc_probing_error = 0;
-//        }
-//        break;
     case USB_STATUS_RISC_PROBE_ERROR:
         if (report_risc_probing_error == 0) {
             report_risc_probing_error = 1;
@@ -931,7 +877,7 @@ static void process_probe_inputs(void)
         emcmotStatus->usb_cmd &= ~(0x00000001);
         emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
         emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-        fprintf(stderr,"set probe_cmd (%d)\n", emcmotStatus->usb_cmd_param[0] );
+//        fprintf(stderr,"set probe_cmd (%d)\n", emcmotStatus->usb_cmd_param[0] );
         break;
     default:
         // deal with PROBE related status only
@@ -951,6 +897,41 @@ static void process_probe_inputs(void)
 	    }
 	}
 
+        break;
+    }
+}
+
+//#define USB_STATUS_REQ_CMD_SYNC 0x00000100
+//#define SPECIAL_CMD_MASK 0x0000F000
+//#define SPECIAL_CMD_TYPE 0x0008
+
+static void handle_special_cmd(void)
+{
+    emcmot_joint_status_t *joint_status;
+    switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
+    case USB_STATUS_REQ_CMD_SYNC:
+        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
+            KINEMATICS_FORWARD_FLAGS fflags = 0;
+            KINEMATICS_INVERSE_FLAGS iflags = 0;
+            int32_t i = 0, joint_num;
+            emcmot_joint_t *joint;
+            double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
+            emcmotStatus->special_cmd = SPEC_CMD_ACK;
+            /* tell USB that we've got the status */
+            emcmotStatus->usb_cmd &= ~(0x0008);
+            emcmotStatus->usb_cmd |= SPECIAL_CMD_TYPE;
+            emcmotStatus->usb_cmd_param[0] = emcmotStatus->special_cmd;
+            /* record current pos as probed pos */
+            kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags,
+                        &iflags);
+            /* sync current pos-cmd with pos-fb */
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; 
+            emcmotStatus->align_pos_cmd = 1;
+        }
+        break;
+
+    default:
+        // deal with PROBE related status only
         break;
     }
 }
@@ -2054,9 +2035,11 @@ static void output_to_hal(void)
     *(emcmot_hal_data->usb_cmd) = emcmotStatus->usb_cmd;
     // WORKAROUND: raise align pos cmd flag at least 3 cycles to
     //             make sure the pos_cmd is aligned with pos_fb
+
     if (emcmotStatus->align_pos_cmd) {
         if (emcmotStatus->align_pos_cmd  > 3) {
             emcmotStatus->align_pos_cmd = 0;
+            emcmotStatus->special_cmd = 0;
         } else {
             *(emcmot_hal_data->align_pos_cmd) = 1;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
