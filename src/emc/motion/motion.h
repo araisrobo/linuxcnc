@@ -636,6 +636,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 */
 
     typedef struct emcmot_status_t {
+        int update_current_pos_flag;
         uint32_t usb_cmd;
         uint32_t special_cmd;
         uint32_t probe_cmd;

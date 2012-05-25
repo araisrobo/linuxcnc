@@ -299,6 +299,7 @@ static void canonUpdateEndPoint(double x, double y, double z,
                                 double a, double b, double c,
                                 double u, double v, double w)
 {
+//    fprintf(stderr, "(emccanon.cc) canonUpdateEndPoint: x(%f) y(%f) z(%f)\n", x, y, z);
     canon.endPoint.x = x;
     canon.endPoint.y = y;
     canon.endPoint.z = z;
@@ -1152,7 +1153,7 @@ void RIGID_TAP(int line_number, double x, double y, double z)
   STRAIGHT_PROBE is exactly the same as STRAIGHT_FEED, except that it
   uses a probe message instead of a linear move message.
 */
-
+CANON_POSITION GET_EXTERNAL_POSITION();
 void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z, 
                     double a, double b, double c,

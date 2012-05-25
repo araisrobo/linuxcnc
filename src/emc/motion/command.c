@@ -497,6 +497,7 @@ void emcmotCommandHandler(void *arg, long period)
 		    joint->home_state = HOME_ABORT;
 		}
 		/* update status flags */
+		rtapi_print_msg(RTAPI_MSG_DBG, " SET_JOINT_ERROR_FLAG");
 		SET_JOINT_ERROR_FLAG(joint, 0);
 	    }
 	    break;
@@ -1490,13 +1491,11 @@ void emcmotCommandHandler(void *arg, long period)
                 if (emcmotCommand->probe_type & 2) {
                   // G38.2, G38.3  
                   emcmotStatus->probe_cmd = USB_CMD_PROBE_HIGH;
-                  emcmotStatus->usb_cmd &= ~(0x00000001);
                   emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                   emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
                 } else {
                   // G38.4, G38.5  
                   emcmotStatus->probe_cmd = USB_CMD_PROBE_LOW;
-                  emcmotStatus->usb_cmd &= ~(0x00000001);
                   emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                   emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
                 }

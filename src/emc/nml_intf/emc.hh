@@ -625,6 +625,8 @@ extern int emcHalt();
 extern int emcAbort();
 
 extern int emcUpdate(EMC_STAT * stat);
+
+extern void checkPlanSyncReq(void);
 // full EMC status
 extern EMC_STAT *emcStatus;
 

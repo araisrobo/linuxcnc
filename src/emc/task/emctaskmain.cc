@@ -1543,7 +1543,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 {
     int retval = 0;
     int execRetval = 0;
-
+//    checkPlanSyncReq();
     if (0 == cmd) {
         if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
             rcs_print("emcTaskIssueCommand() null command\n");
@@ -3279,6 +3279,7 @@ int main(int argc, char *argv[])
 	if (0 != emcTaskExecute()) {
 	    taskExecuteError = 1;
 	}
+	checkPlanSyncReq();
 	// update subordinate status
 
 	emcIoUpdate(&emcStatus->io);

@@ -3625,8 +3625,9 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
         settings->u_current == u_end && settings->v_current == v_end &&
         settings->w_current == w_end),
        NCE_START_POINT_TOO_CLOSE_TO_PROBE_POINT);
-       
+
   TURN_PROBE_ON();
+  fprintf(stderr,"probe ends: x(%f) y(%f) z(%f)\n", end_x, end_y, end_z);
   STRAIGHT_PROBE(block->line_number, end_x, end_y, end_z,
                  AA_end, BB_end, CC_end,
                  u_end, v_end, w_end, probe_type);
@@ -3929,6 +3930,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
                          &cx, &cy, &cz,
                          &ca, &cb, &cc,
                          &cu, &cv, &cw);
+  fprintf(stderr,"touch-off cx(%f) cy(%f)\n", cx, cy);
 
   if (block->r_flag) {
     CHKS((block->l_number == 20), _("R not allowed in G10 L20"));

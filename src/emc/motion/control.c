@@ -711,7 +711,6 @@ static void process_probe_inputs(void)
 {
     //obsolete: static int old_probeVal = 0;
     // TODO: detect probe trigger if not doing probe (should be handled by risc)
-
     unsigned char probe_type = emcmotStatus->probe_type;
     int i;
     emcmot_joint_status_t *joint_status;
@@ -750,7 +749,6 @@ static void process_probe_inputs(void)
             SET_MOTION_ERROR_FLAG(1);
             // ack risc to stop probing
             emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-            emcmotStatus->usb_cmd &= ~(0x00000001);
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
         }
@@ -769,8 +767,8 @@ static void process_probe_inputs(void)
         if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
         } else {
-            KINEMATICS_FORWARD_FLAGS fflags = 0;
-            KINEMATICS_INVERSE_FLAGS iflags = 0;
+//            KINEMATICS_FORWARD_FLAGS fflags = 0;
+//            KINEMATICS_INVERSE_FLAGS iflags = 0;
             int32_t i = 0, joint_num;
             emcmot_joint_t *joint;
             double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
@@ -785,7 +783,6 @@ static void process_probe_inputs(void)
             tpAbort(&emcmotDebug->coord_tp);
             /* tell USB that we've got the status */
             emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-            emcmotStatus->usb_cmd &= ~(0x00000001);
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
             /* record current pos as probed pos */
@@ -793,28 +790,9 @@ static void process_probe_inputs(void)
                         &iflags);
             /* sync current pos-cmd with pos-fb */
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; // handle wou assertion
+//            emcmotCommand->pos = emcmotStatus->carte_pos_fb;
             fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
             emcmotStatus->align_pos_cmd = 1;
-//            fprintf(stderr,"Probed_pos_joint(J0%f, J1%f, J2%f, J3%f, J4%f, J5%f, J6%f, J7%f, J8%f\n",
-//                joints[0].probed_pos,
-//                joints[1].probed_pos,
-//                joints[2].probed_pos,
-//                joints[3].probed_pos,
-//                joints[4].probed_pos,
-//                joints[5].probed_pos,
-//                joints[6].probed_pos,
-//                joints[7].probed_pos,
-//                joints[8].probed_pos);
-//            fprintf(stderr,"Probed_pos(X%f, Y%f, Z%f, A%f, B%f, C%f, U%f, V%f, W%f\n",
-//                emcmotStatus->probedPos.tran.x,
-//                emcmotStatus->probedPos.tran.y,
-//                emcmotStatus->probedPos.tran.z,
-//                emcmotStatus->probedPos.a,
-//                emcmotStatus->probedPos.b,
-//                emcmotStatus->probedPos.c,
-//                emcmotStatus->probedPos.u,
-//                emcmotStatus->probedPos.v,
-//                emcmotStatus->probedPos.w);
         }
         break;
     case USB_STATUS_PROBE_ERROR:// only one error reason from risc
@@ -874,12 +852,12 @@ static void process_probe_inputs(void)
             reportError("RISC probing error.");
         }
         emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-        emcmotStatus->usb_cmd &= ~(0x00000001);
         emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
         emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
 //        fprintf(stderr,"set probe_cmd (%d)\n", emcmotStatus->usb_cmd_param[0] );
         break;
-    default:
+
+    case USB_STATUS_READY: // PROBE STATUS Clean
         // deal with PROBE related status only
         if (wait_resume == 1 && emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             tpResume(&emcmotDebug->coord_tp);
@@ -888,6 +866,7 @@ static void process_probe_inputs(void)
         if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
 	    if (emcmotStatus->probe_cmd == USB_CMD_PROBE_HIGH ||
 		emcmotStatus->probe_cmd == USB_CMD_PROBE_LOW) {
+
 		emcmotStatus->probe_cmd = USB_CMD_NOOP;
 		if (probe_suppress == 0) {  // just stop motion
 		    tpPause(&emcmotDebug->coord_tp);
@@ -896,41 +875,48 @@ static void process_probe_inputs(void)
 		}
 	    }
 	}
-
         break;
+    default:
+      break;
     }
 }
 
 //#define USB_STATUS_REQ_CMD_SYNC 0x00000100
 //#define SPECIAL_CMD_MASK 0x0000F000
 //#define SPECIAL_CMD_TYPE 0x0008
-
+static int update_current_pos = 0;
 static void handle_special_cmd(void)
 {
     emcmot_joint_status_t *joint_status;
-    switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
-    case USB_STATUS_REQ_CMD_SYNC:
-        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
-            KINEMATICS_FORWARD_FLAGS fflags = 0;
-            KINEMATICS_INVERSE_FLAGS iflags = 0;
-            int32_t i = 0, joint_num;
-            emcmot_joint_t *joint;
-            double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
+    if (update_current_pos == 1) {
+//        if (!GET_MOTION_COORD_FLAG() &&
+//            !GET_MOTION_ENABLE_FLAG() && GET_MOTION_INPOS_FLAG() &&
+//            tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
+            fprintf(stderr,"control.c: requested update pos\n");
+
+//            /* sync current pos-cmd with pos-fb */
+            emcmotStatus->update_current_pos_flag = 1;
+            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+            emcmotStatus->align_pos_cmd = 1;
+            update_current_pos = 0;
             emcmotStatus->special_cmd = SPEC_CMD_ACK;
             /* tell USB that we've got the status */
             emcmotStatus->usb_cmd &= ~(0x0008);
             emcmotStatus->usb_cmd |= SPECIAL_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->special_cmd;
-            /* record current pos as probed pos */
-            kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags,
-                        &iflags);
-            /* sync current pos-cmd with pos-fb */
-            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; 
-            emcmotStatus->align_pos_cmd = 1;
+
+//        }
+    } else {
+        emcmotStatus->update_current_pos_flag = 0;
+    }
+    switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
+    case USB_STATUS_REQ_CMD_SYNC:
+        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
+            update_current_pos = 1;
         }
         break;
-
     default:
+
         // deal with PROBE related status only
         break;
     }
