@@ -380,7 +380,7 @@ typedef struct {
     hal_float_t *pos_scale_pin;  /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
-    double vel_cmd;	        /* pin: velocity command (pos units/sec) */
+    hal_float_t *vel_cmd;	        /* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
@@ -1502,7 +1502,7 @@ static void update_rt_cmd(void)
                         sizeof(uint32_t), 
                         data);
             rt_wou_flush(&w_param);
-            *machine_control->align_pos_cmd = 2;
+//            *machine_control->align_pos_cmd = 2;
         }
     }
 }
@@ -1965,7 +1965,7 @@ static void update_freq(void *arg, long period)
 
 	    /* clear vel status when enable = 0 */
 	    stepgen->prev_pos_fb = *stepgen->pos_fb;
-	    stepgen->vel_cmd = 0;
+	    *stepgen->vel_cmd = 0;
 	    stepgen->prev_vel_cmd = 0;
 	    *(stepgen->vel_fb) = 0;
 	    *(stepgen->ctrl_type_switch) = 0;
@@ -2046,7 +2046,7 @@ static void update_freq(void *arg, long period)
 	    if (*machine_control->align_pos_cmd == 1) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
 	    }
-	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 //	    if (n==0) {
 //	        fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",
 //	                                n ,
@@ -2063,34 +2063,34 @@ static void update_freq(void *arg, long period)
 	        // do more thing if necessary.
 	    }
 	    if (*stepgen->ctrl_type_switch == 0) {
-                stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+                *stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
 
                 /* begin:  ramp up/down spindle */
                 maxvel = stepgen->maxvel;   /* unit/s */
-                if (stepgen->vel_cmd > maxvel) {
-                    stepgen->vel_cmd = maxvel;
-                } else if(stepgen->vel_cmd < -maxvel){
-                    stepgen->vel_cmd = -maxvel;
+                if (*stepgen->vel_cmd > maxvel) {
+                    *stepgen->vel_cmd = maxvel;
+                } else if(*stepgen->vel_cmd < -maxvel){
+                    *stepgen->vel_cmd = -maxvel;
                 }
-                stepgen->accel_cmd = (stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
+                stepgen->accel_cmd = (*stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
 
                 if (stepgen->accel_cmd > stepgen->maxaccel) {
                     stepgen->accel_cmd = stepgen->maxaccel;
-                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+                    *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
                 } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
                     stepgen->accel_cmd = -(stepgen->maxaccel);
-                    stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+                    *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
                 }
                 /* end: ramp up/down spindle */
 //                fprintf(stderr,"prev_vel(%f) accel_cmd(%f) \n", stepgen->prev_vel_cmd, stepgen->accel_cmd);
 	    } else {
-	        stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+	        *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
 	    }
 	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
 	}
 	{
             
-            integer_pos_cmd = (int32_t)((stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
+            integer_pos_cmd = (int32_t)((*stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
 
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
@@ -2101,7 +2101,7 @@ static void update_freq(void *arg, long period)
                         (*stepgen->pos_cmd), 
                         (stepgen->prev_pos_cmd), 
                         *stepgen->home_state, 
-                        stepgen->vel_cmd);
+                        *stepgen->vel_cmd);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
@@ -2128,7 +2128,7 @@ static void update_freq(void *arg, long period)
 
             // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
             (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
-            stepgen->prev_vel_cmd = stepgen->vel_cmd;
+            stepgen->prev_vel_cmd = *stepgen->vel_cmd;
 
             if (stepgen->pos_mode == 0) {
                     // TODO: find a better way for spindle control
@@ -2397,6 +2397,11 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
 	return retval;
     }
 
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->vel_cmd), comp_id,
+                                    "wou.stepgen.%d.vel-cmd", num);
+    if (retval != 0) {
+        return retval;
+    }
     /* export pin for pos/vel command */
     retval = hal_pin_float_newf(HAL_OUT, &(addr->probed_pos), comp_id,
                                     "wou.stepgen.%d.probed-pos", num);
@@ -2533,7 +2538,7 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     *(addr->switch_pos) = 0.0;
     *(addr->index_pos) = 0.0;
     *(addr->pos_cmd) = 0.0;
-    (addr->vel_cmd) = 0.0;
+    *(addr->vel_cmd) = 0.0;
     (addr->prev_vel_cmd) = 0.0;
     (addr->accel_cmd) = 0.0;
     *(addr->home_state) = HOME_IDLE;
