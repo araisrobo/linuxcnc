@@ -892,13 +892,13 @@ static void handle_special_cmd(void)
 //        if (!GET_MOTION_COORD_FLAG() &&
 //            !GET_MOTION_ENABLE_FLAG() && GET_MOTION_INPOS_FLAG() &&
 //            tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
-            fprintf(stderr,"control.c: requested update pos\n");
+//           fprintf(stderr,"control.c: requested update pos\n");
 
 //            /* sync current pos-cmd with pos-fb */
+            update_current_pos = 0;
             emcmotStatus->update_current_pos_flag = 1;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
             emcmotStatus->align_pos_cmd = 1;
-            update_current_pos = 0;
             emcmotStatus->special_cmd = SPEC_CMD_ACK;
             /* tell USB that we've got the status */
             emcmotStatus->usb_cmd &= ~(0x0008);
