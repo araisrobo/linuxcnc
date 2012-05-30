@@ -422,6 +422,7 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
+    hal_bit_t *ignore_ahc_limit;
     hal_bit_t *align_pos_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
@@ -465,9 +466,10 @@ typedef struct {
     hal_float_t *ahc_level;
     double prev_ahc_level;
     hal_float_t *ahc_max_offset;
-    double      prev_ahc_max_level;
-    hal_float_t *ahc_max_level;
-    hal_float_t *ahc_min_level;
+    uint32_t      prev_ahc_max_level;
+    hal_u32_t    *ahc_max_level;
+    uint32_t      prev_ahc_min_level;
+    hal_u32_t    *ahc_min_level;
     hal_u32_t   *control_mode;       // for state machine in risc
     hal_float_t *probe_retract_dist; // for risc probing
     hal_float_t *probe_vel;          // for risc probing
@@ -1634,24 +1636,37 @@ static void update_freq(void *arg, long period)
     }
     /* end: handle AHC state, AHC level */
 
-    /* begin: handle ahc max offset */
-    if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
-        int32_t max_offset, pos_scale;
-        stepgen = arg;
-        stepgen += atoi(ahc_joint_str);
-        pos_scale = (stepgen->pos_scale);
-        max_offset = *(machine_control->ahc_max_offset);
-        max_offset = max_offset >= 0? max_offset:0;
-        fprintf(stderr,"wou_stepgen.c: ahc_max_offset(%d) ahc_joint(%d) \n",
-                            (uint32_t)abs(max_offset * (pos_scale)),
-                            atoi(ahc_joint_str));
+    // obsolste: /* begin: handle ahc max offset */
+    // obsolste: if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
+    // obsolste:     int32_t max_offset, pos_scale;
+    // obsolste:     stepgen = arg;
+    // obsolste:     stepgen += atoi(ahc_joint_str);
+    // obsolste:     pos_scale = (stepgen->pos_scale);
+    // obsolste:     max_offset = *(machine_control->ahc_max_offset);
+    // obsolste:     max_offset = max_offset >= 0? max_offset:0;
+    // obsolste:     fprintf(stderr,"wou_stepgen.c: ahc_max_offset(%d) ahc_joint(%d) \n",
+    // obsolste:                         (uint32_t)abs(max_offset * (pos_scale)),
+    // obsolste:                         atoi(ahc_joint_str));
 
-        /* ahc max_offset */
-        write_machine_param(AHC_MAX_OFFSET, (uint32_t)
-                abs((max_offset)) * (pos_scale));
-        machine_control->prev_ahc_max_level = *(machine_control->ahc_max_level);
-    }
+    // obsolste:     /* ahc max_offset */
+    // obsolste:     write_machine_param(AHC_MAX_OFFSET, (uint32_t)
+    // obsolste:             abs((max_offset)) * (pos_scale));
+    // obsolste:     machine_control->prev_ahc_max_level = *(machine_control->ahc_max_level);
+    // obsolste: }
+    // obsolste: /* begin: process ahc limit control */
+
+    /* end: process ahc limit control */
     /* end: handle ahc max offset */
+    if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
+        fprintf(stderr,"wou_stepgen.c: ahc_max_level has been changed (%u) \n", *machine_control->ahc_max_level);
+        write_machine_param(AHC_LEVEL_MAX, (uint32_t)*(machine_control->ahc_max_level ));
+    }
+    machine_control->prev_ahc_max_level = *(machine_control->ahc_max_level);
+    if (*(machine_control->ahc_min_level) != (machine_control->prev_ahc_min_level)) { 
+        fprintf(stderr,"wou_stepgen.c: ahc_min_level has been changed (%u) \n", *machine_control->ahc_min_level);
+        write_machine_param(AHC_LEVEL_MIN, (uint32_t)*(machine_control->ahc_min_level ));
+    }
+    machine_control->prev_ahc_min_level = *(machine_control->ahc_min_level);
 
     /* begin: setup sync wait timeout */
     if (*machine_control->timeout != machine_control->prev_timeout) {
@@ -1714,6 +1729,7 @@ static void update_freq(void *arg, long period)
     }
     /* end: send application parameters */
 
+
     /* point at stepgen data */
     stepgen = arg;
 
@@ -1726,120 +1742,8 @@ static void update_freq(void *arg, long period)
 
     // num_joints: calculated from ctrl_type;
     /* loop thru generators */
-
     r_load_pos = 0;
     r_switch_en = 0;
-//TODO: RISC_HOMING:    r_index_en = prev_r_index_en;
-//    /* begin: homing logic */
-//    for (n = 0; n < num_joints; n++) {
-//	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
-//	    static hal_s32_t prev_switch_pos;
-//	    hal_s32_t switch_pos_tmp;
-////TODO: RISC_HOMING:	    hal_s32_t index_pos_tmp;
-//	    /* update home switch and motor index position while homing */
-//	    //TODO: to get switch pos and index pos from risc
-//	    memcpy((void *) &switch_pos_tmp,
-//		   wou_reg_ptr(&w_param,
-//			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
-////TODO: RISC_HOMING://	    memcpy((void *) &index_pos_tmp,
-////TODO: RISC_HOMING://		   wou_reg_ptr(&w_param,
-////TODO: RISC_HOMING://			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-//
-//	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
-////TODO: RISC_HOMING:	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
-//	    if(prev_switch_pos != switch_pos_tmp) {
-////                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
-//                prev_switch_pos = switch_pos_tmp;
-//	    }
-//
-//	    /* check if we should wait for HOME Switch Toggle */
-//	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
-//		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
-//		(*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
-//		(*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
-//		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT) ||
-//		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
-//		if (stepgen->prev_home_state != *stepgen->home_state) {
-//		    // set r_switch_en to locate SWITCH_POS
-//		    // r_switch_en is reset by HW
-//		    r_switch_en |= (1 << n);
-//
-//		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
-//                        immediate_data = SEARCH_HOME_HIGH;
-//                    } else if((*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT)) {
-//                        immediate_data = SEARCH_HOME_LOW;
-//                    } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
-//                        immediate_data = SEARCH_HOME_LOW;
-//                    } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
-//                        immediate_data = SEARCH_HOME_HIGH;
-//                    } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
-//                        immediate_data = SEARCH_HOME_LOW;
-//                    } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
-//                        immediate_data = SEARCH_INDEX;
-//
-//                    }
-//                    write_mot_param (n, (MOTION_TYPE), immediate_data);
-//
-//		}
-//
-//	    } else if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
-//	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
-//                if(normal_move_flag[n] == 1) {
-//                    immediate_data = NORMAL_MOVE;
-//                    write_mot_param (n, (MOTION_TYPE), immediate_data);
-//                    normal_move_flag[n] = 0;
-//                }
-//
-//                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
-//                (*stepgen->pos_cmd) = *(stepgen->pos_fb);
-//            } else if(*stepgen->home_state == HOME_START) {
-//                normal_move_flag[n] = 1;
-//            }
-//
-////TODO: RISC_HOMING:	    /* check if we should wait for Motor Index Toggle */
-////TODO: RISC_HOMING:	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
-////TODO: RISC_HOMING:		if (stepgen->prev_home_state != *stepgen->home_state) {
-////TODO: RISC_HOMING:		    // set r_index_en while getting into HOME_INDEX_SEARCH_WAIT state
-////TODO: RISC_HOMING:		    r_index_en |= (1 << n);
-////TODO: RISC_HOMING:		} else if (r_index_lock & (1 << n)) {
-////TODO: RISC_HOMING:		    // the motor index is locked
-////TODO: RISC_HOMING:		    // reset r_index_en by SW
-////TODO: RISC_HOMING:		    r_index_en &= (~(1 << n));	// reset index_en[n]
-////TODO: RISC_HOMING:		    *(stepgen->index_enable) = 0;
-////TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
-////TODO: RISC_HOMING://		                                    n, r_index_en, prev_r_index_en);
-////TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
-////TODO: RISC_HOMING://		                                    n, *(stepgen->index_pos), index_pos_tmp);
-////TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
-////TODO: RISC_HOMING://		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
-////TODO: RISC_HOMING:		}
-////TODO: RISC_HOMING://		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-////TODO: RISC_HOMING:	    }
-//
-//	    if (stepgen->prev_home_state == HOME_IDLE) {
-//                /**
-//                 * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
-//                 * INDEX_POS with enc_counter at beginning of homing
-//                 * (HOME_START state)
-//                 *
-//		 * reset to ZERO one cycle after setting this register
-//                 **/
-//		r_load_pos |= (1 << n);
-//                if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
-//                    /* accumulator gets a half step offset, so it will step half
-//                       way between integer positions, not at the integer positions */
-//                    stepgen->rawcount = *(stepgen->enc_pos);
-////                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
-//                }
-//                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
-//                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-//	    }
-//	}
-//        stepgen->prev_home_state = *stepgen->home_state;
-//	/* move on to next channel */
-//	stepgen++;
-//    }
-    /* enc: homing logic */
     /* check if we should update SWITCH/INDEX positions for HOMING */
     if (r_load_pos != 0) {
 	// issue a WOU_WRITE
@@ -1858,39 +1762,6 @@ static void update_freq(void *arg, long period)
 	wou_flush(&w_param);
     }
 
-//TODO: RISC_HOMING:    /* check if we should enable MOTOR Index Detection */
-//TODO: RISC_HOMING:    if (r_index_en != prev_r_index_en) {
-//TODO: RISC_HOMING:	// issue a WOU_WRITE
-//TODO: RISC_HOMING:	wou_cmd(&w_param,
-//TODO: RISC_HOMING:		WB_WR_CMD, SSIF_BASE | SSIF_INDEX_EN, 1, &r_index_en);
-//TODO: RISC_HOMING:	fprintf(stderr, "wou: r_index_en(0x%x)\n", r_index_en);
-//TODO: RISC_HOMING:	wou_flush(&w_param);
-//TODO: RISC_HOMING:	prev_r_index_en = r_index_en;
-//TODO: RISC_HOMING:    }
-
-//    pending_cnt += 1;
-//    if (pending_cnt == JNT_PER_WOF) {
-//        pending_cnt = 0;
-//
-//        // send WB_RD_CMD to read registers back
-//        /* TODO: replace switch pos and index pos with mailbox siwtch pos and index pos.
-//         *       Also clean index lock in risc.
-//        */
-//        wou_cmd (&w_param,
-//                WB_RD_CMD,
-//                (SSIF_BASE | SSIF_INDEX_LOCK),
-//                1,
-//                data);
-//
-//        wou_cmd (&w_param,
-//                WB_RD_CMD,
-//                (SSIF_BASE | SSIF_SWITCH_POS),
-//                16,
-//                data);
-//
-//        wou_flush(&w_param);
-//
-//    }
 
     // check wou.stepgen.00.enable signal directly
     stepgen = arg;
@@ -2681,21 +2552,22 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->ahc_max_offset) = 0;
 
-    retval =
-                hal_pin_float_newf(HAL_IN, &(machine_control->ahc_max_level), comp_id,
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->ahc_max_level), comp_id,
                                 "wou.ahc.max_level");
     if (retval != 0) {
             return retval;
     }
-    *(machine_control->ahc_max_level) = 0;
+    *(machine_control->ahc_max_level) = atoi(ahc_level_max_str);
+    machine_control->prev_ahc_max_level = *(machine_control)->ahc_max_level;
 
-    retval =
-                hal_pin_float_newf(HAL_IN, &(machine_control->ahc_min_level), comp_id,
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->ahc_min_level), comp_id,
                                 "wou.ahc.min_level");
     if (retval != 0) {
             return retval;
     }
-    *(machine_control->ahc_min_level) = 0;
+    
+    *(machine_control->ahc_min_level) = atoi(ahc_level_min_str);
+    machine_control->prev_ahc_min_level = *(machine_control)->ahc_min_level;
 
     /* wou command */
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
