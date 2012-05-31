@@ -877,6 +877,19 @@ static void process_probe_inputs(void)
 	}
         break;
     default:
+      if (emcmotStatus->probe_cmd == USB_CMD_PROBE_HIGH ||
+                      emcmotStatus->probe_cmd == USB_CMD_PROBE_LOW) {
+          if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
+              if (probe_suppress == 0) {  // just stop motion
+                  tpPause(&emcmotDebug->coord_tp);
+                  reportError("G38.X probe move finished without tripping probe");
+
+                  SET_MOTION_ERROR_FLAG(1);
+              }
+              emcmotStatus->probe_cmd = USB_CMD_NOOP;
+          }
+          break;
+      }
       break;
     }
 }

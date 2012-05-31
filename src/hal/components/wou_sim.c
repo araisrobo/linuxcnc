@@ -1999,6 +1999,7 @@ static void update_freq(void *arg, long period)
 
             // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
             (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
+            *(stepgen->pos_fb) = stepgen->prev_pos_cmd;
             stepgen->prev_vel_cmd = *stepgen->vel_cmd;
 
             if (stepgen->pos_mode == 0) {
