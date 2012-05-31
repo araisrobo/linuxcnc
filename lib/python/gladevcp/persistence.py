@@ -243,7 +243,8 @@ class IniFile(object):
                         raise Exception(error)
 
             except (IOError, TypeError,UselessIniError),msg:
-                warn("%s - creating default" % (msg))
+                # BUG: the warn stop the following action
+                # warn("%s - creating default" % (msg))
                 self.create_default_ini()
                 continue
 
