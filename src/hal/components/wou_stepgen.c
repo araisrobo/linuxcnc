@@ -779,10 +779,14 @@ static void fetchmail(const uint8_t *buf_head)
         break;
     case MT_PROBED_POS:
         stepgen = stepgen_array;
+        p = (uint32_t *) (buf_head + 4);
+
         for (i=0; i<num_joints; i++) {
             p += 1;
-            *(stepgen->probed_pos) = (double) (*p) * (stepgen->scale_recip);
+//            fprintf(stderr,"(%d) probed pos(%d)\n", i, (int32_t)*p);
+            *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
+
         }
         break;
         break;
