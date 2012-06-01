@@ -1,4 +1,4 @@
-linuxcnc (1:2.5.0-2012.05.09) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.05.31) lucid; urgency=low
 
   * UPDATE for USB command protocol for probing and homing.
 
