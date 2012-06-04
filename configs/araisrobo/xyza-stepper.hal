@@ -18,7 +18,12 @@ addf not.0  servo-thread
 
 # link usb command and status
 # (MUST add the following lines for USB-MOTION protocol)
-net usb-cmd wou.motion.cmd <= motion.wou.cmd
+net align-cmd wou.align-pos-cmd <=> motion.align-pos-cmd
+net usb-cmd wou.usb.cmd <= motion.usb.cmd
+net usb-cmd-param0 wou.usb.param-00 <= motion.usb.param-00
+net usb-cmd-param1 wou.usb.param-01 <= motion.usb.param-01
+net usb-cmd-param2 wou.usb.param-02 <= motion.usb.param-02
+net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
 

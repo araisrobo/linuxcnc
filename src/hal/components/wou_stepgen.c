@@ -384,6 +384,7 @@ typedef struct {
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
+    hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
@@ -420,6 +421,7 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
+    hal_bit_t *align_pos_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -498,9 +500,8 @@ typedef struct {
     hal_s32_t *app_param[16];
     int32_t prev_app_param[16];
     hal_bit_t *send_app_param; // IO: trigger parameters to be sent
-    //obsolete: hal_s32_t *encoder_count[8]; // encoder count from risc
-    //obsolete: hal_s32_t *pulse_count[8];
-    //obsolete: hal_s32_t *ferror[8];
+    hal_u32_t *usb_cmd;
+    hal_float_t *usb_cmd_param[4];
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -604,7 +605,6 @@ static void fetchmail(const uint8_t *buf_head)
             // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
-            // joint_cmd of this BP
             p += 1;
 #ifndef __ARMEL__
             // for unknown reason, the next expression will cause alignment
@@ -613,6 +613,8 @@ static void fetchmail(const uint8_t *buf_head)
             //TODO: confirm necessary: 
             *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
 #endif
+            p += 1;
+            *(stepgen->switch_pos) = (*p) * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
         }
 
@@ -735,14 +737,15 @@ static void fetchmail(const uint8_t *buf_head)
         p = (uint32_t *) (buf_head + 4);
         /* probe status */
         p += 1;
-        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
-            *machine_control->wou_status = *p;
-        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
-            // section report status normally
-            *machine_control->wou_status = *p;
-        } else {
-            *machine_control->wou_status = USB_STATUS_READY;
-        }
+//        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
+        *machine_control->wou_status = *p;
+//        fprintf(stderr,"usb status(0x%0X)\n", *p);
+//        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
+//            // section report status normally
+//            *machine_control->wou_status = *p;
+//        } else {
+//            *machine_control->wou_status = USB_STATUS_READY;
+//        }
         break;
 
     case MT_DEBUG:
@@ -801,7 +804,76 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 
     return;
 }
-
+static void write_usb_cmd(machine_control_t *mc)
+{
+  /* write parameters */
+  int32_t i,j,data, n;
+  uint8_t     buf[MAX_DSIZE];
+  uint16_t sync_cmd;
+  double pos_scale;
+  switch(*mc->usb_cmd) {
+  case PROBE_CMD_TYPE:
+    for (i=0; i<4; i++) {
+        fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*machine_control->usb_cmd_param[i]));
+        data = (int32_t)(*machine_control->usb_cmd_param[i]);
+        for(j=0; j<sizeof(int32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+            memcpy(buf, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                  sizeof(uint16_t), buf);
+        }
+    }
+    break;
+  case HOME_CMD_TYPE:
+    n = ((int32_t)(*machine_control->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
+    fprintf(stderr,"get home command for (%d) joint\n", n);
+    pos_scale   = fabs(atof(pos_scale_str[n]));
+    data = (int32_t)(*machine_control->usb_cmd_param[0]);
+    fprintf(stderr,"get home command param0 (0x%0X) joint\n", data);
+    for(j=0; j<sizeof(int32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+              sizeof(uint16_t), buf);
+    }
+    data = (int32_t)(*machine_control->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
+    fprintf(stderr,"get home command param1 (0x%0d) joint\n", data);
+    for(j=0; j<sizeof(int32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+              sizeof(uint16_t), buf);
+    }
+    data = (int32_t)(*machine_control->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
+    fprintf(stderr,"get home command param2 (0x%0d) joint\n", data);
+    for(j=0; j<sizeof(int32_t); j++) {
+        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+              sizeof(uint16_t), buf);
+    }
+    break;
+  default:
+    for (i=0; i<4; i++) {
+        data = (int32_t)(*machine_control->usb_cmd_param[i]);
+        for(j=0; j<sizeof(int32_t); j++) {
+            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+            memcpy(buf, &sync_cmd, sizeof(uint16_t));
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                  sizeof(uint16_t), buf);
+        }
+    }
+    break;
+  }
+  /* write command */
+  sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
+  memcpy(buf, &sync_cmd, sizeof(uint16_t));
+  wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+          sizeof(uint16_t), buf);
+  wou_flush(&w_param);
+  *mc->usb_cmd = 0;
+  return;
+}
 static void write_machine_param (uint32_t addr, int32_t data)
 {
     uint16_t    sync_cmd;
@@ -826,75 +898,75 @@ static void write_machine_param (uint32_t addr, int32_t data)
     return;
 }
 
-static void parse_usb_cmd (uint32_t usb_cmd)
-{
-    int i;
-    stepgen_t   *stepgen;
-
-    if (machine_control->a_cmd_on_going == 0) {
-
-        // issue a command relative to the usb_cmd
-        switch(usb_cmd) {
-        case USB_CMD_PROBE_HIGH:
-            machine_control->a_cmd_on_going = 1;
-            write_machine_param(PROBE_CMD, PROBE_HIGH);
-            break;
-        case USB_CMD_PROBE_LOW:
-            machine_control->a_cmd_on_going = 1;
-            write_machine_param(PROBE_CMD, PROBE_LOW);
-            break;
-        case USB_CMD_ABORT:  // for risc probing
-            fprintf(stderr,"output PROBE_END\n");
-            write_machine_param(PROBE_CMD, PROBE_END);
-            break;
-        }
-    } else if (usb_cmd == USB_CMD_STATUS_ACK){
-
-        // issue a command to clear or abort previous command
-        switch(machine_control->prev_wou_cmd) {
-        case USB_CMD_PROBE_HIGH:
-        case USB_CMD_PROBE_LOW:
-//            machine_control->a_cmd_on_going = 0;
-            fprintf(stderr,"output PROBE_END\n");
-            write_machine_param(PROBE_CMD, PROBE_END);
-            break;
-        }
-
-    } else if (usb_cmd == USB_CMD_ABORT) {
-        switch(machine_control->prev_wou_cmd) {
-            case USB_CMD_PROBE_HIGH:
-            case USB_CMD_PROBE_LOW:
-                machine_control->a_cmd_on_going = 0;
-                write_machine_param(PROBE_CMD, PROBE_END);
-            break;
-        }
-
-    } else if (usb_cmd == USB_CMD_NOOP) {
-        machine_control->a_cmd_on_going = 0;
-        write_machine_param(PROBE_CMD, PROBE_STOP_REPORT);
-        *machine_control->wou_status = USB_STATUS_READY;
-    } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
-        // align prev pos cmd and pos cmd;
-        // machine_control->a_cmd_on_going = 0;
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-            stepgen++;
-        }
-    } else {
-        fprintf(stderr, "issue command while another command is ongoing.\n");
-        assert(0);
-    }
-    if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
-    // align prev pos cmd and pos cmd;
-    // machine_control->a_cmd_on_going = 0;
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-            stepgen++;
-        }
-    }
-}
+//static void parse_usb_cmd (uint32_t usb_cmd)
+//{
+//    int i;
+//    stepgen_t   *stepgen;
+//
+//    if (machine_control->a_cmd_on_going == 0) {
+//
+//        // issue a command relative to the usb_cmd
+//        switch(usb_cmd) {
+//        case USB_CMD_PROBE_HIGH:
+//            machine_control->a_cmd_on_going = 1;
+//            write_machine_param(PROBE_CMD, PROBE_HIGH);
+//            break;
+//        case USB_CMD_PROBE_LOW:
+//            machine_control->a_cmd_on_going = 1;
+//            write_machine_param(PROBE_CMD, PROBE_LOW);
+//            break;
+//        case USB_CMD_ABORT:  // for risc probing
+//            fprintf(stderr,"output PROBE_END\n");
+//            write_machine_param(PROBE_CMD, PROBE_END);
+//            break;
+//        }
+//    } else if (usb_cmd == USB_CMD_STATUS_ACK){
+//
+//        // issue a command to clear or abort previous command
+//        switch(machine_control->prev_wou_cmd) {
+//        case USB_CMD_PROBE_HIGH:
+//        case USB_CMD_PROBE_LOW:
+////            machine_control->a_cmd_on_going = 0;
+//            fprintf(stderr,"output PROBE_END\n");
+//            write_machine_param(PROBE_CMD, PROBE_END);
+//            break;
+//        }
+//
+//    } else if (usb_cmd == USB_CMD_ABORT) {
+//        switch(machine_control->prev_wou_cmd) {
+//            case USB_CMD_PROBE_HIGH:
+//            case USB_CMD_PROBE_LOW:
+//                machine_control->a_cmd_on_going = 0;
+//                write_machine_param(PROBE_CMD, PROBE_END);
+//            break;
+//        }
+//
+//    } else if (usb_cmd == USB_CMD_NOOP) {
+//        machine_control->a_cmd_on_going = 0;
+//        write_machine_param(PROBE_CMD, PROBE_STOP_REPORT);
+//        *machine_control->wou_status = USB_STATUS_READY;
+//    } else if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
+//        // align prev pos cmd and pos cmd;
+//        // machine_control->a_cmd_on_going = 0;
+//        stepgen = stepgen_array;
+//        for (i=0; i<num_joints; i++) {
+//            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+//            stepgen++;
+//        }
+//    } else {
+//        fprintf(stderr, "issue command while another command is ongoing.\n");
+//        assert(0);
+//    }
+//    if (usb_cmd == USB_CMD_WOU_CMD_SYNC)  {
+//    // align prev pos cmd and pos cmd;
+//    // machine_control->a_cmd_on_going = 0;
+//        stepgen = stepgen_array;
+//        for (i=0; i<num_joints; i++) {
+//            stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+//            stepgen++;
+//        }
+//    }
+//}
 
 /***********************************************************************
 *                       INIT AND EXIT CODE                             *
@@ -1239,9 +1311,9 @@ int rtapi_app_main(void)
         // assert(immediate_data > 0);
         write_mot_param (n, (PROBE_DECEL_CMD), immediate_data);
 
-        // set move type as normal by default
-        immediate_data = NORMAL_MOVE;
-        write_mot_param (n, (MOTION_TYPE), immediate_data);
+//        // set move type as normal by default
+//        immediate_data = NORMAL_MOVE;
+//        write_mot_param (n, (MOTION_TYPE), immediate_data);
     }
 
     // config PID parameter
@@ -1515,13 +1587,20 @@ static void update_freq(void *arg, long period)
     /* end: */
 
     /* begin: handle usb cmd */
-    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
-        // call api to parse wou_cmd to risc
-        parse_usb_cmd (*machine_control->wou_cmd);
-        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
-                machine_control->prev_wou_cmd);
+    /* OLD ONE */
+//    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
+//        // call api to parse wou_cmd to risc
+//        parse_usb_cmd (*machine_control->wou_cmd);
+//        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
+//                machine_control->prev_wou_cmd);
+//    }
+//    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
+    /* NEW ONE*/
+    if (*machine_control->usb_cmd != 0) {
+        write_usb_cmd(machine_control);
+        *machine_control->usb_cmd = 0; // reset usb_cmd
     }
-    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
+
     /* end: handle usb cmd */
 
     /* begin: handle AHC state, AHC level */
@@ -1641,115 +1720,115 @@ static void update_freq(void *arg, long period)
     r_load_pos = 0;
     r_switch_en = 0;
 //TODO: RISC_HOMING:    r_index_en = prev_r_index_en;
-    /* begin: homing logic */
-    for (n = 0; n < num_joints; n++) {
-	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
-	    static hal_s32_t prev_switch_pos;
-	    hal_s32_t switch_pos_tmp;
-//TODO: RISC_HOMING:	    hal_s32_t index_pos_tmp;
-	    /* update home switch and motor index position while homing */
-	    //TODO: to get switch pos and index pos from risc
-	    memcpy((void *) &switch_pos_tmp,
-		   wou_reg_ptr(&w_param,
-			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
-//TODO: RISC_HOMING://	    memcpy((void *) &index_pos_tmp,
-//TODO: RISC_HOMING://		   wou_reg_ptr(&w_param,
-//TODO: RISC_HOMING://			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
-
-	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
-//TODO: RISC_HOMING:	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
-	    if(prev_switch_pos != switch_pos_tmp) {
-//                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
-                prev_switch_pos = switch_pos_tmp;
-	    }
-
-	    /* check if we should wait for HOME Switch Toggle */
-	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
-		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
-		(*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT) ||
-		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
-		if (stepgen->prev_home_state != *stepgen->home_state) {
-		    // set r_switch_en to locate SWITCH_POS
-		    // r_switch_en is reset by HW
-		    r_switch_en |= (1 << n);
-
-		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
-                        immediate_data = SEARCH_HOME_HIGH;
-                    } else if((*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT)) {
-                        immediate_data = SEARCH_HOME_LOW;
-                    } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
-                        immediate_data = SEARCH_HOME_LOW;
-                    } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
-                        immediate_data = SEARCH_HOME_HIGH;
-                    } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
-                        immediate_data = SEARCH_HOME_LOW;
-                    } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
-                        immediate_data = SEARCH_INDEX;
-
-                    }
-                    write_mot_param (n, (MOTION_TYPE), immediate_data);
-
-		}
-
-	    } else if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
-	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
-                if(normal_move_flag[n] == 1) {
-                    immediate_data = NORMAL_MOVE;
-                    write_mot_param (n, (MOTION_TYPE), immediate_data);
-                    normal_move_flag[n] = 0;
-                }
-
-                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
-                (*stepgen->pos_cmd) = *(stepgen->pos_fb);
-            } else if(*stepgen->home_state == HOME_START) {
-                normal_move_flag[n] = 1;
-            }
-
-//TODO: RISC_HOMING:	    /* check if we should wait for Motor Index Toggle */
-//TODO: RISC_HOMING:	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
-//TODO: RISC_HOMING:		if (stepgen->prev_home_state != *stepgen->home_state) {
-//TODO: RISC_HOMING:		    // set r_index_en while getting into HOME_INDEX_SEARCH_WAIT state
-//TODO: RISC_HOMING:		    r_index_en |= (1 << n);
-//TODO: RISC_HOMING:		} else if (r_index_lock & (1 << n)) {
-//TODO: RISC_HOMING:		    // the motor index is locked
-//TODO: RISC_HOMING:		    // reset r_index_en by SW
-//TODO: RISC_HOMING:		    r_index_en &= (~(1 << n));	// reset index_en[n]
-//TODO: RISC_HOMING:		    *(stepgen->index_enable) = 0;
-//TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
-//TODO: RISC_HOMING://		                                    n, r_index_en, prev_r_index_en);
-//TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
-//TODO: RISC_HOMING://		                                    n, *(stepgen->index_pos), index_pos_tmp);
-//TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
-//TODO: RISC_HOMING://		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
-//TODO: RISC_HOMING:		}
-//TODO: RISC_HOMING://		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-//TODO: RISC_HOMING:	    }
-
-	    if (stepgen->prev_home_state == HOME_IDLE) {
-                /**
-                 * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
-                 * INDEX_POS with enc_counter at beginning of homing
-                 * (HOME_START state)
-                 *
-		 * reset to ZERO one cycle after setting this register
-                 **/
-		r_load_pos |= (1 << n);
-                if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
-                    /* accumulator gets a half step offset, so it will step half
-                       way between integer positions, not at the integer positions */
-                    stepgen->rawcount = *(stepgen->enc_pos);
-//                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
-                }
-                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
-                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
-	    }
-	}
-        stepgen->prev_home_state = *stepgen->home_state;
-	/* move on to next channel */
-	stepgen++;
-    }
+//    /* begin: homing logic */
+//    for (n = 0; n < num_joints; n++) {
+//	if ((*stepgen->home_state != HOME_IDLE) && stepgen->pos_mode) {
+//	    static hal_s32_t prev_switch_pos;
+//	    hal_s32_t switch_pos_tmp;
+////TODO: RISC_HOMING:	    hal_s32_t index_pos_tmp;
+//	    /* update home switch and motor index position while homing */
+//	    //TODO: to get switch pos and index pos from risc
+//	    memcpy((void *) &switch_pos_tmp,
+//		   wou_reg_ptr(&w_param,
+//			       SSIF_BASE + SSIF_SWITCH_POS + n * 4), 4);
+////TODO: RISC_HOMING://	    memcpy((void *) &index_pos_tmp,
+////TODO: RISC_HOMING://		   wou_reg_ptr(&w_param,
+////TODO: RISC_HOMING://			       SSIF_BASE + SSIF_INDEX_POS + n * 4), 4);
+//
+//	    *(stepgen->switch_pos) = switch_pos_tmp * stepgen->scale_recip;
+////TODO: RISC_HOMING:	    *(stepgen->index_pos) = index_pos_tmp * stepgen->scale_recip;
+//	    if(prev_switch_pos != switch_pos_tmp) {
+////                fprintf(stderr, "wou: switch_pos(0x%04X)\n",switch_pos_tmp);
+//                prev_switch_pos = switch_pos_tmp;
+//	    }
+//
+//	    /* check if we should wait for HOME Switch Toggle */
+//	    if ((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT) ||
+//		(*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT) ||
+//		(*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT) ||
+//		(*stepgen->home_state == HOME_RISE_SEARCH_WAIT) ||
+//		(*stepgen->home_state == HOME_FALL_SEARCH_WAIT) ||
+//		(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT)) {
+//		if (stepgen->prev_home_state != *stepgen->home_state) {
+//		    // set r_switch_en to locate SWITCH_POS
+//		    // r_switch_en is reset by HW
+//		    r_switch_en |= (1 << n);
+//
+//		    if((*stepgen->home_state == HOME_INITIAL_SEARCH_WAIT)) {
+//                        immediate_data = SEARCH_HOME_HIGH;
+//                    } else if((*stepgen->home_state == HOME_FINAL_BACKOFF_WAIT)) {
+//                        immediate_data = SEARCH_HOME_LOW;
+//                    } else if((*stepgen->home_state == HOME_INITIAL_BACKOFF_WAIT)) {
+//                        immediate_data = SEARCH_HOME_LOW;
+//                    } else if((*stepgen->home_state == HOME_RISE_SEARCH_WAIT)) {
+//                        immediate_data = SEARCH_HOME_HIGH;
+//                    } else if ((*stepgen->home_state == HOME_FALL_SEARCH_WAIT)) {
+//                        immediate_data = SEARCH_HOME_LOW;
+//                    } else if(*stepgen->home_state == HOME_INDEX_SEARCH_WAIT){
+//                        immediate_data = SEARCH_INDEX;
+//
+//                    }
+//                    write_mot_param (n, (MOTION_TYPE), immediate_data);
+//
+//		}
+//
+//	    } else if ((*stepgen->home_state == HOME_SET_SWITCH_POSITION) ||
+//	                (*stepgen->home_state == HOME_SET_INDEX_POSITION)) {
+//                if(normal_move_flag[n] == 1) {
+//                    immediate_data = NORMAL_MOVE;
+//                    write_mot_param (n, (MOTION_TYPE), immediate_data);
+//                    normal_move_flag[n] = 0;
+//                }
+//
+//                (stepgen->prev_pos_cmd) = *(stepgen->pos_fb);
+//                (*stepgen->pos_cmd) = *(stepgen->pos_fb);
+//            } else if(*stepgen->home_state == HOME_START) {
+//                normal_move_flag[n] = 1;
+//            }
+//
+////TODO: RISC_HOMING:	    /* check if we should wait for Motor Index Toggle */
+////TODO: RISC_HOMING:	    if (*stepgen->home_state == HOME_INDEX_SEARCH_WAIT) {
+////TODO: RISC_HOMING:		if (stepgen->prev_home_state != *stepgen->home_state) {
+////TODO: RISC_HOMING:		    // set r_index_en while getting into HOME_INDEX_SEARCH_WAIT state
+////TODO: RISC_HOMING:		    r_index_en |= (1 << n);
+////TODO: RISC_HOMING:		} else if (r_index_lock & (1 << n)) {
+////TODO: RISC_HOMING:		    // the motor index is locked
+////TODO: RISC_HOMING:		    // reset r_index_en by SW
+////TODO: RISC_HOMING:		    r_index_en &= (~(1 << n));	// reset index_en[n]
+////TODO: RISC_HOMING:		    *(stepgen->index_enable) = 0;
+////TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_en(0x%02X) prev_r_index_en(0x%02X)\n",
+////TODO: RISC_HOMING://		                                    n, r_index_en, prev_r_index_en);
+////TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] index_pos(%f) INDEX_POS(0x%08X)\n",
+////TODO: RISC_HOMING://		                                    n, *(stepgen->index_pos), index_pos_tmp);
+////TODO: RISC_HOMING://		    rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: J[%d] switch_pos(%f) SWITCH_POS(0x%08X)\n",
+////TODO: RISC_HOMING://		                                    n, *(stepgen->switch_pos), switch_pos_tmp);
+////TODO: RISC_HOMING:		}
+////TODO: RISC_HOMING://		stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+////TODO: RISC_HOMING:	    }
+//
+//	    if (stepgen->prev_home_state == HOME_IDLE) {
+//                /**
+//                 * r_load_pos: set to ONE to load PULSE_POS, SWITCH_POS, and
+//                 * INDEX_POS with enc_counter at beginning of homing
+//                 * (HOME_START state)
+//                 *
+//		 * reset to ZERO one cycle after setting this register
+//                 **/
+//		r_load_pos |= (1 << n);
+//                if (*(stepgen->enc_pos) != *(stepgen->pulse_pos)) {
+//                    /* accumulator gets a half step offset, so it will step half
+//                       way between integer positions, not at the integer positions */
+//                    stepgen->rawcount = *(stepgen->enc_pos);
+////                    (stepgen->prev_pos_cmd) = (double) (stepgen->rawcount) * stepgen->scale_recip;
+//                }
+//                fprintf(stderr, "j[%d] enc_counter(%d) pulse_pos(%d)\n",
+//                        n/*, stepgen->accum*/, *(stepgen->enc_pos), *(stepgen->pulse_pos));
+//	    }
+//	}
+//        stepgen->prev_home_state = *stepgen->home_state;
+//	/* move on to next channel */
+//	stepgen++;
+//    }
     /* enc: homing logic */
     /* check if we should update SWITCH/INDEX positions for HOMING */
     if (r_load_pos != 0) {
@@ -1779,29 +1858,29 @@ static void update_freq(void *arg, long period)
 //TODO: RISC_HOMING:	prev_r_index_en = r_index_en;
 //TODO: RISC_HOMING:    }
 
-    pending_cnt += 1;
-    if (pending_cnt == JNT_PER_WOF) {
-        pending_cnt = 0;
-
-        // send WB_RD_CMD to read registers back
-        /* TODO: replace switch pos and index pos with mailbox siwtch pos and index pos.
-         *       Also clean index lock in risc.
-        */
-        wou_cmd (&w_param,
-                WB_RD_CMD,
-                (SSIF_BASE | SSIF_INDEX_LOCK),
-                1,
-                data);
-
-        wou_cmd (&w_param,
-                WB_RD_CMD,
-                (SSIF_BASE | SSIF_SWITCH_POS),
-                16,
-                data);
-
-        wou_flush(&w_param);
-
-    }
+//    pending_cnt += 1;
+//    if (pending_cnt == JNT_PER_WOF) {
+//        pending_cnt = 0;
+//
+//        // send WB_RD_CMD to read registers back
+//        /* TODO: replace switch pos and index pos with mailbox siwtch pos and index pos.
+//         *       Also clean index lock in risc.
+//        */
+//        wou_cmd (&w_param,
+//                WB_RD_CMD,
+//                (SSIF_BASE | SSIF_INDEX_LOCK),
+//                1,
+//                data);
+//
+//        wou_cmd (&w_param,
+//                WB_RD_CMD,
+//                (SSIF_BASE | SSIF_SWITCH_POS),
+//                16,
+//                data);
+//
+//        wou_flush(&w_param);
+//
+//    }
 
     // check wou.stepgen.00.enable signal directly
     stepgen = arg;
@@ -1812,8 +1891,8 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_joints; i++) {
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
-                immediate_data = NORMAL_MOVE;
-                write_mot_param (i, (MOTION_TYPE), immediate_data);
+//                immediate_data = NORMAL_MOVE;
+//                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
 
         } else {
@@ -1954,7 +2033,18 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
 	    /* position command mode */
+	    if (*machine_control->align_pos_cmd == 1) {
+	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
+	    }
 	    stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+//	    if (n==0) {
+//	        fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",
+//	                                n ,
+//	                                (*stepgen->pos_cmd),
+//	                                (stepgen->prev_pos_cmd),
+//	                                *stepgen->home_state,
+//	                                stepgen->vel_cmd);
+//	    }
 	} else {
 	    /* velocity command mode */
 	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
@@ -2106,6 +2196,7 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
+//    *machine_control->align_pos_cmd = 0;
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     sync_cmd = SYNC_VEL;
@@ -2296,6 +2387,7 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
 	return retval;
     }
 
+
     /* export parameter to obtain homing state */
     retval = hal_pin_s32_newf(HAL_IN, &(addr->home_state), comp_id,
 			      "wou.stepgen.%d.home-state", num);
@@ -2437,7 +2529,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     return 0;
 }
 
-
 static int export_machine_control(machine_control_t * machine_control)
 {
     int i, retval, msg;
@@ -2481,6 +2572,11 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->cl_abort) = 0;
 
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->align_pos_cmd), comp_id,
+                                    "wou.align-pos-cmd");
+    if (retval != 0) {
+        return retval;
+    }
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
@@ -2581,24 +2677,6 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->ahc_min_level) = 0;
 
-    /* auto height control switches */
-// TODO: replace by CL
-//    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->thc_enbable), comp_id,
-//                                "wou.thc_enable");
-//    if (retval != 0) {
-//        return retval;
-//    } else {
-//        *machine_control->thc_enbable = 1; // default enabled
-//    }
-// TODO: replace by CL
-//    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->plasma_enable), comp_id,
-//                            "wou.plasma_enable");
-//    if (retval != 0) {
-//        return retval;
-//    } else {
-//        *machine_control->plasma_enable = 1;    // default enabled
-//    }
-
     /* wou command */
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
                              "wou.motion.cmd");
@@ -2608,6 +2686,22 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
+    /* usb command */
+    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->usb_cmd), comp_id,
+                             "wou.usb.cmd");
+    *(machine_control->usb_cmd) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
+    for (i = 0; i < 4; i++) {
+        retval =
+            hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id,
+                             "wou.usb.param-%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->usb_cmd_param[i]) = 0;
+    }
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id,
                              "wou.motion.status");
     *(machine_control->wou_status) = 0;    // pin index must not beyond index
@@ -2714,26 +2808,6 @@ static int export_machine_control(machine_control_t * machine_control)
         }
         *(machine_control->app_param[i]) = 0;
     }
-
-    //obsolete: assert(actual_joint_num<=8);
-    //obsolete: for (i=0; i<actual_joint_num; i++) {
-    //obsolete:     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->encoder_count[i]), comp_id,
-    //obsolete:             "wou.risc.motion.joint.encoder-count.%02d", i);
-    //obsolete:     *(machine_control->encoder_count[i]) = 0;
-
-    //obsolete: }
-    //obsolete: for (i=0; i<actual_joint_num; i++) {
-    //obsolete:     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->pulse_count[i]), comp_id,
-    //obsolete:             "wou.risc.motion.joint.pulse-count.%02d", i);
-    //obsolete:     *(machine_control->pulse_count[i]) = 0;
-
-    //obsolete: }
-    //obsolete: for (i=0; i<actual_joint_num; i++) {
-    //obsolete:     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->ferror[i]), comp_id,
-    //obsolete:             "wou.risc.motion.joint.ferror.%02d", i);
-    //obsolete:     *(machine_control->ferror[i]) = 0;
-
-    //obsolete: }
 
     machine_control->prev_out = 0;
 
