@@ -2,6 +2,7 @@
 
 ./autogen.sh
 
+#sim with X:
 #sim: ./configure --enable-simulator \
 #sim:             --enable-build-documentation=no
 
@@ -10,6 +11,7 @@
 ./configure --enable-simulator \
 	    --enable-build-documentation=no \
 	    --disable-gtk --without-x
+
 # install to /opt/emc2:
 # ./configure --prefix=/opt/emc2 --enable-simulator \
 #             --enable-build-documentation=no
