@@ -2,14 +2,14 @@
 
 ./autogen.sh
 
-#sim with X
-./configure --enable-simulator \
+# #sim with X
+# ./configure --enable-simulator \
             --enable-build-documentation=no
 
 #sim-nox:
-# ./configure --enable-simulator \
-# 	    --enable-build-documentation=no \
-# 	    --disable-gtk --without-x
+./configure --enable-simulator \
+	    --enable-build-documentation=no \
+	    --disable-gtk --without-x
 
 CONCURRENCY_LEVEL=`getconf _NPROCESSORS_ONLN`
 echo "make -j${CONCURRENCY_LEVEL}"
