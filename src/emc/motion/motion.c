@@ -569,7 +569,7 @@ static int export_joint(int num, joint_hal_t * addr)
         if ((hal_pin_bit_newf(HAL_OUT, &(addr->unlock), mot_comp_id, "joint.%d.unlock", num)) != 0) return retval;
         if ((hal_pin_bit_newf(HAL_IN, &(addr->is_unlocked), mot_comp_id, "joint.%d.is-unlocked", num)) != 0) return retval;
     }
-
+    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->probed_pos), mot_comp_id, "joint.%d.probed-pos", num)) != 0) return retval;
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;

@@ -470,7 +470,6 @@ int Interp::find_current_in_system(setup_pointer s, int system,
                                    double *a, double *b, double *c,
                                    double *u, double *v, double *w) {
     double *p = s->parameters;
-
     *x = s->current_x;
     *y = s->current_y;
     *z = s->current_z;

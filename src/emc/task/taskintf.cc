@@ -31,6 +31,8 @@
 #include "iniaxis.hh"
 #include "inijoint.hh"
 #include "initraj.hh"
+#include "task.hh"
+
 
 /* define this to catch isnan errors, for rtlinux FPU register 
    problem testing */
@@ -90,6 +92,8 @@ static int localMotionEchoSerialNumber = 0;
   In emcmot, we need to set the cycle time for traj, and the interpolation
   rate, in any order, but both need to be done. 
  */
+
+
 
 /*! functions involving joints */
 
@@ -555,6 +559,16 @@ int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
     return 0;
 }
 
+void checkPlanSyncReq(void) {
+  // TODO: check sync req flag from emcmotStatus and issue
+//         emcTaskPlanSynch?
+    if (emcmotStatus.update_current_pos_flag == 1) {
+        emcmotStatus.update_current_pos_flag = 0;
+        EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
+        emcTaskQueueCommand(&taskPlanSynchCmd);
+    }
+  return;
+}
 /* This function checks to see if any joint or the traj has
    been inited already.  At startup, if none have been inited,
    usrmotIniLoad and usrmotInit must be called first.  At

@@ -555,6 +555,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 				   to set position to zero during homing */
 	double motor_offset_fb;
 	int old_jog_counts;	/* prior value, used for deltas */
+	double probed_pos;
     } emcmot_joint_t;
 
 /* This structure contains only the "status" data associated with
@@ -635,7 +636,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 */
 
     typedef struct emcmot_status_t {
+        int update_current_pos_flag;
         uint32_t usb_cmd;
+        uint32_t special_cmd;
         uint32_t probe_cmd;
         double usb_cmd_param[4];
         uint32_t usb_status;
@@ -668,7 +671,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	home_sequence_state_t homingSequenceState;
 	emcmot_joint_status_t joint_status[EMCMOT_MAX_JOINTS];	/* all joint status data */
         emcmot_axis_status_t axis_status[EMCMOT_MAX_AXIS];	/* all axis status data */
-
+        double probed_joint_pos[EMCMOT_MAX_JOINTS];
 	int on_soft_limit;	/* non-zero if any joint is on soft limit */
 
 //obsolete:	int probeVal;		/* debounced value of probe input */

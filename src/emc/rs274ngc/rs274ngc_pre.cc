@@ -1906,10 +1906,9 @@ int Interp::synch()
 
   // read_inputs(&_setup); // input/probe/toolchange 
 
-  //debug: printf("debug: synch():\n");
-  //debug: printf("\tnew: current_x(%f) current_y(%f)\n", _setup.current_x, _setup.current_y);
-  //debug: printf("\tnew: program_x(%f) program_y(%f)\n", _setup.program_x, _setup.program_y);
-
+  // debug: printf("debug: synch():\n");
+  // debug: printf("\tnew: current_x(%f) current_y(%f)\n", _setup.current_x, _setup.current_y);
+  // debug: printf("\tnew: program_x(%f) program_y(%f)\n", _setup.program_x, _setup.program_y);
   return INTERP_OK;
 }
 
