@@ -885,8 +885,10 @@ static void write_usb_cmd(machine_control_t *mc)
     }
     break;
   default:
+
     for (i=0; i<4; i++) {
         data = (int32_t)(*machine_control->usb_cmd_param[i]);
+        fprintf(stderr,"get unhandled command param%d (0x%0d) joint\n", i, data);
         for(j=0; j<sizeof(int32_t); j++) {
             sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
             memcpy(buf, &sync_cmd, sizeof(uint16_t));
