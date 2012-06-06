@@ -766,9 +766,13 @@ static void process_probe_inputs(void)
         }
         if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
+            if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
+                // do resend if necessary
+                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+                emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+                emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+            }
         } else {
-//            KINEMATICS_FORWARD_FLAGS fflags = 0;
-//            KINEMATICS_INVERSE_FLAGS iflags = 0;
             int32_t i = 0, joint_num;
             emcmot_joint_t *joint;
             double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
@@ -806,6 +810,12 @@ static void process_probe_inputs(void)
         }
         if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
+            if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
+                // do resend if necessary
+                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+                emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+                emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+            }
         } else {
           fprintf(stderr,"controlc.: send USB_CMD_STATUS_ACK()\n");
           emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
