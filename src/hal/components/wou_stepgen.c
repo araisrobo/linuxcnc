@@ -845,17 +845,16 @@ static void write_usb_cmd(machine_control_t *mc)
   uint16_t sync_cmd;
   double pos_scale;
 
-  if(*mc->usb_cmd) {
     switch(*mc->usb_cmd) {
     case PROBE_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
       for (i=0; i<4; i++) {
-          *machine_control->last_usb_cmd_param[i] =
-              *machine_control->usb_cmd_param[i];
+          *mc->last_usb_cmd_param[i] =
+              *mc->usb_cmd_param[i];
       }
       for (i=0; i<4; i++) {
-          fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*machine_control->usb_cmd_param[i]));
-          data = (int32_t)(*machine_control->usb_cmd_param[i]);
+          fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
+          data = (int32_t)(*mc->usb_cmd_param[i]);
           for(j=0; j<sizeof(int32_t); j++) {
               sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
               memcpy(buf, &sync_cmd, sizeof(uint16_t));
@@ -873,13 +872,13 @@ static void write_usb_cmd(machine_control_t *mc)
     case HOME_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
       for (i=0; i<4; i++) {
-          *machine_control->last_usb_cmd_param[i] =
-              *machine_control->usb_cmd_param[i];
+          *mc->last_usb_cmd_param[i] =
+              *mc->usb_cmd_param[i];
       }
-      n = ((int32_t)(*machine_control->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
+      n = ((int32_t)(*mc->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
       fprintf(stderr,"get home command for (%d) joint\n", n);
       pos_scale   = fabs(atof(pos_scale_str[n]));
-      data = (int32_t)(*machine_control->usb_cmd_param[0]);
+      data = (int32_t)(*mc->usb_cmd_param[0]);
       fprintf(stderr,"get home command param0 (0x%0X) joint\n", data);
       for(j=0; j<sizeof(int32_t); j++) {
           sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -887,7 +886,7 @@ static void write_usb_cmd(machine_control_t *mc)
           wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
       }
-      data = (int32_t)(*machine_control->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
+      data = (int32_t)(*mc->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
       fprintf(stderr,"get home command param1 (0x%0d) joint\n", data);
       for(j=0; j<sizeof(int32_t); j++) {
           sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -895,7 +894,7 @@ static void write_usb_cmd(machine_control_t *mc)
           wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
       }
-      data = (int32_t)(*machine_control->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
+      data = (int32_t)(*mc->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
       fprintf(stderr,"get home command param2 (0x%0d) joint\n", data);
       for(j=0; j<sizeof(int32_t); j++) {
           sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -914,8 +913,6 @@ static void write_usb_cmd(machine_control_t *mc)
       // do nothing, don't write command if it is invalid.
       break;
     }
-
-  }
   *mc->usb_cmd = 0;
   return;
 }
@@ -1837,16 +1834,12 @@ static void update_freq(void *arg, long period)
 	    if (*machine_control->align_pos_cmd == 1 ||
 	       *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
+//	        fprintf(stderr,"ignore_host_cmd(%d) align_pos_cmd(%d)\n",
+//	            *machine_control->ignore_host_cmd, *machine_control->align_pos_cmd);
+
 	    }
 	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
-//	    if (n==0) {
-//	        fprintf(stderr,"j(%d) pos_cmd(%f) prev_pos_cmd(%f) home_state(%d) vel_cmd(%f)\n",
-//	                                n ,
-//	                                (*stepgen->pos_cmd),
-//	                                (stepgen->prev_pos_cmd),
-//	                                *stepgen->home_state,
-//	                                stepgen->vel_cmd);
-//	    }
+
 	} else {
 	    /* velocity command mode */
 	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
