@@ -300,7 +300,7 @@ static int init_hal_io(void)
 
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->align_pos_cmd), mot_comp_id, "motion.align-pos-cmd")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_IO, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.usb.cmd")) < 0) goto error;
-    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.usb.last-cmd")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->last_usb_cmd), mot_comp_id, "motion.usb.last-cmd")) < 0) goto error;
     for (n=0;n<4;n++) {
           if ((retval = hal_pin_float_newf(HAL_OUT,
               &(emcmot_hal_data->usb_cmd_param[n]),

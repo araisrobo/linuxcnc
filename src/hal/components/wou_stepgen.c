@@ -844,75 +844,78 @@ static void write_usb_cmd(machine_control_t *mc)
   uint8_t     buf[MAX_DSIZE];
   uint16_t sync_cmd;
   double pos_scale;
+
   if(*mc->usb_cmd) {
+    switch(*mc->usb_cmd) {
+    case PROBE_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
       for (i=0; i<4; i++) {
           *machine_control->last_usb_cmd_param[i] =
               *machine_control->usb_cmd_param[i];
       }
-  }
-  switch(*mc->usb_cmd) {
-  case PROBE_CMD_TYPE:
-    for (i=0; i<4; i++) {
-        fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*machine_control->usb_cmd_param[i]));
-        data = (int32_t)(*machine_control->usb_cmd_param[i]);
-        for(j=0; j<sizeof(int32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-            memcpy(buf, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                  sizeof(uint16_t), buf);
-        }
-    }
-    break;
-  case HOME_CMD_TYPE:
-    n = ((int32_t)(*machine_control->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
-    fprintf(stderr,"get home command for (%d) joint\n", n);
-    pos_scale   = fabs(atof(pos_scale_str[n]));
-    data = (int32_t)(*machine_control->usb_cmd_param[0]);
-    fprintf(stderr,"get home command param0 (0x%0X) joint\n", data);
-    for(j=0; j<sizeof(int32_t); j++) {
-        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+      for (i=0; i<4; i++) {
+          fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*machine_control->usb_cmd_param[i]));
+          data = (int32_t)(*machine_control->usb_cmd_param[i]);
+          for(j=0; j<sizeof(int32_t); j++) {
+              sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+              memcpy(buf, &sync_cmd, sizeof(uint16_t));
+              wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), buf);
+          }
+      }
+      /* write command */
+        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-              sizeof(uint16_t), buf);
-    }
-    data = (int32_t)(*machine_control->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
-    fprintf(stderr,"get home command param1 (0x%0d) joint\n", data);
-    for(j=0; j<sizeof(int32_t); j++) {
-        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+                sizeof(uint16_t), buf);
+        wou_flush(&w_param);
+      break;
+    case HOME_CMD_TYPE:
+      *mc->last_usb_cmd = *mc->usb_cmd;
+      for (i=0; i<4; i++) {
+          *machine_control->last_usb_cmd_param[i] =
+              *machine_control->usb_cmd_param[i];
+      }
+      n = ((int32_t)(*machine_control->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
+      fprintf(stderr,"get home command for (%d) joint\n", n);
+      pos_scale   = fabs(atof(pos_scale_str[n]));
+      data = (int32_t)(*machine_control->usb_cmd_param[0]);
+      fprintf(stderr,"get home command param0 (0x%0X) joint\n", data);
+      for(j=0; j<sizeof(int32_t); j++) {
+          sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+          memcpy(buf, &sync_cmd, sizeof(uint16_t));
+          wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+      }
+      data = (int32_t)(*machine_control->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
+      fprintf(stderr,"get home command param1 (0x%0d) joint\n", data);
+      for(j=0; j<sizeof(int32_t); j++) {
+          sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+          memcpy(buf, &sync_cmd, sizeof(uint16_t));
+          wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+      }
+      data = (int32_t)(*machine_control->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
+      fprintf(stderr,"get home command param2 (0x%0d) joint\n", data);
+      for(j=0; j<sizeof(int32_t); j++) {
+          sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+          memcpy(buf, &sync_cmd, sizeof(uint16_t));
+          wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+      }
+      /* write command */
+        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-              sizeof(uint16_t), buf);
+                sizeof(uint16_t), buf);
+        wou_flush(&w_param);
+      break;
+    default:
+      // do nothing, don't write command if it is invalid.
+      break;
     }
-    data = (int32_t)(*machine_control->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
-    fprintf(stderr,"get home command param2 (0x%0d) joint\n", data);
-    for(j=0; j<sizeof(int32_t); j++) {
-        sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-        memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-              sizeof(uint16_t), buf);
-    }
-    break;
-  default:
 
-    for (i=0; i<4; i++) {
-        data = (int32_t)(*machine_control->usb_cmd_param[i]);
-        fprintf(stderr,"get unhandled command param%d (0x%0d) joint\n", i, data);
-        for(j=0; j<sizeof(int32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-            memcpy(buf, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                  sizeof(uint16_t), buf);
-        }
-    }
-    break;
   }
-  /* write command */
-  sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
-  memcpy(buf, &sync_cmd, sizeof(uint16_t));
-  wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-          sizeof(uint16_t), buf);
-  wou_flush(&w_param);
   *mc->usb_cmd = 0;
   return;
 }
