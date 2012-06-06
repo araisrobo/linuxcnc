@@ -423,7 +423,7 @@ typedef struct {
     hal_bit_t     *jog_enable;
     int8_t        prev_jog_enable;
     double       prev_jog_scale;
-    hal_bit_t     *tp_enable;  /* connect to joint jog active */
+//    hal_bit_t     *tp_enable;  /* connect to joint jog active */
 } stepgen_t;
 // #pragma pack(pop)   /* restore original alignment from stack */
 
@@ -437,6 +437,7 @@ typedef struct {
 typedef struct {
     hal_bit_t *ignore_ahc_limit;
     hal_bit_t *align_pos_cmd;
+    hal_bit_t *prog_is_idle;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -518,7 +519,7 @@ typedef struct {
     hal_bit_t *send_app_param; // IO: trigger parameters to be sent
     hal_u32_t *usb_cmd;
     hal_float_t *usb_cmd_param[4];
-    hal_bit_t *prog_is_running;
+//    hal_bit_t *prog_is_running;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1820,7 +1821,7 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
 	    /* position command mode */
 	    if (*machine_control->align_pos_cmd == 1 ||
-	        (*machine_control->prog_is_running == 0 && *stepgen->jog_enable == 0)) {
+	       *machine_control->prog_is_idle) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
 	    }
 	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
@@ -2252,12 +2253,12 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->tp_enable), comp_id,
-                                    "wou.stepgen.%d.tp-enable", num);
-    if (retval != 0) {
-        return retval;
-    }
-    *addr->tp_enable = 1;
+//    retval = hal_pin_bit_newf(HAL_IN, &(addr->tp_enable), comp_id,
+//                                    "wou.stepgen.%d.tp-enable", num);
+//    if (retval != 0) {
+//        return retval;
+//    }
+//    *addr->tp_enable = 1;
     /* set default parameter values */
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
@@ -2356,6 +2357,13 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->prog_is_idle), comp_id,
+                                    "wou.prog-is-idle");
+    if (retval != 0) {
+        return retval;
+    }
+    *machine_control->prog_is_idle = 0;
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
@@ -2588,12 +2596,12 @@ static int export_machine_control(machine_control_t * machine_control)
         }
         *(machine_control->app_param[i]) = 0;
     }
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->prog_is_running), comp_id,
-                                    "wou.prog-is-running");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->prog_is_running) = 1;
+//    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->prog_is_running), comp_id,
+//                                    "wou.prog-is-running");
+//    if (retval != 0) {
+//        return retval;
+//    }
+//    *(machine_control->prog_is_running) = 1;
 
     machine_control->prev_out = 0;
 
