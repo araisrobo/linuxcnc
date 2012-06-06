@@ -764,17 +764,17 @@ static void process_probe_inputs(void)
                 return;
             }
         }
-        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+//        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
             if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
                 // do resend if necessary
-                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
-                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-                emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-                emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-                emcmotStatus->align_pos_cmd = 1;
-            }
-        } else {
+//                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
+//                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+//                emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+//                emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//                emcmotStatus->align_pos_cmd = 1;
+//            }
+//        } else {
             int32_t i = 0, joint_num;
             emcmot_joint_t *joint;
             double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
@@ -810,17 +810,17 @@ static void process_probe_inputs(void)
                 return;
             }
         }
-        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+//        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
-            if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
+          if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
                 // do resend if necessary
-                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
-                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-                emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-                emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-                emcmotStatus->align_pos_cmd = 1;
-            }
-        } else {
+//                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
+//                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+//                emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+//                emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//                emcmotStatus->align_pos_cmd = 1;
+//            }
+//        } else {
           fprintf(stderr,"controlc.: send USB_CMD_STATUS_ACK()\n");
           emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
           emcmotStatus->usb_cmd &= ~(0x00000001);
