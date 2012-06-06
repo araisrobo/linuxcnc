@@ -1,7 +1,6 @@
 # core HAL config file for simulation - 4 joint
 
 # load RT modules
-
 loadrt [KINS]KINEMATICS
 loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[EMCMOT]TRAJ_PERIOD num_joints=[KINS]JOINTS num_dio=64
 # for 3 joints, set ctrl_type with 3 types
@@ -128,3 +127,6 @@ net home_j2       wou.gpio.in.04    =>  joint.2.home-sw-in
 net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
 net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
 net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
+
+# emcrsh
+# loadusr linuxcncrsh -ini xyz.ini
