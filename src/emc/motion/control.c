@@ -2032,8 +2032,10 @@ static void output_to_hal(void)
 
     for (i=0; i<4;i++) {
         *(emcmot_hal_data->usb_cmd_param[i]) = emcmotStatus->usb_cmd_param[i];
+        emcmotStatus->last_usb_cmd_param[i] = *(emcmot_hal_data->last_usb_cmd_param[i]);
     }
     *(emcmot_hal_data->usb_cmd) = emcmotStatus->usb_cmd;
+    emcmotStatus->last_usb_cmd = *(emcmot_hal_data->last_usb_cmd);
     // WORKAROUND: raise align pos cmd flag at least 3 cycles to
     //             make sure the pos_cmd is aligned with pos_fb
 

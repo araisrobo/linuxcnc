@@ -518,7 +518,9 @@ typedef struct {
     int32_t prev_app_param[16];
     hal_bit_t *send_app_param; // IO: trigger parameters to be sent
     hal_u32_t *usb_cmd;
+    hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
+    hal_float_t *last_usb_cmd_param[4];
 //    hal_bit_t *prog_is_running;
 } machine_control_t;
 
@@ -842,6 +844,13 @@ static void write_usb_cmd(machine_control_t *mc)
   uint8_t     buf[MAX_DSIZE];
   uint16_t sync_cmd;
   double pos_scale;
+  if(*mc->usb_cmd) {
+      *mc->last_usb_cmd = *mc->usb_cmd;
+      for (i=0; i<4; i++) {
+          *machine_control->last_usb_cmd_param[i] =
+              *machine_control->usb_cmd_param[i];
+      }
+  }
   switch(*mc->usb_cmd) {
   case PROBE_CMD_TYPE:
     for (i=0; i<4; i++) {
@@ -2483,6 +2492,13 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->last_usb_cmd), comp_id,
+                             "wou.usb.last-cmd");
+    *(machine_control->last_usb_cmd) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
     for (i = 0; i < 4; i++) {
         retval =
             hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id,
@@ -2491,6 +2507,14 @@ static int export_machine_control(machine_control_t * machine_control)
             return retval;
         }
         *(machine_control->usb_cmd_param[i]) = 0;
+
+        retval =
+            hal_pin_float_newf(HAL_OUT, &(machine_control->last_usb_cmd_param[i]), comp_id,
+                             "wou.usb.last-param-%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(machine_control->last_usb_cmd_param[i]) = 0;
     }
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id,
                              "wou.motion.status");
