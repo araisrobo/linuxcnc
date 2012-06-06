@@ -646,6 +646,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         uint32_t usb_status;
         int sync_pos_cmd;
         int align_pos_cmd;
+        int sync_risc_pos;
 
 	unsigned char head;	/* flag count for mutex detect */
 	/* these three are updated only when a new command is handled */

@@ -909,6 +909,28 @@ static void write_usb_cmd(machine_control_t *mc)
                 sizeof(uint16_t), buf);
         wou_flush(&w_param);
       break;
+    case SPECIAL_CMD_TYPE:
+      *mc->last_usb_cmd = *mc->usb_cmd;
+      for (i=0; i<4; i++) {
+          *mc->last_usb_cmd_param[i] =
+              *mc->usb_cmd_param[i];
+      }
+      for (i=0; i<4; i++) {
+          fprintf(stderr,"SPEC_CMD type command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
+          data = (int32_t)(*mc->usb_cmd_param[i]);
+          for(j=0; j<sizeof(int32_t); j++) {
+              sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
+              memcpy(buf, &sync_cmd, sizeof(uint16_t));
+              wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                    sizeof(uint16_t), buf);
+          }
+      }
+      /* write command */
+        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+        wou_flush(&w_param);
     default:
       // do nothing, don't write command if it is invalid.
       break;

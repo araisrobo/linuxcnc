@@ -948,7 +948,7 @@ static void handle_special_cmd(void)
             update_current_pos = 0;
             emcmotStatus->update_current_pos_flag = 1;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-            emcmotStatus->sync_pos_cmd = 1;
+
             emcmotStatus->special_cmd = SPEC_CMD_ACK;
             /* tell USB that we've got the status */
             emcmotStatus->usb_cmd &= ~(0x0008);
@@ -961,6 +961,7 @@ static void handle_special_cmd(void)
     }
     if (*emcmot_hal_data->req_cmd_sync == 1) {
         fprintf(stderr,"req_cmd_sync == 1\n");
+        emcmotStatus->sync_pos_cmd = 1;
         update_current_pos = 1;
     } else {
         emcmotStatus->sync_pos_cmd = 0;
@@ -968,11 +969,13 @@ static void handle_special_cmd(void)
     switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
     case USB_STATUS_REQ_CMD_SYNC:
         fprintf(stderr,"get USB_STATUS_REQ_CMD_SYNC\n");
-        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
-            update_current_pos = 1;
-        }
+//        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
+          emcmotStatus->sync_risc_pos = 1;
+          update_current_pos = 1;
+//        }
         break;
     default:
+      emcmotStatus->sync_risc_pos = 0;
         // deal with PROBE related status only
         break;
     }
@@ -2081,7 +2084,8 @@ static void output_to_hal(void)
     // WORKAROUND: raise align pos cmd flag at least 3 cycles to
     //             make sure the pos_cmd is aligned with pos_fb
 
-    if (emcmotStatus->align_pos_cmd || (emcmotStatus->sync_pos_cmd == 1)) {
+    if (emcmotStatus->align_pos_cmd || (emcmotStatus->sync_pos_cmd == 1) ||
+        (emcmotStatus->sync_risc_pos == 1)) {
 //        if (emcmotStatus->align_pos_cmd  > 3) {
 //            emcmotStatus->align_pos_cmd = 0;
 //            emcmotStatus->special_cmd = 0;
