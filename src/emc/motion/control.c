@@ -768,6 +768,7 @@ static void process_probe_inputs(void)
             // already sent acked
             if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
                 // do resend if necessary
+                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
                 emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
                 emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                 emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
@@ -812,6 +813,7 @@ static void process_probe_inputs(void)
             // already sent acked
             if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
                 // do resend if necessary
+                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
                 emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
                 emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                 emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
