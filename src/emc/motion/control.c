@@ -782,6 +782,7 @@ static void process_probe_inputs(void)
             fprintf(stderr,"PROBE: USB_STATUS_PROBE_HIT\n");
             tpAbort(&emcmotDebug->coord_tp);
             /* tell USB that we've got the status */
+            fprintf(stderr,"controlc.: send USB_CMD_STATUS_ACK() to confirm if it is valid\n");
             emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
@@ -805,8 +806,8 @@ static void process_probe_inputs(void)
         }
         if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
-            ;
         } else {
+          fprintf(stderr,"controlc.: send USB_CMD_STATUS_ACK()\n");
           emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
           emcmotStatus->usb_cmd &= ~(0x00000001);
           emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
@@ -860,6 +861,7 @@ static void process_probe_inputs(void)
     case USB_STATUS_READY: // PROBE STATUS Clean
         // deal with PROBE related status only
         if (wait_resume == 1 && emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
+            fprintf(stderr,"controlc.: call tpResume()\n");
             tpResume(&emcmotDebug->coord_tp);
             wait_resume = 0;
         }

@@ -437,7 +437,7 @@ typedef struct {
 typedef struct {
     hal_bit_t *ignore_ahc_limit;
     hal_bit_t *align_pos_cmd;
-    hal_bit_t *prog_is_idle;
+    hal_bit_t *ignore_host_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -1821,7 +1821,7 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
 	    /* position command mode */
 	    if (*machine_control->align_pos_cmd == 1 ||
-	       *machine_control->prog_is_idle) {
+	       *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
 	    }
 	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
@@ -2358,12 +2358,12 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->prog_is_idle), comp_id,
-                                    "wou.prog-is-idle");
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->ignore_host_cmd), comp_id,
+                                    "wou.ignore-host-cmd");
     if (retval != 0) {
         return retval;
     }
-    *machine_control->prog_is_idle = 0;
+    *machine_control->ignore_host_cmd = 0;
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
