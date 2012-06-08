@@ -266,6 +266,9 @@ void do_homing(void)
                     break;
                 }
                 emcmotStatus->usb_cmd = HOME_CMD_TYPE;
+                // param0 for home_config:
+                // [7:4]: joint_num
+                // [3:0]: home_flag
                 emcmotStatus->usb_cmd_param[0] = (joint_num << 4) | joint->home_flags; // joint num | index homing
                 emcmotStatus->usb_cmd_param[1] = joint->home_search_vel;  // home search vel
                 emcmotStatus->usb_cmd_param[2] = joint->home_latch_vel ;  // home search vel
