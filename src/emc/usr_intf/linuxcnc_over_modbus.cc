@@ -29,8 +29,10 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <getopt.h>
+#include <modbus.h>
 
 #include "rcs.hh"
 #include "posemath.h"		// PM_POSE, TO_RAD
@@ -457,6 +459,7 @@ typedef struct {
   char outBuf[4096];
   char progName[256];} connectionRecType;
 
+//TODO: obsolete the following global variables:
 int port = 5007;
 int server_sockfd, client_sockfd;
 socklen_t server_len, client_len;
@@ -471,6 +474,10 @@ char enablePWD[16] = "EMCTOO\0";
 char serverName[24] = "EMCNETSVR\0";
 int sessions = 0;
 int maxSessions = -1;
+
+// global vars for modbus connection:
+static modbus_t            *mb_ctx;
+static modbus_mapping_t    *mb_mapping;
 
 const char *setCommands[] = {
   "ECHO", "VERBOSE", "ENABLE", "CONFIG", "COMM_MODE", "COMM_PROT", "INIFILE", "PLAT", "INI", "DEBUG",
@@ -543,20 +550,76 @@ static void thisQuit()
     exit(0);
 }
 
-static int initSockets()
-{
-  int optval = 1;
+//obsolete: static int initSockets()
+//obsolete: {
+//obsolete:   int optval = 1;
+//obsolete: 
+//obsolete:   server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+//obsolete:   setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+//obsolete:   server_address.sin_family = AF_INET;
+//obsolete:   server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+//obsolete:   server_address.sin_port = htons(port);
+//obsolete:   server_len = sizeof(server_address);
+//obsolete:   bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
+//obsolete:   listen(server_sockfd, 5);
+//obsolete:   signal(SIGCHLD, SIG_IGN);
+//obsolete:   return 0;
+//obsolete: }
 
-  server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-  server_address.sin_family = AF_INET;
-  server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-  server_address.sin_port = htons(port);
-  server_len = sizeof(server_address);
-  bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
-  listen(server_sockfd, 5);
-  signal(SIGCHLD, SIG_IGN);
-  return 0;
+static int initModbus()
+{
+    int server_id;
+    int baud, bits, stopbits, debug;
+    char *device, *parity;
+    int rc;
+    
+    baud = 115200;
+    bits = 8;
+    stopbits = 1;
+    debug = 0;
+    device = "/dev/ttyUSB1";
+    parity = "O";   // O: odd, E: even, N: none
+    server_id = 22;
+
+    printf("modbus_rtu: device='%s', baud=%d, bits=%d, parity='%s', stopbits=%d, verbose=%d\n", device, baud, bits, parity, stopbits, debug);
+
+    /* Initialize Modbus */
+    // serial: 
+    mb_ctx = modbus_new_rtu(device, baud, *parity, bits, stopbits);
+    modbus_set_slave(mb_ctx, server_id);
+            
+    // ethernet:
+    // ctx = modbus_new_tcp("127.0.0.1", 1502);
+    // ctx = modbus_new_tcp("10.1.1.138", 1502);
+    
+    if (mb_ctx == NULL) {
+        fprintf(stderr, "Unable to create the libmodbus context\n");
+        return -1;
+    }
+
+    modbus_set_debug(mb_ctx, debug);
+
+    mb_mapping = modbus_mapping_new(500, 500, 500, 500);
+    if (mb_mapping == NULL) {
+        fprintf(stderr, "Failed to allocate the mapping: %s\n",
+                modbus_strerror(errno));
+        modbus_free(mb_ctx);
+        return -1;
+    }
+
+    // TCP:
+    // socket = modbus_tcp_listen(ctx, 1);
+    // modbus_tcp_accept(ctx, &socket);
+
+    // RTU:
+    rc = modbus_connect(mb_ctx);
+    if (rc == -1) {
+        fprintf(stderr, "Unable to connect %s\n", modbus_strerror(errno));
+        modbus_free(mb_ctx);
+        return -1;
+    }
+
+    return 0;
 }
 
 static void sigQuit(int sig)
@@ -2695,27 +2758,84 @@ finished:
   sessions--;  // FIXME: not reached
 }
 
-int sockMain()
+/* Modbus Function codes */
+#define _FC_READ_COILS                0x01
+#define _FC_READ_DISCRETE_INPUTS      0x02
+#define _FC_READ_HOLDING_REGISTERS    0x03
+#define _FC_READ_INPUT_REGISTERS      0x04
+#define _FC_WRITE_SINGLE_COIL         0x05
+#define _FC_WRITE_SINGLE_REGISTER     0x06
+#define _FC_READ_EXCEPTION_STATUS     0x07
+#define _FC_WRITE_MULTIPLE_COILS      0x0F
+#define _FC_WRITE_MULTIPLE_REGISTERS  0x10
+#define _FC_REPORT_SLAVE_ID           0x11
+#define _FC_WRITE_AND_READ_REGISTERS  0x17
+
+static void parseModbusCommand(const uint8_t *req, int req_length)
 {
-    pthread_t thrd;
-    int res;
+    int offset = modbus_get_header_length(mb_ctx);
+    int slave = req[offset - 1];
+    int function = req[offset];
+    uint16_t address = (req[offset + 1] << 8) + req[offset + 2];
+    int nb;
     
-    while (1) {
-      
-      client_len = sizeof(client_address);
-      client_sockfd = accept(server_sockfd,
-        (struct sockaddr *)&client_address, &client_len);
-      if (client_sockfd < 0) exit(0);
-      sessions++;
-      if ((maxSessions == -1) || (sessions <= maxSessions))
-        res = pthread_create(&thrd, NULL, readClient, (void *)NULL);
-      else res = -1;
-      if (res != 0) {
-        close(client_sockfd);
-        sessions--;
+    switch (function) {
+    case _FC_WRITE_MULTIPLE_REGISTERS: 
+        nb = (req[offset + 3] << 8) + req[offset + 4];
+
+        printf("debug: _FC_WRITE_MULTIPLE_REGISTERS\n");
+        printf("debug: slave(%d) address(%u)\n", slave, address);
+        
+        if ((address + nb) > mb_mapping->nb_registers) {
+            fprintf(stderr, "Illegal data address %0X in write_registers\n",
+                    address + nb);
+        } else {
+            int i, j, val;
+            for (i = address, j = 6; i < address + nb; i++, j += 2) {
+                /* 6 and 7 = first value */
+                val = (req[offset + j] << 8) + req[offset + j + 1];
+                printf("\tj[%d](0x%08X)\n", i, val);
+            }
         }
-     }
-    return 0;
+        break;
+
+    default:
+        printf("debug: unknown Modbus Function Code:0x%02X\n", function);
+        assert(0);
+        break;
+    }
+
+    return;
+}
+
+static void modbusMain()
+{
+    int rc;
+    uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
+
+    while(1) {
+        rc = modbus_receive(mb_ctx, query);
+        if (rc > 0) {
+            /* rc is the query size */
+            printf("debug: modbus query size: %d\n", rc);
+            parseModbusCommand(query, rc);
+            modbus_reply(mb_ctx, query, rc, mb_mapping);
+        } else if (rc == -1) {
+            /* Connection closed by the client or error */
+            break;
+        } else {
+	    rcs_print_error("ERROR: modbus query size: %d\n", rc);
+        }
+
+    }
+
+    rcs_print_error("Quit the loop: %s\n", modbus_strerror(errno));
+
+    modbus_mapping_free(mb_mapping);
+    modbus_close(mb_ctx);
+    modbus_free(mb_ctx);
+
+    return;
 }
 
 static void initMain()
@@ -2778,25 +2898,34 @@ int main(int argc, char *argv[])
 	rcs_print_error("error in argument list\n");
 	exit(1);
     }
+
     // get configuration information
     iniLoad(emc_inifile);
-    initSockets();
+
+    if (initModbus() != 0) {
+	rcs_print_error("can't initialize Modbus\n");
+	thisQuit();
+	exit(1);
+    }
+
     // init NML
     if (tryNml() != 0) {
 	rcs_print_error("can't connect to emc\n");
 	thisQuit();
 	exit(1);
     }
+
     // get current serial number, and save it for restoring when we quit
     // so as not to interfere with real operator interface
     updateStatus();
     emcCommandSerialNumber = emcStatus->echo_serial_number;
     saveEmcCommandSerialNumber = emcStatus->echo_serial_number;
 
+    // TODO: learn SIGINT
     // attach our quit function to SIGINT
     signal(SIGINT, sigQuit);
 
-    if (useSockets) sockMain();
+    modbusMain(); 
 
     return 0;
 }

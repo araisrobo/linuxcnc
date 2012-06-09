@@ -32,6 +32,7 @@ endif
 
 $(call TOOBJSDEPS, $(TCLSRCS)) : EXTRAFLAGS = $(ULFLAGS) $(TCL_CFLAGS)
 $(call TOOBJSDEPS, $(EMCSHSRCS)) : EXTRAFLAGS = $(ULFLAGS) $(TCL_CFLAGS) -fPIC
+$(call TOOBJSDEPS, $(LCOMSRCS)) : EXTRAFLAGS = $(LIBMODBUS_CFLAGS)
 
 ../bin/tooledit: emc/usr_intf/tooledit.tcl
 	cp $< $@
@@ -50,7 +51,7 @@ TARGETS += ../bin/linuxcncrsh
 
 ../bin/linuxcnc_over_modbus: $(call TOOBJS, $(LCOMSRCS)) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ -lpthread -lmodbus
+	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ -lpthread $(LIBMODBUS_LIBS)
 TARGETS += ../bin/linuxcnc_over_modbus
 
 ../bin/schedrmt: $(call TOOBJS, $(EMCSCHEDSRCS)) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
