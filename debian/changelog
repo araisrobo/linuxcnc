@@ -1,3 +1,9 @@
+linuxcnc (1:2.5.0-2012.06.12) lucid; urgency=low
+
+  * UPDATE fix feedrate of probe is not affect by feedoverride.
+
+ -- Yishin Li <ysli@araisrobo.com>  Tue, 12 Jun 2012 10:36:12 +0800
+
 linuxcnc (1:2.5.0-2012.05.09) lucid; urgency=low
 
   * UPDATE for USB command protocol for probing and homing.
