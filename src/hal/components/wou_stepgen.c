@@ -916,7 +916,7 @@ static void write_usb_cmd(machine_control_t *mc)
               *mc->usb_cmd_param[i];
       }
       for (i=0; i<4; i++) {
-          fprintf(stderr,"SPEC_CMD type command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
+//          fprintf(stderr,"SPEC_CMD type command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
           data = (int32_t)(*mc->usb_cmd_param[i]);
           for(j=0; j<sizeof(int32_t); j++) {
               sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];

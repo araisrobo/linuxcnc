@@ -1429,7 +1429,9 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     emcmotCommand.pos = pos;
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.motion_type = type;
-    emcmotCommand.vel = vel;
+    if (emcmotCommand.scale != 0) {
+        emcmotCommand.vel = vel / emcmotCommand.scale; // to make feed of probe not be changed.
+    }
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.probe_type = probe_type;

@@ -960,7 +960,7 @@ static void handle_special_cmd(void)
         emcmotStatus->update_current_pos_flag = 0;
     }
     if (*emcmot_hal_data->req_cmd_sync == 1) {
-        fprintf(stderr,"req_cmd_sync == 1\n");
+//        fprintf(stderr,"req_cmd_sync == 1\n");
         emcmotStatus->sync_pos_cmd = 1;
         update_current_pos = 1;
     } else {
@@ -968,7 +968,7 @@ static void handle_special_cmd(void)
     }
     switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
     case USB_STATUS_REQ_CMD_SYNC:
-        fprintf(stderr,"get USB_STATUS_REQ_CMD_SYNC\n");
+//        fprintf(stderr,"get USB_STATUS_REQ_CMD_SYNC\n");
 //        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
           emcmotStatus->sync_risc_pos = 1;
           update_current_pos = 1;
@@ -2091,7 +2091,7 @@ static void output_to_hal(void)
 //            emcmotStatus->special_cmd = 0;
 //        } else {
             *(emcmot_hal_data->align_pos_cmd) = 1;
-            fprintf(stderr,"control.c: align_pos_cmd = 1\n");
+//            fprintf(stderr,"control.c: align_pos_cmd = 1\n");
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
 //            emcmotStatus->align_pos_cmd ++;
 //        }
