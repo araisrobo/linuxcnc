@@ -577,7 +577,7 @@ static int initModbus()
     bits = 8;
     stopbits = 1;
     debug = 0;
-    device = "/dev/ttyUSB1";
+    device = "/dev/ttyUSB0";
     parity = "O";   // O: odd, E: even, N: none
     server_id = 22;
 
@@ -2779,23 +2779,91 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     uint16_t address = (req[offset + 1] << 8) + req[offset + 2];
     int nb;
     
+    // int i;
+    // for (i=0; i < req_length; i++)
+    //     printf("<%.2X>", req[i]);
+    // printf("\n");
+    assert (slave == 22);
+
     switch (function) {
+    case _FC_READ_INPUT_REGISTERS:
+        switch (address) {
+            case    0:  printf("RD ");
+                        break;
+            default:    printf("TODO ");
+                        break;
+        }
+        break;
+
     case _FC_WRITE_MULTIPLE_REGISTERS: 
         nb = (req[offset + 3] << 8) + req[offset + 4];
 
-        printf("debug: _FC_WRITE_MULTIPLE_REGISTERS\n");
-        printf("debug: slave(%d) address(%u)\n", slave, address);
+        // printf("debug: _FC_WRITE_MULTIPLE_REGISTERS(%d)\n", function);
+        // printf("debug: slave(%d) address(%u)\n", slave, address);
+        switch (address) {
+            case    0:  printf("G0 ");
+                        break;
+            case    1:  printf("G1 ");
+                        break;
+            default:    printf("TODO ");
+                        break;
+        }
         
         if ((address + nb) > mb_mapping->nb_registers) {
             fprintf(stderr, "Illegal data address %0X in write_registers\n",
                     address + nb);
         } else {
             int i, j, val;
-            for (i = address, j = 6; i < address + nb; i++, j += 2) {
+            float *fp;
+
+            for (i = address, j = 6; i < address + nb; i+=2, j += 4) {
                 /* 6 and 7 = first value */
-                val = (req[offset + j] << 8) + req[offset + j + 1];
-                printf("\tj[%d](0x%08X)\n", i, val);
+                val = (req[offset + j + 2] << 24) + 
+                      (req[offset + j + 3] << 16) + 
+                      (req[offset + j]     << 8 ) + 
+                       req[offset + j + 1];
+                fp = (float *) &val;
+                // printf("\tj[%d](0x%08X), %9.3f\n", i, val, *fp);
             }
+            /**
+             * IEEE-754 Floating point to HEX converter:
+             * http://www.h-schmidt.net/FloatConverter/IEEE754.html
+             * http://babbage.cs.qc.cuny.edu/IEEE-754/
+             **/
+             
+            /** 
+             * Field Name           <Hex>
+             * SLAVE                <16> 
+             * FC                   <10>
+             * START                <00><0A>
+             * NU_OF_REGS           <00><0C>
+             * BYTE_COUNT           <18>
+             * FEED_RATE            <E4><00><45><AB>: 0x45ABE400 => 5000.5
+             * X                    <99><9A><41><A5>
+             * Y                    <99><9A><41><F1>
+             * Z                    <CC><CD><41><24>
+             * A                    <99><9A><41><F5>
+             * B                    <99><9A><3E><99>
+             * CRC                  <74><FE>
+             **/
+
+            /**
+             * FC(16) Preset Multiple Registers, P.55 of PI_MBUS_300.pdf
+             * 
+             * Field Name           (Hex)
+             * Slave Address        11
+             * Function             10
+             * Starting Address Hi  00
+             * Starting Address Lo  01
+             * No. of Registers Hi  00
+             * No. of Registers Lo  02
+             * Byte Count           04
+             * Data Hi              00
+             * Data Lo              0A
+             * Data Hi              01
+             * Data Lo              02
+             * Error Check (CRC)    
+            */
         }
         break;
 
@@ -2817,7 +2885,7 @@ static void modbusMain()
         rc = modbus_receive(mb_ctx, query);
         if (rc > 0) {
             /* rc is the query size */
-            printf("debug: modbus query size: %d\n", rc);
+            // printf("debug: modbus query size: %d\n", rc);
             parseModbusCommand(query, rc);
             modbus_reply(mb_ctx, query, rc, mb_mapping);
         } else if (rc == -1) {
