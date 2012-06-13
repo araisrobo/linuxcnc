@@ -45,6 +45,8 @@
 #include "timer.hh"             // etime()
 #include "shcom.hh"             // NML Messaging functions
 
+#define MAX_JOINT_NUM           5   // support up to 5 joints
+
 /*
   Using emcrsh:
 
@@ -577,7 +579,8 @@ static int initModbus()
     bits = 8;
     stopbits = 1;
     debug = 0;
-    device = "/dev/ttyUSB0";
+    // device = "/dev/ttyUSB0";
+    device = "/dev/ttyUSB2";
     parity = "O";   // O: odd, E: even, N: none
     server_id = 22;
 
@@ -2778,17 +2781,20 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     int function = req[offset];
     uint16_t address = (req[offset + 1] << 8) + req[offset + 2];
     int nb;
+    static uint32_t sn = 0;   // serial number
     
     // int i;
     // for (i=0; i < req_length; i++)
     //     printf("<%.2X>", req[i]);
     // printf("\n");
+
+    // TODO: read slave address through INI file
     assert (slave == 22);
 
     switch (function) {
     case _FC_READ_INPUT_REGISTERS:
         switch (address) {
-            case    0:  printf("RD ");
+            case    0:  printf("RD REGS\n");
                         break;
             default:    printf("TODO ");
                         break;
@@ -2800,38 +2806,18 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
 
         // printf("debug: _FC_WRITE_MULTIPLE_REGISTERS(%d)\n", function);
         // printf("debug: slave(%d) address(%u)\n", slave, address);
-        switch (address) {
-            case    0:  printf("G0 ");
-                        break;
-            case    1:  printf("G1 ");
-                        break;
-            default:    printf("TODO ");
-                        break;
-        }
-        
         if ((address + nb) > mb_mapping->nb_registers) {
             fprintf(stderr, "Illegal data address %0X in write_registers\n",
                     address + nb);
         } else {
-            int i, j, val;
+            int i, j, k, val;
+            char mdi_buf[256];
+            char buf[32];
+            const char cmd[8] = "FXYZAB";
             float *fp;
-
-            for (i = address, j = 6; i < address + nb; i+=2, j += 4) {
-                /* 6 and 7 = first value */
-                val = (req[offset + j + 2] << 24) + 
-                      (req[offset + j + 3] << 16) + 
-                      (req[offset + j]     << 8 ) + 
-                       req[offset + j + 1];
-                fp = (float *) &val;
-                // printf("\tj[%d](0x%08X), %9.3f\n", i, val, *fp);
-            }
-            /**
-             * IEEE-754 Floating point to HEX converter:
-             * http://www.h-schmidt.net/FloatConverter/IEEE754.html
-             * http://babbage.cs.qc.cuny.edu/IEEE-754/
-             **/
-             
+            
             /** 
+             * FC(16) Preset Multiple Registers, P.55 of PI_MBUS_300.pdf
              * Field Name           <Hex>
              * SLAVE                <16> 
              * FC                   <10>
@@ -2846,24 +2832,45 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
              * B                    <99><9A><3E><99>
              * CRC                  <74><FE>
              **/
-
             /**
-             * FC(16) Preset Multiple Registers, P.55 of PI_MBUS_300.pdf
-             * 
-             * Field Name           (Hex)
-             * Slave Address        11
-             * Function             10
-             * Starting Address Hi  00
-             * Starting Address Lo  01
-             * No. of Registers Hi  00
-             * No. of Registers Lo  02
-             * Byte Count           04
-             * Data Hi              00
-             * Data Lo              0A
-             * Data Hi              01
-             * Data Lo              02
-             * Error Check (CRC)    
-            */
+             * IEEE-754 Floating point to HEX converter:
+             * http://www.h-schmidt.net/FloatConverter/IEEE754.html
+             * http://babbage.cs.qc.cuny.edu/IEEE-754/
+             **/
+
+            sprintf(mdi_buf, "N%d ", sn);
+            sn++;
+            for (i = address, j = 6, k=0; 
+                 i < address + nb; 
+                 i+=2, j += 4, k+=1) {
+                /* 6 and 7 = first value */
+                val = (req[offset + j + 2] << 24) + 
+                      (req[offset + j + 3] << 16) + 
+                      (req[offset + j]     << 8 ) + 
+                       req[offset + j + 1];
+                fp = (float *) &val;
+                // printf("\tj[%d](0x%08X), %9.3f\n", i, val, *fp);
+                sprintf(buf, "%c%f ", cmd[k], *fp);
+                strcat(mdi_buf, buf);
+                if (i == address) {
+                    switch (address) {
+                        case    0:  strcat(mdi_buf, "G0 ");
+                                    break;
+                        case    1:  strcat(mdi_buf, "G1 ");
+                                    break;
+                        default:    printf("TODO ");
+                                    break;
+                    }
+                }
+            }
+            printf("%s\n", mdi_buf);
+
+            // execState: usually at EMC_TASK_EXEC_DONE(2)
+            // printf("execState(%d)\n", emcStatus->task.execState);
+            if (sendMdiCmd(mdi_buf) != 0) {
+                printf("sendMdiCmd ERROR\n");
+                assert(0);
+            }
         }
         break;
 
@@ -2876,12 +2883,110 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     return;
 }
 
-static void modbusMain()
+#if 0
+static void print_status()
+{
+    printf("task: %10ld %10d %10d\n", 
+            emcStatus->task.heartbeat,
+            emcStatus->echo_serial_number,
+            emcStatus->status);
+    printf("io: %10ld %10d\n", 
+            emcStatus->io.heartbeat,
+            emcStatus->io.echo_serial_number);
+    printf("motion: %10ld %10d\n", 
+            emcStatus->motion.heartbeat,
+            emcStatus->motion.echo_serial_number);
+    return;
+}
+#endif 
+
+/**
+ * check_estop() - check if the machine is at ESTOP state
+ **/
+static int check_estop()
+{
+    if (emcStatus->task.state != EMC_TASK_STATE_ON) {
+        printf("MACHINE OFF\n");
+        if (emcStatus->task.state == EMC_TASK_STATE_ESTOP) {
+            printf("ESTOP ON\n");
+        } else {
+            printf("ESTOP OFF\n");
+            printf("SET MACHINE ON\n");
+            sendMachineOn();
+        }
+        return (-1);
+    }
+    return (0);
+}
+
+/**
+ * check_homing() - check the home status and do homing if necessary
+ **/
+static int check_home_stat()
+{
+    int i;
+    int to_home_all = MAX_JOINT_NUM;
+    
+    // support J0 ~ J4 so far
+    for (i=0; i<MAX_JOINT_NUM; i++) {
+        if (emcStatus->motion.joint[i].homed == 0) {
+            if (emcStatus->motion.joint[i].homing == 0) {
+                to_home_all -= 1;
+            }
+        }
+    }
+    
+    // printf("check_home_stat: to_home_all(%d)\n", to_home_all);
+        
+    if (to_home_all != MAX_JOINT_NUM) {
+        if (to_home_all == 0) {
+            printf("lcom: issue HOME_ALL command\n");
+            sendHome(-1);   // -1: home all
+        }
+        return (-1);        // either homing or about to home all
+    }
+    return (0);
+}
+
+/**
+ * check and set as MDI_MODE
+ **/
+static int check_mdi_mode()
+{
+    if (emcStatus->task.mode != EMC_TASK_MODE_MDI) {
+        sendMdi();  // set as MDI mode
+        return (-1);
+    }
+    return (0); 
+}
+
+static int check_machine_stat()
+{
+    // return 0 if machine is ready
+    if (check_estop() == 0) {
+        // not at ESTOP nor MACHINE_OFF state
+        if (check_home_stat() == 0) {
+            // any joint which is not at HOMED state
+            if (check_mdi_mode() == 0) {
+                // not at MDI mode
+                return (0);
+            }
+        }
+    }
+    return (-1);
+}
+
+static void modbus_main()
 {
     int rc;
     uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
 
     while(1) {
+        updateStatus();
+        if (check_machine_stat()) {
+            // bypass receiving modbus messages if the machine is not READY
+            continue;
+        }
         rc = modbus_receive(mb_ctx, query);
         if (rc > 0) {
             /* rc is the query size */
@@ -2892,7 +2997,7 @@ static void modbusMain()
             /* Connection closed by the client or error */
             break;
         } else {
-	    rcs_print_error("ERROR: modbus query size: %d\n", rc);
+            rcs_print_error("ERROR: modbus query size: %d\n", rc);
         }
 
     }
@@ -2993,7 +3098,7 @@ int main(int argc, char *argv[])
     // attach our quit function to SIGINT
     signal(SIGINT, sigQuit);
 
-    modbusMain(); 
+    modbus_main(); 
 
     return 0;
 }
