@@ -1450,11 +1450,7 @@ static void get_pos_cmds(long period)
             joint->free_tp.max_jerk = joint->jerk_limit;
             /* execute free TP */
             if (joint->disable_jog == 0) {
-                /* limit sw */
-                if ((joint->free_tp.max_vel > 0 && GET_JOINT_PHL_FLAG(joint)) ||
-                        (joint->free_tp.max_vel < 0 && GET_JOINT_NHL_FLAG(joint))) {
-                    joint->free_tp.max_vel = 0;
-                }
+                /* do not allow jog over hard limit */
                 if ((((joint->free_tp.pos_cmd - joint->free_tp.curr_pos) >= 0) &&
                         GET_JOINT_PHL_FLAG(joint)) ||
                     (((joint->free_tp.pos_cmd - joint->free_tp.curr_pos) < 0) &&
