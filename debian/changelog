@@ -4,7 +4,7 @@ linuxcnc (1:2.5.0-2012.06.12) lucid; urgency=low
 
  -- Yishin Li <ysli@araisrobo.com>  Tue, 12 Jun 2012 10:36:12 +0800
 
-linuxcnc (1:2.5.0-2012.06.07) lucid; urgency=low
+linuxcnc (1:2.5.0-2012.05.31) lucid; urgency=low
 
   * UPDATE for USB command protocol for probing and homing.
 
