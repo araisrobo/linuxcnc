@@ -1038,12 +1038,12 @@ static void check_for_faults(void)
                     emcmotStatus->overrideLimitMask &= ~( 1 << (joint_num*2));
                 }
             }
-            if (GET_JOINT_PHL_FLAG(joint) ||
-                GET_JOINT_NHL_FLAG(joint)) {
-                /* joint is on limit switch, should we trip? */
-                SET_MOTION_ERROR_FLAG(1);
-
-            }
+//            if (GET_JOINT_PHL_FLAG(joint) ||
+//                GET_JOINT_NHL_FLAG(joint)) {
+//                /* joint is on limit switch, should we trip? */
+//                SET_MOTION_ERROR_FLAG(1);
+//
+//            }
             /* check for amp fault */
             if (GET_JOINT_FAULT_FLAG(joint)) {
                 /* joint is faulted, trip */
@@ -1450,6 +1450,17 @@ static void get_pos_cmds(long period)
             joint->free_tp.max_jerk = joint->jerk_limit;
             /* execute free TP */
             if (joint->disable_jog == 0) {
+                /* limit sw */
+                if ((joint->free_tp.max_vel > 0 && GET_JOINT_PHL_FLAG(joint)) ||
+                        (joint->free_tp.max_vel < 0 && GET_JOINT_NHL_FLAG(joint))) {
+                    joint->free_tp.max_vel = 0;
+                }
+                if ((((joint->free_tp.pos_cmd - joint->free_tp.curr_pos) >= 0) &&
+                        GET_JOINT_PHL_FLAG(joint)) ||
+                    (((joint->free_tp.pos_cmd - joint->free_tp.curr_pos) < 0) &&
+                        GET_JOINT_NHL_FLAG(joint))) {
+                    joint->free_tp.max_vel = 0;
+                }
                 simple_tp_update(&(joint->free_tp), servo_period );
             }
             /* copy free TP output to pos_cmd and coarse_pos */
