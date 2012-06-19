@@ -705,7 +705,7 @@ typedef enum {
         TIPPED_BEFORE_START,
         RISC_PROBE_END,
 } abort_reason_t;
-static int aborted = 0, abort_reason = NO_REASON, wait_resume = 0;
+static int abort_reason = NO_REASON, wait_resume = 0;
 #define PROBE_CMD_TYPE 0x0001
 static void process_probe_inputs(void)
 {
@@ -717,7 +717,7 @@ static void process_probe_inputs(void)
     // don't error
     char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
                                            // motion would stop.
-    static int report_risc_probing_error = 0;
+    //static int report_risc_probing_error = 0;
 
     switch ( emcmotStatus->usb_status & 0x0000000F) { // probe status mask
     case USB_STATUS_PROBING:
@@ -768,7 +768,7 @@ static void process_probe_inputs(void)
             // already sent acked
             if (!(emcmotStatus->last_usb_cmd_param[i] != USB_CMD_STATUS_ACK)) {
                 // do resend if necessary
-                int32_t i = 0, joint_num;
+                int32_t joint_num;
                 emcmot_joint_t *joint;
                 double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
@@ -793,7 +793,7 @@ static void process_probe_inputs(void)
                 emcmotStatus->align_pos_cmd = 1;
             }
         } else {
-            int32_t i = 0, joint_num;
+            int32_t joint_num;
             emcmot_joint_t *joint;
             double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
             for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
@@ -876,21 +876,21 @@ static void process_probe_inputs(void)
 //        }
 
         break;
-    case USB_STATUS_RISC_PROBE_ERROR:
-        if (report_risc_probing_error == 0) {
-            report_risc_probing_error = 1;
-            aborted = 1;
-            abort_reason = NO_REASON;
-            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-            SET_MOTION_ERROR_FLAG(1);
-            tpAbort(&emcmotDebug->coord_tp);
-            reportError("RISC probing error.");
-        }
-        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-        emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-//        fprintf(stderr,"set probe_cmd (%d)\n", emcmotStatus->usb_cmd_param[0] );
-        break;
+//    case USB_STATUS_RISC_PROBE_ERROR:
+//        if (report_risc_probing_error == 0) {
+//            report_risc_probing_error = 1;
+//            aborted = 1;
+//            abort_reason = NO_REASON;
+//            emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+//            SET_MOTION_ERROR_FLAG(1);
+//            tpAbort(&emcmotDebug->coord_tp);
+//            reportError("RISC probing error.");
+//        }
+//        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+//        emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+//        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+////        fprintf(stderr,"set probe_cmd (%d)\n", emcmotStatus->usb_cmd_param[0] );
+//        break;
 
     case USB_STATUS_READY: // PROBE STATUS Clean
         // deal with PROBE related status only
@@ -917,13 +917,31 @@ static void process_probe_inputs(void)
       if (emcmotStatus->probe_cmd == USB_CMD_PROBE_HIGH ||
                       emcmotStatus->probe_cmd == USB_CMD_PROBE_LOW) {
           if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
+              int32_t joint_num;
+              emcmot_joint_t *joint;
+              double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
+
               if (probe_suppress == 0) {  // just stop motion
                   tpPause(&emcmotDebug->coord_tp);
                   reportError("G38.X probe move finished without tripping probe");
 
                   SET_MOTION_ERROR_FLAG(1);
               }
-              emcmotStatus->probe_cmd = USB_CMD_NOOP;
+
+
+              for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
+                   /* point to joint struct */
+                   joint = &joints[joint_num];
+                   /* update probed pos  */
+                   joint_pos[joint_num] =  joint->probed_pos -
+                                           (joint->backlash_filt + joint->motor_offset_fb);
+               }
+
+              /* record current pos as probed pos */
+              kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags,
+                          &iflags);
+              /* sync current pos-cmd with pos-fb */
+              emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; // handle wou assertion
           }
           break;
       }
@@ -937,7 +955,7 @@ static void process_probe_inputs(void)
 static int update_current_pos = 0;
 static void handle_special_cmd(void)
 {
-    emcmot_joint_status_t *joint_status;
+//    emcmot_joint_status_t *joint_status;
     if (update_current_pos == 1) {
 //        if (!GET_MOTION_COORD_FLAG() &&
 //            !GET_MOTION_ENABLE_FLAG() && GET_MOTION_INPOS_FLAG() &&
@@ -1084,7 +1102,7 @@ static void set_operating_mode(void)
     int joint_num, axis_num;
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
-    joint_hal_t *joint_data;
+//    joint_hal_t *joint_data;
     double positions[EMCMOT_MAX_JOINTS];
 
     /* check for disabling */
@@ -1357,7 +1375,7 @@ static void handle_jogwheels(void)
 
 static void get_pos_cmds(long period)
 {
-    int joint_num, axis_num, result;
+    int joint_num, result;
     emcmot_joint_t *joint;
     //obsolete: emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
