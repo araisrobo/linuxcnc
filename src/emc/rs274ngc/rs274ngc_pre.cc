@@ -1864,7 +1864,7 @@ int Interp::synch()
   _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
   prev_x = _setup.current_x;
   prev_y = _setup.current_y;
-  prev_z = _setup.current_y;
+  prev_z = _setup.current_z;
   _setup.current_x = GET_EXTERNAL_POSITION_X();
   _setup.current_y = GET_EXTERNAL_POSITION_Y();
   _setup.current_z = GET_EXTERNAL_POSITION_Z();
