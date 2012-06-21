@@ -1,3 +1,9 @@
+linuxcnc (1:2.5.0-2012.06.21) lucid; urgency=low
+
+  * BUGFIX for when doing path compensation. 
+
+ -- Yishin Li <ysli@araisrobo.com>  Thu, 21 Jun 2012 12:29:42 +0800
+
 linuxcnc (1:2.5.0-2012.06.12) lucid; urgency=low
 
   * UPDATE fix feedrate of probe is not affect by feedoverride.
