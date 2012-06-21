@@ -69,7 +69,8 @@ static void home_start_move(emcmot_joint_t * joint, double vel)
     }
     joint->free_tp.max_vel = fabs(vel);
     /* start the move */
-    joint->free_tp.enable = 1;
+//    joint->free_tp.enable = 1;
+    joint->free_tp.enable = 0;
 }
 
 /* 'home_do_moving_checks()' is called from states where the machine
@@ -901,7 +902,8 @@ void do_homing(void)
                      || (joint->home_latch_vel != 0)
                      || (joint->home_final_vel != 0)
                    ) {
-                    joint->free_tp.enable = 1;
+//                    joint->free_tp.enable = 1;
+                	joint->free_tp.enable = 0; // workaround
                 }
 		joint->home_state = HOME_FINAL_MOVE_WAIT;
 		break;
