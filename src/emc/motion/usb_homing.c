@@ -150,6 +150,7 @@ void do_homing_sequence(void)
 		joint->home_pause_timer = 0;  // for wating USB at HOME_START
 		joint->home_state = HOME_START;
 		seen++;
+		break;
 	    }
 	}
 	if(seen) {
