@@ -830,7 +830,7 @@ static void process_probe_inputs(void)
         }
 //        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
-          if (!(emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK)) {
+          if (!((emcmotStatus->last_usb_cmd & USB_CMD_STATUS_ACK) != 0)) {
                 // do resend if necessary
 //                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK()\n");
 //                emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
@@ -839,12 +839,13 @@ static void process_probe_inputs(void)
 //                emcmotStatus->align_pos_cmd = 1;
 //            }
 //        } else {
+          if (emcmotStatus->probe_cmd != USB_CMD_STATUS_ACK) 
+                reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
           fprintf(stderr,"controlc.: send USB_CMD_STATUS_ACK()\n");
           emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
           emcmotStatus->usb_cmd &= ~(0x00000001);
           emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
           emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-          reportError(_("Probe is already tipped when starting G38.2, G38.3 move or G38.4 or G38.5"));
           // TODO: the following thing to do is sync pos_fb and pos_cmd
           tpPause(&emcmotDebug->coord_tp);
           emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
