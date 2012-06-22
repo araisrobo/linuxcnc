@@ -560,12 +560,13 @@ int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
 }
 
 static int issue_sync_count = 0;
+#define SYNC_FREQ 50
 void checkPlanSyncReq(void) {
   // TODO: check sync req flag from emcmotStatus and issue
 //         emcTaskPlanSynch?
     if (emcmotStatus.update_current_pos_flag == 1 || issue_sync_count > 0) {
     	issue_sync_count ++;
-    	if (issue_sync_count > 20) {
+    	if (issue_sync_count > SYNC_FREQ) {
     		issue_sync_count = 0;
 			emcmotStatus.update_current_pos_flag = 0;
 			EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
