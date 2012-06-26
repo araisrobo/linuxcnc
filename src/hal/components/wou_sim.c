@@ -1720,17 +1720,19 @@ static void update_freq(void *arg, long period)
     enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_joints; n++) {
         /* begin: handle jog config for RISC */
-        if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.00001) {
+        if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.01) {
         	double vel;
         	fprintf(stderr, "wou_stepgen.c: j (%d) jog_scale(%f) jog_vel(%f) prev_vel(%f)\n",
 						n, *stepgen->jog_scale, *stepgen->jog_vel, stepgen->prev_jog_vel);
             /* config jog setting */
         	vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
         	if (vel > stepgen->maxvel) {
+        		fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
         		vel = stepgen->maxvel;
         		(*stepgen->jog_vel) = vel;
         	}
-            jog_var = (uint32_t) (vel * (*stepgen->pos_scale_pin) * dt);
+        	fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
+            jog_var = abs((uint32_t) (vel * (*stepgen->pos_scale_pin) * dt));
             new_jog_config = (jog_var << 20) | (stepgen->jog_config & 0x000FFFFF);
             new_jog_config = (new_jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
