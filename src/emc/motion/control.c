@@ -895,8 +895,8 @@ static void process_probe_inputs(void)
 
     case USB_STATUS_READY: // PROBE STATUS Clean
         // deal with PROBE related status only
+    	emcmotStatus->align_pos_cmd = 0;
         if (wait_resume == 1 && emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
-            emcmotStatus->align_pos_cmd = 0;
             fprintf(stderr,"controlc.: call tpResume()\n");
             tpResume(&emcmotDebug->coord_tp);
             wait_resume = 0;
@@ -908,7 +908,7 @@ static void process_probe_inputs(void)
                 emcmotStatus->probe_cmd = USB_CMD_NOOP;
                 if (probe_suppress == 0) {  // just stop motion
                     tpPause(&emcmotDebug->coord_tp);
-                    reportError("G38.X probe move finished without tripping probe");
+                    // reportError("G38.X probe move finished without tripping probe");
                     SET_MOTION_ERROR_FLAG(1);
                 }
             }
@@ -924,7 +924,7 @@ static void process_probe_inputs(void)
 
               if (probe_suppress == 0) {  // just stop motion
                   tpPause(&emcmotDebug->coord_tp);
-                  reportError("G38.X probe move finished without tripping probe");
+                  // reportError("G38.X probe move finished without tripping probe");
 
                   SET_MOTION_ERROR_FLAG(1);
               }
