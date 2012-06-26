@@ -1730,6 +1730,7 @@ static void update_freq(void *arg, long period)
             fprintf(stderr, "wou_stepgen.c: j (%d) jog-vel has been changed new jog_config(0x%0X)\n",
                 n, new_jog_config);
             stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
+            stepgen->jog_config = new_jog_config;
         }
 
 
