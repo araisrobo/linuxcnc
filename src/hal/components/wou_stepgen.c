@@ -1710,22 +1710,25 @@ static void update_freq(void *arg, long period)
     enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_joints; n++) {
         /* begin: handle jog config for RISC */
-        if ((*stepgen->jog_vel) * (*stepgen->jog_scale) != stepgen->prev_jog_vel) {
+        if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.00001) {
         	double vel;
+        	fprintf(stderr, "wou_stepgen.c: j (%d) jog_scale(%f) jog_vel(%f) prev_vel(%f)\n",
+						n, *stepgen->jog_scale, *stepgen->jog_vel, stepgen->prev_jog_vel);
             /* config jog setting */
         	vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
         	if (vel > stepgen->maxvel) {
         		vel = stepgen->maxvel;
+        		(*stepgen->jog_vel) = vel;
         	}
-            jog_var = (uint32_t) (vel * (*stepgen->pos_scale_pin) * dt * FIXED_POINT_SCALE);
+            jog_var = (uint32_t) (vel * (*stepgen->pos_scale_pin) * dt);
             new_jog_config = (jog_var << 20) | (stepgen->jog_config & 0x000FFFFF);
             new_jog_config = (new_jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            fprintf(stderr, "wou_stepgen.c: j (%d) jog-vel has been changed new jog_config(0x%0X)\n",
-                n, new_jog_config);
+
+            stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
         }
-        stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
+
         if (stepgen->prev_jog_enable != *stepgen->jog_enable) {
             new_jog_config = (stepgen->jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
@@ -1735,8 +1738,8 @@ static void update_freq(void *arg, long period)
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
             fprintf(stderr, "wou_stepgen.c: j (%d) jog-enable has been changed new jog_config(0x%0X)\n",
                 n, new_jog_config);
+            stepgen->prev_jog_enable = *stepgen->jog_enable;
         }
-        stepgen->prev_jog_enable = *stepgen->jog_enable;
         /* end: handle jog config for RISC */
 
 
@@ -2281,7 +2284,7 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     }
 
     retval = hal_pin_float_newf(HAL_IN, &(addr->jog_vel), comp_id,
-                                    "wou.stepgen.%d.jog_vel", num);
+                                    "wou.stepgen.%d.jog-vel", num);
     if (retval != 0) {
         return retval;
     }
@@ -2332,7 +2335,7 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     (addr->prev_vel_cmd) = 0.0;
     (addr->accel_cmd) = 0.0;
     *(addr->ctrl_type_switch) = 0;
-    *(addr->jog_scale) = 0.6;
+    *(addr->jog_scale) = 1.0;
     /* config jog setting */
     max_pulse_tick = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);
     jog_config_value = strtoul(jog_config_str[num],NULL, 16);
