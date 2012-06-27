@@ -1256,6 +1256,8 @@ class GlCanonDraw:
 #                     print 'x1(%f) y1(%f)' % (pos_1[0], pos_1[1])
 #                     print 'x2(%f) y2(%f)' % (pos_2[0], pos_2[1])
 #                     print 'x3(%f) y3(%f)' % (pos_3[0], pos_3[1])
+                    glDisable(GL_DEPTH_TEST)
+                    glEnable(GL_BLEND)
                     glLineWidth(10)
                     glColor3f(0.4,0.4,0.2)
                     # glColor3f(0.5,1.0,0.2)
@@ -1266,6 +1268,8 @@ class GlCanonDraw:
                     glVertex3f(pos_1[0], pos_1[1],0)
 
                     glEnd()
+                    glEnable(GL_DEPTH_TEST)
+                    glDisable(GL_BLEND)
             else:
                 # print 'PLATEVIEW: glcanon does not want to draw'
                 pass
