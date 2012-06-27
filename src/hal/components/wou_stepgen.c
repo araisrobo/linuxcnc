@@ -1737,13 +1737,11 @@ static void update_freq(void *arg, long period)
         if (stepgen->prev_jog_enable != *stepgen->jog_enable) {
             new_jog_config = (stepgen->jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
-            jog_var = (stepgen->jog_config & 0xFFF00000) >> 20; // fetch jog velocity
-            jog_var = (uint32_t)(((double)jog_var) * (*stepgen->jog_scale));
-            new_jog_config = (jog_var << 20) | (new_jog_config & 0x000FFFFF);
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
             fprintf(stderr, "wou_stepgen.c: j (%d) jog-enable has been changed new jog_config(0x%0X)\n",
                 n, new_jog_config);
             stepgen->prev_jog_enable = *stepgen->jog_enable;
+            stepgen->jog_config = new_jog_config;
         }
         /* end: handle jog config for RISC */
 
