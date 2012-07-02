@@ -2795,6 +2795,19 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     case _FC_READ_INPUT_REGISTERS:
         switch (address) {
             case    0:  printf("RD REGS\n");
+//todo:                        emcStatus->motion.traj.actualPosition.tran.x
+//todo:                        emcStatus->motion.traj.actualPosition.tran.y
+//todo:                        emcStatus->motion.traj.actualPosition.tran.z
+//todo:                        emcStatus->motion.traj.actualPosition.tran.a
+//todo:                        emcStatus->motion.traj.actualPosition.tran.b
+//todo:                
+//todo:                val = (req[offset + j + 2] << 24) + 
+//todo:                      (req[offset + j + 3] << 16) + 
+//todo:                      (req[offset + j]     << 8 ) + 
+//todo:                       req[offset + j + 1];
+//todo:                fp = (float *) &val;
+//todo:
+//todo:                        strcat(context->outBuf, buf);
                         break;
             default:    printf("TODO ");
                         break;
