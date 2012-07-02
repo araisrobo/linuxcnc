@@ -576,12 +576,15 @@ static int initModbus()
     int rc;
     
     baud = 115200;
+    // baud = 57600;
+    // baud = 9600;
     bits = 8;
     stopbits = 1;
-    debug = 0;
-    // device = "/dev/ttyUSB0";
-    device = "/dev/ttyUSB2";
+    debug = 1;
+    device = "/dev/ttyUSB0";
+    // device = "/dev/ttyUSB1";
     parity = "O";   // O: odd, E: even, N: none
+    // parity = "N";   // O: odd, E: even, N: none
     server_id = 22;
 
     printf("modbus_rtu: device='%s', baud=%d, bits=%d, parity='%s', stopbits=%d, verbose=%d\n", device, baud, bits, parity, stopbits, debug);
@@ -3026,7 +3029,8 @@ static void modbus_main()
 
 static void initMain()
 {
-    emcWaitType = EMC_WAIT_RECEIVED;
+    // emcWaitType = EMC_WAIT_RECEIVED;
+    emcWaitType = EMC_WAIT_DONE;
     emcCommandSerialNumber = 0;
     saveEmcCommandSerialNumber = 0;
     emcTimeout = 0.0;
