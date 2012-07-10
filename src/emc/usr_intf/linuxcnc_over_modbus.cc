@@ -581,7 +581,8 @@ static int initModbus()
     bits = 8;
     stopbits = 1;
     debug = 1;
-    device = "/dev/ttyUSB0";
+    device = "/dev/ttyO1";
+    // device = "/dev/ttyUSB0";
     // device = "/dev/ttyUSB1";
     parity = "O";   // O: odd, E: even, N: none
     // parity = "N";   // O: odd, E: even, N: none
@@ -2786,10 +2787,10 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     int nb;
     static uint32_t sn = 0;   // serial number
     
-    // int i;
-    // for (i=0; i < req_length; i++)
-    //     printf("<%.2X>", req[i]);
-    // printf("\n");
+    //extra debug: int i;
+    //extra debug: for (i=0; i < req_length; i++)
+    //extra debug:     printf("<%.2X>", req[i]);
+    //extra debug: printf("\n");
 
     // TODO: read slave address through INI file
     assert (slave == 22);
