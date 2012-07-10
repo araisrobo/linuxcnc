@@ -547,7 +547,12 @@ static void thisQuit()
 	delete emcCommandBuffer;
 	emcCommandBuffer = 0;
     }
+    
+    modbus_mapping_free(mb_mapping);
+    modbus_close(mb_ctx);
+    modbus_free(mb_ctx);
 
+    printf("finish quit process\n");
 //    Tcl_Exit(0);
     exit(0);
 }
@@ -631,6 +636,7 @@ static int initModbus()
 
 static void sigQuit(int sig)
 {
+    (void) signal(SIGINT, SIG_IGN); // ignore CTRL-C signal
     thisQuit();
 }
 
