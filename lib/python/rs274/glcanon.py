@@ -1388,7 +1388,8 @@ class GlCanonDraw:
 
                 current_tool = self.get_current_tool()
                 if self.fix_tool_size == True:
-                    self.canon.fix_tool_size = True
+                    if self.canon != None:
+                        self.canon.fix_tool_size = True
                     self.cache_tool(current_tool)
                     glCallList(self.dlist('tool'))
                 else:
