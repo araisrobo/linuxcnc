@@ -3099,15 +3099,15 @@ int main(int argc, char *argv[])
     // get configuration information
     iniLoad(emc_inifile);
 
-    if (initModbus() != 0) {
-	rcs_print_error("can't initialize Modbus\n");
+    // init NML, set retry_time as 120 seconds, retry_interval as 1 second
+    if (tryNml(120.0, 1.0) != 0) {
+	rcs_print_error("can't connect to emc\n");
 	thisQuit();
 	exit(1);
     }
-
-    // init NML, set retry_time as 60 seconds, retry_interval as 1 second
-    if (tryNml(60.0, 1.0) != 0) {
-	rcs_print_error("can't connect to emc\n");
+    
+    if (initModbus() != 0) {
+	rcs_print_error("can't initialize Modbus\n");
 	thisQuit();
 	exit(1);
     }
