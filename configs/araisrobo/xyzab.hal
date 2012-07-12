@@ -69,7 +69,8 @@ net J3home-state joint.3.home-state => wou.stepgen.3.home-state
 net J4home-state joint.4.home-state => wou.stepgen.4.home-state
 
 # estop loopback
-net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
+# net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
+net din_00  => iocontrol.0.emc-enable-in
 
 # create signals for tool loading loopback
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
@@ -144,12 +145,39 @@ setp wou.stepgen.2.maxaccel [JOINT_2]MAX_ACCELERATION
 setp wou.stepgen.3.maxaccel [JOINT_3]MAX_ACCELERATION
 setp wou.stepgen.4.maxaccel [JOINT_4]MAX_ACCELERATION
 
-# home: home switch status from FPGA
-net home_j0       wou.gpio.in.02    =>  joint.0.home-sw-in
-net home_j1       wou.gpio.in.03    =>  joint.1.home-sw-in
-net home_j2       wou.gpio.in.04    =>  joint.2.home-sw-in
-net home_j3       wou.gpio.in.05    =>  joint.3.home-sw-in
-net home_j4       wou.gpio.in.06    =>  joint.4.home-sw-in
+# mapping wou.gpio to motion.synch_di[]
+net din_00	wou.gpio.in.00    => motion.digital-in-00
+net din_01 	wou.gpio.in.01    => motion.digital-in-01
+net din_02 	wou.gpio.in.02    => motion.digital-in-02
+net din_03 	wou.gpio.in.03    => motion.digital-in-03
+net din_04 	wou.gpio.in.04    => motion.digital-in-04
+net din_05 	wou.gpio.in.05    => motion.digital-in-05
+net din_06 	wou.gpio.in.06    => motion.digital-in-06
+net din_07 	wou.gpio.in.07    => motion.digital-in-07
+net din_08 	wou.gpio.in.08    => motion.digital-in-08
+net din_09 	wou.gpio.in.09    => motion.digital-in-09
+net din_10 	wou.gpio.in.10    => motion.digital-in-10
+net din_11 	wou.gpio.in.11    => motion.digital-in-11
+net din_12 	wou.gpio.in.12    => motion.digital-in-12
+net din_13 	wou.gpio.in.13    => motion.digital-in-13
+net din_14 	wou.gpio.in.14    => motion.digital-in-14
+net din_15 	wou.gpio.in.15    => motion.digital-in-15
+net din_16 	wou.gpio.in.16    => motion.digital-in-16
+net din_17 	wou.gpio.in.17    => motion.digital-in-17
+net din_18 	wou.gpio.in.18    => motion.digital-in-18
+net din_19 	wou.gpio.in.19    => motion.digital-in-19
+net din_20 	wou.gpio.in.20    => motion.digital-in-20
+net din_21 	wou.gpio.in.21    => motion.digital-in-21
+net din_22 	wou.gpio.in.22    => motion.digital-in-22
+net din_23 	wou.gpio.in.23    => motion.digital-in-23
+net din_24 	wou.gpio.in.24    => motion.digital-in-24
+net din_25 	wou.gpio.in.25    => motion.digital-in-25
+net din_26 	wou.gpio.in.26    => motion.digital-in-26
+net din_27 	wou.gpio.in.27    => motion.digital-in-27
+net din_28 	wou.gpio.in.28    => motion.digital-in-28
+net din_29 	wou.gpio.in.29    => motion.digital-in-29
+net din_30 	wou.gpio.in.30    => motion.digital-in-30
+net din_31 	wou.gpio.in.31    => motion.digital-in-31
 
 net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
 net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
