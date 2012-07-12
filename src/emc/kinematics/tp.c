@@ -763,7 +763,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.uu_per_rev = tp->uu_per_rev;
         tc.css_progress_cmd = 0;
         tc.enables = enables;
-
+        tc.indexrotary = -1;
         if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
             tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
             tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it

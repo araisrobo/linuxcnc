@@ -273,11 +273,18 @@ void clearHomes(int joint_num)
 }
 
 void emcmotSetRotaryUnlock(int axis, int unlock) {
-    *(emcmot_hal_data->joint[axis].unlock) = unlock;
+
+    if(axis >= 3 && axis <= 5) {
+        *(emcmot_hal_data->joint[axis].unlock) = unlock;
+    }
 }
 
 int emcmotGetRotaryIsUnlocked(int axis) {
-    return *(emcmot_hal_data->joint[axis].is_unlocked);
+    if(axis >= 3 && axis <= 5) {
+        return *(emcmot_hal_data->joint[axis].is_unlocked);
+    } else {
+        return 1;
+    }
 }
 
 /*! \function emcmotDioWrite()
