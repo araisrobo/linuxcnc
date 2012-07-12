@@ -577,7 +577,7 @@ static int initModbus()
 {
     int server_id;
     int baud, bits, stopbits, debug;
-    char *device, *parity;
+    const char *device, *parity;
     int rc;
     
     baud = 115200;
@@ -2793,11 +2793,6 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     int nb;
     static uint32_t sn = 0;   // serial number
     
-    //extra debug: int i;
-    //extra debug: for (i=0; i < req_length; i++)
-    //extra debug:     printf("<%.2X>", req[i]);
-    //extra debug: printf("\n");
-
     // TODO: read slave address through INI file
     assert (slave == 22);
 
@@ -2818,6 +2813,22 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
 //todo:                fp = (float *) &val;
 //todo:
 //todo:                        strcat(context->outBuf, buf);
+
+
+			// EmcPose position;		// current commanded position
+			printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
+			printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
+			printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
+			printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
+			printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
+			// EmcPose actualPosition;	// current actual position, from forward kins
+			printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
+			printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
+			printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
+			printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
+			printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
+			printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
+			printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
                         break;
             default:    printf("TODO ");
                         break;
@@ -2890,11 +2901,20 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
 
             // execState: usually at EMC_TASK_EXEC_DONE(2)
             // printf("execState(%d)\n", emcStatus->task.execState);
-            if (sendMdiCmd(mdi_buf) != 0) {
-                printf("sendMdiCmd ERROR\n"); 
-                // this may happen when system loading is high
-                // assert(0);
-            }
+            // printf("status(%d)\n", emcStatus->status);
+	    /**
+	     * emcStatus->status:
+	     *	    RCS_DONE = 1
+	     * 	    RCS_EXEC = 2
+	     * 	    RCS_ERROR = 3
+	     **/
+	    if (emcStatus->status != RCS_EXEC) {
+		if (sendMdiCmd(mdi_buf) != 0) {
+		    printf("sendMdiCmd ERROR or emcTimeout(%.2f)\n", emcTimeout); 
+		    // this may happen when system loading is high
+		    // assert(0);
+		}
+	    }
         }
         break;
 
@@ -3004,7 +3024,7 @@ static void modbus_main()
 {
     int rc;
     uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
-
+    
     while(1) {
         updateStatus();
         if (check_machine_stat()) {
@@ -3037,11 +3057,11 @@ static void modbus_main()
 
 static void initMain()
 {
-    // emcWaitType = EMC_WAIT_RECEIVED;
-    emcWaitType = EMC_WAIT_DONE;
+    emcWaitType = EMC_WAIT_RECEIVED;
+    // emcWaitType = EMC_WAIT_DONE;
     emcCommandSerialNumber = 0;
     saveEmcCommandSerialNumber = 0;
-    emcTimeout = 0.0;
+    emcTimeout = 3.0;
     emcUpdateType = EMC_UPDATE_AUTO;
     linearUnitConversion = LINEAR_UNITS_AUTO;
     angularUnitConversion = ANGULAR_UNITS_AUTO;
