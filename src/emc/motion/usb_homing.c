@@ -69,7 +69,8 @@ static void home_start_move(emcmot_joint_t * joint, double vel)
     }
     joint->free_tp.max_vel = fabs(vel);
     /* start the move */
-    joint->free_tp.enable = 1;
+//    joint->free_tp.enable = 1;
+    joint->free_tp.enable = 0;
 }
 
 /* 'home_do_moving_checks()' is called from states where the machine
@@ -149,6 +150,7 @@ void do_homing_sequence(void)
 		joint->home_pause_timer = 0;  // for wating USB at HOME_START
 		joint->home_state = HOME_START;
 		seen++;
+		break;
 	    }
 	}
 	if(seen) {
@@ -266,6 +268,9 @@ void do_homing(void)
                     break;
                 }
                 emcmotStatus->usb_cmd = HOME_CMD_TYPE;
+                // param0 for home_config:
+                // [7:4]: joint_num
+                // [3:0]: home_flag
                 emcmotStatus->usb_cmd_param[0] = (joint_num << 4) | joint->home_flags; // joint num | index homing
                 emcmotStatus->usb_cmd_param[1] = joint->home_search_vel;  // home search vel
                 emcmotStatus->usb_cmd_param[2] = joint->home_latch_vel ;  // home search vel
@@ -898,7 +903,8 @@ void do_homing(void)
                      || (joint->home_latch_vel != 0)
                      || (joint->home_final_vel != 0)
                    ) {
-                    joint->free_tp.enable = 1;
+//                    joint->free_tp.enable = 1;
+                	joint->free_tp.enable = 0; // workaround
                 }
 		joint->home_state = HOME_FINAL_MOVE_WAIT;
 		break;

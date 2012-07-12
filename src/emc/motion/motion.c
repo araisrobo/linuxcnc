@@ -299,11 +299,19 @@ static int init_hal_io(void)
     //obsolete on arias-emc2-usb: if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
 
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->align_pos_cmd), mot_comp_id, "motion.align-pos-cmd")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->req_cmd_sync), mot_comp_id, "motion.req-cmd-syn")) < 0) goto error;
+    *emcmot_hal_data->req_cmd_sync = 0;
+
     if ((retval = hal_pin_u32_newf(HAL_IO, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.usb.cmd")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->last_usb_cmd), mot_comp_id, "motion.usb.last-cmd")) < 0) goto error;
     for (n=0;n<4;n++) {
           if ((retval = hal_pin_float_newf(HAL_OUT,
               &(emcmot_hal_data->usb_cmd_param[n]),
               mot_comp_id, "motion.usb.param-%02d", n)) < 0) goto error;
+
+          if ((retval = hal_pin_float_newf(HAL_IN,
+              &(emcmot_hal_data->last_usb_cmd_param[n]),
+              mot_comp_id, "motion.usb.last-param-%02d", n)) < 0) goto error;
 
     }
 //    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.wou.cmd")) < 0) goto error;

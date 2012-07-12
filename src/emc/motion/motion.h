@@ -638,11 +638,15 @@ Suggestion: Split this in to an Error and a Status flag register..
     typedef struct emcmot_status_t {
         int update_current_pos_flag;
         uint32_t usb_cmd;
+        uint32_t last_usb_cmd;
         uint32_t special_cmd;
         uint32_t probe_cmd;
         double usb_cmd_param[4];
+        double last_usb_cmd_param[4];
         uint32_t usb_status;
+        int sync_pos_cmd;
         int align_pos_cmd;
+        int sync_risc_pos;
 
 	unsigned char head;	/* flag count for mutex detect */
 	/* these three are updated only when a new command is handled */

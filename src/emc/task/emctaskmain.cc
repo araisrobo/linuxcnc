@@ -1814,6 +1814,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TRAJ_PROBE_TYPE:
+
 	retval = emcTrajProbe(
 	    ((EMC_TRAJ_PROBE *) cmd)->pos, 
 	    ((EMC_TRAJ_PROBE *) cmd)->type,

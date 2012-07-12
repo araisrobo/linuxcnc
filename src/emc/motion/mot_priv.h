@@ -91,9 +91,12 @@ typedef struct {
 
 typedef struct {
     //obsolete: hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_bit_t *req_cmd_sync;
     hal_bit_t *align_pos_cmd;
     hal_u32_t *usb_cmd;         /* usb command output */
+    hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
+    hal_float_t *last_usb_cmd_param[4];
     hal_u32_t *usb_status;      /* usb status input */
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;

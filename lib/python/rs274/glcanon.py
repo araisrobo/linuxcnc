@@ -482,10 +482,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # print 'max line = %f' % (max(traverse_line, feed_line, arcfeed_line))
         return max(traverse_line, feed_line, arcfeed_line)
     def get_last_pos_of_prog(self):
-        if len(self.blocks) > 0:
-            block_line = self.blocks[len(self.blocks)-1][0]
-        else:
-            block_line = None
+        # if len(self.blocks) > 0:
+        #     block_line = self.blocks[len(self.blocks)-1][0]
+        # else:
+        #     block_line = None
         
         #if len(self.traverse) > 0:
         #    traverse_line = self.traverse[len(self.traverse)-1][0]
@@ -512,28 +512,26 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # DEBUG: print 'arcfeed-line', arcfeed_line
 
         if arcfeed_line is None:
-            arcfeed_line = min((block_line,arcfeed_line,feed_line,traverse_line))
+            arcfeed_line = min((arcfeed_line,feed_line,traverse_line))
         if feed_line is None:
-            feed_line = min((block_line,arcfeed_line,feed_line,traverse_line))
-        if block_line is None:
-            block_line = min((block_line,arcfeed_line,feed_line,traverse_line))
+            feed_line = min((arcfeed_line,feed_line,traverse_line))
         if traverse_line is None:
-            traverse_line = min((block_line,arcfeed_line,feed_line,traverse_line))
-
-        if block_line >= max((traverse_line, feed_line, arcfeed_line)):
-            # print 'max is block',block_line
-            index = len(self.blocks) - 1 
-            return self.blocks[index][2][:3], self.blocks[index][3]
-        if feed_line >= max((traverse_line, block_line, feed_line)):
+            traverse_line = min((arcfeed_line,feed_line,traverse_line))
+        print arcfeed_line, feed_line, traverse_line
+        if feed_line >= max((traverse_line, arcfeed_line)):
             # print 'max is feed', feed_line
             index = len(self.feed) - 1
+            print 'last pos is feed', self.feed[index][2][:3]
+            print 'line', feed_line
             return self.feed[index][2][:3],self.feed[index][3]
-        if arcfeed_line >= max((traverse_line, feed_line, block_line)):
+        if arcfeed_line >= max((traverse_line, feed_line)):
             # print 'max is arcfeed', arcfeed_line
-            index = len(self.arcfeed) - 1
+            index = len(self.arcfeed)- 1
+            print 'last pos is arc', self.arcfeed[index]
             return self.arcfeed[index][2][:3],self.arcfeed[index][3]
-        if traverse_line >= max((block_line, arcfeed_line, feed_line)):
+        if traverse_line >= max((arcfeed_line, feed_line)):
             # print 'max is traverse', traverse_line 
+            print 'last pos is traverse', last_traverse[2][:3]
             feedrate = last_traverse[3]
             return last_traverse[2][:3], feedrate
     def get_start_line_of_block(self, lineno = None):
@@ -647,8 +645,8 @@ class GlCanonDraw:
         'backplotprobing': (0.63, 0.13, 0.94),
         'backplottraverse': (0.30, 0.50, 0.50),
         'label_ok': (1.00, 0.51, 0.53),
-        'backplotjog_alpha': 0,
-        #'backplotjog_alpha': 0.75,
+        #'backplotjog_alpha': 0,
+        'backplotjog_alpha': 0.75,
         'tool_diffuse': (0.60, 0.60, 0.60),
         'backplotfeed': (0.75, 0.25, 0.25),
         'back': (0.00, 0.00, 0.00),
@@ -662,8 +660,8 @@ class GlCanonDraw:
         'axis_z': (0, 0, 0),
         # 'axis_z': (0.20, 0.20, 1.00),
         'label_limit': (1.00, 0.21, 0.23),
-        'backplotjog': (0, 0, 0),
-        # 'backplotjog': (1.00, 1.00, 0.00),
+        # 'backplotjog': (0, 0, 0),
+        'backplotjog': (1.00, 1.00, 0.00),
         'selected': (0.00, 1.00, 1.00),
         'lathetool': (0.80, 0.80, 0.80),
         'dwell': (1.00, 0.50, 0.50),
@@ -1256,6 +1254,8 @@ class GlCanonDraw:
 #                     print 'x1(%f) y1(%f)' % (pos_1[0], pos_1[1])
 #                     print 'x2(%f) y2(%f)' % (pos_2[0], pos_2[1])
 #                     print 'x3(%f) y3(%f)' % (pos_3[0], pos_3[1])
+                    glDisable(GL_DEPTH_TEST)
+                    glEnable(GL_BLEND)
                     glLineWidth(10)
                     glColor3f(0.4,0.4,0.2)
                     # glColor3f(0.5,1.0,0.2)
@@ -1266,6 +1266,8 @@ class GlCanonDraw:
                     glVertex3f(pos_1[0], pos_1[1],0)
 
                     glEnd()
+                    glEnable(GL_DEPTH_TEST)
+                    glDisable(GL_BLEND)
             else:
                 # print 'PLATEVIEW: glcanon does not want to draw'
                 pass
@@ -1386,7 +1388,8 @@ class GlCanonDraw:
 
                 current_tool = self.get_current_tool()
                 if self.fix_tool_size == True:
-                    self.canon.fix_tool_size = True
+                    if self.canon != None:
+                        self.canon.fix_tool_size = True
                     self.cache_tool(current_tool)
                     glCallList(self.dlist('tool'))
                 else:
