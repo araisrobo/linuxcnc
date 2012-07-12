@@ -2891,8 +2891,9 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
             // execState: usually at EMC_TASK_EXEC_DONE(2)
             // printf("execState(%d)\n", emcStatus->task.execState);
             if (sendMdiCmd(mdi_buf) != 0) {
-                printf("sendMdiCmd ERROR\n");
-                assert(0);
+                printf("sendMdiCmd ERROR\n"); 
+                // this may happen when system loading is high
+                // assert(0);
             }
         }
         break;
