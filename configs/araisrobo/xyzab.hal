@@ -61,13 +61,6 @@ net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
 net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 net J4_index-pos wou.stepgen.4.index-pos => joint.4.index-pos
 
-# home-state
-net J0home-state joint.0.home-state => wou.stepgen.0.home-state
-net J1home-state joint.1.home-state => wou.stepgen.1.home-state
-net J2home-state joint.2.home-state => wou.stepgen.2.home-state
-net J3home-state joint.3.home-state => wou.stepgen.3.home-state
-net J4home-state joint.4.home-state => wou.stepgen.4.home-state
-
 # estop loopback
 # net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
 net din_00  => iocontrol.0.emc-enable-in
