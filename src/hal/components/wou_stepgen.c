@@ -729,11 +729,9 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         bp_tick = *p;                      
         p += 1;
-#if 0
         if (ERROR_BASE_PERIOD == *p) {
             DP("\nERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
         }
-#endif
         break;
 
     case MT_USB_STATUS:
