@@ -207,23 +207,32 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     switch (function) {
     case _FC_READ_INPUT_REGISTERS:
         switch (address) {
-            case    0:  printf("RD REGS\n");
+            case    0:  
+			printf("RD REGS\n");
+			// printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
+			// printf("inpos: %d\n", emcStatus->motion.traj.inpos);
+			mb_mapping->tab_input_bits[0] = (uint8_t) emcStatus->motion.traj.queueFull;
+			mb_mapping->tab_input_bits[1] = (uint8_t) emcStatus->motion.traj.inpos;
 
-
-			// EmcPose position;		// current commanded position
-			printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
-			printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
-			printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
-			printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
-			printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
-			// EmcPose actualPosition;	// current actual position, from forward kins
-			printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
-			printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
-			printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
-			printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
-			printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
-			printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
-			printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
+			// printf("queue: %d\n", emcStatus->motion.traj.queue);
+			mb_mapping->tab_input_registers[0] = (uint16_t) emcStatus->motion.traj.queue;
+			mb_mapping->tab_input_registers[1] = (uint16_t) (emcStatus->motion.traj.queue >> 16);
+			// // EmcPose position;		// current commanded position
+			// printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
+			// printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
+			// printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
+			// printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
+			// printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
+			//TODO: mb_mapping->tab_input_registers[2] = (uint16_t) emcStatus->motion.traj.position.tran.x;
+			//TODO: mb_mapping->tab_input_registers[3] = (uint16_t) (emcStatus->motion.traj.position.tran.x >> 16);
+			// // EmcPose actualPosition;	// current actual position, from forward kins
+			// printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
+			// printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
+			// printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
+			// printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
+			// printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
+			// printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
+			// printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
                         break;
             default:    printf("TODO ");
                         break;
@@ -303,12 +312,16 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
 	     * 	    RCS_EXEC = 2
 	     * 	    RCS_ERROR = 3
 	     **/
-	    if (emcStatus->status != RCS_EXEC) {
+	    // if (emcStatus->status != RCS_EXEC)
+	    if (0 == emcStatus->motion.traj.queueFull) {
 		if (sendMdiCmd(mdi_buf) != 0) {
 		    printf("sendMdiCmd ERROR or emcTimeout(%.2f)\n", emcTimeout); 
 		    // this may happen when system loading is high
 		    // assert(0);
 		}
+	    } else {
+		printf("queue: %d\n", emcStatus->motion.traj.queue);
+		printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
 	    }
         }
         break;
@@ -421,8 +434,10 @@ static void modbus_main()
     uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
     
     while(1) {
-	const struct timespec   req = {0,30500000};   // 30.5ms
-	nanosleep(&req, NULL);  // sleep for 30.5ms to avoid blocking by UART
+	struct timespec	req;
+	
+	req = {0,10500000};   // 10.5ms
+	nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
 
         updateStatus();
         if (check_machine_stat()) {
@@ -433,8 +448,8 @@ static void modbus_main()
         rc = modbus_receive(mb_ctx, query);
         if (rc > 0) {
             /* rc is the query size */
-            // printf("debug: modbus query size: %d\n", rc);
             parseModbusCommand(query, rc);
+	    nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
             modbus_reply(mb_ctx, query, rc, mb_mapping);
         } else if (rc == -1) {
             /* modbus related error */
