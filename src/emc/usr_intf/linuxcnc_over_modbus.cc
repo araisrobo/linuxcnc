@@ -62,6 +62,7 @@
 static modbus_t            *mb_ctx;
 static modbus_mapping_t    *mb_mapping;
 static int status_bits[32];
+static int com_ready;
 
 struct option longopts[] = {
   {"help", 0, NULL, 'h'},
@@ -272,6 +273,7 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
 #endif
 			status_bits[0] = (int) emcStatus->motion.traj.queueFull;
 			status_bits[1] = (int) emcStatus->motion.traj.inpos;
+			status_bits[2] = (int) com_ready;
 
 			com_set_uint32 (mb_mapping->tab_input_registers +  0, (uint32_t) emcStatus->motion.traj.queue);
 			com_set_uint32 (mb_mapping->tab_input_registers +  2, (uint32_t) emcStatus->echo_serial_number);
@@ -305,7 +307,7 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
         if ((address + nb) > mb_mapping->nb_registers) {
             fprintf(stderr, "Illegal data address %0X in write_registers\n",
                     address + nb);
-        } else {
+        } else if (com_ready == 1) {
             int i, j, k, val;
             char mdi_buf[256];
             char buf[32];
@@ -416,19 +418,47 @@ static void print_status()
  **/
 static int check_estop()
 {
+    static int updateMsg = -1;
     if (emcStatus->task.state != EMC_TASK_STATE_ON) {
-        printf("MACHINE OFF\n");
-        if (emcStatus->task.state == EMC_TASK_STATE_ESTOP) {
-            printf("ESTOP ON\n");
-        } else {
-            printf("ESTOP OFF\n");
-            printf("SET MACHINE ON\n");
-            sendMachineOn();
-        }
-        return (-1);
+	if (emcStatus->task.state == EMC_TASK_STATE_ESTOP) {
+	    if (updateMsg != 1) {
+		printf("ESTOP-ON,    MACHINE-OFF\n");
+		updateMsg = 1;
+	    }
+	    return (-1);
+	} else {
+	    if (updateMsg != 0) {
+		printf("ESTOP-RESET, MACHINE-OFF\n");
+		updateMsg = 0;
+	    }
+	}
+    } else {
+	updateMsg = -1;
     }
     return (0);
 }
+
+/**
+ * check_machine_on() - check the machine-on state
+ **/
+static int check_machine_on ()
+{
+    if (emcStatus->motion.synch_di[1] == 0) {
+	if (emcStatus->task.state == EMC_TASK_STATE_ON) {
+	    printf("SET MACHINE OFF\n");
+	    sendMachineOff();
+	} 
+	return (-1);
+    } else {
+	if (emcStatus->task.state != EMC_TASK_STATE_ON) {
+	    printf("SET MACHINE ON\n");
+	    sendMachineOn();
+	    return (-1);
+	}
+    }
+    return (0);
+}
+
 
 /**
  * check_homing() - check the home status and do homing if necessary
@@ -475,14 +505,17 @@ static int check_machine_stat()
 {
     // return 0 if machine is ready
     if (check_estop() == 0) {
-        // not at ESTOP nor MACHINE_OFF state
-        if (check_home_stat() == 0) {
-            // any joint which is not at HOMED state
-            if (check_mdi_mode() == 0) {
-                // not at MDI mode
-                return (0);
-            }
-        }
+        // at ESTOP-RESET(READY) state
+	if (check_machine_on() == 0) {
+	    // at MACHINE_ON state
+	    if (check_home_stat() == 0) {
+		// all joints are at HOMED state
+		if (check_mdi_mode() == 0) {
+		    // at MDI mode
+		    return (0);
+		}
+	    }
+	}
     }
     return (-1);
 }
@@ -497,9 +530,11 @@ static void modbus_main()
 
         updateStatus();
         if (check_machine_stat()) {
-            // bypass receiving modbus messages if the machine is not READY
-            continue;
-        }
+            // bypass receiving modbus MDI messages if the machine is not READY
+            com_ready = 0;
+        } else {
+	    com_ready = 1;
+	}
 	
         rc = modbus_receive(mb_ctx, query);
 	nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
