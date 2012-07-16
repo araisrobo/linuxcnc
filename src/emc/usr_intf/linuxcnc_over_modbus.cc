@@ -413,6 +413,20 @@ static void print_status()
 }
 #endif 
 
+static void diff_time(struct timespec *start, struct timespec *end,
+		      struct timespec *diff)
+{
+    if ((end->tv_nsec - start->tv_nsec) < 0) {
+	diff->tv_sec = end->tv_sec - start->tv_sec - 1;
+	diff->tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
+    } else {
+	diff->tv_sec = end->tv_sec - start->tv_sec;
+	diff->tv_nsec = end->tv_nsec - start->tv_nsec;
+    }
+    return;
+}
+
+
 /**
  * check_estop() - check if the machine is at ESTOP state
  **/
@@ -443,16 +457,31 @@ static int check_estop()
  **/
 static int check_machine_on ()
 {
+    static int check_power_switch = 0;
+    static timespec time_begin;
+    timespec time_cur;
+    timespec time_delta;
+
     if (emcStatus->motion.synch_di[1] == 0) {
 	if (emcStatus->task.state == EMC_TASK_STATE_ON) {
 	    printf("SET MACHINE OFF\n");
 	    sendMachineOff();
+            check_power_switch = 1;
+            clock_gettime(CLOCK_REALTIME, &time_begin);
 	} 
+        if (check_power_switch) {
+            clock_gettime(CLOCK_REALTIME, &time_cur);
+            diff_time(&time_begin, &time_cur, &time_delta);
+            if (time_delta.tv_sec > 30) {
+                printf ("about to power off the system\n");
+            }
+        }
 	return (-1);
     } else {
 	if (emcStatus->task.state != EMC_TASK_STATE_ON) {
 	    printf("SET MACHINE ON\n");
 	    sendMachineOn();
+            check_power_switch = 0;
 	    return (-1);
 	}
     }
