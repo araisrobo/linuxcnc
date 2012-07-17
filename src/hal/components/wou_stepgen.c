@@ -185,6 +185,9 @@ RTAPI_MP_STRING(bits, "FPGA bitfile");
 const char *bins = "\0";
 RTAPI_MP_STRING(bins, "RISC binfile");
 
+int alarm_en = -1;
+RTAPI_MP_INT(alarm_en, "hardware alarm dection mode");
+
 int pulse_type = -1;
 RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 
@@ -205,27 +208,27 @@ RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
 #define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] =
-        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "21430272"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j0_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[0]");
 
 const char *j1_pid_str[NUM_PID_PARAMS] =
-        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "21430272"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j1_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[1]");
 
 const char *j2_pid_str[NUM_PID_PARAMS] =
-        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "21430272"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j2_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[2]");
 
 const char *j3_pid_str[NUM_PID_PARAMS] =
-        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "21430272"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
 const char *j4_pid_str[NUM_PID_PARAMS] =
-        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "21430272"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j4_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[4]");
 
@@ -307,8 +310,8 @@ RTAPI_MP_STRING(probe_config,
                 "probe config for RISC");
 
 const char *jog_config_str[MAX_CHAN] =
-    { "0x00020000", "0x00020000", "0x00020000", "0x00020000",
-        "0x00020000", "0x00020000", "0x00020000", "0x00020000" };
+    { "0x00000000", "0x00000000", "0x00000000", "0x00000000",
+        "0x00000000", "0x00000000", "0x00000000", "0x00000000" };
 RTAPI_MP_ARRAY_STRING(jog_config_str, MAX_CHAN,
                       "jog config for RISC");
 
@@ -369,6 +372,7 @@ typedef struct {
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
+    double switch_pos_i;
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
@@ -392,11 +396,6 @@ typedef struct {
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
     int printed_error;		/* flag to avoid repeated printing */
 
-    /* pid info */
-    hal_float_t *pid_cmd;
-    hal_float_t *cmd_error;       /* cmd error */
-    hal_float_t *pid_output;      /* pid output */
-    
     /* motion type be set */
     int32_t motion_type;          /* motion type wrote to risc */
     
@@ -584,17 +583,6 @@ static void fetchmail(const uint8_t *buf_head)
 
     switch(mail_tag)
     {
-    case MT_PID:
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            p += 1;
-            *(stepgen->pid_output) = (hal_float_t)((int32_t)*p);
-            // cmd error
-            p += 1;
-            *(stepgen->cmd_error) = (hal_float_t)((int32_t)*p);
-            stepgen += 1;   // point to next joint
-        }
-        break;
     case MT_MOTION_STATUS:
         /* for PLASMA with ADC_SPI */
         //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
@@ -603,21 +591,14 @@ static void fetchmail(const uint8_t *buf_head)
             // PULSE_POS
             p += 1;
             *(stepgen->pulse_pos) = *p;
-            //TODO: confirm necessary: 
-            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
+
             // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
             p += 1;
             *(stepgen->cmd_fbs) = ((int32_t)*p);
-#ifndef __ARMEL__
-            // for unknown reason, the next expression will cause alignment
-            // trap for ARM processor (observed with dmesg)
-            //TODO: confirm necessary: 
-            *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
-#endif
             p += 1;
-            *(stepgen->switch_pos) = (*p) * (stepgen->scale_recip);
+            (stepgen->switch_pos_i) = (*p);// * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
         }
 
@@ -698,11 +679,11 @@ static void fetchmail(const uint8_t *buf_head)
         // fprintf (mbox_fp, "%10d  ", bp_tick);
         stepgen = stepgen_array;
         for (i=0; i<num_joints; i++) {
-            dsize += sprintf (dmsg + dsize, "%10d %10d %10f %10f %10d  ",
+            dsize += sprintf (dmsg + dsize, "%10d %10d %10d  ",
                               *(stepgen->pulse_pos),
                               *(stepgen->enc_pos),
-                              *(stepgen->pid_output),
-                              *(stepgen->cmd_error),
+//                              *(stepgen->pid_output),
+//                              *(stepgen->cmd_error),
                               *(stepgen->joint_cmd)
                              );
             stepgen += 1;   // point to next joint
@@ -1008,11 +989,9 @@ int rtapi_app_main(void)
         mbox_fp = fopen ("./mbox.log", "w");
         fprintf (mbox_fp, "%10s  ", "bp_tick");
         for (i=0; i<4; i++) {
-            fprintf (mbox_fp, "%9s%d  %9s%d %9s%d %9s%d %9s%d  ",
+            fprintf (mbox_fp, "%9s%d  %9s%d %9s%d  ",
                               "pls_pos-", i,
                               "enc_pos-", i,
-                              "pid_out-", i,
-                              "cmd_err-", i,
                               "jnt_cmd-", i
                     );
         }
@@ -1029,6 +1008,25 @@ int rtapi_app_main(void)
         
         // set rt_cmd callback function
         wou_set_rt_cmd_cb (&w_param, update_rt_cmd);
+    }
+
+    if(alarm_en != -1) {
+        if (alarm_en == 1) {
+            data[0] = GPIO_ALARM_EN;
+        } else if (alarm_en == 0) {
+            data[0] = 0;
+        } else {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                            "WOU: ERROR: unknown alarm_en value: %d\n", alarm_en);
+            return -1;
+        }
+        wou_cmd (&w_param, WB_WR_CMD,
+                (uint16_t) (GPIO_BASE + GPIO_SYSTEM),
+                (uint8_t) 1, data);
+    } else {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "WOU: ERROR: no alarm_en\n");
+        return -1;
     }
 
     if(pulse_type != -1) {
@@ -1257,10 +1255,10 @@ int rtapi_app_main(void)
             rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
             // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
             // all the others units are '1 pulse'
-            for (i=0; i < (NUM_PID_PARAMS); i++) {
+            for (i=0; i < NUM_PID_PARAMS; i++) {
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value);
-                // P_GAIN: the index value for mot-param data structure 
+                // P_GAIN: the mot_param index for P_GAIN value
                 write_mot_param (n, (P_GAIN + i), immediate_data);
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
@@ -1697,6 +1695,7 @@ static void update_freq(void *arg, long period)
 
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+        *(stepgen->switch_pos) = stepgen->switch_pos_i * stepgen->scale_recip;
         // update velocity-feedback only after encoder movement
         if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
@@ -2185,24 +2184,6 @@ static int export_stepgen(int num, stepgen_t * addr,
 				"wou.stepgen.%d.steplen", num);
     if (retval != 0) {
 	return retval;
-    }
-    /* export parameter for pid error term */
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_error), comp_id,
-                              "wou.stepgen.%d.pid.error", num);
-    if (retval != 0) {
-        return retval;
-    }
-    /* export parameter for pid output in risc */
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_output), comp_id,
-                              "wou.stepgen.%d.pid.output", num);
-    if (retval != 0) {
-        return retval;
-    }
-    /* export parameter for cmd in risc*/
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_cmd), comp_id,
-                              "wou.stepgen.%d.pid.cmd", num);
-    if (retval != 0) {
-        return retval;
     }
 
     /* export pin for control type switch (for vel control only) */
