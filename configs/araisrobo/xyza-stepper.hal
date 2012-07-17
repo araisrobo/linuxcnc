@@ -4,7 +4,7 @@
 
 loadrt [KINS]KINEMATICS
 loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[EMCMOT]TRAJ_PERIOD num_joints=[KINS]JOINTS num_dio=64
-loadrt [WOU](WISHBONE) ctrl_type=p,p,p,p bits=[WOU](FPGA) bins=[WOU](RISC) servo_period_ns=[EMCMOT]SERVO_PERIOD pulse_type=[WOU]PULSE_TYPE enc_type=[WOU]ENC_TYPE max_vel_str=[JOINT_0]MAX_VELOCITY,[JOINT_1]MAX_VELOCITY,[JOINT_2]MAX_VELOCITY,[JOINT_3]MAX_VELOCITY max_accel_str=[JOINT_0]MAX_ACCELERATION,[JOINT_1]MAX_ACCELERATION,[JOINT_2]MAX_ACCELERATION,[JOINT_3]MAX_ACCELERATION pos_scale_str=[JOINT_0]INPUT_SCALE,[JOINT_1]INPUT_SCALE,[JOINT_2]INPUT_SCALE,[JOINT_3]INPUT_SCALE probe_config=[WOU](PROBE_CONFIG) alr_output=[WOU](ALR_OUTPUT)
+loadrt [WOU](WISHBONE) ctrl_type=p,p,p,p bits=[WOU](FPGA) bins=[WOU](RISC) servo_period_ns=[EMCMOT]SERVO_PERIOD alarm_en=[WOU]ALARM_EN pulse_type=[WOU]PULSE_TYPE enc_type=[WOU]ENC_TYPE max_vel_str=[JOINT_0]MAX_VELOCITY,[JOINT_1]MAX_VELOCITY,[JOINT_2]MAX_VELOCITY,[JOINT_3]MAX_VELOCITY max_accel_str=[JOINT_0]MAX_ACCELERATION,[JOINT_1]MAX_ACCELERATION,[JOINT_2]MAX_ACCELERATION,[JOINT_3]MAX_ACCELERATION pos_scale_str=[JOINT_0]INPUT_SCALE,[JOINT_1]INPUT_SCALE,[JOINT_2]INPUT_SCALE,[JOINT_3]INPUT_SCALE alr_output=[WOU](ALR_OUTPUT)
 
 loadrt not count=1
 
@@ -53,12 +53,6 @@ net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
 net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
 net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
 net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
-
-# home-state
-net J0home-state joint.0.home-state => wou.stepgen.0.home-state
-net J1home-state joint.1.home-state => wou.stepgen.1.home-state
-net J2home-state joint.2.home-state => wou.stepgen.2.home-state
-net J3home-state joint.3.home-state => wou.stepgen.3.home-state
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
