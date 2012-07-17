@@ -474,6 +474,7 @@ static int check_machine_on ()
             diff_time(&time_begin, &time_cur, &time_delta);
             if (time_delta.tv_sec > 30) {
                 printf ("about to power off the system\n");
+		thisQuit();
             }
         }
 	return (-1);
