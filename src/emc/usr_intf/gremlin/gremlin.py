@@ -389,10 +389,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             if distance > 8: self.select_cancel()
         if button1 and not self.select_primed:
             # patched by eric: drag plot when view is not p-view
-            if shift or self.current_view is not 'p':
-                self.translateOrRotate(event.x, event.y)
-            elif not cancel:
+            if shift:# or self.current_view is not 'p':
                 self.rotateOrTranslate(event.x, event.y)
+            else:#elif not cancel:
+                self.translateOrRotate(event.x, event.y)
         elif button2:
             self.translateOrRotate(event.x, event.y)
         elif button3:
