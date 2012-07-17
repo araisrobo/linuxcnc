@@ -189,6 +189,9 @@ RTAPI_MP_STRING(bits, "FPGA bitfile");
 const char *bins = "\0";
 RTAPI_MP_STRING(bins, "RISC binfile");
 
+int alarm_en = -1;
+RTAPI_MP_INT(alarm_en, "hardware alarm dection mode");
+
 int pulse_type = -1;
 RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
 
@@ -1051,11 +1054,24 @@ int rtapi_app_main(void)
         // sim: wou_set_rt_cmd_cb (&w_param, update_rt_cmd);
     }
 
+    if(alarm_en != -1) {
+        if (alarm_en == 1) {
+            data[0] = GPIO_ALARM_EN;
+        } else if (alarm_en == 0) {
+            data[0] = 0;
+        } else {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                            "WOU: ERROR: unknown alarm_en value: %d\n", alarm_en);
+            return -1;
+        }
+    } else {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "WOU: ERROR: no alarm_en\n");
+        return -1;
+    }
+
     if(pulse_type != -1) {
         data[0] = pulse_type;
-        // wou_cmd (&w_param, WB_WR_CMD,
-        //         (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
-        //         (uint8_t) 1, data);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
                         "WOU: ERROR: no pulse type: pulse_type\n");
