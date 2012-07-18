@@ -1,3 +1,9 @@
+linuxcnc (1:2.5.0-2012.07.18) lucid; urgency=low
+
+  * Add alarm_en for deciding whether alarm output enable or not. 
+
+ -- Yishin Li <ysli@araisrobo.com>  Wed, 13 Jul 2012 16:10:23 +0800
+
 linuxcnc (1:2.5.0-2012.06.21) lucid; urgency=low
 
   * BUGFIX for when doing path compensation. 
