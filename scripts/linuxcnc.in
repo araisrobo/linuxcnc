@@ -510,6 +510,19 @@ function Cleanup() {
     fi
 
     echo "Cleanup done"
+
+    # process the SHUTDOWN var at EMC section
+    SHUTDOWN=`$INIVAR -ini "$INIFILE" -var SHUTDOWN -sec EMC 2> /dev/null`
+    if [ "x$SHUTDOWN" = "xYES" ]; then
+	SHUTDOWN_TIME=`$INIVAR -ini "$INIFILE" -var SHUTDOWN_TIME -sec EMC 2> /dev/null`
+	echo "shutdown the machine..."
+	if [ -n "$SHUTDOWN_TIME" ]; then
+	    sudo shutdown -P $SHUTDOWN_TIME
+	else
+	    sudo shutdown -h now
+	fi
+    fi
+
 }
 
 
