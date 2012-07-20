@@ -537,18 +537,24 @@ static void process_inputs(void)
         SET_JOINT_FERROR_FLAG(joint, *(joint_data->usb_ferror_flag));
 #endif
         /* read limit switches */
-        if (*(joint_data->pos_lim_sw)) {
-            SET_JOINT_PHL_FLAG(joint, 1);
+        if ((joint->home_flags & HOME_IGNORE_LIMITS) &&
+                joint->home_state != HOME_IDLE) {
+            // do nothing
         } else {
-            SET_JOINT_PHL_FLAG(joint, 0);
+            if (*(joint_data->pos_lim_sw)) {
+                SET_JOINT_PHL_FLAG(joint, 1);
+            } else {
+                SET_JOINT_PHL_FLAG(joint, 0);
+            }
+            if (*(joint_data->neg_lim_sw)) {
+                SET_JOINT_NHL_FLAG(joint, 1);
+            } else {
+                SET_JOINT_NHL_FLAG(joint, 0);
+            }
+            joint->on_pos_limit = GET_JOINT_PHL_FLAG(joint);
+            joint->on_neg_limit = GET_JOINT_NHL_FLAG(joint);
         }
-        if (*(joint_data->neg_lim_sw)) {
-            SET_JOINT_NHL_FLAG(joint, 1);
-        } else {
-            SET_JOINT_NHL_FLAG(joint, 0);
-        }
-        joint->on_pos_limit = GET_JOINT_PHL_FLAG(joint);
-        joint->on_neg_limit = GET_JOINT_NHL_FLAG(joint);
+
         /* read amp fault input */
         if (*(joint_data->amp_fault)) {
             SET_JOINT_FAULT_FLAG(joint, 1);
@@ -1048,7 +1054,7 @@ static void check_for_faults(void)
                     }
                     SET_JOINT_ERROR_FLAG(joint, 1);
                     SET_MOTION_ERROR_FLAG(1);
-//                    emcmotDebug->enabling = 0;
+                    // emcmotDebug->enabling = 0;
                 }
             } else {
                 // clean override mask after leave hard limits.
@@ -1057,12 +1063,14 @@ static void check_for_faults(void)
                     emcmotStatus->overrideLimitMask &= ~( 1 << (joint_num*2));
                 }
             }
-//            if (GET_JOINT_PHL_FLAG(joint) ||
-//                GET_JOINT_NHL_FLAG(joint)) {
-//                /* joint is on limit switch, should we trip? */
-//                SET_MOTION_ERROR_FLAG(1);
-//
-//            }
+
+            // We don't want it to stop motion when PHL or NHL are toggled.
+            // if (GET_JOINT_PHL_FLAG(joint) ||
+            //     GET_JOINT_NHL_FLAG(joint)) {
+            //     /* joint is on limit switch, should we trip? */
+            //     SET_MOTION_ERROR_FLAG(1);
+            // }
+
             /* check for amp fault */
             if (GET_JOINT_FAULT_FLAG(joint)) {
                 /* joint is faulted, trip */
