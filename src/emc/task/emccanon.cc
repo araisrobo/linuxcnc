@@ -544,7 +544,7 @@ double getStraightJerk(double x, double y, double z,
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
     if(debug_velacc)
-        printf("getStraightJerk dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
+        printf("getStraightJerk dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g\n",
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making.  This is used to determine
@@ -601,17 +601,6 @@ double getStraightJerk(double x, double y, double z,
 
         jerk = MIN(jerk, ang_jerk);
 
-
-//        jerk = FROM_EXT_LEN(MIN9(
-//                (dx?emcAxisGetMaxJerk(0): 1e9),
-//                (dy?emcAxisGetMaxJerk(1): 1e9),
-//                (dz?emcAxisGetMaxJerk(2): 1e9),
-//                (du?emcAxisGetMaxJerk(6): 1e9),
-//                (dv?emcAxisGetMaxJerk(7): 1e9),
-//                (dw?emcAxisGetMaxJerk(8): 1e9),
-//                (da?emcAxisGetMaxJerk(3): 1e9),
-//                (db?emcAxisGetMaxJerk(4): 1e9),
-//                (dc?emcAxisGetMaxJerk(5): 1e9)));
         assert(jerk > 0);
     }
     return jerk;
@@ -622,7 +611,7 @@ double getStraightAcceleration(double x, double y, double z,
 {
     double dx, dy, dz, du, dv, dw, da, db, dc;
     double tx, ty, tz, tu, tv, tw, ta, tb, tc, tmax;
-    double acc, dtot, ang_acc;
+    double acc, dtot;
 
     acc = 0.0; // if a move to nowhere
 
@@ -648,7 +637,7 @@ double getStraightAcceleration(double x, double y, double z,
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
     if(debug_velacc) 
-        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ", 
+        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making.  This is used to determine
@@ -664,6 +653,7 @@ double getStraightAcceleration(double x, double y, double z,
     } else {
 	canon.angular_move = 1;
     }
+
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
 	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
@@ -683,6 +673,7 @@ double getStraightAcceleration(double x, double y, double z,
 	if (tmax > 0.0) {
 	    acc = dtot / tmax;
 	}
+        assert(acc > 0);
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
@@ -695,6 +686,7 @@ double getStraightAcceleration(double x, double y, double z,
 	if (tmax > 0.0) {
 	    acc = dtot / tmax;
 	}
+        assert(acc > 0);
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
@@ -722,23 +714,15 @@ double getStraightAcceleration(double x, double y, double z,
         else
             dtot = sqrt(du * du + dv * dv + dw * dw);
 
-        acc = FROM_EXT_LEN(MIN4( acc,
-                                (du?emcAxisGetMaxAcceleration(6): 1e9),
-                                (dv?emcAxisGetMaxAcceleration(7): 1e9),
-                                (dw?emcAxisGetMaxAcceleration(8): 1e9)));
-
-        ang_acc = FROM_EXT_ANG(MIN3(
-                            (da?emcAxisGetMaxAcceleration(3): 1e9),
-                            (db?emcAxisGetMaxAcceleration(4): 1e9),
-                            (dc?emcAxisGetMaxAcceleration(5): 1e9)));
-
-        acc = MIN(acc, ang_acc);
-
+	if (tmax > 0.0) {
+	    acc = dtot / tmax;
+	}
         assert(acc > 0);
     }
 
     if(debug_velacc) 
         printf("cartesian %d ang %d acc %g\n", canon.cartesian_move, canon.angular_move, acc);
+
     return acc;
 }
 
@@ -749,11 +733,11 @@ double getStraightVelocity(double x, double y, double z,
     double dx, dy, dz, da, db, dc, du, dv, dw;
     double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
     double vel, dtot, ang_vel;
-    vel = 1e99;
-
+    
 /* If we get a move to nowhere (!canon.cartesian_move && !canon.angular_move)
    we might as well go there at the canon.linearFeedRate...
 */
+    vel = canon.linearFeedRate;
 
     // Compute absolute travel distance for each axis:
     dx = fabs(x - canon.endPoint.x);
@@ -834,6 +818,7 @@ double getStraightVelocity(double x, double y, double z,
 	} else {
 	    vel = dtot / tmax;
 	}
+        assert(vel > 0);
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
@@ -872,15 +857,8 @@ double getStraightVelocity(double x, double y, double z,
                             (dc?emcAxisGetMaxVelocity(5): 1e9)));
 
         vel = MIN(vel, ang_vel);
-
         assert(vel > 0);
-    } else {
-        vel = 0;
-        printf ("WARNING: not linear nor angular move\n");
-        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
-               dx, dy, dz, da, db, dc, du, dv, dw);
     }
-//    vel = MIN(vel, canon.linearFeedRate);
 
     DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
     if(debug_velacc) 

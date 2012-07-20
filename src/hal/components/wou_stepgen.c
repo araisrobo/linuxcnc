@@ -174,10 +174,6 @@ MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
 
-//obsolete: int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-//obsolete: RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
-//obsolete: 		   "stepping types for up to 8 channels");
-
 const char *ctrl_type[MAX_CHAN] =
     { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
@@ -200,10 +196,6 @@ RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
-
-//obsolete: int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-//obsolete: RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
-//obsolete: 		   "current limit for up to 8 channel of stepping drivers");
 
 int num_gpio_in = 64;
 RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
@@ -333,10 +325,6 @@ const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
                 "indicate probing level used by analog probing");
 
-//obsolete: const char *act_jnt_num="4";
-//obsolete: RTAPI_MP_STRING(act_jnt_num,
-//obsolete:                "actual joints controlled by risc");
-
 // int alr_output = 0x00000000;
 // RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
 const char *alr_output= "0";
@@ -379,7 +367,6 @@ typedef struct {
     hal_u32_t step_len;		/* parameter: step pulse length */
     /* stuff that is not accessed by makepulses */
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
-    //obsolete: hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
@@ -409,10 +396,6 @@ typedef struct {
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
     int printed_error;		/* flag to avoid repeated printing */
 
-//    hal_s32_t *home_state;	/* pin: home_state from homing.c */
-//    hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-    
-    
     /* motion type be set */
     int32_t motion_type;          /* motion type wrote to risc */
     
@@ -528,10 +511,8 @@ typedef struct {
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
-//obsolete: static gpio_t *gpio;
 static analog_t *analog;
 static machine_control_t *machine_control;
-//obsolete: static int32_t actual_joint_num;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -549,9 +530,8 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
 
-static int export_stepgen(int num, stepgen_t * addr, /* obsolete: int step_type, */
+static int export_stepgen(int num, stepgen_t * addr,
 			  int pos_mode);
-//obsolete: static int export_gpio(gpio_t * addr);
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
@@ -616,11 +596,7 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *(stepgen->enc_pos) = *p;
             p += 1;
-#ifndef __ARMEL__
-            // for unknown reason, the next expression will cause alignment
-            // trap for ARM processor (observed with dmesg)
             *(stepgen->cmd_fbs) = ((int32_t)*p);
-#endif
             p += 1;
             (stepgen->switch_pos_i) = (*p);// * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
@@ -660,7 +636,6 @@ static void fetchmail(const uint8_t *buf_head)
 
         // ADC_SPI (raw ADC value)
         p += 1;
-        //obsolete: *(gpio->a_in[0]) = (((double)*p)/20.0);
         *(analog->in[0]) = *p;
         p += 1; *(analog->in[1]) = *p;
         p += 1; *(analog->in[2]) = *p;
@@ -736,7 +711,7 @@ static void fetchmail(const uint8_t *buf_head)
         bp_tick = *p;                      
         p += 1;
         if (ERROR_BASE_PERIOD == *p) {
-            DP("ERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
+            DP("\nERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
         }
         break;
 
@@ -974,12 +949,12 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
-    DPS("#%10s  %15s%15s%15s%3s  %15s%15s%15s%3s  %15s%15s%15s%3s  %15s%15s%15s%3s  %15s\n",
+    DPS("#%10s  %15s%15s%15s  %15s%15s%15s  %15s%15s%15s  %15s%15s%15s  %15s\n",
          "dt",
-         "int_pos_cmd[0]", "prev_pos_cmd[0]", "pos_fb[0]", "H0",  //H0: home_state for J0
-         "int_pos_cmd[1]", "prev_pos_cmd[1]", "pos_fb[1]", "H1",
-         "int_pos_cmd[2]", "prev_pos_cmd[2]", "pos_fb[2]", "H2",
-         "int_pos_cmd[3]", "prev_pos_cmd[3]", "pos_fb[3]", "H3",
+         "int_pos_cmd[0]", "prev_pos_cmd[0]", "pos_fb[0]",
+         "int_pos_cmd[1]", "prev_pos_cmd[1]", "pos_fb[1]",
+         "int_pos_cmd[2]", "prev_pos_cmd[2]", "pos_fb[2]",
+         "int_pos_cmd[3]", "prev_pos_cmd[3]", "pos_fb[3]",
          "spindle_revs"
        );
 #endif
@@ -1150,7 +1125,7 @@ int rtapi_app_main(void)
     }
 
     num_joints = 0;
-    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') /* obsolete: step_type[n] != -1 */; n++) {
+    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') ; n++) {
 	if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
 	    ctrl_type[n] = "p";
 	} else if ((ctrl_type[n][0] == 'v') || (ctrl_type[n][0] == 'V')) {
@@ -1298,8 +1273,6 @@ int rtapi_app_main(void)
     // configure NUM_JOINTS after all joint parameters are set
     write_machine_param(NUM_JOINTS, (uint32_t) num_joints);
 
-    //obsolete: actual_joint_num = atoi(act_jnt_num);
-
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SSIF_EN, servo/stepper interface enable
@@ -1420,7 +1393,7 @@ static double force_precision(double d)
 {
     return d;
 }
-//obsolete: static FILE *f_abort;
+
 static void update_rt_cmd(void)
 {
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
@@ -1476,17 +1449,6 @@ static void update_freq(void *arg, long period)
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
     
-    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR,
-    //obsolete:                 "update_freq:debug: begin\n");
-    //obsolete: if (*machine_control->rt_abort == 1) {
-    //obsolete:     immediate_data = RT_ABORT;
-    //obsolete:     memcpy(data, &immediate_data, sizeof(uint32_t));
-    //obsolete:     rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-    //obsolete:             sizeof(uint32_t), data);
-    //obsolete:     rt_wou_flush(&w_param);
-    //obsolete: }
-    //obsolete: 
-
     // update host tick for risc
     write_machine_param(HOST_TICK, host_tick);
     *machine_control->wou_bp_tick = host_tick;
@@ -1553,25 +1515,6 @@ static void update_freq(void *arg, long period)
         machine_control->prev_ahc_state = *machine_control->ahc_state;
     }
     /* end: handle AHC state, AHC level */
-
-    // obsolste: /* begin: handle ahc max offset */
-    // obsolste: if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
-    // obsolste:     int32_t max_offset, pos_scale;
-    // obsolste:     stepgen = arg;
-    // obsolste:     stepgen += atoi(ahc_joint_str);
-    // obsolste:     pos_scale = (stepgen->pos_scale);
-    // obsolste:     max_offset = *(machine_control->ahc_max_offset);
-    // obsolste:     max_offset = max_offset >= 0? max_offset:0;
-    // obsolste:     fprintf(stderr,"wou_stepgen.c: ahc_max_offset(%d) ahc_joint(%d) \n",
-    // obsolste:                         (uint32_t)abs(max_offset * (pos_scale)),
-    // obsolste:                         atoi(ahc_joint_str));
-
-    // obsolste:     /* ahc max_offset */
-    // obsolste:     write_machine_param(AHC_MAX_OFFSET, (uint32_t)
-    // obsolste:             abs((max_offset)) * (pos_scale));
-    // obsolste:     machine_control->prev_ahc_max_level = *(machine_control->ahc_max_level);
-    // obsolste: }
-    // obsolste: /* begin: process ahc limit control */
 
     /* begin: process ahc limit control */
     if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
@@ -1923,7 +1866,6 @@ static void update_freq(void *arg, long period)
                         n ,
                         (*stepgen->pos_cmd), 
                         (stepgen->prev_pos_cmd), 
-//                        *stepgen->home_state,
                         *stepgen->vel_cmd);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
@@ -2020,11 +1962,10 @@ static void update_freq(void *arg, long period)
                     WB_WR_CMD,
                     (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
         }
-	DPS("  0x%13X%15.7f%15.7f%3d",
+	DPS("  0x%13X%15.7f%15.7f",
 	    integer_pos_cmd, 
             (stepgen->prev_pos_cmd), 
-            *stepgen->pos_fb,
-            *stepgen->home_state);
+            *stepgen->pos_fb);
 
 	/* move on to next channel */
 	stepgen++;
@@ -2062,8 +2003,6 @@ static void update_freq(void *arg, long period)
 /* restore saved message level */
     rtapi_set_msg_level(msg);
     /* done */
-    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR,
-    //obsolete:                 "update_freq:debug: end\n");
 }
 
 /***********************************************************************
@@ -2098,7 +2037,7 @@ static int export_analog(analog_t * addr)
 } // export_analog ()
 
 
-static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*/
+static int export_stepgen(int num, stepgen_t * addr,
 			  int pos_mode)
 {
     int retval, msg;
@@ -2199,12 +2138,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     if (retval != 0) {
         return retval;
     }
-    /* export parameter to obtain homing state */
-//    retval = hal_pin_s32_newf(HAL_IN, &(addr->home_state), comp_id,
-//			      "wou.stepgen.%d.home-state", num);
-//    if (retval != 0) {
-//	return retval;
-//    }
 
     /* export pin for enable command */
     addr->prev_enable = 0;
@@ -2297,7 +2230,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     addr->freq = 0.0;
     addr->maxvel = 0.0;
     addr->maxaccel = 0.0;
-    //obsolete: addr->step_type = step_type;
     addr->pos_mode = pos_mode;
     /* timing parameter defaults depend on step type */
     addr->step_len = 1;
