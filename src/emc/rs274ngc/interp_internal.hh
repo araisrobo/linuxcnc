@@ -715,7 +715,10 @@ typedef struct setup_struct
   int a_indexer;
   int b_indexer;
   int c_indexer;
-
+  // special patch for plasma
+  double last_off_x;             // current X-axis position
+  double last_off_y;             // current Y-axis position
+  double last_off_z;             // current Z-axis position
   bool lathe_diameter_mode;       //Lathe diameter mode (g07/G08)
   bool mdi_interrupt;
   int feature_set; 

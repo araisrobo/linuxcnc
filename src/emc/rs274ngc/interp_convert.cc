@@ -26,6 +26,9 @@
 #include "rs274ngc_interp.hh"
 #include "interp_internal.hh"
 #include "interp_queue.hh"
+// for HAL pin variables
+#include "hal.h"
+#include "hal/hal_priv.h"
 
 #include "units.h"
 #define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
@@ -3207,7 +3210,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     return convert_remapped_code(block, settings, STEP_M_7, 'm',
 				   block->m_modes[7]);
  } else if ((block->m_modes[7] == 3)  && ONCE_M(7)) {
-    enqueue_START_SPINDLE_CLOCKWISE(block->line_number);
+    enqueue_START_SPINDLE_CLOCKWISE(settings, block->line_number);
     settings->spindle_turning = CANON_CLOCKWISE;
  } else if ((block->m_modes[7] == 4) && ONCE_M(7)) {
     enqueue_START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
@@ -3602,7 +3605,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   double u_end;
   double v_end;
   double w_end;
-
+  double distance, distance_tol;
   /* probe_type: 
      ~1 = error if probe operation is unsuccessful (ngc default)
      |1 = suppress error, report in # instead
@@ -3627,7 +3630,53 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
         settings->w_current == w_end),
        NCE_START_POINT_TOO_CLOSE_TO_PROBE_POINT);
 
+  // TODO: Comparing the new end point with the last position
+  //        to decide to execute new probing or to assign the probed
+  //        position as the end position.
+  //
+  distance = hypot((settings->current_x - settings->last_off_x),
+             (settings->current_y - settings->last_off_y));
+  // TODO: get distance setting by hal pin
+  {
+      hal_data_u* ptr;
+//      hal_pin_t *pin;
+      hal_sig_t *sig;
+//      hal_param_t *param;
+      char hal_name[]="distance-not-probe";  // signal, param, or pin name
+      distance_tol = 0;
+//      if ((sig = halpr_find_pin_by_name(hal_name)) != NULL) {
+//          hal_sig_t * sig = (hal_sig_t *) SHMPTR(pin->signal);
+//          ptr = (hal_data_u *) SHMPTR(sig->data_ptr);
+//          distance_tol = (double) (ptr->f);
+//          printf("interp: distance tol is (%f)\n", distance_tol);
+//      }
 
+      if ((sig = halpr_find_sig_by_name(hal_name)) != NULL) {
+        if (!sig->writers)
+            logOword("%s: signal has no writer", hal_name);
+        ptr = (hal_data_u *) SHMPTR(sig->data_ptr);
+        distance_tol = (double) (ptr->f);
+        printf("interp: distance tol is (%f)\n", distance_tol);
+      }
+
+//      if ((param = halpr_find_param_by_name(hal_name)) != NULL) {
+//        ptr = (hal_data_u *) SHMPTR(param->data_ptr);
+//        goto assign;
+//
+//      }
+  }
+  if (distance < distance_tol) {
+      // SYNC update current position
+      // skip probe
+      printf("skip probe\n");
+      return INTERP_OK;
+  }
+  // TODO: If we have to perform a new probing process, we will remap
+  //        the probing command.
+  //        G38.6 as G38.2,
+  //        G38.7 as G38.3,
+  //        G38.8 as G38.4
+  //        G38.9 as G38.5
   TURN_PROBE_ON();
   STRAIGHT_PROBE(block->line_number, end_x, end_y, end_z,
                  AA_end, BB_end, CC_end,
