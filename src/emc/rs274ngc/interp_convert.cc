@@ -3532,7 +3532,8 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
   } else if ((motion == G_3) || (motion == G_2)) {
     CHP(convert_arc(motion, block, settings));
   } else if (motion == G_38_2 || motion == G_38_3 || 
-             motion == G_38_4 || motion == G_38_5) {
+             motion == G_38_4 || motion == G_38_5 ||
+             motion == G_38_6 || motion == G_38_7) {
     CHP(convert_probe(block, motion, settings));
   } else if (motion == G_80) {
 #ifdef DEBUG_EMC
@@ -3609,7 +3610,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
      |2 = move until probe clears */
 
   unsigned char probe_type = g_code - G_38_2;
-  
+
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_PROBE_WITH_CUTTER_RADIUS_COMP_ON);
   CHKS((settings->feed_rate == 0.0), NCE_CANNOT_PROBE_WITH_ZERO_FEED_RATE);
@@ -3625,6 +3626,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
         settings->u_current == u_end && settings->v_current == v_end &&
         settings->w_current == w_end),
        NCE_START_POINT_TOO_CLOSE_TO_PROBE_POINT);
+
 
   TURN_PROBE_ON();
   STRAIGHT_PROBE(block->line_number, end_x, end_y, end_z,

@@ -177,6 +177,8 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_38_3 383
 #define G_38_4 384
 #define G_38_5 385
+#define G_38_6 386
+#define G_38_7 387
 #define G_40   400
 #define G_41   410
 #define G_41_1 411
