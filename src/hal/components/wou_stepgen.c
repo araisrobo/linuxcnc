@@ -400,7 +400,6 @@ typedef struct {
     int32_t motion_type;          /* motion type wrote to risc */
     
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
-    hal_float_t   *cmd_fbf;     /* position command retained by RISC (cmd_fbs divided by scale) */
     uint32_t      jog_config;   /* for risc jogging */
     hal_float_t   *jog_scale;   /* for risc jogging */
     hal_float_t   *jog_vel;
@@ -2064,11 +2063,6 @@ static int export_stepgen(int num, stepgen_t * addr,
 //    }
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->cmd_fbs), comp_id,
 			      "wou.stepgen.%d.cmd-fbs", num);
-    if (retval != 0) {
-	return retval;
-    }
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_fbf), comp_id,
-			      "wou.stepgen.%d.cmd-fbf", num);
     if (retval != 0) {
 	return retval;
     }
