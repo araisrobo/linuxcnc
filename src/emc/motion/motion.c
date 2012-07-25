@@ -298,6 +298,8 @@ static int init_hal_io(void)
     /* export machine wide hal pins */
     //obsolete on arias-emc2-usb: if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
 
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->distance_not_probe), mot_comp_id, "motion.dnp")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->set_distance_not_probe), mot_comp_id, "motion.set-distance-not-probe")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->align_pos_cmd), mot_comp_id, "motion.align-pos-cmd")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->req_cmd_sync), mot_comp_id, "motion.req-cmd-syn")) < 0) goto error;
     *emcmot_hal_data->req_cmd_sync = 0;
