@@ -123,7 +123,8 @@ static int initModbus()
     int rc;
     int i;
     
-    baud = 115200;
+    // baud = 115200;
+    baud = 19200;
     // baud = 57600;
     // baud = 9600;
     bits = 8;
@@ -134,7 +135,7 @@ static int initModbus()
     // device = "/dev/ttyUSB1";
     parity = "O";   // O: odd, E: even, N: none
     // parity = "N";   // O: odd, E: even, N: none
-    server_id = 22;
+    server_id = 1;
 
     printf("modbus_rtu: device='%s', baud=%d, bits=%d, parity='%s', stopbits=%d, verbose=%d\n", device, baud, bits, parity, stopbits, debug);
 
@@ -241,7 +242,7 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     float *fp;
     
     // TODO: read slave address through INI file
-    assert (slave == 22);
+    assert (slave == 1);
 
     updateStatus();
 
@@ -250,52 +251,53 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
         switch (address) {
             case    0:  
 #if DEBUG
-			printf("RD REGS\n");
-			printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
-			printf("inpos: %d\n", emcStatus->motion.traj.inpos);
-                        // queue gets updated from tpQueueDepth of control.c
-			printf("queue: %d\n", emcStatus->motion.traj.queue);
-			printf("echo_serial_number: %d\n", emcStatus->echo_serial_number);
-			// EmcPose position;		// current commanded position
-			printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
-			printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
-			printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
-			printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
-			printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
-			// EmcPose actualPosition;	// current actual position, from forward kins
-			printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
-			printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
-			printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
-			printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
-			printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
-			printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
-			printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
+		printf("RD REGS\n");
+		printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
+		printf("inpos: %d\n", emcStatus->motion.traj.inpos);
+                // queue gets updated from tpQueueDepth of control.c
+		printf("queue: %d\n", emcStatus->motion.traj.queue);
+		printf("echo_serial_number: %d\n", emcStatus->echo_serial_number);
+		// EmcPose position;		// current commanded position
+		printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
+		printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
+		printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
+		printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
+		printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
+		// EmcPose actualPosition;	// current actual position, from forward kins
+		printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
+		printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
+		printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
+		printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
+		printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
+		printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
+		printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
 #endif
-			status_bits[0] = (int) emcStatus->motion.traj.queueFull;
-			status_bits[1] = (int) emcStatus->motion.traj.inpos;
-			status_bits[2] = (int) com_ready;
+		status_bits[0] = (int) emcStatus->motion.traj.queueFull;
+		status_bits[1] = (int) emcStatus->motion.traj.inpos;
+		status_bits[2] = (int) com_ready;
 
-			com_set_uint32 (mb_mapping->tab_input_registers +  0, (uint32_t) emcStatus->motion.traj.queue);
-			com_set_uint32 (mb_mapping->tab_input_registers +  2, (uint32_t) emcStatus->echo_serial_number);
-			// EmcPose position;		// current commanded position
-			com_set_float (mb_mapping->tab_input_registers +  4, (float) emcStatus->motion.traj.position.tran.x);
-			com_set_float (mb_mapping->tab_input_registers +  6, (float) emcStatus->motion.traj.position.tran.y);
-			com_set_float (mb_mapping->tab_input_registers +  8, (float) emcStatus->motion.traj.position.tran.z);
-			com_set_float (mb_mapping->tab_input_registers + 10, (float) emcStatus->motion.traj.position.a);
-			com_set_float (mb_mapping->tab_input_registers + 12, (float) emcStatus->motion.traj.position.b);
-			// EmcPose actualPosition;	// current actual position, from forward kins
-			com_set_float (mb_mapping->tab_input_registers + 14, (float) emcStatus->motion.traj.actualPosition.tran.x);
-			com_set_float (mb_mapping->tab_input_registers + 16, (float) emcStatus->motion.traj.actualPosition.tran.y);
-			com_set_float (mb_mapping->tab_input_registers + 18, (float) emcStatus->motion.traj.actualPosition.tran.z);
-			com_set_float (mb_mapping->tab_input_registers + 20, (float) emcStatus->motion.traj.actualPosition.a);
-			com_set_float (mb_mapping->tab_input_registers + 22, (float) emcStatus->motion.traj.actualPosition.b);
-			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 24, emcStatus->motion.synch_di);
-			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 26, emcStatus->motion.synch_di + 32);
-			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 28, emcStatus->motion.synch_do);
-			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 30, status_bits);
-                        break;
-            default:    printf("TODO ");
-                        break;
+		com_set_uint32 (mb_mapping->tab_input_registers +  0, (uint32_t) emcStatus->motion.traj.queue);
+		com_set_uint32 (mb_mapping->tab_input_registers +  2, (uint32_t) emcStatus->echo_serial_number);
+		// EmcPose position;		// current commanded position
+		com_set_float (mb_mapping->tab_input_registers +  4, (float) emcStatus->motion.traj.position.tran.x);
+		com_set_float (mb_mapping->tab_input_registers +  6, (float) emcStatus->motion.traj.position.tran.y);
+		com_set_float (mb_mapping->tab_input_registers +  8, (float) emcStatus->motion.traj.position.tran.z);
+		com_set_float (mb_mapping->tab_input_registers + 10, (float) emcStatus->motion.traj.position.a);
+		com_set_float (mb_mapping->tab_input_registers + 12, (float) emcStatus->motion.traj.position.b);
+		// EmcPose actualPosition;	// current actual position, from forward kins
+		com_set_float (mb_mapping->tab_input_registers + 14, (float) emcStatus->motion.traj.actualPosition.tran.x);
+		com_set_float (mb_mapping->tab_input_registers + 16, (float) emcStatus->motion.traj.actualPosition.tran.y);
+		com_set_float (mb_mapping->tab_input_registers + 18, (float) emcStatus->motion.traj.actualPosition.tran.z);
+		com_set_float (mb_mapping->tab_input_registers + 20, (float) emcStatus->motion.traj.actualPosition.a);
+		com_set_float (mb_mapping->tab_input_registers + 22, (float) emcStatus->motion.traj.actualPosition.b);
+		com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 24, emcStatus->motion.synch_di);
+		com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 26, emcStatus->motion.synch_di + 32);
+		com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 28, emcStatus->motion.synch_do);
+		com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 30, status_bits);
+		break;
+            default:    
+	        printf("TODO ");
+                break;
         }
         break;
 

@@ -256,7 +256,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
             if parameter:
-                shutil.copy(parameter, temp_parameter)
+                try:
+                    shutil.copy(parameter, temp_parameter)
+                except:
+                    print 'gremlin shutil.copy(parameter, temp_parameter) failed'
             canon.parameter_file = temp_parameter
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
