@@ -253,7 +253,7 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
 			printf("RD REGS\n");
 			printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
 			printf("inpos: %d\n", emcStatus->motion.traj.inpos);
-
+                        // queue gets updated from tpQueueDepth of control.c
 			printf("queue: %d\n", emcStatus->motion.traj.queue);
 			printf("echo_serial_number: %d\n", emcStatus->echo_serial_number);
 			// EmcPose position;		// current commanded position

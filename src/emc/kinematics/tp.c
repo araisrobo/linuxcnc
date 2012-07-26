@@ -1373,6 +1373,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
         // done with this move
         tcqRemove(&tp->queue, 1);
+        tp->depth = tcqLen(&tp->queue);
 
         // so get next move
         tc = tcqItem(&tp->queue, 0, period);
@@ -1481,7 +1482,10 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
         tc->active = 1;
         tc->cur_vel = 0;
-        tp->depth = tp->activeDepth = 1;
+        //ysli: not necessary to force depth to 1:
+        //      tp->depth = tp->activeDepth = 1;
+        //ysli: can't understand the usage of activeDepth.
+        tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
         tc->blending = 0;
 
@@ -1582,7 +1586,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // this means this tc is being read for the first time.
 
         nexttc->cur_vel = 0;
-        tp->depth = tp->activeDepth = 1;
+        //orig: tp->depth = tp->activeDepth = 1;
+        tp->activeDepth = 1;
         nexttc->active = 1;
         nexttc->blending = 0;
 
@@ -1731,6 +1736,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             spindleoffset = 0.0;
         
         tcqRemove(&tp->queue, 1);
+        tp->depth = tcqLen(&tp->queue);
 
         // so get next move
         tc = tcqItem(&tp->queue, 0, period);
@@ -1742,7 +1748,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         tc->cur_accel = next_accel;
         tc->accel_state = next_accel_state;
         tc->progress = next_progress;
-        tp->depth = tp->activeDepth = 1;
+        tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
         tc->blending = 0;
     }
