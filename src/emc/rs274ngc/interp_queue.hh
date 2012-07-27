@@ -117,7 +117,7 @@ void enqueue_FLOOD_OFF(void);
 // void enqueue_START_SPINDLE_CLOCKWISE(void);
 // void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void);
 // get wrong line number while tool comp is on
-void enqueue_START_SPINDLE_CLOCKWISE(setup_pointer settings, int l);
+void enqueue_START_SPINDLE_CLOCKWISE(int l);
 void enqueue_START_SPINDLE_COUNTERCLOCKWISE(int l);
 void enqueue_STOP_SPINDLE_TURNING(void);
 void enqueue_SET_SPINDLE_MODE(double mode);

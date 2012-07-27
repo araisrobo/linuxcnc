@@ -152,19 +152,15 @@ void enqueue_FLOOD_OFF(void) {
 }
 
 // void enqueue_START_SPINDLE_CLOCKWISE(void) {
-void enqueue_START_SPINDLE_CLOCKWISE(setup_pointer settings, int l) {
+void enqueue_START_SPINDLE_CLOCKWISE(int l) {
     if(qc().empty()) {
         if(debug_qc) printf("immediate spindle clockwise\n");
-        settings->last_off_x = settings->current_x;
-        settings->last_off_y = settings->current_y;
-        settings->last_off_z = settings->current_z;
         START_SPINDLE_CLOCKWISE(l);
         return;
     }
     queued_canon q;
     q.data.set_spindle_dir.line_number = l;
     q.type = QSTART_SPINDLE_CLOCKWISE;
-    q.data.set_spindle_dir.settings = settings;
     if(debug_qc) printf("enqueue spindle clockwise\n");
     qc().push_back(q);
 }
@@ -513,9 +509,6 @@ void dequeue_canons(setup_pointer settings) {
             break;
         case QSTART_SPINDLE_CLOCKWISE:
             if(debug_qc) printf("issuing spindle clockwise\n");
-            settings->last_off_x = settings->current_x;
-            settings->last_off_y = settings->current_y;
-            settings->last_off_z = settings->current_z;
             START_SPINDLE_CLOCKWISE(q.data.set_spindle_dir.line_number);
             break;
         case QSTART_SPINDLE_COUNTERCLOCKWISE:
