@@ -379,7 +379,7 @@ typedef struct {
     hal_float_t *pos_scale_pin;  /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
-    hal_float_t *vel_cmd;	        /* pin: velocity command (pos units/sec) */
+    hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
@@ -1408,7 +1408,6 @@ static void update_rt_cmd(void)
                         sizeof(uint32_t), 
                         data);
             rt_wou_flush(&w_param);
-//            *machine_control->align_pos_cmd = 2;
         }
     }
 }
@@ -1419,7 +1418,6 @@ static void update_freq(void *arg, long period)
     int n, i, enable;
     double physical_maxvel, maxvel;	// max vel supported by current step timings & position-scal
 
-    // int32_t wou_cmd_accum;
     uint16_t sync_cmd;
     int wou_pos_cmd, integer_pos_cmd;
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
@@ -1805,21 +1803,18 @@ static void update_freq(void *arg, long period)
 	// first sanity-check our maxaccel and maxvel params
 	//
 
-
 	/* at this point, all scaling, limits, and other parameter
 	   changes hrawcount_diff_accumave been handled - time for the main control */
 
 	if (stepgen->pos_mode) {
 	    /* position command mode */
 	    if (*machine_control->align_pos_cmd == 1 ||
-	       *machine_control->ignore_host_cmd) {
+	        *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
 //	        fprintf(stderr,"ignore_host_cmd(%d) align_pos_cmd(%d)\n",
 //	            *machine_control->ignore_host_cmd, *machine_control->align_pos_cmd);
-
 	    }
-	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
-
+	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
 	} else {
 	    /* velocity command mode */
 	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
@@ -1828,34 +1823,35 @@ static void update_freq(void *arg, long period)
 	        // do more thing if necessary.
 	    }
 	    if (*stepgen->ctrl_type_switch == 0) {
-                *stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+                *stepgen->vel_cmd = (*stepgen->pos_cmd) * dt ; // notice: has to wire *pos_cmd-pin to velocity command input
 
-                /* begin:  ramp up/down spindle */
-                maxvel = stepgen->maxvel;   /* unit/s */
-                if (*stepgen->vel_cmd > maxvel) {
-                    *stepgen->vel_cmd = maxvel;
-                } else if(*stepgen->vel_cmd < -maxvel){
-                    *stepgen->vel_cmd = -maxvel;
-                }
-                stepgen->accel_cmd = (*stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
+                // constrained at RSIC: /* begin:  ramp up/down spindle */
+                // constrained at RSIC: maxvel = stepgen->maxvel;   /* unit/s */
+                // constrained at RSIC: if (*stepgen->vel_cmd > maxvel) {
+                // constrained at RSIC:     *stepgen->vel_cmd = maxvel;
+                // constrained at RSIC: } else if(*stepgen->vel_cmd < -maxvel){
+                // constrained at RSIC:     *stepgen->vel_cmd = -maxvel;
+                // constrained at RSIC: }
+                // constrained at RSIC: stepgen->accel_cmd = (*stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
 
-                if (stepgen->accel_cmd > stepgen->maxaccel) {
-                    stepgen->accel_cmd = stepgen->maxaccel;
-                    *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
-                    stepgen->accel_cmd = -(stepgen->maxaccel);
-                    *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                }
+                // constrained at RSIC: if (stepgen->accel_cmd > stepgen->maxaccel) {
+                // constrained at RSIC:     stepgen->accel_cmd = stepgen->maxaccel;
+                // constrained at RSIC:     *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+                // constrained at RSIC: } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
+                // constrained at RSIC:     stepgen->accel_cmd = -(stepgen->maxaccel);
+                // constrained at RSIC:     *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
+                // constrained at RSIC: }
+
                 /* end: ramp up/down spindle */
-//                fprintf(stderr,"prev_vel(%f) accel_cmd(%f) \n", stepgen->prev_vel_cmd, stepgen->accel_cmd);
 	    } else {
-	        *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
+	        *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
 	    }
 	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
 	}
-	{
+	
+        {
             
-            integer_pos_cmd = (int32_t)((*stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
+            integer_pos_cmd = (int32_t)(*stepgen->vel_cmd * (stepgen->pos_scale) * FIXED_POINT_SCALE);
 
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
@@ -1869,29 +1865,25 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
+
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
             
             if (integer_pos_cmd >= 0) {
-                // wou_cmd_accum = wou_pos_cmd << FRACTION_BITS;
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
             } else {
-                // wou_cmd_accum = -(wou_pos_cmd << FRACTION_BITS);
                 sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
             }
             memcpy(data + (2 * n * sizeof(uint16_t)), &sync_cmd, sizeof(uint16_t));
             
-            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
-
-
             /* packing fraction part */
+            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
             sync_cmd = (uint16_t) wou_pos_cmd;
-            memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
-                   sizeof(uint16_t));
+            memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
 
-            // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
-            (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
+            // (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
+	    stepgen->prev_pos_cmd = *stepgen->pos_cmd;
             stepgen->prev_vel_cmd = *stepgen->vel_cmd;
 
             if (stepgen->pos_mode == 0) {
@@ -1906,9 +1898,6 @@ static void update_freq(void *arg, long period)
                     double pos_scale;
                     pos_scale = stepgen->pos_scale;
                     pos_cmd = integer_pos_cmd >> FRACTION_BITS;
-
-                    // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
-//                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
 
                     /* limit the spindle encoder count in a revolution and
                      * keep tracking the revolution of the spindle cmd */
@@ -1969,7 +1958,6 @@ static void update_freq(void *arg, long period)
 	/* move on to next channel */
 	stepgen++;
     }
-//    *machine_control->align_pos_cmd = 0;
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     sync_cmd = SYNC_VEL;
