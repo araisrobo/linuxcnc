@@ -169,7 +169,7 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
-#undef DEBUG
+#undef  DEBUG
 
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
@@ -363,7 +363,7 @@ typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
     /* stuff that is read but not written by makepulses */
-    uint64_t  rawcount;         /* precision: 64.16; accumulated pulse sent to FPGA */
+    int64_t  rawcount;          /* precision: 64.16; accumulated pulse sent to FPGA */
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
@@ -495,7 +495,6 @@ typedef struct {
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
-    /* DEBUG */
     hal_s32_t *debug[8];
     /* tick */
     hal_u32_t *tick[14];
@@ -672,8 +671,6 @@ static void fetchmail(const uint8_t *buf_head)
             *stepgen->ferror_flag = ferror_flag & (1 << i);
             stepgen += 1;   // point to next joint
         }
-
-        // DEBUG  : MOVE to MT_DEBUG
 
 #if (MBOX_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
@@ -1660,24 +1657,20 @@ static void update_freq(void *arg, long period)
     for (n = 0; n < num_joints; n++) {
         /* begin: handle jog config for RISC */
         if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.01) {
-        	double vel;
-//        	fprintf(stderr, "wou_stepgen.c: j (%d) jog_scale(%f) jog_vel(%f) prev_vel(%f)\n",
-//						n, *stepgen->jog_scale, *stepgen->jog_vel, stepgen->prev_jog_vel);
+            double vel;
             /* config jog setting */
-        	vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
-        	if (vel > stepgen->maxvel) {
-        		fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
-        		vel = stepgen->maxvel;
-        		(*stepgen->jog_vel) = vel;
-        	}
-        	fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
+            vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
+            if (vel > stepgen->maxvel) {
+                    fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
+                    vel = stepgen->maxvel;
+                    (*stepgen->jog_vel) = vel;
+            }
+            fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
             jog_var = abs((uint32_t) (vel * (*stepgen->pos_scale_pin) * dt));
             new_jog_config = (jog_var << 20) | (stepgen->jog_config & 0x000FFFFF);
             new_jog_config = (new_jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            fprintf(stderr, "wou_stepgen.c: j (%d) jog-vel has been changed new jog_config(0x%0X)\n",
-                n, new_jog_config);
             stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
             stepgen->jog_config = new_jog_config;
         }
@@ -1687,8 +1680,6 @@ static void update_freq(void *arg, long period)
             new_jog_config = (stepgen->jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            fprintf(stderr, "wou_stepgen.c: j (%d) jog-enable has been changed new jog_config(0x%0X)\n",
-                n, new_jog_config);
             stepgen->prev_jog_enable = *stepgen->jog_enable;
             stepgen->jog_config = new_jog_config;
         }
@@ -1707,13 +1698,6 @@ static void update_freq(void *arg, long period)
             stepgen->prev_enc_pos = *stepgen->enc_pos;
             if (n == (num_joints - 1)) {
                 // update bp_tick for the last joint
-                //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
-                //DEBUG:                 "WOU: j[%d] bp(%u) prev_bp(%u) vel_fb(%f)\n",
-                //DEBUG:                 n,
-                //DEBUG:                 machine_control->bp_tick,
-                //DEBUG:                 machine_control->prev_bp,
-                //DEBUG:                 *(stepgen->vel_fb)
-                //DEBUG:                );
                 machine_control->prev_bp = *machine_control->bp_tick;
             }
         }
@@ -1820,7 +1804,7 @@ static void update_freq(void *arg, long period)
 	    if (*machine_control->align_pos_cmd == 1 ||
 	        *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
-                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
+                stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
 //	        fprintf(stderr,"ignore_host_cmd(%d) align_pos_cmd(%d)\n",
 //	            *machine_control->ignore_host_cmd, *machine_control->align_pos_cmd);
 	    }
@@ -1830,7 +1814,7 @@ static void update_freq(void *arg, long period)
 	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
 	        stepgen->prev_vel_cmd = 0;
 	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-                //necessary? stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
+                stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
                 assert(0); // TODO: confirm if we need to update rawcount?
 	        // do more thing if necessary.
 	    }
