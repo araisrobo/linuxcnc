@@ -421,6 +421,7 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
+    hal_bit_t *usb_busy;
     hal_bit_t *ignore_ahc_limit;
     hal_bit_t *align_pos_cmd;
     hal_bit_t *ignore_host_cmd;
@@ -785,14 +786,12 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
-        // wou_flush(&w_param);
     }
 
     sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(addr) | PACK_MOT_PARAM_ID(joint);
     memcpy(buf, &sync_cmd, sizeof(uint16_t));
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
-    wou_flush(&w_param);
 
     return;
 }
@@ -826,7 +825,6 @@ static void write_usb_cmd(machine_control_t *mc)
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
-        wou_flush(&w_param);
       break;
     case HOME_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
@@ -866,7 +864,6 @@ static void write_usb_cmd(machine_control_t *mc)
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
-        wou_flush(&w_param);
       break;
     case SPECIAL_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
@@ -889,7 +886,6 @@ static void write_usb_cmd(machine_control_t *mc)
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
-        wou_flush(&w_param);
     default:
       // do nothing, don't write command if it is invalid.
       break;
@@ -908,16 +904,11 @@ static void write_machine_param (uint32_t addr, int32_t data)
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
-        // wou_flush(&w_param);
     }
-
     sync_cmd = SYNC_MACH_PARAM | PACK_MACH_PARAM_ADDR(addr);
     memcpy(buf, &sync_cmd, sizeof(uint16_t));
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
-    wou_flush(&w_param);
-
-
     return;
 }
 
@@ -935,7 +926,6 @@ int rtapi_app_main(void)
     double max_vel, max_accel, pos_scale, value, max_following_error;//, probe_decel;
     double max_jerk;
     int msg;
-
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     // rtapi_set_msg_level(RTAPI_MSG_INFO);
@@ -1060,36 +1050,44 @@ int rtapi_app_main(void)
         fprintf(stderr, "wou_stepgen.c: non-supported machine type\n");
         assert(0);
     }
+    while(wou_flush(&w_param) == -1);
     // configure alarm output (for E-Stop)
     write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
     fprintf(stderr, "ALR_OUTPUT(%08X)",(uint32_t) strtoul(alr_output, NULL, 16));
+    while(wou_flush(&w_param) == -1);
     // config probe parameters
     // probe_decel_cmd
     write_machine_param(PROBE_CONFIG, (uint32_t) strtoul(probe_config, NULL, 16));
     fprintf(stderr, "PROBE_CONFIG(%08X)",(uint32_t) strtoul(probe_config, NULL, 16));
-    
+    while(wou_flush(&w_param) == -1);
     immediate_data = atoi(probe_analog_ref_level);
     write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);
-    
+    while(wou_flush(&w_param) == -1);
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
     write_machine_param(AHC_ANALOG_CH, immediate_data);
+    while(wou_flush(&w_param) == -1);
     immediate_data = atoi(ahc_joint_str);
     pos_scale = atof(pos_scale_str[immediate_data]);
     write_machine_param(AHC_JNT, immediate_data);
+    while(wou_flush(&w_param) == -1);
     immediate_data = atoi(ahc_level_min_str);
     write_machine_param(AHC_LEVEL_MIN, immediate_data);
+    while(wou_flush(&w_param) == -1);
     immediate_data = atoi(ahc_level_max_str);
     write_machine_param(AHC_LEVEL_MAX, immediate_data);
+    while(wou_flush(&w_param) == -1);
 
     if (strcmp(ahc_polarity, "POSITIVE") == 0) {
     	if (pos_scale >=0) {
     		// set risc positive
     		write_machine_param(AHC_POLARITY, AHC_POSITIVE);
+
     	} else {
     		// set risc negative
     		write_machine_param(AHC_POLARITY, AHC_NEGATIVE);
     	}
+
     } else if (strcmp(ahc_polarity, "NEGATIVE") == 0) {
     	if (pos_scale >= 0) {
     		// set risc negative
@@ -1098,11 +1096,12 @@ int rtapi_app_main(void)
     		// set risc positive
     		write_machine_param(AHC_POLARITY, AHC_POSITIVE);
     	}
+
     } else {
     	fprintf(stderr, "wou_stepgen.c: non-supported ahc polarity config\n");
     	assert(0);
     }
-
+    while(wou_flush(&w_param) == -1);
     // config debug pattern
     if (strcmp(pattern_type_str, "NO_TEST") == 0) {
         write_machine_param(TEST_PATTERN_TYPE, NO_TEST);
@@ -1119,7 +1118,7 @@ int rtapi_app_main(void)
         fprintf(stderr, "wou_stepgen.c: unknow test pattern type (%s)\n", pattern_type_str);
         assert(0);
     }
-
+    while(wou_flush(&w_param) == -1);
     num_joints = 0;
     for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') ; n++) {
 	if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
@@ -1145,12 +1144,12 @@ int rtapi_app_main(void)
     // issue a WOU_WRITE to RESET SSIF position registers
     data[0] = (1 << num_joints) - 1;  // bit-map-for-num_joints
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-    wou_flush(&w_param);
-    
+
+    while(wou_flush(&w_param) == -1);
     // issue a WOU_WRITE to clear SSIF_RST_POS register
     data[0] = 0x00;
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-    wou_flush(&w_param);
+    while(wou_flush(&w_param) == -1);
 
     /* test for dt: servo_period_ns */
     if ((servo_period_ns == -1)) {
@@ -1194,7 +1193,7 @@ int rtapi_app_main(void)
         max_pulse_tick = immediate_data;
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
-
+        while(wou_flush(&w_param) == -1);
         /* config acceleration */
         // +1: rounding to last fixed point unit
         immediate_data = ((uint32_t)(max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt) + 1);
@@ -1203,7 +1202,7 @@ int rtapi_app_main(void)
                         n, immediate_data, max_accel, pos_scale, dt, FIXED_POINT_SCALE);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL), immediate_data);
-
+        while(wou_flush(&w_param) == -1);
         /* config acceleration recip */
         immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt));
         rtapi_print_msg(RTAPI_MSG_DBG, 
@@ -1211,7 +1210,7 @@ int rtapi_app_main(void)
                         n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
-
+        while(wou_flush(&w_param) == -1);
         /* config max jerk */
         immediate_data = (uint32_t)((max_jerk * pos_scale * dt * dt * dt * FIXED_POINT_SCALE )+1);
         rtapi_print_msg(RTAPI_MSG_DBG,
@@ -1219,7 +1218,7 @@ int rtapi_app_main(void)
                         n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_JERK), immediate_data);
-        
+        while(wou_flush(&w_param) == -1);
         /* config max jerk recip */
         immediate_data = (uint32_t)(FIXED_POINT_SCALE/(max_jerk * pos_scale * dt * dt * dt));
         rtapi_print_msg(RTAPI_MSG_DBG,
@@ -1227,13 +1226,14 @@ int rtapi_app_main(void)
                         n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
-
+        while(wou_flush(&w_param) == -1);
         /* config max following error */
         // following error send with unit pulse
         max_following_error = atof(ferror_str[n]);
         immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
         rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
+        while(wou_flush(&w_param) == -1);
         /* config jog setting */
         jog_config_value = strtoul(jog_config_str[n],NULL, 16);
         jog_config_value &= 0x000FFFFF;
@@ -1242,6 +1242,7 @@ int rtapi_app_main(void)
                   "j[%d] JOG_CONFIG(0x%0X)\n",
                   n, jog_config_value);
         write_mot_param (n, (JOG_CONFIG), jog_config_value);
+        while(wou_flush(&w_param) == -1);
     }
 
     // config PID parameter
@@ -1256,19 +1257,21 @@ int rtapi_app_main(void)
                 immediate_data = (int32_t) (value);
                 // P_GAIN: the mot_param index for P_GAIN value
                 write_mot_param (n, (P_GAIN + i), immediate_data);
+                while(wou_flush(&w_param) == -1);
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
 
             value = 0;
             immediate_data = (int32_t) (value);
             write_mot_param (n, (ENABLE), immediate_data);
+            while(wou_flush(&w_param) == -1);
             rtapi_print_msg(RTAPI_MSG_INFO, "\n");
         }
     }
     
     // configure NUM_JOINTS after all joint parameters are set
     write_machine_param(NUM_JOINTS, (uint32_t) num_joints);
-
+    while(wou_flush(&w_param) == -1);
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SSIF_EN, servo/stepper interface enable
@@ -1281,7 +1284,7 @@ int rtapi_app_main(void)
     // RISC ON
     data[0] = 1;        
     wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
-    wou_flush(&w_param);
+    while(wou_flush(&w_param) == -1);
     /* have good config info, connect to the HAL */
     comp_id = hal_init("wou");
     if (comp_id < 0) {
@@ -1444,22 +1447,18 @@ static void update_freq(void *arg, long period)
        of msg_level and restore it later.  If you actually need to log this
        function's actions, change the second line below */
     int msg;
-    msg = rtapi_get_msg_level();
-    // rtapi_set_msg_level(RTAPI_MSG_ALL);
-    rtapi_set_msg_level(RTAPI_MSG_WARN);
-    
-    // update host tick for risc
-    write_machine_param(HOST_TICK, host_tick);
-    *machine_control->wou_bp_tick = host_tick;
-    if (host_tick == REQUEST_TICK_SYNC_AFTER) {
-        sync_cmd = SYNC_BP ;
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        wou_flush(&w_param);
-    }
-    host_tick += 1;
 
+    if (wou_flush(&w_param) == -1) {
+        // raise flag to pause trajectory planning
+        *(machine_control->usb_busy) = 1;
+        return;
+    } else {
+        *(machine_control->usb_busy) = 0;
+    }
+
+    msg = rtapi_get_msg_level();
+//     rtapi_set_msg_level(RTAPI_MSG_ALL);
+    rtapi_set_msg_level(RTAPI_MSG_WARN);
 
     wou_update(&w_param);
 
@@ -1478,20 +1477,10 @@ static void update_freq(void *arg, long period)
     /* end: */
 
     /* begin: handle usb cmd */
-    /* OLD ONE */
-//    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
-//        // call api to parse wou_cmd to risc
-//        parse_usb_cmd (*machine_control->wou_cmd);
-//        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
-//                machine_control->prev_wou_cmd);
-//    }
-//    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
-    /* NEW ONE*/
     if (*machine_control->usb_cmd != 0) {
         write_usb_cmd(machine_control);
         *machine_control->usb_cmd = 0; // reset usb_cmd
     }
-
     /* end: handle usb cmd */
 
     /* begin: handle AHC state, AHC level */
@@ -1609,7 +1598,7 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
 	fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
-	wou_flush(&w_param);
+	while(wou_flush(&w_param) == -1);
     }
 
     /* check if we should enable HOME Switch Detection */
@@ -1618,7 +1607,7 @@ static void update_freq(void *arg, long period)
 	wou_cmd(&w_param,
 		WB_WR_CMD, SSIF_BASE | SSIF_SWITCH_EN, 1, &r_switch_en);
 	// fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-	wou_flush(&w_param);
+	while(wou_flush(&w_param) == -1);
     }
 
 
@@ -1861,7 +1850,6 @@ static void update_freq(void *arg, long period)
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
-
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
@@ -2279,7 +2267,11 @@ static int export_machine_control(machine_control_t * machine_control)
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_WARN);
-
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->usb_busy), comp_id,
+                                  "wou.usb-busy");
+    if (retval != 0) {
+        return retval;
+    }
 
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->vel_sync), comp_id,
                               "wou.motion.vel-sync");

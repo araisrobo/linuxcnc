@@ -26,7 +26,6 @@
 #include "unistd.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "pthread.h"
 #include "rtapi.h"
 #include "rtapi_app.h"
 #include "rtapi_errno.h"
@@ -81,7 +80,6 @@ extern StrGeneralParams GeneralParamsMirror;
 
 #define TIME_REFRESH_RUNG_NS (1000 * 1000 * (TIME_REFRESH_RUNG_MS))
 
-static int thread_exit;
 
 void HalReadPhysicalInputs(void) {
 	int i;
@@ -167,47 +165,8 @@ static void hal_task(void *arg, long period) {
          InfosGene->DurationOfLastScan = t1 - t0;
 				}
 }
-// FOR USB PROTOCOL
-void *auto_task(void *ptr) {
-    unsigned long t0, t1,milliseconds;
-    static unsigned long leftover=0;
-    while(thread_exit == 0) {
-        long period = last_period;
-        leftover += period;
-        milliseconds= leftover / 1000000;
-        leftover %= 1000000;
-        if (milliseconds >= 1) {
-            InfosGene->GeneralParams.PeriodicRefreshMilliSecs=milliseconds;
-            *hal_state = InfosGene->LadderState;
-            t0 = rtapi_get_time();
-            if (InfosGene->LadderState==STATE_RUN) {
-                HalReadPhysicalInputs();
-
-                HalReads32Inputs();
-
-                HalReadFloatInputs();
-
-                // causing syntax error in some case: ClassicLadder_RefreshAllSections();
-                // TODO: resolve this bug while using older configs
-                ClassicLadder_RefreshAllSections();
-
-                HalWritePhysicalOutputs();
-
-                HalWrites32Outputs();
-
-                HalWriteFloatOutputs();
-            }
-            t1 = rtapi_get_time();
-          InfosGene->DurationOfLastScan = t1 - t0;
- 				}
-        usleep(100);
-    }
-    return (void *)0;
-}
-
 
 extern void CopySizesInfosFromModuleParams( void );
-pthread_t thread;
 
 int rtapi_app_main(void) {
 	int result, i;
@@ -282,14 +241,10 @@ error:
 	hal_ready(compId);
 
 	ClassicLadder_AllocAll( );
-        thread_exit = 0;
-        pthread_create( &thread, NULL, auto_task, (void*) NULL);
 	return 0;
 }
 
 void rtapi_app_exit(void) {
-        //pthread_kill(thread,0);
-        thread_exit = 1;
 	ClassicLadder_FreeAll( FALSE);
 	hal_exit(compId);
 }

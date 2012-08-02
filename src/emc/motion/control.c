@@ -372,7 +372,9 @@ check_stuff ( "after handle_jogwheels()" );
 check_stuff ( "after do_homing_sequence()" );
     do_homing();
 check_stuff ( "after do_homing()" );
-    get_pos_cmds(period);
+    if (*(emcmot_hal_data->usb_busy) == 0) {
+        get_pos_cmds(period);
+    }
 check_stuff ( "after get_pos_cmds()" );
     compute_screw_comp();
 check_stuff ( "after compute_screw_comp()" );
