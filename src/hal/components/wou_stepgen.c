@@ -169,6 +169,8 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
+#undef DEBUG
+
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
@@ -361,7 +363,7 @@ typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
     /* stuff that is read but not written by makepulses */
-    int32_t rawcount;
+    uint64_t  rawcount;         /* precision: 64.16; accumulated pulse sent to FPGA */
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
@@ -681,8 +683,6 @@ static void fetchmail(const uint8_t *buf_head)
             dsize += sprintf (dmsg + dsize, "%10d %10d %10d  ",
                               *(stepgen->pulse_pos),
                               *(stepgen->enc_pos),
-//                              *(stepgen->pid_output),
-//                              *(stepgen->cmd_error),
                               *(stepgen->joint_cmd)
                              );
             stepgen += 1;   // point to next joint
@@ -1419,7 +1419,7 @@ static void update_freq(void *arg, long period)
     double physical_maxvel, maxvel;	// max vel supported by current step timings & position-scal
 
     uint16_t sync_cmd;
-    int wou_pos_cmd, integer_pos_cmd;
+    int32_t wou_pos_cmd, integer_pos_cmd;
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     uint32_t sync_out_data;
 
@@ -1432,6 +1432,11 @@ static void update_freq(void *arg, long period)
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
+
+#ifdef DEBUG
+    static int debug_msg_tick = 0;
+#endif
+
     /* FIXME - while this code works just fine, there are a bunch of
        internal variables, many of which hold intermediate results that
        don't really need their own variables.  They are used either for
@@ -1736,15 +1741,19 @@ static void update_freq(void *arg, long period)
 	    *(stepgen->vel_fb) = 0;
 	    *(stepgen->ctrl_type_switch) = 0;
 
+#ifdef DEBUG
+            debug_msg_tick = 0;
+#endif
+
             r_load_pos = 0;
-            if (stepgen->rawcount != *(stepgen->enc_pos)) {
+            if (stepgen->rawcount !=  (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS)) {
                 r_load_pos |= (1 << n);
                 /**
                  * accumulator gets a half step offset, so it will step
                  * half way between integer positions, not at the integer
                  * positions.
                  **/
-                stepgen->rawcount = *(stepgen->enc_pos);
+                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
                 /* load SWITCH, INDEX, and PULSE positions with enc_counter */
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
@@ -1811,6 +1820,7 @@ static void update_freq(void *arg, long period)
 	    if (*machine_control->align_pos_cmd == 1 ||
 	        *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
+                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
 //	        fprintf(stderr,"ignore_host_cmd(%d) align_pos_cmd(%d)\n",
 //	            *machine_control->ignore_host_cmd, *machine_control->align_pos_cmd);
 	    }
@@ -1820,6 +1830,8 @@ static void update_freq(void *arg, long period)
 	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
 	        stepgen->prev_vel_cmd = 0;
 	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+                //necessary? stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
+                assert(0); // TODO: confirm if we need to update rawcount?
 	        // do more thing if necessary.
 	    }
 	    if (*stepgen->ctrl_type_switch == 0) {
@@ -1883,17 +1895,17 @@ static void update_freq(void *arg, long period)
             memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
 
             // (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
-	    stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+	    // stepgen->prev_pos_cmd = *stepgen->pos_cmd;
+            stepgen->rawcount += (int64_t) integer_pos_cmd; // precision: 64.16
+            stepgen->prev_pos_cmd = (((double)stepgen->rawcount * stepgen->scale_recip)/(FIXED_POINT_SCALE));
             stepgen->prev_vel_cmd = *stepgen->vel_cmd;
-
+            
             if (stepgen->pos_mode == 0) {
                     // TODO: find a better way for spindle control
                     // TODO: let TRAJ-PLANNER judge the index/revolution
                     // TODO: remove this section from wou_stepgen.c
                     double delta;
-//                    double spindle_pos;
                     int32_t spindle_pos;
-//                    double spindle_irevs;
                     int32_t spindle_irevs, pos_cmd, tmp;
                     double pos_scale;
                     pos_scale = stepgen->pos_scale;
@@ -1955,9 +1967,30 @@ static void update_freq(void *arg, long period)
             (stepgen->prev_pos_cmd), 
             *stepgen->pos_fb);
 
+#ifdef DEBUG
+        if (debug_msg_tick == 1700) {
+            rtapi_print("j[%d]: rawcount.int(%lld) enc_pos(%d) cmd_fbs(%d) debug(%d) pulse_pos(%d) pos_cmd(%f) pos_fb(%f)\n",
+                        n, 
+                        (stepgen->rawcount >> FRACTION_BITS),
+                        *(stepgen->enc_pos),
+                        *(stepgen->cmd_fbs),
+                        *(machine_control->debug[n]),
+                        *(stepgen->pulse_pos),
+                        *stepgen->pos_cmd,
+                        *stepgen->pos_fb);
+        }
+#endif
+
 	/* move on to next channel */
 	stepgen++;
     }
+
+#ifdef DEBUG
+    debug_msg_tick ++;
+    if (debug_msg_tick > 1700) {
+        debug_msg_tick = 0;
+    }
+#endif
 
     DPS("  %15.7f", *machine_control->spindle_revs);
     sync_cmd = SYNC_VEL;
