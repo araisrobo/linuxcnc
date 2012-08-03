@@ -77,7 +77,6 @@ typedef struct {
     hal_float_t *jog_scale;	/* RPI: distance to jog on each count */
     hal_bit_t *jog_vel_mode;	/* RPI: true for "velocity mode" jogwheel */
     hal_float_t *probed_pos;
-    hal_float_t *distance_not_probe;
 } joint_hal_t;
 
 typedef struct {
@@ -92,8 +91,6 @@ typedef struct {
 
 typedef struct {
     //obsolete: hal_bit_t *probe_input;	/* RPI: probe switch input */
-    hal_float_t *distance_not_probe;
-    hal_float_t *set_distance_not_probe;
     hal_bit_t *req_cmd_sync;
     hal_bit_t *align_pos_cmd;
     hal_u32_t *usb_cmd;         /* usb command output */

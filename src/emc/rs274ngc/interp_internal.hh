@@ -177,8 +177,6 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_38_3 383
 #define G_38_4 384
 #define G_38_5 385
-#define G_38_6 386
-#define G_38_7 387
 #define G_40   400
 #define G_41   410
 #define G_41_1 411
@@ -715,10 +713,6 @@ typedef struct setup_struct
   int a_indexer;
   int b_indexer;
   int c_indexer;
-  // special patch for plasma
-  double last_off_x;             // current X-axis position
-  double last_off_y;             // current Y-axis position
-  double last_off_z;             // current Z-axis position
   bool lathe_diameter_mode;       //Lathe diameter mode (g07/G08)
   bool mdi_interrupt;
   int feature_set; 

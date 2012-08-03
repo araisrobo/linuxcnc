@@ -209,8 +209,8 @@ BOOST_PYTHON_MODULE(emccanon) {
     def("enqueue_MIST_OFF", &enqueue_MIST_OFF);
     def("enqueue_FLOOD_ON", &enqueue_FLOOD_ON);
     def("enqueue_FLOOD_OFF", &enqueue_FLOOD_OFF);
-//    def("enqueue_START_SPINDLE_CLOCKWISE", &enqueue_START_SPINDLE_CLOCKWISE);
-//    def("enqueue_START_SPINDLE_COUNTERCLOCKWISE", &enqueue_START_SPINDLE_COUNTERCLOCKWISE);
+    def("enqueue_START_SPINDLE_CLOCKWISE", &enqueue_START_SPINDLE_CLOCKWISE);
+    def("enqueue_START_SPINDLE_COUNTERCLOCKWISE", &enqueue_START_SPINDLE_COUNTERCLOCKWISE);
     def("enqueue_STOP_SPINDLE_TURNING", &enqueue_STOP_SPINDLE_TURNING);
     def("enqueue_SET_SPINDLE_MODE", &enqueue_SET_SPINDLE_MODE);
     def("enqueue_SET_SPINDLE_SPEED", &enqueue_SET_SPINDLE_SPEED);

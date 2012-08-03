@@ -2123,8 +2123,8 @@ static void output_to_hal(void)
     axis_hal_t *axis_data;
     static int old_motion_index=0, old_hal_index=0;
     
-    *(emcmot_hal_data->distance_not_probe) = *(emcmot_hal_data->set_distance_not_probe);
     /* output USB command to HAL */
+
     for (i=0; i<4;i++) {
         *(emcmot_hal_data->usb_cmd_param[i]) = emcmotStatus->usb_cmd_param[i];
         emcmotStatus->last_usb_cmd_param[i] = *(emcmot_hal_data->last_usb_cmd_param[i]);
