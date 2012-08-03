@@ -1,3 +1,9 @@
+linuxcnc (1:2.5.0-2012.08.03) lucid; urgency=low
+
+  * BUGFIX for usb-busy-lock issue
+
+ -- Yishin Li <ysli@araisrobo.com>  Fri, 03 Aug 2012 08:58:35 +0800
+
 linuxcnc (1:2.5.0-2012.07.18) lucid; urgency=low
 
   * Add alarm_en for deciding whether alarm output enable or not. 
