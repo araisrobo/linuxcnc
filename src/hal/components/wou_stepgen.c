@@ -383,6 +383,7 @@ typedef struct {
     double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
+    double      pos_cmd_s;	/* saved pos_cmd at rising edge of usb_busy */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *probed_pos;
@@ -421,10 +422,11 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
-    hal_bit_t *usb_busy;
-    hal_bit_t *ignore_ahc_limit;
-    hal_bit_t *align_pos_cmd;
-    hal_bit_t *ignore_host_cmd;
+    hal_bit_t   *usb_busy;
+    hal_bit_t   usb_busy_s;
+    hal_bit_t   *ignore_ahc_limit;
+    hal_bit_t   *align_pos_cmd;
+    hal_bit_t   *ignore_host_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -937,10 +939,10 @@ int rtapi_app_main(void)
     /* prepare header for gnuplot */
     DPS("#%10s  %15s%15s%15s  %15s%15s%15s  %15s%15s%15s  %15s%15s%15s  %15s\n",
          "dt",
-         "int_pos_cmd[0]", "prev_pos_cmd[0]", "pos_fb[0]",
-         "int_pos_cmd[1]", "prev_pos_cmd[1]", "pos_fb[1]",
-         "int_pos_cmd[2]", "prev_pos_cmd[2]", "pos_fb[2]",
-         "int_pos_cmd[3]", "prev_pos_cmd[3]", "pos_fb[3]",
+         "int_pcmd[0]", "prev_pcmd[0]", "pos_fb[0]",
+         "int_pcmd[1]", "prev_pcmd[1]", "pos_fb[1]",
+         "int_pcmd[2]", "prev_pcmd[2]", "pos_fb[2]",
+         "int_pcmd[3]", "prev_pcmd[3]", "pos_fb[3]",
          "spindle_revs"
        );
 #endif
@@ -1447,13 +1449,34 @@ static void update_freq(void *arg, long period)
        of msg_level and restore it later.  If you actually need to log this
        function's actions, change the second line below */
     int msg;
-
+        
+    // TODO: confirm trajecotry planning thread is always ahead of wou
     if (wou_flush(&w_param) == -1) {
         // raise flag to pause trajectory planning
         *(machine_control->usb_busy) = 1;
+        if (machine_control->usb_busy_s == 0) {
+            // DP("usb_busy: begin\n");
+            // store current traj-planning command
+            stepgen = arg;
+            for (n = 0; n < num_joints; n++) {
+                stepgen->pos_cmd_s = *(stepgen->pos_cmd);
+                stepgen ++;
+            }
+        }
+        machine_control->usb_busy_s = 1;
         return;
     } else {
         *(machine_control->usb_busy) = 0;
+        if (machine_control->usb_busy_s == 1) {
+            // DP("usb_busy: end\n");
+            // reload saved traj-planning command
+            stepgen = arg;
+            for (n = 0; n < num_joints; n++) {
+                *(stepgen->pos_cmd) = stepgen->pos_cmd_s;
+                stepgen ++;
+            }
+        }
+        machine_control->usb_busy_s = 0;
     }
 
     msg = rtapi_get_msg_level();
@@ -1650,9 +1673,9 @@ static void update_freq(void *arg, long period)
             /* config jog setting */
             vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
             if (vel > stepgen->maxvel) {
-                    fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
-                    vel = stepgen->maxvel;
-                    (*stepgen->jog_vel) = vel;
+                fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
+                vel = stepgen->maxvel;
+                (*stepgen->jog_vel) = vel;
             }
             fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
             jog_var = abs((uint32_t) (vel * (*stepgen->pos_scale_pin) * dt));
@@ -1780,7 +1803,7 @@ static void update_freq(void *arg, long period)
             stepgen++;
 	    continue;
 	}
-        
+	    
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
@@ -1934,11 +1957,12 @@ static void update_freq(void *arg, long period)
                     WB_WR_CMD,
                     (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
         }
-	DPS("  0x%13X%15.7f%15.7f",
+
+	DPS("       0x%08X%15.7f%15.7f",
 	    integer_pos_cmd, 
             (stepgen->prev_pos_cmd), 
             *stepgen->pos_fb);
-
+	
 #ifdef DEBUG
         if (debug_msg_tick == 1700) {
             rtapi_print("j[%d]: rawcount.int(%lld) enc_pos(%d) cmd_fbs(%d) debug(%d) pulse_pos(%d) pos_cmd(%f) pos_fb(%f)\n",
@@ -1987,7 +2011,8 @@ static void update_freq(void *arg, long period)
     machine_control->prev_motion_state = *machine_control->motion_state;
 
 #if (TRACE!=0)
-    if (*(stepgen - 1)->enable) {
+    stepgen = arg;
+    if (*(stepgen->enable)) {
 	DPS("\n");
     }
 #endif
@@ -2218,6 +2243,7 @@ static int export_stepgen(int num, stepgen_t * addr,
     addr->maxvel = 0.0;
     addr->maxaccel = 0.0;
     addr->pos_mode = pos_mode;
+    addr->pos_cmd_s = 0;
     /* timing parameter defaults depend on step type */
     addr->step_len = 1;
     /* init the step generator core to zero output */
@@ -2575,6 +2601,7 @@ static int export_machine_control(machine_control_t * machine_control)
 //    *(machine_control->prog_is_running) = 1;
 
     machine_control->prev_out = 0;
+    machine_control->usb_busy_s = 0;
 
     machine_control->last_spindle_index_pos = 0;
     machine_control->prev_spindle_irevs = 0;
