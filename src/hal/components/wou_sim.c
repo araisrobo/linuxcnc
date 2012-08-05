@@ -440,6 +440,7 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
+    hal_bit_t *usb_busy;
     hal_bit_t *ignore_ahc_limit;
     hal_bit_t *align_pos_cmd;
     hal_bit_t *ignore_host_cmd;
@@ -1767,8 +1768,7 @@ static void update_freq(void *arg, long period)
             jog_var = (uint32_t)(((double)jog_var) * (*stepgen->jog_scale));
             new_jog_config = (jog_var << 20) | (new_jog_config & 0x000FFFFF);
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            fprintf(stderr, "wou_stepgen.c: j (%d) jog-enable has been changed new jog_config(0x%0X)\n",
-                n, new_jog_config);
+            DP(stderr, "wou_stepgen.c: j (%d) jog-enable has been changed new jog_config(0x%0X)\n", n, new_jog_config);
             stepgen->prev_jog_enable = *stepgen->jog_enable;
         }
         /* end: handle jog config for RISC */
@@ -2391,6 +2391,11 @@ static int export_machine_control(machine_control_t * machine_control)
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->usb_busy), comp_id,
+                                  "wou.usb-busy");
+    if (retval != 0) {
+        return retval;
+    }
 
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->vel_sync), comp_id,
                               "wou.motion.vel-sync");
