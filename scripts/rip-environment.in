@@ -79,6 +79,18 @@ else
     GLADE_CATALOG_PATH=$EMC2_HOME/lib/python/gladevcp:"$GLADE_CATALOG_PATH"
 fi
 
+if [ -z "$GLADE_CATALOG_SEARCH_PATH" ]; then
+    GLADE_CATALOG_SEARCH_PATH=$EMC2_HOME/lib/python/gladevcp
+else
+    GLADE_CATALOG_SEARCH_PATH=$EMC2_HOME/lib/python/gladevcp:"$GLADE_CATALOG_SEARCH_PATH"
+fi
+
+if [ -z "$GLADE_MODULE_SEARCH_PATH" ]; then
+    GLADE_MODULE_SEARCH_PATH=$EMC2_HOME/lib/python/gladevcp
+else
+    GLADE_MODULE_SEARCH_PATH=$EMC2_HOME/lib/python/gladevcp:"$GLADE_MODULE_SEARCH_PATH"
+fi
+
 # TODO: if these completion directives give trouble for any versions
 # of bash actively in use, protect them with checks of BASH_VERSINFO
 if [ $BASH_VERSINFO -eq 2 ]; then
@@ -104,4 +116,4 @@ if [ -f $EMC2_HOME/src/Makefile ]; then
     build () { make -C $EMC2_HOME/src "$@"; }
 fi
 
-export PYTHONPATH MANPATH LD_LIBRARY_PATH TCLLIBPATH GLADE_CATALOG_PATH
+export PYTHONPATH MANPATH LD_LIBRARY_PATH TCLLIBPATH GLADE_CATALOG_PATH GLADE_CATALOG_SEARCH_PATH GLADE_MODULE_SEARCH_PATH
