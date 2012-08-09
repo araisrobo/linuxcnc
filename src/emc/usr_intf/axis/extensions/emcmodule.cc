@@ -871,6 +871,7 @@ static PyObject *mdi(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_EXECUTE m;
     m.serial_number = next_serial(s);
     strcpy(m.command, cmd);
+    // DEBUG: printf("emcmodule.cc: sn(%d), mdi(%s)\n", m.serial_number, cmd);
     s->c->write(m);
     emcWaitCommandReceived(s->serial, s->s);
     Py_INCREF(Py_None);
@@ -1134,6 +1135,7 @@ static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     if(PyArg_ParseTuple(o, "ii", &fn, &run.line) && fn == LOCAL_AUTO_RUN) {
         run.serial_number = next_serial(s);
         s->c->write(run);
+        // DEBUG: printf("emcmodule.cc: AUTO_RUN, sn(%d), line(%d)\n", run.serial_number, run.line);
         emcWaitCommandReceived(s->serial, s->s);
     } else {
         PyErr_Clear();
@@ -1142,16 +1144,19 @@ static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
         case LOCAL_AUTO_PAUSE:
             pause.serial_number = next_serial(s);
             s->c->write(pause);
+            // DEBUG: printf("emcmodule.cc: PAUSE sn(%d)\n", pause.serial_number);
             emcWaitCommandReceived(s->serial, s->s);
             break;
         case LOCAL_AUTO_RESUME:
             resume.serial_number = next_serial(s);
             s->c->write(resume);
+            // DEBUG: printf("emcmodule.cc: RESUME sn(%d)\n", resume.serial_number);
             emcWaitCommandReceived(s->serial, s->s);
             break;
         case LOCAL_AUTO_STEP:
             step.serial_number = next_serial(s);
             s->c->write(step);
+            // DEBUG: printf("emcmodule.cc: STEP sn(%d)\n", step.serial_number);
             emcWaitCommandReceived(s->serial, s->s);
             break;
         default:
