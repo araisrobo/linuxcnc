@@ -410,7 +410,6 @@ typedef struct {
     hal_bit_t     *jog_enable;
     int8_t        prev_jog_enable;
     double       prev_jog_vel;
-//    hal_bit_t     *tp_enable;  /* connect to joint jog active */
 } stepgen_t;
 // #pragma pack(pop)   /* restore original alignment from stack */
 
@@ -1452,6 +1451,7 @@ static void update_freq(void *arg, long period)
         
     // TODO: confirm trajecotry planning thread is always ahead of wou
     if (wou_flush(&w_param) == -1) {
+        struct timespec time;
         // raise flag to pause trajectory planning
         *(machine_control->usb_busy) = 1;
         if (machine_control->usb_busy_s == 0) {
@@ -1464,6 +1464,11 @@ static void update_freq(void *arg, long period)
             }
         }
         machine_control->usb_busy_s = 1;
+
+        time.tv_sec = 0;
+        time.tv_nsec = 300000;      // 0.3ms
+        nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
+
         return;
     } else {
         *(machine_control->usb_busy) = 0;
@@ -2230,12 +2235,6 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
-//    retval = hal_pin_bit_newf(HAL_IN, &(addr->tp_enable), comp_id,
-//                                    "wou.stepgen.%d.tp-enable", num);
-//    if (retval != 0) {
-//        return retval;
-//    }
-//    *addr->tp_enable = 1;
     /* set default parameter values */
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
