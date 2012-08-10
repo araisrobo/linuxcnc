@@ -747,6 +747,12 @@ static void fetchmail(const uint8_t *buf_head)
 #if (DEBUG_LOG)
         fprintf (debug_fp, "%s\n", dmsg);
 #endif
+        //debug: // For debugging purpose:
+        //debug: if (*machine_control->debug[3] == 0) {
+        //debug:     // ESTOP is on
+        //debug:     printf ("sm.torch_on(0x%03X)\n", *machine_control->debug[1]);
+        //debug:     printf ("sm.ctrl_state(0x%03X)\n", *machine_control->debug[2]);
+        //debug: }
         break;
     case MT_TICK:
         p = (uint32_t *) (buf_head + 4);
