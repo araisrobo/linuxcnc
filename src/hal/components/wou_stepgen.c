@@ -339,11 +339,8 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
-//static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
-//static uint8_t is_probing = 0;
 
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
-
 
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
@@ -508,7 +505,6 @@ typedef struct {
     hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
     hal_float_t *last_usb_cmd_param[4];
-//    hal_bit_t *prog_is_running;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -802,6 +798,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 
     return;
 }
+
 static void write_usb_cmd(machine_control_t *mc)
 {
   /* write parameters */
@@ -813,12 +810,14 @@ static void write_usb_cmd(machine_control_t *mc)
     switch(*mc->usb_cmd) {
     case PROBE_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
+
       for (i=0; i<4; i++) {
           *mc->last_usb_cmd_param[i] =
               *mc->usb_cmd_param[i];
       }
+
       for (i=0; i<4; i++) {
-          fprintf(stderr,"get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
+          fprintf(stderr, "get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
           data = (int32_t)(*mc->usb_cmd_param[i]);
           for(j=0; j<sizeof(int32_t); j++) {
               sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -827,12 +826,14 @@ static void write_usb_cmd(machine_control_t *mc)
                     sizeof(uint16_t), buf);
           }
       }
+
       /* write command */
-        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
-        memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), buf);
+      sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
+      memcpy(buf, &sync_cmd, sizeof(uint16_t));
+      wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+              sizeof(uint16_t), buf);
       break;
+
     case HOME_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
       for (i=0; i<4; i++) {
@@ -1494,7 +1495,7 @@ static void update_freq(void *arg, long period)
 //     rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-    wou_update(&w_param);
+    wou_update(&w_param);   // link to wou_recv()
 
     /* begin: sending debug pattern */
     if (test_pattern_type != NO_TEST) {
@@ -1654,17 +1655,13 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_joints; i++) {
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
-//                immediate_data = NORMAL_MOVE;
-//                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
-
         } else {
             for(i=0; i<num_joints; i++) {
                 immediate_data = 0;
                 write_mot_param (i, (ENABLE), immediate_data);
             }
         }
-
     }
     
     // in[0] == 1 (ESTOP released)
