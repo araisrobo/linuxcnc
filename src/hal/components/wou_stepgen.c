@@ -978,7 +978,12 @@ int rtapi_app_main(void)
 	return -1;
     } else {
 	// programming risc with binfile(bins)
-        wou_prog_risc(&w_param, bins);
+	if (wou_prog_risc(&w_param, bins) != 0) {
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+			    "WOU: ERROR: load RISC program filed\n");
+	    return -1;
+	}
+        
 #if (MBOX_LOG)
         mbox_fp = fopen ("./mbox.log", "w");
         fprintf (mbox_fp, "%10s  ", "bp_tick");
