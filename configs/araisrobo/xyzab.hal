@@ -62,8 +62,8 @@ net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 net J4_index-pos wou.stepgen.4.index-pos => joint.4.index-pos
 
 # estop loopback
-# net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
-net din_00  => iocontrol.0.emc-enable-in
+net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
+# net din_00  => iocontrol.0.emc-enable-in
 
 # create signals for tool loading loopback
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
