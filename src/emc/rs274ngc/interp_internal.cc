@@ -189,7 +189,7 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
           NCE_CANNOT_USE_TWO_G_CODES_THAT_BOTH_USE_AXIS_VALUES);
       CHKS(((!axis_flag && !polar_flag) && 
             mode1 != G_0 && mode1 != G_1 && 
-            mode1 != G_2 && mode1 != G_3 && mode1 != G_5_2),
+            mode1 != G_2 && mode1 != G_3 && mode1 != G_5_2 && mode1 != G_6_2),
           NCE_ALL_AXES_MISSING_WITH_MOTION_CODE);
     }
     block->motion_to_be = mode1;
@@ -203,6 +203,9 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
     if (block->g_modes[8] != G_43_1) {
        block->motion_to_be = settings->motion_mode;
     }
+  } else if ((block->k_flag || block->d_flag)&& (settings->motion_mode == G_6_2)) {
+    // for FANUC NURBS Code
+    block->motion_to_be = settings->motion_mode;
   } else if (!axis_flag && !polar_flag && ijk_flag && (settings->motion_mode == G_2 || settings->motion_mode == G_3)) {
     // this is a block like simply "i1" which should be accepted if we're in arc mode
       block->motion_to_be = settings->motion_mode;
@@ -280,7 +283,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->n_number = -1;
   block->motion_to_be = -1;
   block->m_count = 0;
-  for (n = 0; n < 11; n++) {
+  for (n = 0; n < 11+1; n++) { // add one artek row
     block->m_modes[n] = -1;
   }
   block->user_m = 0;

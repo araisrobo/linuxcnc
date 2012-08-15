@@ -131,6 +131,7 @@ domain="glade-3" depends="gtk+">
    <glade-widget-class-ref name="EMC_RadioAction_OFF"/>
 
    <glade-widget-class-ref name="EMC_Action_Open"/>
+   <glade-widget-class-ref name="EMC_Action_SaveAs"/>
    <glade-widget-class-ref name="EMC_Action_Reload"/>
    <glade-widget-class-ref name="EMC_Action_Save"/>
    <glade-widget-class-ref name="EMC_Action_SaveAs"/>

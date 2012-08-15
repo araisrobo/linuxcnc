@@ -1,0 +1,11 @@
+# home: home switch status from FPGA
+net home_j0       wou.gpio.in.02    =>  joint.0.home-sw-in
+net home_j1       wou.gpio.in.03    =>  joint.1.home-sw-in
+net home_j2       wou.gpio.in.04    =>  joint.2.home-sw-in
+net home_j3       wou.gpio.in.05    =>  joint.3.home-sw-in
+
+net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
+net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
+net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
+net j3_index_en   joint.3.index-enable => wou.stepgen.3.index-enable
+

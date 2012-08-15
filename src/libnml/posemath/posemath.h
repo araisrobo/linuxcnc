@@ -638,6 +638,8 @@ extern "C" {
 	PmCartesian rTan;
 	PmCartesian rPerp;
 	PmCartesian rHelix;
+	PmCartesian utvIn;  /* unit tangent vector outward */
+	PmCartesian utvOut; /* unit tangent vector inward */
 	double radius;
 	double angle;
 	double spiral;
@@ -747,7 +749,9 @@ extern "C" {
 #define ZYX_Y_FUZZ (0.000001)
 /* how close Y is to zero for ZYX Euler to degenerate */
 
-#define CIRCLE_FUZZ (0.000001)
+/* how close between theta1 and theta2 for a circle to be treat as a full circle. */
+//#define CIRCLE_FUZZ (0.000001)
+#define CIRCLE_FUZZ (0.0005)
 /* Bug fix for the missing circles problem */
 
 /* debug output printing */

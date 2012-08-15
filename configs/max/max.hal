@@ -64,6 +64,49 @@ addf sim-encoder.update-speed   servo-thread
 #######################################################
 
 # connect position commands from motion module to step generator
+<<<<<<< HEAD
+newsig Xpos-cmd float
+linksp Xpos-cmd <= joint.0.motor-pos-cmd
+linksp Xpos-cmd => stepgen.0.position-cmd
+newsig Ypos-cmd float
+linksp Ypos-cmd <= joint.1.motor-pos-cmd
+linksp Ypos-cmd => stepgen.1.position-cmd
+newsig Zpos-cmd float
+linksp Zpos-cmd <= joint.2.motor-pos-cmd
+linksp Zpos-cmd => stepgen.2.position-cmd
+newsig Apos-cmd float
+linksp Apos-cmd <= joint.3.motor-pos-cmd
+linksp Apos-cmd => stepgen.3.position-cmd
+
+# connect position feedback from step generators
+# to motion module
+newsig Xpos-fb float
+linksp Xpos-fb <= stepgen.0.position-fb
+linksp Xpos-fb => joint.0.motor-pos-fb
+newsig Ypos-fb float
+linksp Ypos-fb <= stepgen.1.position-fb
+linksp Ypos-fb => joint.1.motor-pos-fb
+newsig Zpos-fb float
+linksp Zpos-fb <= stepgen.2.position-fb
+linksp Zpos-fb => joint.2.motor-pos-fb
+newsig Apos-fb float
+linksp Apos-fb <= stepgen.3.position-fb
+linksp Apos-fb => joint.3.motor-pos-fb
+
+# connect enable signals for step generators
+newsig Xen bit
+linksp Xen <= joint.0.amp-enable-out
+linksp Xen => stepgen.0.enable
+newsig Yen bit
+linksp Yen <= joint.1.amp-enable-out
+linksp Yen => stepgen.1.enable
+newsig Zen bit
+linksp Zen <= joint.2.amp-enable-out
+linksp Zen => stepgen.2.enable
+newsig Aen bit
+linksp Aen <= joint.3.amp-enable-out
+linksp Aen => stepgen.3.enable
+=======
 net Xpos-cmd <= axis.0.motor-pos-cmd
 net Xpos-cmd => stepgen.0.position-cmd
 net Ypos-cmd <= axis.1.motor-pos-cmd
@@ -93,6 +136,7 @@ net Zen <= axis.2.amp-enable-out
 net Zen => stepgen.2.enable
 net Aen <= axis.3.amp-enable-out
 net Aen => stepgen.3.enable
+>>>>>>> master
 
 # connect signals to step pulse generator outputs
 net Xstep <= stepgen.0.step

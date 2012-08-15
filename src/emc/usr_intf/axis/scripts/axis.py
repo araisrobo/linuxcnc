@@ -17,7 +17,6 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-
 # import pdb
 
 import sys, os
@@ -328,7 +327,7 @@ def soft_limits():
         if abs(x) > 1e30: return 0
         return x
 
-    ax = s.axis
+    ax = s.joint
     return (
         to_internal_units([fudge(ax[i]['min_position_limit']) for i in range(3)]),
         to_internal_units([fudge(ax[i]['max_position_limit']) for i in range(3)]))
@@ -797,11 +796,12 @@ class LivePlotter:
             if vars.metric.get(): m = m * 25.4
             vupdate(vars.maxvel_speed, float(int(600 * m)/10.0))
             root_window.tk.call("update_maxvel_slider")
-        vupdate(vars.override_limits, self.stat.axis[0]['override_limits'])
+        vupdate(vars.override_limits, self.stat.joint[0]['override_limits'])
         on_any_limit = 0
-        for i, l in enumerate(self.stat.limit):
-            if self.stat.axis_mask & (1<<i) and l:
+        for l in self.stat.limit:
+            if l:
                 on_any_limit = True
+                break
         vupdate(vars.on_any_limit, on_any_limit)
         global current_tool
         current_tool = self.stat.tool_table[0]
@@ -1103,9 +1103,9 @@ def open_file_guts(f, filtered=False, addrecent=True):
         if initcode == "":
             initcode = inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
         if not interpname:
-		unitcode = "G%d" % (20 + (s.linear_units == 1))
+            unitcode = "G%d" % (20 + (s.linear_units == 1))
         else:
-		unitcode = ''
+            unitcode = ''
         try:
             result, seq = o.load_preview(f, canon, unitcode, initcode, interpname)
         except KeyboardInterrupt:
@@ -1601,14 +1601,46 @@ def dist((x,y,z),(p,q,r)):
 
 # returns units/sec
 def get_jog_speed(a):
-    if vars.joint_mode.get() or a in (0,1,2,6,7,8):
-        return vars.jog_speed.get()/60.
-    else: return vars.jog_aspeed.get()/60.
-
+    if vars.joint_mode.get():
+        # World Mode
+        if a in (0,1,2,6,7,8): # XYZUVW
+            speed = vars.jog_speed.get()/60. 
+        else: # ABC
+            speed = vars.jog_aspeed.get()/60.  
+    else:
+        # Joint Mode
+        ini_joint = "JOINT_%d" % a
+        jnt_type = inifile.find(ini_joint, "TYPE")
+        if (jnt_type == "LINEAR"):
+            speed = vars.jog_speed.get()/60.
+        elif (inifile.find(ini_joint, "TYPE") == "ANGULAR"):
+            speed = vars.jog_aspeed.get()/60.  
+        else:
+            print >>sys.stderr, "Unknown %s.TYPE" % ini_joint
+            speed = 0.
+    # print >>sys.stderr, "DEBUG: get_jog_speed(): j[%d] speed(%f), jog_speed(%f) jog_aspeed(%f)" \
+    #                     % (a, speed, vars.jog_speed.get(),  vars.jog_aspeed.get())
+    return speed
+    
 def get_max_jog_speed(a):
-    if vars.joint_mode.get() or a in (0,1,2,6,7,8):
-        return vars.max_speed.get()
-    else: return vars.max_aspeed.get()    
+    if vars.joint_mode.get():
+        # World Mode
+        if a in (0,1,2,6,7,8): # XYZUVW
+            speed = vars.max_speed.get()    # unit/sec
+        else: # ABC
+            speed = vars.max_aspeed.get()   # unit/sec
+    else:
+        # Joint Mode
+        ini_joint = "JOINT_%d" % a
+        jnt_type = inifile.find(ini_joint, "TYPE")
+        if (jnt_type == "LINEAR"):
+            speed = vars.max_speed.get()    # unit/sec
+        elif (inifile.find(ini_joint, "TYPE") == "ANGULAR"):
+            speed = vars.max_aspeed.get()   # unit/sec
+        else:
+            print >>sys.stderr, "Unknown %s.TYPE" % ini_joint
+            speed = 0.
+    return speed
 
 def run_warn():
     warnings = []
@@ -1647,7 +1679,12 @@ def reload_file(refilter=True):
         open_file_guts(tempfile, True, False)
     if line:
         o.set_highlight_line(line)
- 
+
+recentUp = 0
+recentDown = 0
+is_wheel_down = 0
+is_wheel_up =0
+
 class TclCommands(nf.TclCommands):
     def next_tab(event=None):
         current = widgets.right.raise_page()
@@ -1876,6 +1913,10 @@ class TclCommands(nf.TclCommands):
         open_directory = os.path.dirname(f)
         commands.open_file_name(f)
 
+    def exec_teach(event=None):
+        b = "teach-in " + open_directory+ "/teached.ngc &"
+        print b
+        os.system(b)
     def remote (cmd,arg=""):
         if cmd == "clear_live_plot":
             commands.clear_live_plot()
@@ -2224,6 +2265,25 @@ class TclCommands(nf.TclCommands):
     def clear_live_plot(*ignored):
         live_plotter.clear()
 
+    # wheel up and down for mouse scroll wheel
+    def wheel_up():
+        # we should invoke deferred thread here
+        global recentUp,is_wheel_up
+        recentUp = 1
+        if is_wheel_up==0:
+            is_wheel_up=1
+            thread.start_new_thread( wheel_up_deferred, ( ) )
+
+    def wheel_down():
+        # we should invoke deferred thread here
+        global recentDown,is_wheel_down
+        recentDown = 1
+        if is_wheel_down==0:
+            is_wheel_down=1
+            thread.start_new_thread( wheel_down_deferred, ( ) )
+
+
+
     # The next three don't have 'manual_ok' because that's done in jog_on /
     # jog_off
     def jog_plus(incr=False):
@@ -2420,7 +2480,7 @@ class TclCommands(nf.TclCommands):
     def toggle_override_limits(*args):
         s.poll()
         if s.interp_state != linuxcnc.INTERP_IDLE: return
-        if s.axis[0]['override_limits']:
+        if s.joint[0]['override_limits']:
             ensure_mode(linuxcnc.MODE_AUTO)
         else:
             ensure_mode(linuxcnc.MODE_MANUAL)
@@ -2701,6 +2761,45 @@ def jog(*args):
     ensure_mode(linuxcnc.MODE_MANUAL)
     c.jog(*args)
 
+# mouse wheel deferred functions
+
+def wheel_up_deferred():
+    global recentUp , is_wheel_up
+    jog_plus()
+    while recentUp==1:
+        recentUp = 0
+        time.sleep(0.1)
+    jog_stop()
+    is_wheel_up=0
+    return
+    
+
+def wheel_down_deferred():
+    global recentDown, is_wheel_down
+    jog_minus()
+    while recentDown==1:
+        recentDown = 0
+        time.sleep(0.1)
+    jog_stop()
+    is_wheel_down=0
+    return
+
+# function extract from TCL command
+def jog_plus(incr=False):
+    a = vars.current_axis.get()
+    if isinstance(a, (str, unicode)):
+        a = "xyzabcuvw".index(a)
+    speed = get_jog_speed(a)
+    jog_on(a, speed)
+def jog_minus(incr=False):
+    a = vars.current_axis.get()
+    if isinstance(a, (str, unicode)):
+        a = "xyzabcuvw".index(a)
+    speed = get_jog_speed(a)
+    jog_on(a, -speed)
+def jog_stop(event=None):
+    jog_off(vars.current_axis.get())
+
 # XXX correct for machines with more than six axes
 jog_after = [None] * 9
 jog_cont  = [False] * 9
@@ -2717,23 +2816,18 @@ def jog_on(a, b):
         root_window.after_cancel(jog_after[a])
         jog_after[a] = None
         return
+    b = b*vars.feedrate.get()/100.0
     jogincr = widgets.jogincr.get()
-    if s.motion_mode == linuxcnc.TRAJ_MODE_TELEOP:
-        jogging[a] = b
+    if jogincr != _("Continuous"):
+        s.poll()
+        if s.state != 1: return
+        distance = parse_increment(jogincr)
+        jog(linuxcnc.JOG_INCREMENT, a, b, distance)
         jog_cont[a] = False
-        cartesian_only=jogging[:6]
-        c.teleop_vector(*cartesian_only)
     else:
-        if jogincr != _("Continuous"):
-            s.poll()
-            if s.state != 1: return
-            distance = parse_increment(jogincr)
-            jog(linuxcnc.JOG_INCREMENT, a, b, distance)
-            jog_cont[a] = False
-        else:
-            jog(linuxcnc.JOG_CONTINUOUS, a, b)
-            jog_cont[a] = True
-            jogging[a] = b
+        jog(linuxcnc.JOG_CONTINUOUS, a, b)
+        jog_cont[a] = True
+        jogging[a] = b
 
 def jog_off(a):
     if isinstance(a, (str, unicode)):
@@ -2746,12 +2840,8 @@ def jog_off_actual(a):
     activate_axis(a)
     jog_after[a] = None
     jogging[a] = 0
-    if s.motion_mode == linuxcnc.TRAJ_MODE_TELEOP:
-        cartesian_only=jogging[:6]
-        c.teleop_vector(*cartesian_only)
-    else:
-        if jog_cont[a]:
-            jog(linuxcnc.JOG_STOP, a)
+    if jog_cont[a]:
+        jog(linuxcnc.JOG_STOP, a)
 
 def jog_off_all():
     for i in range(6):
@@ -2779,6 +2869,8 @@ def units(s, d=1.0):
 
 random_toolchanger = int(inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
 vars.emcini.set(sys.argv[2])
+jointcount = int(inifile.find("KINS", "JOINTS"))
+jointnames = "012345678"[:jointcount]
 open_directory = inifile.find("DISPLAY", "PROGRAM_PREFIX")
 vars.machine.set(inifile.find("EMC", "MACHINE"))
 extensions = inifile.findall("FILTER", "PROGRAM_EXTENSION")
@@ -2799,13 +2891,15 @@ jog_speed = (
     or inifile.find("TRAJ", "DEFAULT_LINEAR_VELOCITY")
     or inifile.find("TRAJ", "DEFAULT_VELOCITY")
     or 1.0)
-vars.jog_speed.set(float(jog_speed)*60)
+vars.jog_speed.set(float(jog_speed)*60.)
+
 jog_speed = (
     inifile.find("DISPLAY", "DEFAULT_ANGULAR_VELOCITY")
     or inifile.find("TRAJ", "DEFAULT_ANGULAR_VELOCITY")
     or inifile.find("TRAJ", "DEFAULT_VELOCITY")
     or jog_speed)
-vars.jog_aspeed.set(float(jog_speed)*60)
+vars.jog_aspeed.set(float(jog_speed)*60.)
+
 mlv = (
     inifile.find("DISPLAY","MAX_LINEAR_VELOCITY")
     or inifile.find("TRAJ","MAX_LINEAR_VELOCITY")
@@ -2819,7 +2913,7 @@ mav = (
     or mlv)
 vars.max_aspeed.set(float(mav))
 mv = inifile.find("TRAJ","MAX_LINEAR_VELOCITY") or inifile.find("AXIS_0","MAX_VELOCITY") or 1.0
-vars.maxvel_speed.set(float(mv)*60)
+vars.maxvel_speed.set(float(mv)*60.)
 vars.max_maxvel.set(float(mv))
 root_window.tk.eval("${pane_top}.jogspeed.s set [setval $jog_speed $max_speed]")
 root_window.tk.eval("${pane_top}.ajogspeed.s set [setval $jog_aspeed $max_aspeed]")
@@ -2855,7 +2949,7 @@ else:
     root_window.tk.eval("${pane_top}.jogspeed.l1 configure -text in/min")
     root_window.tk.eval("${pane_top}.maxvel.l1 configure -text in/min")
 root_window.tk.eval(u"${pane_top}.ajogspeed.l1 configure -text deg/min")
-homing_order_defined = inifile.find("AXIS_0", "HOME_SEQUENCE") is not None
+homing_order_defined = inifile.find("JOINT_0", "HOME_SEQUENCE") is not None
 
 if homing_order_defined:
     widgets.homebutton.configure(text=_("Home All"), command="home_all_axes")
@@ -2876,9 +2970,9 @@ s = linuxcnc.stat();
 s.poll()
 statfail=0
 statwait=.01
-while s.axes == 0:
-    print "waiting for s.axes"
-    time.sleep(statwait)
+while s.joints == 0:
+    print "waiting for s.joints"
+    time.sleep(.01)
     statfail+=1
     statwait *= 2
     if statfail > 8:
@@ -2887,17 +2981,14 @@ while s.axes == 0:
             "More information may be available when running from a terminal.")
     s.poll()
 
-live_axis_count = 0
-for i,j in enumerate("XYZABCUVW"):
-    if s.axis_mask & (1<<i) == 0: continue
-    live_axis_count += 1
+num_joints = s.joints
+for i in range(num_joints):
     widgets.homemenu.add_command(command=lambda i=i: commands.home_axis_number(i))
     widgets.unhomemenu.add_command(command=lambda i=i: commands.unhome_axis_number(i))
     root_window.tk.call("setup_menu_accel", widgets.homemenu, "end",
-            _("Home Axis _%s") % j)
+            _("Home Joint _%s") % i)
     root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end",
-            _("Unhome Axis _%s") % j)
-num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
+            _("Unhome Joint _%s") % i)
 
 astep_size = step_size = 1
 for a in range(9):
@@ -3332,10 +3423,10 @@ forget(widgets.spinoverridef, "motion.spindle-speed-out")
 has_limit_switch = 0
 for j in range(9):
     try:
-        if hal.pin_has_writer("axis.%d.neg-lim-sw-in" % j):
+        if hal.pin_has_writer("joint.%d.neg-lim-sw-in" % j):
             has_limit_switch=1
             break
-        if hal.pin_has_writer("axis.%d.pos-lim-sw-in" % j):
+        if hal.pin_has_writer("joint.%d.pos-lim-sw-in" % j):
             has_limit_switch=1
             break
     except NameError, detail:

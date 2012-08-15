@@ -9,13 +9,13 @@
 * System: Linux
 *    
 * Copyright (c) 2004 All rights reserved.
-*
 ********************************************************************/
 #ifndef TP_H
 #define TP_H
 
 #include "posemath.h"
 #include "tc.h"
+#include  "nurbs.h"
 
 #define TP_DEFAULT_QUEUE_SIZE 32
 
@@ -35,7 +35,7 @@ typedef struct {
                                    constraints (ini file) for
                                    subsequent moves */
     double vScale;		/* feed override value */
-    double aMax;
+    //obsolete: double aMax;
     double vLimit;		/* absolute upper limit on all vels */
     double wMax;		/* rotational velocity max */
     double wDotMax;		/* rotational accelleration max */
@@ -63,21 +63,25 @@ extern int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace);
 extern int tpClear(TP_STRUCT * tp);
 extern int tpInit(TP_STRUCT * tp);
 extern int tpClearDIOs(void);
+extern int tpSetPosCompEnWrite(TP_STRUCT *tp, int en_flag, int pos_comp_ref);
 extern int tpSetCycleTime(TP_STRUCT * tp, double secs);
 extern int tpSetVmax(TP_STRUCT * tp, double vmax, double ini_maxvel);
 extern int tpSetVlimit(TP_STRUCT * tp, double limit);
-extern int tpSetAmax(TP_STRUCT * tp, double amax);
+//obsolete: extern int tpSetAmax(TP_STRUCT * tp, double amax);
 extern int tpSetId(TP_STRUCT * tp, int id);
 extern int tpGetExecId(TP_STRUCT * tp);
 extern int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance);
 extern int tpSetPos(TP_STRUCT * tp, EmcPose pos);
-extern int tpAddRigidTap(TP_STRUCT * tp, EmcPose end, double vel, double
-        ini_maxvel, double acc, unsigned char enables);
+extern int tpAddRigidTap(TP_STRUCT * tp, EmcPose end, double vel, 
+                         double ini_maxvel, double acc, double jerk, 
+                         unsigned char enables);
 extern int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double
-                     ini_maxvel, double acc, unsigned char enables, char atspeed, int indexrotary);
+                     ini_maxvel, double acc, double jerk, unsigned char enables, char atspeed, int indexrotary);
 extern int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
         PmCartesian normal, int turn, int type, double vel, double ini_maxvel,
-                       double acc, unsigned char enables, char atspeed);
+                       double acc, double jerk, unsigned char enables, char atspeed);
+extern int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block,EmcPose pos,unsigned char enables,
+                      double vel,double ini_maxvel,double ini_maxacc,double ini_maxjerk);
 extern int tpRunCycle(TP_STRUCT * tp, long period);
 extern int tpPause(TP_STRUCT * tp);
 extern int tpResume(TP_STRUCT * tp);
@@ -92,5 +96,5 @@ extern void tpToggleDIOs(TC_STRUCT * tc); //gets called when a new tc is taken f
 
 extern int tpSetAout(TP_STRUCT * tp, unsigned char index, double start, double end);
 extern int tpSetDout(TP_STRUCT * tp, int index, unsigned char start, unsigned char end); //gets called to place DIO toggles on the TC queue
-
+extern int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type);
 #endif				/* TP_H */

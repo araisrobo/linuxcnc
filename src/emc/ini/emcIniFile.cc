@@ -46,6 +46,19 @@ EmcIniFile::Find(EmcAxisType *result,
     return(IniFile::Find((int *)result, axisTypeMap, tag, section, num));
 }
 
+IniFile::StrIntPair         EmcIniFile::jointTypeMap[] = {
+    {"LINEAR", EMC_LINEAR},
+    {"ANGULAR", EMC_ANGULAR},
+    { NULL, 0 },
+};
+
+EmcIniFile::ErrorCode
+EmcIniFile::Find(EmcJointType *result,
+                 const char *tag, const char *section, int num)
+{
+    return(IniFile::Find((int *)result, jointTypeMap, tag, section, num));
+}
+
 
 IniFile::StrIntPair         EmcIniFile::boolMap[] = {
     {"TRUE", 1},

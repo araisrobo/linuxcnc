@@ -13,8 +13,8 @@ usr/lib/python*/*/gladevcp/*.glade
 usr/share/axis/images/*
 usr/share/axis/tcl/*
 usr/share/glade3
-usr/share/doc/linuxcnc/gcode.html
-usr/share/doc/linuxcnc/gcode_fr.html
+#build_with_docs: usr/share/doc/linuxcnc/gcode.html
+#build_with_docs: usr/share/doc/linuxcnc/gcode_fr.html
 usr/share/doc/linuxcnc/UPDATING
 usr/share/doc/linuxcnc/NEWS
 usr/share/doc/linuxcnc/AUTHORS

@@ -107,9 +107,6 @@ else
    AC_MSG_RESULT(not required)
 fi
 
-
-
-
 AC_MSG_CHECKING(build toplevel)
 BUILD_TOPLEVEL="$(cd ..; pwd -P)"
 AC_MSG_RESULT($BUILD_TOPLEVEL)
@@ -370,6 +367,7 @@ AC_DEFINE_UNQUOTED([RTDIR], "$RTDIR", [Directory of the installed realtime syste
 # Subsection 3.3 - check the moduledir where modules can get installed       #
 # Subsection 3.4 - check for GTK                                             #
 # Subsection 3.5 - check for utility programs needed to build and run EMC    #
+# Subsection 3.8 - check for libwou (Wishbone Over USB)                      #
 ##############################################################################
 
 
@@ -989,6 +987,23 @@ AC_SUBST(BUILD_DOCS)
 AC_SUBST(BUILD_DOCS_PDF)
 AC_SUBST(BUILD_DOCS_HTML)
 
+##############################################################################
+# Subsection 3.8 - check for libwou (Wishbone Over USB)                      #
+##############################################################################
+
+AC_MSG_CHECKING([for wou])
+if pkg-config wou >/dev/null 2>&1; then
+  WOU_VER=`pkg-config wou --modversion`
+  AC_MSG_RESULT(yes - $WOU_VER)
+  WOU_CFLAGS=`pkg-config wou --cflags`
+  WOU_LIBS=`pkg-config wou --libs`
+else
+  AC_MSG_RESULT(no -- wou_stepgen will not work)
+fi
+AC_SUBST(WOU_VER)
+AC_SUBST(WOU_LIBS)
+AC_SUBST(WOU_CFLAGS)
+
 #############################################################################
 # Section 4 - Check for math support                                         #
 #                                                                            #
@@ -1596,8 +1611,10 @@ Install this version and specify --with-tclConfig and --with-tkConfig if necessa
 	
     )
 
-    AC_MSG_CHECKING(for Xmu headers)
-    AC_CHECK_HEADERS(X11/Xmu/Xmu.h,[],[AC_MSG_ERROR([Required Xmu header missing.  Install it, or specify --disable-python to skip the parts of emc2 that depend on Python])])
+    if test "$have_x" = "yes"; then
+	AC_MSG_CHECKING(for Xmu headers)
+	AC_CHECK_HEADERS(X11/Xmu/Xmu.h,[],[AC_MSG_ERROR([Required Xmu header missing.  Install it, or specify --disable-python to skip the parts of emc2 that depend on Python])])
+    fi
 fi
 
 AC_SUBST([BUILD_PYTHON])

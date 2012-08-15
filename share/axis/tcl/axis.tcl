@@ -185,6 +185,10 @@ setup_menu_accel .menu.machine end [_ "Sho_w LinuxCNC Status"]
 	-command {exec debuglevel -ini $emcini &}
 setup_menu_accel .menu.machine end [_ "Set _Debug Level"]
 
+.menu.machine add command \
+        -command exec_teach 
+setup_menu_accel .menu.machine end [_ "_Teach-in"]
+
 .menu.machine add separator
 
 .menu.machine add cascade \
@@ -453,18 +457,22 @@ setup_menu_accel .menu.help end [_ "Quick _Reference"]
 .menu add cascade \
 	-menu .menu.file
 setup_menu_accel .menu end [_ _File]
+# disable hotkeys: setup_menu_accel .menu end [_ File]
 
 .menu add cascade \
 	-menu .menu.machine
 setup_menu_accel .menu end [_ _Machine]
+# disable hotkeys: setup_menu_accel .menu end [_ Machine]
 
 .menu add cascade \
 	-menu .menu.view
 setup_menu_accel .menu end [_ _View]
+# disable hotkeys: setup_menu_accel .menu end [_ View]
 
 .menu add cascade \
 	-menu .menu.help
 setup_menu_accel .menu end [_ _Help]
+# disable hotkeys: setup_menu_accel .menu end [_ Help]
 
 frame .toolbar \
 	-borderwidth 1 \
@@ -1086,8 +1094,20 @@ button $_tabs_manual.jogf.jog.jogminus \
 	-pady 0 \
 	-width 2 \
         -text -
+
+
 bind $_tabs_manual.jogf.jog.jogminus <Button-1> {
     if {[is_continuous]} { jog_minus }
+    jog_minus
+}
+bind $_tabs_manual.jogf.jog.jogminus <Button-5> {
+    if {[is_continuous]} { wheel_down }
+    if {![is_continuous]} {jog_plus 1}
+}
+
+bind $_tabs_manual.jogf.jog.jogminus <Button-4> {
+    if {[is_continuous]} {wheel_up }
+    if {![is_continuous]} {jog_minus 1}
 }
 bind $_tabs_manual.jogf.jog.jogminus <ButtonRelease-1> {
     if {[is_continuous]} { jog_stop }
@@ -1099,8 +1119,18 @@ button $_tabs_manual.jogf.jog.jogplus \
 	-pady 0 \
 	-width 2 \
         -text +
+
 bind $_tabs_manual.jogf.jog.jogplus <Button-1> {
     if {[is_continuous]} { jog_plus }
+}
+
+bind $_tabs_manual.jogf.jog.jogplus <Button-4> {
+    if {[is_continuous]} {wheel_up }
+    if {![is_continuous]} {jog_minus 1}
+}
+bind $_tabs_manual.jogf.jog.jogplus <Button-5> {
+   if {[is_continuous]} { wheel_down }
+    if {![is_continuous]} {jog_plus 1}
 }
 bind $_tabs_manual.jogf.jog.jogplus <ButtonRelease-1> {
     if {[is_continuous]} { jog_stop }
@@ -2018,17 +2048,12 @@ proc update_state {args} {
     }
 
     if {$::task_state == $::STATE_ON && $::interp_state == $::INTERP_IDLE &&
-        ($::motion_mode == $::TRAJ_MODE_FREE
-            || $::kinematics_type == $::KINEMATICS_IDENTITY)} {
-        $::_tabs_manual.jogf.jog.jogincr configure -state normal
-    } else {
-        $::_tabs_manual.jogf.jog.jogincr configure -state disabled
-    }
-
-    if {$::task_state == $::STATE_ON && $::interp_state == $::INTERP_IDLE &&
         ($::motion_mode != $::TRAJ_MODE_FREE
             || $::kinematics_type == $::KINEMATICS_IDENTITY)} {
         $::_tabs_manual.jogf.zerohome.zero configure -state normal
+        # the "Touch Off" button is too close to "Home All";
+        # always disable this botton for Cabot
+        # $::_tabs_manual.jogf.zerohome.zero configure -state disabled
     } else {
         $::_tabs_manual.jogf.zerohome.zero configure -state disabled
     }

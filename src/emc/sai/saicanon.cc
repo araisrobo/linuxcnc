@@ -419,8 +419,23 @@ void STOP_SPEED_FEED_SYNCH()
 
 /* Machining Functions */
 
-void NURBS_FEED(int lineno,
-std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
+void NURBS_FEED_3D (
+    int line_number, 
+    const std::vector<CONTROL_POINT> & nurbs_control_points, 
+    const std::vector<double> & nurbs_knot_vector,
+    unsigned int order,double curve_length, uint32_t axis_mask )
+{
+  fprintf(_outfile, "%5d ", _line_number++);
+  print_nc_line_number();
+  fprintf(_outfile, "NURBS_FEED_3D(%lu, ...)\n", (unsigned long)nurbs_control_points.size());
+
+  _program_position_x = nurbs_control_points[nurbs_control_points.size()].X;
+  _program_position_y = nurbs_control_points[nurbs_control_points.size()].Y;
+}
+
+void NURBS_FEED(
+  int line_number, 
+  std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
 {
   fprintf(_outfile, "%5d ", _line_number++);
   print_nc_line_number();
@@ -581,14 +596,14 @@ void SET_SPINDLE_MODE(double arg) {
   PRINT1("SET_SPINDLE_MODE(%.4f)\n", arg);
 }
 
-void START_SPINDLE_CLOCKWISE()
+void START_SPINDLE_CLOCKWISE(int l)
 {
   PRINT0("START_SPINDLE_CLOCKWISE()\n");
   _spindle_turning = ((_spindle_speed == 0) ? CANON_STOPPED :
                                                    CANON_CLOCKWISE);
 }
 
-void START_SPINDLE_COUNTERCLOCKWISE()
+void START_SPINDLE_COUNTERCLOCKWISE(int l)
 {
   PRINT0("START_SPINDLE_COUNTERCLOCKWISE()\n");
   _spindle_turning = ((_spindle_speed == 0) ? CANON_STOPPED :
@@ -1073,6 +1088,11 @@ void SET_MOTION_OUTPUT_VALUE(int index, double value)
 void SET_AUX_OUTPUT_BIT(int index)
 {
   return;
+}
+void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
+        double timeout, unsigned char now)
+{
+    return;
 }
 
 void CLEAR_AUX_OUTPUT_BIT(int index)

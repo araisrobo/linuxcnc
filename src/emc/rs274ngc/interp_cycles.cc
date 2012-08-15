@@ -378,9 +378,9 @@ int Interp::convert_cycle_g86(block_pointer block,
   STOP_SPINDLE_TURNING();
   cycle_traverse(block, plane, x, y, clear_z);
   if (direction == CANON_CLOCKWISE)
-    START_SPINDLE_CLOCKWISE();
+    START_SPINDLE_CLOCKWISE(block->line_number);
   else
-    START_SPINDLE_COUNTERCLOCKWISE();
+    START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
 
   return INTERP_OK;
 }
@@ -466,9 +466,9 @@ int Interp::convert_cycle_g87(block_pointer block,
   cycle_traverse(block, plane, offset_x, offset_y, bottom_z);
   cycle_traverse(block, plane, x, y, bottom_z);
   if (direction == CANON_CLOCKWISE)
-    START_SPINDLE_CLOCKWISE();
+    START_SPINDLE_CLOCKWISE(block->line_number);
   else
-    START_SPINDLE_COUNTERCLOCKWISE();
+    START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
   cycle_feed(block, plane, x, y, middle_z);
   cycle_feed(block, plane, x, y, bottom_z);
   STOP_SPINDLE_TURNING();
@@ -477,9 +477,9 @@ int Interp::convert_cycle_g87(block_pointer block,
   cycle_traverse(block, plane, offset_x, offset_y, clear_z);
   cycle_traverse(block, plane, x, y, clear_z);
   if (direction == CANON_CLOCKWISE)
-    START_SPINDLE_CLOCKWISE();
+    START_SPINDLE_CLOCKWISE(block->line_number);
   else
-    START_SPINDLE_COUNTERCLOCKWISE();
+    START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
 
   return INTERP_OK;
 }
@@ -531,9 +531,9 @@ int Interp::convert_cycle_g88(block_pointer block,
   STOP_SPINDLE_TURNING();
   PROGRAM_STOP();               /* operator retracts the spindle here */
   if (direction == CANON_CLOCKWISE)
-    START_SPINDLE_CLOCKWISE();
+    START_SPINDLE_CLOCKWISE(block->line_number);
   else
-    START_SPINDLE_COUNTERCLOCKWISE();
+    START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
 
   return INTERP_OK;
 }

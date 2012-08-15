@@ -11,8 +11,6 @@
 * System: Linux
 *    
 * Copyright (c) 2004 All rights reserved.
-*
-* Last change:
 ********************************************************************/
 
 #include "config.h"     	/* LINELEN definition */
@@ -250,7 +248,7 @@ void printTPstruct(TP_STRUCT * tp)
     printf("cycleTime=%f\n", tp->cycleTime);
     printf("vMax=%f\n", tp->vMax);
     printf("vScale=%f\n", tp->vScale);
-    printf("aMax=%f\n", tp->aMax);
+    //obsolete: printf("aMax=%f\n", tp->aMax);
     printf("vLimit=%f\n", tp->vLimit);
     printf("wMax=%f\n", tp->wMax);
     printf("wDotMax=%f\n", tp->wDotMax);
@@ -276,33 +274,6 @@ void usrmotPrintEmcmotDebug(emcmot_debug_t *d, int which)
 
     printf("running time: \t%f\n", d->running_time);
     switch (which) {
-    case 0:
-	printf("split:        \t%d\n", d->split);
-	printf("teleop desiredVel: \t%f\t%f\t%f\t%f\t%f\t%f\n",
-	    d->teleop_data.desiredVel.tran.x,
-	    d->teleop_data.desiredVel.tran.y,
-	    d->teleop_data.desiredVel.tran.z,
-	    d->teleop_data.desiredVel.a,
-	    d->teleop_data.desiredVel.b, d->teleop_data.desiredVel.c);
-	printf("teleop currentVel: \t%f\t%f\t%f\t%f\t%f\t%f\n",
-	    d->teleop_data.currentVel.tran.x,
-	    d->teleop_data.currentVel.tran.y,
-	    d->teleop_data.currentVel.tran.z,
-	    d->teleop_data.currentVel.a,
-	    d->teleop_data.currentVel.b, d->teleop_data.currentVel.c);
-	printf("teleop desiredAccell: \t%f\t%f\t%f\t%f\t%f\t%f\n",
-	    d->teleop_data.desiredAccell.tran.x,
-	    d->teleop_data.desiredAccell.tran.y,
-	    d->teleop_data.desiredAccell.tran.z,
-	    d->teleop_data.desiredAccell.a,
-	    d->teleop_data.desiredAccell.b, d->teleop_data.desiredAccell.c);
-	printf("teleop currentAccell: \t%f\t%f\t%f\t%f\t%f\t%f\n",
-	    d->teleop_data.currentAccell.tran.x,
-	    d->teleop_data.currentAccell.tran.y,
-	    d->teleop_data.currentAccell.tran.z,
-	    d->teleop_data.currentAccell.a,
-	    d->teleop_data.currentAccell.b, d->teleop_data.currentAccell.c);
-	break;
 /*! \todo Another #if 0 */
 #if 0
 	printf("\nferror:        ");
@@ -317,7 +288,6 @@ void usrmotPrintEmcmotDebug(emcmot_debug_t *d, int which)
 	}
 	printf("\n");
 	break;
-#endif
     case 5:
 	printf("traj  m/m/a:\t%f\t%f\t%f\n", d->tMin, d->tMax, d->tAvg);
 	printf("\n");
@@ -335,6 +305,7 @@ void usrmotPrintEmcmotDebug(emcmot_debug_t *d, int which)
 	    d->fyMin, d->fyMax, d->fyAvg);
 	printf("\n");
 	break;
+#endif
 
     case 6:
     case 7:
@@ -479,7 +450,6 @@ void usrmotPrintEmcmotStatus(emcmot_status_t *s, int which)
 	printf("cmd:          \t%d\n", s->commandEcho);
 	printf("cmd num:      \t%d\n", s->commandNumEcho);
 	printf("heartbeat:    \t%u\n", s->heartbeat);
-	printf("compute time: \t%f\n", s->computeTime);
 /*! \todo Another #if 0 */
 #if 0				/*! \todo FIXME - change to work with joint
 				   structures */
@@ -559,9 +529,9 @@ void usrmotPrintEmcmotStatus(emcmot_status_t *s, int which)
 #endif
 	printf("enabled:     \t%s\n",
 	    s->motionFlag & EMCMOT_MOTION_ENABLE_BIT ? "ENABLED" : "DISABLED");
-	printf("probe value: %d\n", s->probeVal);
-	printf("probe Tripped: %d\n", s->probeTripped);
-	printf("probing: %d\n", s->probing);
+//	printf("probe value: %d\n", s.probeVal);
+//	printf("probe Tripped: %d\n", s.probeTripped);
+//	printf("probing: %d\n", s.probing);
 	printf("probed pos:      \t%f\t%f\t%f\n",
 	    s->probedPos.tran.x, s->probedPos.tran.y, s->probedPos.tran.z);
 	break;
@@ -752,7 +722,7 @@ int usrmotLoadComp(int joint, const char *file, int type)
     int ret = 0;
     emcmot_command_t emcmotCommand;
 
-    /* check axis range */
+    /* check joint range */
     if (joint < 0 || joint >= EMCMOT_MAX_JOINTS) {
 	fprintf(stderr, "joint out of range for compensation\n");
 	return -1;
@@ -786,7 +756,7 @@ int usrmotLoadComp(int joint, const char *file, int type)
     		emcmotCommand.comp_forward = fwd;
     		emcmotCommand.comp_reverse = rev;		
 	    }
-	    emcmotCommand.axis = joint;
+	    emcmotCommand.joint = joint;
 	    emcmotCommand.command = EMCMOT_SET_JOINT_COMP;
 	    ret |= usrmotWriteEmcmotCommand(&emcmotCommand);
 	}

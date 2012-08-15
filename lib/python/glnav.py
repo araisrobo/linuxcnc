@@ -233,7 +233,7 @@ class GlNavBase:
 
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-        self._redraw()
+        # do not redraw after rest: self._redraw() 
 
 
     def recordMouse(self, x, y):
@@ -388,4 +388,9 @@ class GlNavBase:
         glRotateScene(self, 1.0, mid[0], mid[1], mid[2], 0, 0, 0, 0)
         self._redraw()
 
+    def set_line_view(self):
+        '''
+        set view point of in a line number 
+        '''
+        pass
 # vim:ts=8:sts=4:sw=4:et:

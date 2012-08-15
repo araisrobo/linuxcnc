@@ -74,6 +74,9 @@ int Interp::comp_set_current(setup_pointer settings, double x, double y, double 
     default:
         ERS("BUG: Invalid plane in comp_set_current");
     }
+    
+    //debug: printf("debug: comp_set_current():\n");
+    //debug: printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
     return INTERP_OK;
 }
 
@@ -123,17 +126,16 @@ int Interp::comp_set_programmed(setup_pointer settings, double x, double y, doub
  * Side effects: Generates a nurbs move and updates the position of the tool
  */
 
-static unsigned int nurbs_order;
-static std::vector<CONTROL_POINT> nurbs_control_points;
-
-int Interp::convert_nurbs(int mode,
-      block_pointer block,     //!< pointer to a block of RS274 instructions
-      setup_pointer settings)  //!< pointer to machine settings
+static unsigned int nurbs_order = 0;
+static std::vector < CONTROL_POINT > nurbs_control_points;
+static std::vector < double >nurbs_knot_vector;
+int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block of RS274 instructions
+			  setup_pointer settings)	//!< pointer to machine settings
 {
     double end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end;
-    CONTROL_POINT CP;   
-
-    if (mode == G_5_2)  {
+    CONTROL_POINT CP;
+    static uint32_t axis_mask = 0;
+    if (mode == G_5_2) {
 	CHKS((((block->x_flag) && !(block->y_flag)) || (!(block->x_flag) && (block->y_flag))), (
              _("You must specify both X and Y coordinates for Control Points")));
 	CHKS((!(block->x_flag) && !(block->y_flag) && (block->p_number > 0) && 
@@ -167,30 +169,163 @@ int Interp::convert_nurbs(int mode,
             nurbs_control_points.push_back(CP);
             }
 
-//for (i=0;i<nurbs_control_points.size();i++){
-//                printf( "X %8.4f, Y %8.4f, W %8.4f\n",
-//              nurbs_control_points[i].X,
-//               nurbs_control_points[i].Y,
-//               nurbs_control_points[i].W);
-//       }
-//        printf("*-----------------------------------------*\n");
-        settings->motion_mode = mode;
-    }
-    
-    else if (mode == G_5_3){
-        CHKS((settings->motion_mode != G_5_2), (
-             _("Cannot use G5.3 without G5.2 first")));
-        CHKS((nurbs_control_points.size()<nurbs_order), _("You must specify a number of control points at least equal to the order L = %d"), nurbs_order);
-	settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
-        settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
-        NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
-	//printf("hello\n");
-	nurbs_control_points.clear();
-	//printf("%d\n", 	nurbs_control_points.size());
-	settings->motion_mode = -1;
+	settings->motion_mode = mode;
+    } else if (mode == G_6_2) {
+	// ARTek NURBS Format
+	// G6.2 P_K_X_Y_Z_A_B_C_U_V_W_R_F_I;
+	//      G6.2: NURBS interpolation
+	//      P: NURBS curve order
+	//      X, Y, Z, A, B, C, U, V, W: Control point
+	//      R: Weight
+	//      K: Knot
+	//      F: Feedrate
+	//      I: curve Length
+        //      D: knots for U(L)
+        //      J: Control point of U(L)
+        //      E: Weight of U(L)
+        //      L: Order of U(L)
+
+	if (settings->feed_mode == UNITS_PER_MINUTE) {
+	    CHKS((settings->feed_rate == 0.0),
+		 ("Cannot make a NURBS with 0 feedrate"));
+	}
+
+	CHKS(!(((block->k_flag))), ("You must specify Knots(K)"));
+
+	// Find NURBS control point dimention mask
+	if (axis_mask == 0) {
+	    if (block->x_flag == ON) {
+		axis_mask |= AXIS_MASK_X;
+	    }
+	    if (block->y_flag == ON) {
+		axis_mask |= AXIS_MASK_Y;
+	    }
+	    if (block->z_flag == ON) {
+		axis_mask |= AXIS_MASK_Z;
+	    }
+	    if (block->a_flag == ON) {
+		axis_mask |= AXIS_MASK_A;
+	    }
+	    if (block->b_flag == ON) {
+		axis_mask |= AXIS_MASK_B;
+	    }
+	    if (block->c_flag == ON) {
+		axis_mask |= AXIS_MASK_C;
+	    }
+	    if (block->u_flag == ON) {
+		axis_mask |= AXIS_MASK_U;
+	    }
+	    if (block->v_flag == ON) {
+		axis_mask |= AXIS_MASK_V;
+	    }
+	    if (block->w_flag == ON) {
+		axis_mask |= AXIS_MASK_W;
+	    }
+	}
+	// P: NURBS curve order
+	if (block->p_flag == ON) {
+	    CHKS((!nurbs_control_points.empty()),
+		 ("Must specify NURBS curve order at 1st Control Point"));
+	    nurbs_order = block->p_number;
+
+	}
+	// I: NURBS Curve Length
+	if (block->i_flag == ON) {
+	    CHKS(block->i_number <= 0.0,
+		 ("Must specify NURBS curve length"));
+	} else {
+	    if (block->p_flag == ON) {
+		CHKS(1 == 0,
+		     "Must specify NURBS curve length at 1st Control Point");
+	    }
+	}
+	// obtain CONTROL_POINT
+	CHP(find_ends(block, settings, &CP.X, &CP.Y, &CP.Z, &CP.A, &CP.B,
+		      &CP.C, &CP.U, &CP.V, &CP.W));
+	// R: Weight
+	if (block->r_flag == ON) {
+	    CHKS((block->r_number < 0),
+		 ("Must specify positive weight R for every Control Point"));
+	    CP.R = block->r_number;
+            CP.F = block->f_number;
+            // D: Curvature
+            if (block->d_flag == ON) {
+                CP.D = block->d_number_float;
+            } else {
+                /*CHKS((1), ("Must specify curvature D for each control point."));*/
+                CP.D = -1;  // indicate D is maximum
+            }
+	    nurbs_control_points.push_back(CP);
+	}
+	// K: Knot
+	if (block->k_flag == ON) {
+	    CHKS((block->k_number >1 || block->k_number < 0),
+	            ("Knot value in Knot vector must between 0 and 1"));
+	    nurbs_knot_vector.push_back(block->k_number);
+	}
+	settings->motion_mode = mode;
+    } else if (mode == G_5_3) {	// End of NURBS
+	if (settings->motion_mode == G_5_2) {
+	    CHKS((nurbs_control_points.size() < nurbs_order),
+		 _
+		 ("You must specify a number of control points at least equal to the order L = %d"),
+		 nurbs_order);
+	    settings->current_x =
+		nurbs_control_points[nurbs_control_points.size() - 1].X;
+	    settings->current_y =
+		nurbs_control_points[nurbs_control_points.size() - 1].Y;
+	    /*  printf("%s: (%s:%d): nurbs_control_points.size(%d); about NURBS_FEED()\n",
+	       __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size()); */
+	    NURBS_FEED(block->line_number, nurbs_control_points,
+		       nurbs_order);
+	    nurbs_control_points.clear();
+	    /* printf("%s: (%s:%d): nurbs_control_points.size(%d)\n",
+	       __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size()); */
+	    settings->motion_mode = -1;
+	} else if (settings->motion_mode == G_6_2) {
+	    // terminate G_6_2
+	    CHKS((nurbs_control_points.size() < nurbs_order),
+		 _
+		 ("You must specify a number of control points at least equal to the order P(%d)"),
+		 nurbs_order);
+            double weight = nurbs_control_points[nurbs_control_points.size() - 1].R;
+	    CHKS((weight <= 0),
+		 ("weight of the last Control Point could not be 0"));
+            // convert from 4D to 3D(W=1), to provide the next G code a proper last position
+	    settings->current_x =
+		nurbs_control_points[nurbs_control_points.size() - 1].X / weight;
+	    settings->current_y =
+		nurbs_control_points[nurbs_control_points.size() - 1].Y / weight;
+	    settings->current_z =
+		nurbs_control_points[nurbs_control_points.size() - 1].Z / weight;
+	    settings->AA_current =
+		nurbs_control_points[nurbs_control_points.size() - 1].A / weight;
+	    settings->BB_current =
+		nurbs_control_points[nurbs_control_points.size() - 1].B / weight;
+	    settings->CC_current =
+		nurbs_control_points[nurbs_control_points.size() - 1].C / weight;
+	    settings->u_current =
+		nurbs_control_points[nurbs_control_points.size() - 1].U / weight;
+	    settings->v_current =
+		nurbs_control_points[nurbs_control_points.size() - 1].V / weight;
+	    settings->w_current =
+		nurbs_control_points[nurbs_control_points.size() - 1].W / weight;
+
+	    NURBS_FEED_3D(block->line_number, nurbs_control_points,
+			  nurbs_knot_vector, nurbs_order,
+			  block->i_number, axis_mask);
+	    //reset parameters
+	    nurbs_control_points.clear();
+	    nurbs_knot_vector.clear();
+	    settings->motion_mode = -1;
+	    axis_mask = 0;
+	} else {
+	    ERS("Cannot use G5.3 without G5.2/G6.2 first\n");
+	}
     }
     return INTERP_OK;
 }
+
 
  /****************************************************************************/
 
@@ -455,7 +590,6 @@ int Interp::convert_arc(int move,        //!< either G_2 (cw arc) or G_3 (ccw ar
 
   settings->motion_mode = move;
 
-
   if (settings->plane == CANON_PLANE_XY) {
     if ((!settings->cutter_comp_side) ||
         (settings->cutter_comp_radius == 0.0)) {
@@ -550,7 +684,7 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
                         double AA_end,  //!< a-value at end of arc                   
                         double BB_end,  //!< b-value at end of arc                   
                         double CC_end,  //!< c-value at end of arc                   
-                         double u, double v, double w, //!< values at end of arc
+                        double u, double v, double w, //!< values at end of arc
                         double offset1, //!< center, either abs or offset from current
                         double offset2)
 {
@@ -559,7 +693,7 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
   double tolerance;             /* tolerance for difference of radii          */
   int turn;                     /* number of full or partial turns CCW in arc */
   int plane = settings->plane;
-
+  
   tolerance = (settings->length_units == CANON_UNITS_INCHES) ?
     TOLERANCE_INCH : TOLERANCE_MM;
 
@@ -638,7 +772,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     int turn;                     /* 1 for counterclockwise, -1 for clockwise */
     double cx, cy, cz; // current
     int plane = settings->plane;
-
+  
     side = settings->cutter_comp_side;
     tool_radius = settings->cutter_comp_radius;   /* always is positive */
     tolerance = (settings->length_units == CANON_UNITS_INCHES) ? TOLERANCE_INCH : TOLERANCE_MM;
@@ -798,7 +932,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     double new_end_x, new_end_y;
 
     /* find basic arc data: center_x, center_y, and turn */
-
+    
     comp_get_programmed(settings, &opx, &opy, &opz);
     comp_get_current(settings, &cx, &cy, &cz);
 
@@ -2207,7 +2341,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 		      setup_pointer settings)    //!< pointer to machine settings
 {
     int status;
-
+    
     if ((block->g_modes[GM_MODAL_0] == G_4) && ONCE(STEP_DWELL)) {
       status = convert_dwell(settings, block->p_number);
       CHP(status);
@@ -2256,12 +2390,12 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
     if ((block->g_modes[GM_MODAL_0] != -1) && ONCE(STEP_MODAL_0)) {
       status = convert_modal_0(block->g_modes[GM_MODAL_0], block, settings);
       CHP(status);
-  }
+    }
     if ((block->motion_to_be != -1)  && ONCE(STEP_MOTION)){
       status = convert_motion(block->motion_to_be, block, settings);
       CHP(status);
-  }
-  return INTERP_OK;
+    }
+    return INTERP_OK;
 }
 
 int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
@@ -2876,6 +3010,9 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
      M66 waits for an input
      M67 reads a digital input
      M68 reads an analog input*/
+  /*fprintf(stderr,"enter convert_m\n");
+  for(int i=0; i<12; i++)
+      fprintf(stderr,"m_modes[%d](%d)\n", i, block->m_modes[i]);*/
 
   if (IS_USER_MCODE(block,settings,5) && ONCE_M(5))  {
       return convert_remapped_code(block, settings, STEP_M_5, 'm',
@@ -3070,10 +3207,10 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     return convert_remapped_code(block, settings, STEP_M_7, 'm',
 				   block->m_modes[7]);
  } else if ((block->m_modes[7] == 3)  && ONCE_M(7)) {
-    enqueue_START_SPINDLE_CLOCKWISE();
+    enqueue_START_SPINDLE_CLOCKWISE(block->line_number);
     settings->spindle_turning = CANON_CLOCKWISE;
  } else if ((block->m_modes[7] == 4) && ONCE_M(7)) {
-    enqueue_START_SPINDLE_COUNTERCLOCKWISE();
+    enqueue_START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
     settings->spindle_turning = CANON_COUNTERCLOCKWISE;
  } else if ((block->m_modes[7] == 5) && ONCE_M(7)){
     enqueue_STOP_SPINDLE_TURNING();
@@ -3234,8 +3371,55 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     if (USER_DEFINED_FUNCTION[index - 100] == 0) {
       CHKS(1, NCE_UNKNOWN_M_CODE_USED);
     }
-    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number);
+    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number,block->r_number,
+                           block->s_number,block->j_number,block->k_number, block->l_number);
   }
+
+  if (block->m_modes[11] == 200) {
+      //P-word = digital channel
+      //L-word = wait type (immediate, rise, fall, high, low)
+      //Q-word = timeout
+      // it is an error if:
+      // L-word not 0, and timeout <= 0
+      /*CHKS(((block->q_number <= 0) && (block->l_flag == ON) && (round_to_int(block->l_number) > 0)),
+          NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE);*/
+
+      CHKS(((round_to_int(block->q_number)) < 0), _("negative timeout value: Q"));
+      CHKS(((round_to_int(block->l_number) < 4) && (round_to_int(block->l_number) > 0))
+              || (round_to_int(block->l_number > 7)),
+              _("illeagal wait type value: L"));
+      // missing P  (or invalid = negative)
+      CHKS( ((block->p_flag == ON) && (round_to_int(block->p_number) < 0)) ||
+           ((block->p_flag == OFF)) ,
+           _("No valid P word with M200"));
+
+      if (block->p_flag == ON) { // got a digital input
+          if (round_to_int(block->p_number) < 0) // safety check for negative words
+              ERS("invalid P-word with M200");
+          CHKS((settings->cutter_comp_side != OFF),
+                         (_("Cannot wait for digital input with cutter radius compensation on")));
+
+          if (block->l_flag == ON) {
+              type = round_to_int(block->l_number);
+          } else {
+              type = WAIT_MODE_IMMEDIATE;
+          }
+
+          if (block->q_number > 0) {
+              timeout = block->q_number;
+          } else {
+              timeout = 0;
+          }
+
+          CHKS((settings->cutter_comp_side != OFF),
+               (_("Cannot wait for digital input with cutter radius compensation on")));
+
+          }
+          SET_MOTION_SYNC_INPUT_BIT(round_to_int(block->p_number),block->l_number,
+                         block->q_number,0);
+      } 
+
+
   return INTERP_OK;
 }
 
@@ -3320,7 +3504,6 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
   int bi = block->b_flag && settings->b_indexer;
   int ci = block->c_flag && settings->c_indexer;
 
-
   if (motion != G_0) {
       CHKS((ai), (_("Indexing axis %c can only be moved with G0")), 'A');
       CHKS((bi), (_("Indexing axis %c can only be moved with G0")), 'B');
@@ -3362,8 +3545,9 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
     CHP(convert_cycle(motion, block, settings));
   } else if ((motion == G_5) || (motion == G_5_1)) {
     CHP(convert_spline(motion, block, settings));
-  } else if (motion == G_5_2) {
-    CHP(convert_nurbs(motion, block, settings));
+  } else if ((motion == G_5_2) || (motion == G_6_2)) {
+      // Leto NURBS (G_5_2) or Fanuc NURBS (G_6_2)
+      CHP(convert_nurbs(motion, block, settings));
   } else {
     ERS(NCE_BUG_UNKNOWN_MOTION_CODE);
   }
@@ -3417,7 +3601,6 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   double u_end;
   double v_end;
   double w_end;
-
   /* probe_type: 
      ~1 = error if probe operation is unsuccessful (ngc default)
      |1 = suppress error, report in # instead
@@ -3425,7 +3608,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
      |2 = move until probe clears */
 
   unsigned char probe_type = g_code - G_38_2;
-  
+
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_PROBE_WITH_CUTTER_RADIUS_COMP_ON);
   CHKS((settings->feed_rate == 0.0), NCE_CANNOT_PROBE_WITH_ZERO_FEED_RATE);
@@ -3441,7 +3624,6 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
         settings->u_current == u_end && settings->v_current == v_end &&
         settings->w_current == w_end),
        NCE_START_POINT_TOO_CLOSE_TO_PROBE_POINT);
-       
   TURN_PROBE_ON();
   STRAIGHT_PROBE(block->line_number, end_x, end_y, end_z,
                  AA_end, BB_end, CC_end,
@@ -4298,6 +4480,11 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
             status = convert_straight_comp2(move, block, settings, end_z, end_x, end_y,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
     } else if(settings->plane == CANON_PLANE_XY) {
+
+//debug:        printf("debug: convert_straight():\n");
+//debug:        printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
+//debug:        printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
+        
         if (settings->cutter_comp_firstmove)
             status = convert_straight_comp1(move, block, settings, end_x, end_y, end_z,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
@@ -4643,6 +4830,10 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
     // enough.
 
     set_endpoint(cx, cy);
+    
+//debug:    printf("debug: convert_straight_comp1():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n",
+//debug:                px, py, cx, cy, end_x, end_y);
+
 
     if (move == G_0) {
         enqueue_STRAIGHT_TRAVERSE(settings, block->line_number, 
@@ -4764,6 +4955,11 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     comp_get_current(settings, &cx, &cy, &cz);
     comp_get_current(settings, &end_x, &end_y, &end_z);
     comp_get_programmed(settings, &opx, &opy, &opz);
+      
+//debug:    logDebug("debug: convert_straight_comp2():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n\topx(%f) opy(%f)\n",
+//debug:                px, py, cx, cy, end_x, end_y, opx, opy);
+//debug:    printf("debug: convert_straight_comp2():\n\tpx(%f) py(%f)\n\tcx(%f) cy(%f)\n\tend_x(%f) end_y(%f)\n\topx(%f) opy(%f)\n",
+//debug:                px, py, cx, cy, end_x, end_y, opx, opy);
 
     if ((py == opy) && (px == opx)) {     /* no XY motion */
         if (move == G_0) {

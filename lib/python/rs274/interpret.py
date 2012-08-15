@@ -17,6 +17,14 @@
 import math, gcode
 
 class Translated:
+    def get_xy_rotation(self):
+        return self.rotation_xy
+    def inverse_rotate(self, x, y):
+        if self.rotation_xy:
+            rotx = x * self.rotation_cos + y * self.rotation_sin
+            y = -x * self.rotation_sin + y * self.rotation_cos
+            x = rotx
+        return [x, y]
     g92_offset_x = g92_offset_y = g92_offset_z = 0
     g92_offset_a = g92_offset_b = g92_offset_c = 0
     g92_offset_u = g92_offset_v = g92_offset_w = 0

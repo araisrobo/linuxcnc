@@ -14,7 +14,9 @@
 #define CANON_HH
 
 #include <stdio.h>		// FILE
+#include <stdint.h>
 #include <vector>
+#include "nurbs.h"
 
 #include "emcpos.h"
 #include "emctool.h"
@@ -41,18 +43,6 @@
 
 #define OFF 0
 #define ON 1
-
-typedef struct {          /* type for NURBS control points */
-      double X,                     
-             Y,
-             W;
-      } CONTROL_POINT;
-
-typedef struct {
-      double X,
-	     Y;
-      } PLANE_POINT;		
-
 
 typedef int CANON_PLANE;
 #define CANON_PLANE_XY 1
@@ -153,6 +143,61 @@ struct CANON_POSITION {
 
     double x, y, z, a, b, c, u, v, w;
 };
+
+typedef struct CanonConfig_t {
+    double xy_rotation;
+    int rotary_unlock_for_traverse;
+    double css_maximum;
+    double css_numerator;
+    int spindle_dir;
+    int feed_mode;
+    int synched;
+    CANON_POSITION g5xOffset;
+    CANON_POSITION g92Offset;
+/*
+  canonEndPoint is the last programmed end point, stored in case it's
+  needed for subsequent calculations. It's in absolute frame, mm units.
+
+  note that when segments are queued for the naive cam detector that the
+  canonEndPoint may not be the last programmed endpoint.  get_last_pos()
+  retrieves the xyz position after the last of the queued segments.  these
+  are also in absolute frame, mm units.
+  */
+    CANON_POSITION endPoint;
+    CANON_UNITS lengthUnits;
+    CANON_PLANE activePlane;
+/* Tool length offset is saved here */
+    EmcPose toolOffset;
+/* motion control mode is used to signify blended v. stop-at-end moves.
+   Set to 0 (invalid) at start, so first call will send command out */
+    CANON_MOTION_MODE motionMode;
+/* motion path-following tolerance is used to set the max path-following
+   deviation during CANON_CONTINUOUS.
+   If this param is 0, then it will behave as emc always did, allowing
+   almost any deviation trying to keep speed up. */
+   double motionTolerance;
+   double naivecamTolerance;
+/* Spindle speed is saved here */
+   double spindleSpeed;
+/* Prepped tool is saved here */
+//   int preppedTool;
+/*
+  Feed rate is saved here; values are in mm/sec or deg/sec.
+  It will be initially set in INIT_CANON() below.
+*/
+    double linearFeedRate;
+    double angularFeedRate;
+/* optional program stop */
+    bool optional_program_stop;
+/* optional block delete */
+    bool block_delete;
+/* Used to indicate whether the current move is linear, angular, or 
+   a combination of both. */
+   //AJ says: linear means axes XYZ move (lines or even circles)
+   //         angular means axes ABC move
+    int cartesian_move;
+    int angular_move;
+} CanonConfig_t;
 
 /* Initialization */
 
@@ -432,9 +477,25 @@ extern PLANE_POINT nurbs_tangent(double u, unsigned int k,
                   std::vector<unsigned int> knot_vector);
 extern double alpha_finder(double dx, double dy);
 
+/*extern int nurbs_findspan(int n, int p, double u, const std::vector<double> & U);*/
+/*extern void nurbs_basisfun(int i, double u, int p,
+                  const std::vector<double> & U,
+                  std::vector<double> & N);*/
+/*extern int nurbs_findspan(int n, int p, double u, double *U);
+extern void nurbs_basisfun(int i, double u, int p, double *U, double *N);*/
+
 /* Canon calls */
 
 extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k);
+/* Move at the feed rate along an approximation of a NURBS with a variable number
+ * of control points
+ */
+extern void NURBS_FEED_3D (
+              int lineno, 
+              const std::vector<CONTROL_POINT>  & nurbs_control_points, 
+              const std::vector<double> & nurbs_knot_vector,
+              unsigned int order,double length,uint32_t axis_mask
+            );
 /* Move at the feed rate along an approximation of a NURBS with a variable number
  * of control points
  */
@@ -475,12 +536,12 @@ extern void SPINDLE_RETRACT_TRAVERSE();
 
 /* Retract the spindle at traverse rate to the fully retracted position. */
 
-extern void START_SPINDLE_CLOCKWISE();
+extern void START_SPINDLE_CLOCKWISE(int l);
 
 /* Turn the spindle clockwise at the currently set speed rate. If the
 spindle is already turning that way, this command has no effect. */
 
-extern void START_SPINDLE_COUNTERCLOCKWISE();
+extern void START_SPINDLE_COUNTERCLOCKWISE(int l);
 
 /* Turn the spindle counterclockwise at the currently set speed rate. If
 the spindle is already turning that way, this command has no effect. */
@@ -686,6 +747,9 @@ extern void CLEAR_AUX_OUTPUT_BIT(int index);
 
 extern void SET_MOTION_OUTPUT_VALUE(int index, double value);
 extern void SET_AUX_OUTPUT_VALUE(int index, double value);
+
+extern void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
+        double timeout, unsigned char now);
 
 /* Commands to wait for, query input bits and analog values */
 
@@ -918,7 +982,9 @@ extern char _parameter_file_name[];	/* in canon.cc */
 
 #define USER_DEFINED_FUNCTION_NUM 100
 typedef void (*USER_DEFINED_FUNCTION_TYPE) (int num, double arg1,
-					    double arg2);
+					    double arg2, double arg3,
+                                            double arg4, double arg5,
+                                            double arg6, double arg7);
 extern USER_DEFINED_FUNCTION_TYPE
     USER_DEFINED_FUNCTION[USER_DEFINED_FUNCTION_NUM];
 extern int USER_DEFINED_FUNCTION_ADD(USER_DEFINED_FUNCTION_TYPE func,

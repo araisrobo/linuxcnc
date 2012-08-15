@@ -6,6 +6,7 @@ build-stamp
 *.so
 *.so.*
 *.a
+*.d
 *.pdf
 *.tex
 *.mod.c
@@ -22,6 +23,10 @@ rtlib/Module.symvers
 share/*/*.desktop
 share/menus/CNC.menu
 share/desktop-directories/cnc.directory
+*.log
+*.swp
+run.sh
+debian/*.debhelper.log
 src/modules.order
 docs/html/drivers
 /configs/*/emc.nml

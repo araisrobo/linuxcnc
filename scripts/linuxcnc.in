@@ -62,7 +62,8 @@ if [ -z "$PYTHONPATH" ]; then
 else
     PYTHONPATH=$LINUXCNC_HOME/lib/python:"$PYTHONPATH"
 fi
-export PYTHONPATH
+# will export PYTHONPATH later after obtaining $INI_DIR
+# export PYTHONPATH
 
 PRELOAD_WORKAROUND=@PRELOAD_WORKAROUND@
 
@@ -267,6 +268,11 @@ INI_NAME="${INIFILE##*/}"
 INI_DIR="${INIFILE%/*}"
 CONFIG_DIR="${INIFILE%/*}"
 export CONFIG_DIR
+
+# for python modules in $INI_DIR
+PYTHONPATH=${INI_DIR}:$PYTHONPATH
+export PYTHONPATH
+export INI_DIR
 
 echo "Machine configuration directory is '$INI_DIR'"
 echo "Machine configuration file is '$INI_NAME'"
@@ -506,6 +512,19 @@ function Cleanup() {
     fi
 
     echo "Cleanup done"
+
+    # process the SHUTDOWN var at EMC section
+    SHUTDOWN=`$INIVAR -ini "$INIFILE" -var SHUTDOWN -sec EMC 2> /dev/null`
+    if [ "x$SHUTDOWN" = "xYES" ]; then
+	SHUTDOWN_TIME=`$INIVAR -ini "$INIFILE" -var SHUTDOWN_TIME -sec EMC 2> /dev/null`
+	echo "shutdown the machine..."
+	if [ -n "$SHUTDOWN_TIME" ]; then
+	    sudo shutdown -P $SHUTDOWN_TIME
+	else
+	    sudo shutdown -h now
+	fi
+    fi
+
 }
 
 

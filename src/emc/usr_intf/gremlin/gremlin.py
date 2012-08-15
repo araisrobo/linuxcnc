@@ -57,8 +57,13 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
 class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
               rs274.glcanon.GlCanonDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
-
+    canon = None
+    program_pos = [0, 0, 0, 0, 0, 0, 0, 0]
+    path_tracking = False
+    __gsignals__ = {'line-selected': (gobject.SIGNAL_RUN_FIRST, gobject.TYPE_NONE, (gobject.TYPE_INT,))}
+    canon_error = [None, None]
     def __init__(self, inifile):
+        gobject.GObject.__init__(self)
 
         display_mode = ( gtk.gdkgl.MODE_RGB | gtk.gdkgl.MODE_DEPTH |
                          gtk.gdkgl.MODE_DOUBLE )
@@ -80,6 +85,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             C('backplotprobing'),
             self.get_geometry()
         )
+        # + use self.logger.clear() to clean?
+        # + builder.get_object("hal_gremlin1").logger.clear()
         thread.start_new_thread(self.logger.start, (.01,))
 
         rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger)
@@ -102,7 +109,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.add_events(gtk.gdk.BUTTON_MOTION_MASK)
         self.add_events(gtk.gdk.BUTTON_PRESS_MASK)
         self.add_events(gtk.gdk.BUTTON_RELEASE_MASK)
-
+        
         self.fingerprint = ()
 
         self.lat = 0
@@ -110,6 +117,12 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.maxlat = 90
 
         self.highlight_line = None
+        self.material_buttom_left = (0.0,0.0)
+        self.material_buttom_right = (0.0,0.0)
+        self.material_top_left = (0.0,0.0)
+        self.material_top_right = (0.0,0.0)
+	self.draw_material_state = False
+
         self.program_alpha = False
         self.use_joints_mode = False
         self.use_commanded = True
@@ -139,7 +152,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 	    if self.stat.axis_mask & (1<<i) == 0: continue
 	    live_axis_count += 1
 	self.num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
-
+      
+        self.highlight_mode = 'line'
+        self.highlight_mode = inifile.find("DISPLAY", "HIGHLIGHT_MODE")
+        self.fix_tool_size = False
+    def get_path_tracking(self):
+        return self.path_tracking
+    def set_path_tracking(self, path_tracking=False):
+        self.path_tracking = path_tracking
     def activate(self):
         glcontext = gtk.gtkgl.widget_get_gl_context(self)
         gldrawable = gtk.gtkgl.widget_get_gl_drawable(self)
@@ -226,16 +246,27 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self._current_file = filename
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            canon = StatCanon(self.colors, self.get_geometry(),self.lathe_option, s, random)
+            # we want canon to retain some information
+            if self.canon == None:
+                canon = StatCanon(self.colors, self.get_geometry(), self.lathe_option, s, random)
+                self.canon = canon
+            else:
+                canon = self.canon
+                canon.__init__(self.colors, self.get_geometry(), self.lathe_option, s, random)
+            canon.set_highlight_mode(self.highlight_mode)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
             if parameter:
-                shutil.copy(parameter, temp_parameter)
+                try:
+                    shutil.copy(parameter, temp_parameter)
+                except:
+                    print 'gremlin shutil.copy(parameter, temp_parameter) failed'
             canon.parameter_file = temp_parameter
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             self.load_preview(filename, canon, unitcode, initcode)
+             
         finally:
             shutil.rmtree(td)
 
@@ -252,17 +283,51 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         return self.geometry
     def get_joints_mode(self): return self.use_joints_mode
     def get_show_commanded(self): return self.use_commanded
+    # araisrobo: def get_show_commanded(self): 
+    # araisrobo:     #return True
+    # araisrobo:     show_type = self.inifile.find("DISPLAY", "POSITION_FEEDBACK")
+    # araisrobo:     if show_type != "ACTUAL":
+    # araisrobo:       return True
+    # araisrobo:     else:
+    # araisrobo:       return False
     def get_show_extents(self): return self.show_extents_option
     def get_show_limits(self): return self.show_limits
     def get_show_live_plot(self): return self.show_live_plot
     def get_show_machine_speed(self): return self.show_velocity
     def get_show_metric(self): return self.metric_units
+    # araisrobo: def get_show_metric(self):
+    # araisrobo:     if (self.stat.linear_units == 1):
+    # araisrobo:         return True
+    # araisrobo:     else:
+    # araisrobo:         return False
     def get_show_program(self): return self.show_program
     def get_show_rapids(self): return self.show_rapids
     def get_show_relative(self): return self.use_relative
     def get_show_tool(self): return self.show_tool
     def get_show_distance_to_go(self): return self.show_dtg
     def get_grid_size(self): return self.grid_size
+    def get_material_dimension(self):
+        return self.material_top_right, self.material_top_left, self.material_buttom_left, self.material_buttom_right 
+    def set_material_dimension(self, pos_0=None, pos_1=None, pos_2=None, pos_3=None):
+	#self.material_l = length  
+	#self.material_w = width
+	#self.offset_x = offset_x
+	#self.offset_y = offset_y
+
+        self.material_buttom_left = pos_0
+        self.material_buttom_right = pos_1
+        self.material_top_left = pos_3
+        self.material_top_right = pos_2
+
+        if self.material_buttom_left is None or\
+            self.material_buttom_right\
+            is None or self.material_top_left is None or\
+            self.material_top_right is None :
+		self.draw_material_state = False
+	else:
+		self.draw_material_state = True
+    def draw_material(self):
+	return self.draw_material_state
 
     def get_view(self):
         view_dict = {'x':0, 'y':1, 'z':2, 'p':3}
@@ -287,14 +352,16 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     def select_prime(self, x, y):
         self.select_primed = x, y
-
     @rs274.glcanon.with_context
     def select_fire(self, widget, event):
         if not self.select_primed: return
         x, y = self.select_primed
         self.select_primed = None
-        self.select(x, y)
-
+        self.highlight_line = self.select(x, y)
+        # emit line-select
+        if self.highlight_line is not None:
+            # highlight_line become block no in 'block' mode
+            self.emit('line-selected', self.highlight_line)
     def select_cancel(self, widget=None, event=None):
         self.select_primed = None
 
@@ -303,6 +370,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         button1 = event.button == 1
         button2 = event.button == 2
         button3 = event.button == 3
+        if event.type == gtk.gdk._2BUTTON_PRESS:
+          self.logger.clear()
         if button1:
             self.select_prime(event.x, event.y)
             self.recordMouse(event.x, event.y)
@@ -326,10 +395,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             distance = max(abs(event.x - x), abs(event.y - y))
             if distance > 8: self.select_cancel()
         if button1 and not self.select_primed:
-            if shift:
-                self.translateOrRotate(event.x, event.y)
-            elif not cancel:
+            # patched by eric: drag plot when view is not p-view
+            if shift:# or self.current_view is not 'p':
                 self.rotateOrTranslate(event.x, event.y)
+            else:#elif not cancel:
+                self.translateOrRotate(event.x, event.y)
         elif button2:
             self.translateOrRotate(event.x, event.y)
         elif button3:

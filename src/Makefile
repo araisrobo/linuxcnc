@@ -112,8 +112,12 @@ SUBDIRS := \
     module_helper \
     \
     po \
-    \
-    ../docs/src
+    # \
+    # ../docs/src
+
+ifneq ($(BUILD_DOCS),no)
+	SUBDIRS += ../docs/src
+endif
 
 ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c
 
@@ -170,9 +174,17 @@ ifeq ($(BUILD_PYTHON),yes)
 INCLUDE += -I$(INCLUDEPY)
 endif
 
-# Compilation options.	Perhaps some of these should come from Makefile.inc?
+# Compilation options.  Perhaps some of these should come from Makefile.inc?
+# original: OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
+# for debug: 
+# OPT := -O0
+# for release: 
 OPT := -Os
-DEBUG := -g -Wall
+
+# for debug: 
+# DEBUG := -g -Wall
+# for release: 
+DEBUG := -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
@@ -257,6 +269,7 @@ HEADERS := \
     config.h \
     emc/ini/emcIniFile.hh \
     emc/ini/iniaxis.hh \
+    emc/ini/inijoint.hh \
     emc/ini/initool.hh \
     emc/ini/initraj.hh \
     emc/kinematics/cubic.h \
@@ -367,8 +380,14 @@ pythonclean:
 	find ../lib/python -name '*.so' -exec rm {} +
 python: $(PYTARGETS)
 userspace: python
-clean: docclean pythonclean
+# clean: docclean pythonclean
+clean: pythonclean
 endif
+
+ifneq ($(BUILD_DOCS),no)
+clean: docclean
+endif
+
 
 # This is the gateway into the crazy world of "kbuild", the linux 2.6 system
 # for building kernel modules.	Other kernel module build styles need to be
@@ -634,12 +653,25 @@ EXTRA_CFLAGS = $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I
 	-I$(BASEPWD)/libnml/os_intf -I$(BASEPWD)/libnml/nml -I$(BASEPWD)/libnml/buffer \
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
 	-I$(BASEPWD)/emc/nml_intf -I$(BASEPWD)/emc/kinematics -I$(BASEPWD)/emc/motion \
-	-DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
-	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations \
-	$(call cc-option,-Wframe-larger-than=2560)
+        -DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
+	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations 
+	#not for sim: $(call cc-option,-Wframe-larger-than=2560)
+
+ifneq ($(BUILD_SYS),sim)
+EXTRA_CFLAGS += $(call cc-option,-Wframe-larger-than=2560)
+endif
+	
 ifeq ($(RTARCH),x86_64)
 EXTRA_CFLAGS += -msse -ffast-math -funsafe-math-optimizations
 endif
+
+# for libwou
+ifneq ($(WOU_VERSION),)
+EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB
+# EXTRALINK += $(WOU_LIBS)
+LDFLAGS += $(WOU_LIBS)
+endif
+
 
 ifeq "$(USE_STUBS)" "1"
 MATHSTUB := rtapi/mathstubs.o
@@ -676,6 +708,12 @@ obj-$(CONFIG_ENCODER_RATIO) += encoder_ratio.o
 encoder_ratio-objs := hal/components/encoder_ratio.o $(MATHSTUB)
 obj-$(CONFIG_STEPGEN) += stepgen.o
 stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
+# WOU: wishbone over usb
+# wou.o is composed of (multiple) wou-objs
+obj-$(CONFIG_WOU) += wou.o
+wou-objs := hal/components/wou_stepgen.o $(MATHSTUB)
+obj-$(CONFIG_WOU_SIM) += wou_sim.o
+wou_sim-objs := hal/components/wou_sim.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -804,6 +842,9 @@ maxkins-objs := emc/kinematics/maxkins.o
 obj-m += gantrykins.o
 gantrykins-objs := emc/kinematics/gantrykins.o
 
+obj-m += gentrivkins.o
+gentrivkins-objs := emc/kinematics/gentrivkins.o
+
 obj-m += rotatekins.o
 rotatekins-objs := emc/kinematics/rotatekins.o
 
@@ -830,6 +871,17 @@ scarakins-objs := emc/kinematics/scarakins.o
 scarakins-objs += libnml/posemath/_posemath.o
 scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
+obj-m += art_scarakins.o
+art_scarakins-objs := emc/kinematics/art_scarakins.o
+art_scarakins-objs += libnml/posemath/_posemath.o
+art_scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
+
+obj-m += alignmentkins.o
+alignmentkins-objs := emc/kinematics/alignmentkins.o
+
+obj-m += align_gantry_kins.o
+align_gantry_kins-objs := emc/kinematics/align_gantry_kins.o
+
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o
 motmod-objs += emc/kinematics/tc.o
@@ -837,17 +889,26 @@ motmod-objs += emc/kinematics/tp.o
 motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/command.o
 motmod-objs += emc/motion/control.o
-motmod-objs += emc/motion/homing.o
+# motmod-objs += emc/motion/homing.o
+motmod-objs += emc/motion/simple_tp.o
 motmod-objs += emc/motion/emcmotglb.o
 motmod-objs += emc/motion/emcmotutil.o
 motmod-objs += emc/motion/stashf.o
 motmod-objs += emc/motion/dbuf.o
 motmod-objs += libnml/posemath/_posemath.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
+# for libwou
+ifneq ($(WOU_VERSION),)
+# homing procedure that compensats the properties of USB device
+motmod-objs += emc/motion/usb_homing.o 
+else
+motmod-objs += emc/motion/homing.o 
+endif
+
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
 ifeq ($(BUILD_SYS),sim)
-EXTRA_CFLAGS += -fPIC -Os
+EXTRA_CFLAGS += -fPIC
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
@@ -858,7 +919,7 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	$(Q)ld -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	$(Q)$(CC) -shared -Bsymbolic $(LDFLAGS) -o $@ objects/$*.tmp -lm
+	$(Q)$(CC) -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(LDFLAGS)
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)
@@ -905,6 +966,8 @@ endif
 ../rtlib/counter$(MODULE_EXT): $(addprefix objects/rt,$(counter-objs))
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
+../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
+../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
@@ -934,6 +997,7 @@ endif
 ../rtlib/hal_lib$(MODULE_EXT): $(addprefix objects/rt,$(hal_lib-objs))
 ../rtlib/motmod$(MODULE_EXT): $(addprefix objects/rt,$(motmod-objs))
 ../rtlib/trivkins$(MODULE_EXT): $(addprefix objects/rt,$(trivkins-objs))
+../rtlib/gentrivkins$(MODULE_EXT): $(addprefix objects/rt,$(gentrivkins-objs))
 ../rtlib/5axiskins$(MODULE_EXT): $(addprefix objects/rt,$(5axiskins-objs))
 ../rtlib/maxkins$(MODULE_EXT): $(addprefix objects/rt,$(maxkins-objs))
 ../rtlib/gantrykins$(MODULE_EXT): $(addprefix objects/rt,$(gantrykins-objs))
@@ -943,6 +1007,9 @@ endif
 ../rtlib/genserkins$(MODULE_EXT): $(addprefix objects/rt,$(genserkins-objs))
 ../rtlib/pumakins$(MODULE_EXT): $(addprefix objects/rt,$(pumakins-objs))
 ../rtlib/scarakins$(MODULE_EXT): $(addprefix objects/rt,$(scarakins-objs))
+../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
+../rtlib/alignmentkins$(MODULE_EXT): $(addprefix objects/rt,$(alignmentkins-objs))
+../rtlib/align_gantry_kins$(MODULE_EXT): $(addprefix objects/rt,$(align_gantry_kins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))

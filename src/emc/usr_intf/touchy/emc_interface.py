@@ -55,18 +55,22 @@ class emc_control:
                 self.emccommand.flood(0)
 
         def estop(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ESTOP)
 
         def estop_reset(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ESTOP_RESET)
 
         def machine_off(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_OFF)
 
         def machine_on(self, b):
+                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ON)
 
@@ -131,13 +135,21 @@ class emc_control:
                                 self.emccommand.jog(self.emc.JOG_CONTINUOUS, i, self.isjogging[i] * self.jog_velocity)
         
         def continuous_jog(self, axis, direction):
-                if self.masked: return
+                self.emcstat.poll()
+                if self.emcstat.task_mode != self.emc.MODE_MANUAL:
+                    # TODO wait till task_mode equal to emc.MODE_MANUAL
+                    return False
+                if self.masked: 
+                    return False
+                # DEBUG:
+                # print "continuous_jog(%d) dir(%d) vel(%d)" % (axis, direction, direction * self.jog_velocity)
                 if direction == 0:
                         self.isjogging[axis] = 0
                         self.emccommand.jog(self.emc.JOG_STOP, axis)
                 else:
                         self.isjogging[axis] = direction
                         self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
+                return True
                 
 	def quill_up(self):
                 if self.masked: return
@@ -335,9 +347,9 @@ class emc_status:
                         dtg = self.convert_units(dtg,self.unit_convert)
 
                 if self.mm:
-                        fmt = "%c:% 10.3f"
+                        fmt = "%c:% 10.2f"
                 else:
-                        fmt = "%c:% 9.4f"
+                        fmt = "%c:% 9.2f"
 
                 d = 0
                 if (am & 1):
@@ -377,7 +389,7 @@ class emc_status:
                 set_active(self.machines['on'], on)
                 set_active(self.machines['off'], not on)
 
-                ovl = self.emcstat.axis[0]['override_limits']
+                ovl = self.emcstat.joint[0]['override_limits']
                 set_active(self.override_limit, ovl)
 
                 set_text(self.status['file'], self.emcstat.file)
@@ -385,7 +397,7 @@ class emc_status:
                 set_text(self.status['line'], "%d" % self.emcstat.current_line)
                 set_text(self.status['id'], "%d" % self.emcstat.id)
                 set_text(self.status['dtg'], "%.4f" % self.emcstat.distance_to_go)
-                set_text(self.status['velocity'], "%.4f" % (self.emcstat.current_vel * 60.0))
+                set_text(self.status['velocity'], "%.2f" % (self.emcstat.current_vel * 60.0))
                 set_text(self.status['delay'], "%.2f" % self.emcstat.delay_left)
 
                 flood = self.emcstat.flood
@@ -441,8 +453,8 @@ class emc_status:
                 g92 = ""
                 for i in range(len(self.emcstat.g5x_offset)):
                         letter = "XYZABCUVW"[i]
-                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.4f " % (letter, self.emcstat.g5x_offset[i])
-                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.4f " % (letter, self.emcstat.g92_offset[i])
+                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.2f " % (letter, self.emcstat.g5x_offset[i])
+                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.2f " % (letter, self.emcstat.g92_offset[i])
                                    
                 set_text(self.status['g5xoffset'], g5x);
                 set_text(self.status['g92offset'], g92);

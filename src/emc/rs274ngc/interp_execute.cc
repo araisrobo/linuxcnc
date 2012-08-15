@@ -237,6 +237,10 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 			  setup_pointer settings) //!< pointer to machine settings
 {
   int status;
+    
+  //debug: printf("debug: execute_block():\n");
+  //debug: printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
+  //debug: printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
 
   block->line_number = settings->sequence_number;
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {

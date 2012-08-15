@@ -187,6 +187,11 @@ class EMC_Action_Open(_EMC_Action, _EMC_FileChooser):
     def on_activate(self, w):
         if self.fixed_file:
             self.load_file(self.fixed_file)
+            # ysli: why to create dialog?
+            # dialog = EMC_FileChooserDialog(buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+            # dialog.hide()
+            # dialog.load_file(self.fixed_file)
+            # dialog.destroy()
             return
         dialog = EMC_FileChooserDialog(title="Open File",action=gtk.FILE_CHOOSER_ACTION_OPEN, 
                 buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))

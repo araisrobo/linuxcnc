@@ -4,7 +4,6 @@ linuxcnc-firmware-*
 linuxcnc-sim
 files
 rules
-control
 tmp
 linuxcnc
 linuxcnc-dev
@@ -19,3 +18,4 @@ linuxcnc-doc-*/
 /linuxcnc-doc-*.files
 *.debhelper
 shlibs.local
+control

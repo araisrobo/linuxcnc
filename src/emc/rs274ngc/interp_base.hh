@@ -2,7 +2,7 @@
 
 /* Size of certain arrays */
 #define ACTIVE_G_CODES 16
-#define ACTIVE_M_CODES 10
+#define ACTIVE_M_CODES (10+1) // add one for araisrobo row
 #define ACTIVE_SETTINGS 3
 
 class InterpBase {

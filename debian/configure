@@ -19,6 +19,9 @@ Usage:
     $P sim
         Build for a system without a realtime kernel
 
+    $P sim-nox
+        Build for a system without a realtime kernel nor X
+
     $P [kernel-version]
         Build for the realtime kernel [kernel-version], such as 2.6.12-magma
 
@@ -66,6 +69,7 @@ KERNEL_VERSION=$1
 DRIVERS=drivers.files.in
 PYTHON_VERSION=$(python -c 'import sys; print sys.version[:3]')
 PYTHON_VERSION_NEXT=$(python -c 'import sys; print sys.version[:2] + str(1+int(sys.version[2]))')
+CONCURRENCY_LEVEL=`getconf _NPROCESSORS_ONLN`
 
 # hope this works on other systems too
 DISTRIB_NAME=
@@ -92,7 +96,7 @@ Ubuntu-11.04) # natty
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-10.04)
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-german,texlive-lang-spanish,texlive-lang-polish,texlive-font-utils
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-font-utils
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-9.10)
@@ -138,6 +142,21 @@ case $TARGET in
         # don't bother recommending hostmot2 firmware on sim
         EXTRA_RECOMMENDS=
     ;;
+    sim-nox)
+        MODULE_PATH=usr/lib/linuxcnc/modules
+	MODULE_EXT=.so
+	KERNEL_DEPENDS=
+	KERNEL_HEADERS=libpth-dev
+	DRIVERS=
+        EXTRA_FILES="usr/bin/rtapi_app"
+	DISTRIB_NAME=sim-nox-$DISTRIB_NAME
+	MAIN_PACKAGE_NAME=linuxcnc-sim-nox
+        OTHER_MAIN_PACKAGE_NAME=linuxcnc
+	OLD_PACKAGE_NAME=emc2-sim
+
+        # don't bother recommending hostmot2 firmware on sim
+        EXTRA_RECOMMENDS=
+    ;;
     2.6.12-magma)
         KERNEL_HEADERS=$KERNEL_HEADERS,gcc-3.4
     ;;
@@ -173,13 +192,20 @@ sed -e "s|@MODULE_PATH@|$MODULE_PATH|g" \
     -e "s|@PYTHON_VERSION@|$PYTHON_VERSION|g" \
     -e "s|@TCLTK_VERSION@|$TCLTK_VERSION|g" \
     -e "s|@PYTHON_VERSION_NEXT@|$PYTHON_VERSION_NEXT|g" \
+    -e "s|@CONCURRENCY_LEVEL@|$CONCURRENCY_LEVEL|g" \
     $*
 }
 
-subst control.in > control
+if [ "$TARGET" == "sim-nox" ]; then
+    subst control-nox.in > control
+else
+    subst control.in > control
+fi
 
-if [ "$TARGET" == "sim" ]; then
+if   [ "$TARGET" == "sim" ]; then
     cp linuxcnc-dev.files.in linuxcnc-sim-dev.files
+elif [ "$TARGET" == "sim-nox" ]; then
+    cp linuxcnc-dev.files.in linuxcnc-sim-nox-dev.files
 else
     cp linuxcnc-dev.files.in linuxcnc-dev.files
     echo "$MODULE_PATH/Module.symvers" >> linuxcnc-dev.files

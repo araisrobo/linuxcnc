@@ -289,8 +289,13 @@ class EMC_Action_Pause(_EMC_Action):
     __gtype_name__ = 'EMC_Action_Pause'
     def on_activate(self, w):
         self.stat.poll()
-        if self.stat.task_mode != linuxcnc.MODE_AUTO or\
+        if self.stat.task_mode == linuxcnc.MODE_MDI:
+            ensure_mode(self.stat, self.linuxcnc, linuxcnc.MODE_MDI)
+            self.linuxcnc.auto(linuxcnc.AUTO_PAUSE)
+            return
+        if self.stat.task_mode != linuxcnc.MODE_AUTO  or\
                 self.stat.interp_state not in (linuxcnc.INTERP_READING, linuxcnc.INTERP_WAITING):
+
             return
         ensure_mode(self.stat, self.linuxcnc, linuxcnc.MODE_AUTO)
         self.linuxcnc.auto(linuxcnc.AUTO_PAUSE)
@@ -298,7 +303,6 @@ class EMC_Action_Pause(_EMC_Action):
 class EMC_Action_Resume(_EMC_Action):
     __gtype_name__ = 'EMC_Action_Resume'
     def on_activate(self, w):
-        print "RESUME"
         self.stat.poll()
         if not self.stat.paused:
             return
@@ -418,13 +422,25 @@ class EMC_ToggleAction_MDI(_EMC_ToggleAction, EMC_Action_MDI):
     def _hal_init(self):
         _EMC_ToggleAction._hal_init(self)
         EMC_Action_MDI._hal_init(self)
-
-    def on_toggled(self, w):
+    
+    def execute(self):
+        '''
+            Execute MDI command without toggling a GTK Button.
+        '''
+        print 'execute'
+        self.emit('mdi-command-start')
+        ensure_mode(self.stat, self.linuxcnc, linuxcnc.MODE_MDI)
+        template = HalTemplate(self.command)
+        cmd = template.substitute(FloatComp(self.hal))
+        self.linuxcnc.mdi(cmd)
+        gobject.timeout_add(100, self.wait_complete)
+    def on_toggled(self, w = None):
         if not self.get_active():
             return
         self.set_sensitive(False)
         self.emit('mdi-command-start')
-        self.on_activate(w)
+        if w is not None:
+            self.on_activate(w)
         gobject.timeout_add(100, self.wait_complete)
 
     def wait_complete(self):

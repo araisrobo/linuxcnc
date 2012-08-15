@@ -164,6 +164,8 @@ class _GStat(gobject.GObject):
         line_old = old.get('line', None)
         line_new = self.old['line']
         if line_new != line_old:
+            if line_new != 0:
+                line_new = line_new - 1
             self.emit('line-changed', line_new)
 
         return True

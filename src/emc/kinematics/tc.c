@@ -10,18 +10,82 @@
 * System: Linux
 *    
 * Copyright (c) 2004 All rights reserved.
-*
-* Last change:
 ********************************************************************/
 
 /*
   FIXME-- should include <stdlib.h> for sizeof(), but conflicts with
   a bunch of <linux> headers
   */
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "posemath.h"
 #include "emcpos.h"
 #include "tc.h"
+#include "nurbs.h"
+
+#define TRACE 0
+#include "dptrace.h"
+
+#if (TRACE != 0)
+    static FILE *dptrace = NULL;
+    static uint32_t _dt = 0;
+#endif
+int nurbs_findspan (int n, int p, double u, double *U)
+{
+  // FIXME : this implementation has linear, rather than log complexity
+  int ret = 0;
+  while ((ret++ < n) && (U[ret] <= u)) {
+  };
+  return (ret-1);
+}
+
+// Basis Function.
+//
+// INPUT:
+//
+//   i - knot span  ( from FindSpan() )
+//   u - parametric point
+//   p - spline degree
+//   U - knot sequence
+//
+// OUTPUT:
+//
+//   N - Basis functions vector[p+1]  sizeof(double)*(p+1)
+//
+// Algorithm A2.2 from 'The NURBS BOOK' pg70.
+void nurbs_basisfun(int i, double u, int p,
+              double *U,
+              double *N)
+{
+  int j,r;
+  double saved, temp;
+
+  double *left = (double*)malloc(sizeof(double)*(p+1));
+  double *right = (double*)malloc(sizeof(double)*(p+1));
+
+  N[0] = 1.0;
+  for (j = 1; j <= p; j++)
+    {
+      left[j]  = u - U[i+1-j];
+      right[j] = U[i+j] - u;
+      saved = 0.0;
+
+      for (r = 0; r < j; r++)
+        {
+          temp = N[r] / (right[r+1] + left[j-r]);
+          N[r] = saved + right[r+1] * temp;
+          saved = left[j-r] * temp;
+        }
+
+      N[j] = saved;
+
+    }
+  free(left);
+  free(right);
+
+}
 
 PmCartesian tcGetStartingUnitVector(TC_STRUCT *tc) {
     PmCartesian v;
@@ -92,6 +156,7 @@ EmcPose tcGetEndpoint(TC_STRUCT * tc) {
     return tcGetPosReal(tc, 1);
 }
 
+
 EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 {
     EmcPose pos;
@@ -100,6 +165,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose uvw;
     
     double progress = of_endpoint? tc->target: tc->progress;
+#if(TRACE != 0)
+    static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
+#endif
 
     if (tc->motion_type == TC_RIGIDTAP) {
         if(tc->coords.rigidtap.state > REVERSING) {
@@ -111,6 +179,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
         abc.tran = tc->coords.rigidtap.abc;
         uvw.tran = tc->coords.rigidtap.uvw;
     } else if (tc->motion_type == TC_LINEAR) {
+
         if (tc->coords.line.xyz.tmag > 0.) {
             // progress is along xyz, so uvw and abc move proportionally in order
             // to end at the same time.
@@ -135,23 +204,210 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
             pmLinePoint(&tc->coords.line.uvw, 0.0, &uvw);
             pmLinePoint(&tc->coords.line.abc, progress, &abc);
         }
-    } else { //we have TC_CIRCULAR
-        // progress is always along the xyz circle.  This simplification 
+    } else if (tc->motion_type == TC_CIRCULAR) {//we have TC_CIRCULAR
+        // progress is always along the xyz circle.  This simplification
         // is possible since zero-radius arcs are not allowed by the interp.
+
         pmCirclePoint(&tc->coords.circle.xyz,
-		      progress * tc->coords.circle.xyz.angle / tc->target, 
+                      progress * tc->coords.circle.xyz.angle / tc->target,
                       &xyz);
-        // abc moves proportionally in order to end at the same time as the 
+        // abc moves proportionally in order to end at the same time as the
         // circular xyz move.
         pmLinePoint(&tc->coords.circle.abc,
-                    progress * tc->coords.circle.abc.tmag / tc->target, 
+                    progress * tc->coords.circle.abc.tmag / tc->target,
                     &abc);
         // same for uvw
         pmLinePoint(&tc->coords.circle.uvw,
-                    progress * tc->coords.circle.uvw.tmag / tc->target, 
+                    progress * tc->coords.circle.uvw.tmag / tc->target,
                     &uvw);
-    }
 
+    } else {
+        int s, tmp1,i;
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, F, D;
+        double       curve_accel;
+#if(TRACE != 0)
+        double delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
+#endif
+        N = tc->nurbs_block.N;
+//        NL = tc->nurbs_block.NL;
+        assert(tc->motion_type == TC_NURBS);
+
+        u = progress / tc->target;
+        if (u<1) {
+
+            s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
+                                u, tc->nurbs_block.knots_ptr);  //return span index of u_i
+            nurbs_basisfun(s, u, tc->nurbs_block.order - 1 , tc->nurbs_block.knots_ptr , N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
+                           // output: N:basis functions
+            // refer to bspeval.cc::line(70) of octave
+            // refer to opennurbs_evaluate_nurbs.cpp::line(985) of openNurbs
+            // refer to ON_NurbsCurve::Evaluate() for ...
+            // refer to opennurbs_knot.cpp::ON_NurbsSpanIndex()
+            // http://www.rhino3d.com/nurbs.htm (What is NURBS?)
+            //    Some modelers that use older algorithms for NURBS
+            //    evaluation require two extra knot values for a total of
+            //    degree+N+1 knots. When Rhino is exporting and importing
+            //    NURBS geometry, it automatically adds and removes these
+            //    two superfluous knots as the situation requires.
+            tmp1 = s - tc->nurbs_block.order + 1;
+            assert(tmp1 >= 0);
+            assert(tmp1 < tc->nurbs_block.nr_of_ctrl_pts);
+
+            R = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
+
+                R += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].R;
+            }
+
+            X = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
+
+            }
+            X = X/R;
+            xyz.tran.x = X;
+
+            Y = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Y;
+            }
+            Y = Y/R;
+            xyz.tran.y = Y;
+
+            Z = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Z;
+            }
+            Z = Z/R;
+            xyz.tran.z = Z;
+
+            A = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    A += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].A;
+            }
+            A = A/R;
+            abc.tran.x = A;
+
+            B = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    B += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].B;
+            }
+            B = B/R;
+            abc.tran.y = B;
+
+            C = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    C += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].C;
+            }
+            C = C/R;
+            abc.tran.z = C;
+
+            U = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    U += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].U;
+            }
+            U = U/R;
+            uvw.tran.x = U;
+
+            V = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    V += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].V;
+            }
+            V = V/R;
+            uvw.tran.y = V;
+
+            W = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    W += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].W;
+            }
+            W = W/R;
+            uvw.tran.z = W;
+
+            F = 0.0;
+            F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
+            tc->reqvel = F;
+
+            D = 0.0;
+            for (i=0; i<=tc->nurbs_block.order -1; i++) {
+                    D += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].D;
+            }
+            D = D/R;
+
+            // compute allowed feed
+            if(!of_endpoint) {
+                curve_accel = (tc->cur_vel * tc->cur_vel)/D;
+                if(curve_accel > tc->maxaccel) {
+                    // modify req_vel
+                    tc->reqvel = pmSqrt((tc->maxaccel * D));
+                }
+            }
+
+#if (TRACE != 0)
+                if(l == 0 && _dt == 0) {
+                    last_l = 0;
+                    last_u = 0;
+                    last_x = xyz.tran.x;
+                    last_y = xyz.tran.y;
+                    last_z = xyz.tran.z;
+                    last_a = 0;
+                    _dt+=1;
+                }
+                delta_l = l - last_l;
+                last_l = l;
+                delta_u = u - last_u;
+                last_u = u;
+                delta_x = xyz.tran.x - last_x;
+                delta_y = xyz.tran.y - last_y;
+                delta_z = xyz.tran.z - last_z;
+                delta_a = abc.tran.x - last_a;
+                delta_d = pmSqrt(pmSq(delta_x)+pmSq(delta_y)+pmSq(delta_z));
+                last_x = xyz.tran.x;
+                last_y = xyz.tran.y;
+                last_z = xyz.tran.z;
+                last_a = abc.tran.x;
+                if( delta_d > 0)
+                {
+                    if(_dt == 1){
+                      /* prepare header for gnuplot */
+                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s%15s\n",
+                           "#dt", "u", "l","x","y","z","delta_d", "delta_l","a");
+                    }
+
+                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l, last_a);
+
+                    _dt+=1;
+                }
+#endif // (TRACE != 0)
+
+        }else {
+            xyz.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].X;
+            xyz.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].Y;
+            xyz.tran.z = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].Z;
+            uvw.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].U;
+            uvw.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].V;
+            uvw.tran.z = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].W;
+            abc.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].A;
+            abc.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].B;
+            abc.tran.z = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].C;
+           // R = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].R;
+        }
+    }
+    //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
+    // TODO-eric if R going to show ?
+//#if (TRACE != 0)
+//    if(_dt == 0){
+//        /* prepare header for gnuplot */
+//        DPS ("%11s%15s%15s%15s\n", "#dt", "x", "y", "z");
+//    }
+//    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
+//    _dt+=1;
+//#endif // (TRACE != 0)
+#if (TRACE != 1)
+    if( of_endpoint != 1) {
+
+    }
+#endif
     pos.tran = xyz.tran;
     pos.a = abc.tran.x;
     pos.b = abc.tran.y;
@@ -159,7 +415,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     pos.u = uvw.tran.x;
     pos.v = uvw.tran.y;
     pos.w = uvw.tran.z;
-
+//    DP ("GetEndPoint?(%d) tc->id %d MotionType %d X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",
+//    		of_endpoint,tc->id,tc->motion_type, pos.tran.x,
+//    		pos.tran.y, pos.tran.z, pos.a);
     return pos;
 }
 
@@ -241,6 +499,13 @@ int tcqDelete(TC_QUEUE_STRUCT * tcq)
  */
 int tcqInit(TC_QUEUE_STRUCT * tcq)
 {
+#if (TRACE != 0)
+    if(!dptrace){
+        dptrace = fopen("tc.log","w");
+        fprintf(stderr,"tc.c dptrace not NULL \n");
+    }
+#endif
+
     if (0 == tcq) {
 	return -1;
     }
@@ -248,6 +513,7 @@ int tcqInit(TC_QUEUE_STRUCT * tcq)
     tcq->_len = 0;
     tcq->start = tcq->end = 0;
     tcq->allFull = 0;
+
 
     return 0;
 }
@@ -308,7 +574,7 @@ int tcqPut(TC_QUEUE_STRUCT * tcq, TC_STRUCT tc)
  */   
 int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 {
-
+    int i;
     if (n <= 0) {
 	    return 0;		/* okay to remove 0 or fewer */
     }
@@ -318,7 +584,17 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 	(n > tcq->_len)) {	/* too many requested */
 	    return -1;
     }
+    /* if NURBS ?*/
+    for(i=tcq->start;i<(tcq->start+n);i++){
 
+        if(tcq->queue[i].motion_type == TC_NURBS) {
+            //fprintf(stderr,"Remove TCNURBS PARAM\n");
+            free(tcq->queue[i].nurbs_block.knots_ptr);
+            free(tcq->queue[i].nurbs_block.ctrl_pts_ptr);
+            free(tcq->queue[i].nurbs_block.N);
+
+        }
+    }
     /* update start ptr and reset allFull flag and len */
     tcq->start = (tcq->start + n) % tcq->size;
     tcq->allFull = 0;

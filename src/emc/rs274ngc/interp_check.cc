@@ -254,7 +254,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   if (block->d_flag) {
     CHKS(((block->g_modes[7] != G_41) && (block->g_modes[7] != G_42) &&
         (block->g_modes[7] != G_41_1) && (block->g_modes[7] != G_42_1) &&
-	(block->g_modes[14] != G_96)),
+	(block->g_modes[14] != G_96) && (motion != G_6_2)),
         _("D word with no G41, G41.1, G42, G42.1, or G96 to use it"));
   }
 
@@ -270,21 +270,23 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->i_flag) {    /* could still be useless if yz_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) &&
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) && (motion != G_6_2) &&
           (motion != G_76) && (motion != G_87) && (block->g_modes[0] != G_10)),
-        _("I word with no G2, G3, G5, G5.1, G10, G76, or G87 to use it"));
+        _("I word with no G2, G3, G5, G5.1, G6.2, G10, G76, or G87 to use it"));
   }
 
   if (block->j_flag) {    /* could still be useless if xz_plane arc */
     CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) && 
-          (motion != G_76) && (motion != G_87) && (block->g_modes[0] != G_10)),
-        _("J word with no G2, G3, G5, G5.1, G10, G76 or G87 to use it"));
+          (motion != G_76) && (motion != G_87) && (block->g_modes[0] != G_10) &&
+          (block->m_modes[10] < 100 || block->m_modes[10] > 199 )),
+        _("J word with no G2, G3, G5, G5.1, G6.2, G10, G76 or G87 to use it"));
   }
 
   if (block->k_flag) {    /* could still be useless if xy_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_33) &&
-        (motion != G_33_1) && (motion != G_76) && (motion != G_87)),
-        _("K word with no G2, G3, G33, G33.1, G76, or G87 to use it"));
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_6_2) && (motion != G_33) &&
+          (motion != G_33_1) && (motion != G_76) && (motion != G_87) &&
+          (block->m_modes[10] < 100 || block->m_modes[10] > 199 )), /* M-code M100 ~ M199 */
+         _("K word with no G2, G3, G6.2, G33, G33.1, G76, or G87 to use it"));
   }
 
   if (block->l_number != -1) {
@@ -293,20 +295,21 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
          (block->g_modes[0] != G_10) &&
          (block->g_modes[7] != G_41) && (block->g_modes[7] != G_41_1) &&
          (block->g_modes[7] != G_42) && (block->g_modes[7] != G_42_1) &&
-	 (block->m_modes[5] != 66)),
+	 (block->m_modes[5] != 66) && (block->m_modes[11] != 200) &&
+	 (block->m_modes[10] < 100 || block->m_modes[10] > 199 )),
          _("L word with no G10, cutter compensation, canned cycle, digital/analog input, or NURBS code"));
   }
 
   if (block->p_flag) {
       CHKS(((block->g_modes[0] != G_10) && (block->g_modes[0] != G_4) && (block->g_modes[13] != G_64) &&
           (motion != G_76) && (motion != G_82) && (motion != G_86) && (motion != G_88) && 
-          (motion != G_89) && (motion != G_5) && (motion != G_5_2) &&
+          (motion != G_89) && (motion != G_5) && (motion != G_5_2) && (motion != G_6_2) &&
           (motion != G_2) && (motion != G_3) &&
           (block->m_modes[9] != 50) && (block->m_modes[9] != 51) && (block->m_modes[9] != 52) &&
           (block->m_modes[9] != 53) && (block->m_modes[5] != 62) && (block->m_modes[5] != 63) &&
           (block->m_modes[5] != 64) && (block->m_modes[5] != 65) && (block->m_modes[5] != 66) &&
           (block->m_modes[7] != 19) && (block->user_m != 1)),
-          _("P word with no G2 G3 G4 G10 G64 G5 G5.2 G76 G82 G86 G88 G89"
+          _("P word with no G2 G3 G4 G10 G64 G5 G5.2 G6.2 G76 G82 G86 G88 G89"
             " or M50 M51 M52 M53 M62 M63 M64 M65 M66 or user M code to use it"));
       int p_value = round_to_int(block->p_number);
       CHKS(((motion == G_2 || motion == G_3 || (block->m_modes[7] == 19)) && 
@@ -327,11 +330,12 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->r_flag) {
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_76) &&
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_6_2) && (motion != G_76) &&
          ((motion < G_81) || (motion > G_89)) && (motion != G_73) && 
          (block->g_modes[7] != G_41_1) && (block->g_modes[7] != G_42_1) &&
-         (block->g_modes[0] != G_10) && (block->m_modes[7] != 19) ),
-        NCE_R_WORD_WITH_NO_G_CODE_THAT_USES_IT);
+         (block->g_modes[0] != G_10) && (block->m_modes[7] != 19) &&
+         (block->m_modes[10] < 100 || block->m_modes[10] > 199 )),  // allow R for M100 ~ M199
+         NCE_R_WORD_WITH_NO_G_CODE_THAT_USES_IT);
     CHKS((block->m_modes[7] == 19) && ((block->r_number > 360.0) || (block->r_number < 0.0)),
 	   _("R value must be within 0..360 with M19"));
   }

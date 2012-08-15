@@ -55,8 +55,10 @@
 #define MAX_NESTED_REMAPS 10
 
 /* numerical constants */
-#define TOLERANCE_INCH 0.0005
-#define TOLERANCE_MM 0.005
+//  #define TOLERANCE_INCH 0.0005
+//  #define TOLERANCE_MM 0.005
+#define TOLERANCE_INCH 0.05
+#define TOLERANCE_MM 0.5
 /* angle threshold for concavity for cutter compensation, in radians */
 #define TOLERANCE_CONCAVE_CORNER 0.05  
 #define TOLERANCE_EQUAL 0.0001 /* two numbers compare EQ if the
@@ -153,6 +155,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_5_1   51
 #define G_5_2   52
 #define G_5_3   53
+#define G_6_2   62    // FANUC NURBS G-code: G06.2
 #define G_7     70
 #define G_8     80
 #define G_10   100
@@ -388,7 +391,7 @@ typedef struct block_struct
   int n_number;
   int motion_to_be;
   int m_count;
-  int m_modes[11];
+  int m_modes[11+1]; // add artek m_modes[11]
   int user_m;
   double p_number;
   bool p_flag;
@@ -710,7 +713,6 @@ typedef struct setup_struct
   int a_indexer;
   int b_indexer;
   int c_indexer;
-
   bool lathe_diameter_mode;       //Lathe diameter mode (g07/G08)
   bool mdi_interrupt;
   int feature_set; 

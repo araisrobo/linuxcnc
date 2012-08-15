@@ -278,6 +278,109 @@ static __inline__ int test_and_clear_bit(unsigned long nr,
         return (old & mask) != 0;
 }
 
+#elif defined(__ARMEL__)
+
+/*
+ * CPU interrupt mask handling.
+ */
+#if ( __ARM_ARCH_6ZK__ | __ARM_ARCH_7A__ )
+
+/** 
+ * Yishin Li, ysli@araisrobo.com, 2011-12-30: 
+ * I think we need at least ARMv6 which has hardware floating point
+ * acceleration for trajectory planning calculation.
+ **/
+
+/*
+ * Save the current interrupt enable state & disable IRQs
+ */
+static inline unsigned long arch_local_irq_save(void)
+{
+	unsigned long flags;
+
+	asm volatile(
+		"	mrs	%0, cpsr	@ arch_local_irq_save\n"
+		"	cpsid	i"
+		: "=r" (flags) : : "memory", "cc");
+	return flags;
+}
+
+#else
+
+#warning Is your (__ARM_ARCH__ < 6)?
+
+/**
+ * check your __ARM_ARCH_*__ with "gcc -dM -E - < /dev/null | grep ARM".
+ * Then, append it to previous #if conditions.
+ **/
+
+
+/*
+ * Save the current interrupt enable state & disable IRQs
+ */
+static inline unsigned long arch_local_irq_save(void)
+{
+	unsigned long flags, temp;
+
+	asm volatile(
+		"	mrs	%0, cpsr	@ arch_local_irq_save\n"
+		"	orr	%1, %0, #128\n"
+		"	msr	cpsr_c, %1"
+		: "=r" (flags), "=r" (temp)
+		:
+		: "memory", "cc");
+	return flags;
+}
+
+#endif
+
+/*
+ * restore saved IRQ & FIQ state
+ */
+static inline void arch_local_irq_restore(unsigned long flags)
+{
+	asm volatile(
+		"	msr	cpsr_c, %0	@ local_irq_restore"
+		:
+		: "r" (flags)
+		: "memory", "cc");
+}
+
+
+static __inline__ int test_and_set_bit(unsigned long bit,
+                                       volatile unsigned long *p)
+{
+	unsigned long flags;
+	unsigned int res;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	flags = arch_local_irq_save();
+	res = *p;
+	*p = res | mask;
+	arch_local_irq_restore(flags);
+
+	return (res & mask) != 0;
+}
+
+static __inline__ int test_and_clear_bit(unsigned long bit,
+                                         volatile unsigned long *p)
+{
+	unsigned long flags;
+	unsigned int res;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	flags = arch_local_irq_save();
+	res = *p;
+	*p = res & ~mask;
+	arch_local_irq_restore(flags);
+
+	return (res & mask) != 0;
+}
+
 #else
 #error The header file <asm/bitops.h> is not usable and rtapi does not yet have support for your CPU
 #endif

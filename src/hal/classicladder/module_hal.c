@@ -23,7 +23,9 @@
    License along with this library; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-
+#include "unistd.h"
+#include "stdio.h"
+#include "stdlib.h"
 #include "rtapi.h"
 #include "rtapi_app.h"
 #include "rtapi_errno.h"
@@ -79,6 +81,7 @@ extern StrGeneralParams GeneralParamsMirror;
 
 #define TIME_REFRESH_RUNG_NS (1000 * 1000 * (TIME_REFRESH_RUNG_MS))
 
+
 void HalReadPhysicalInputs(void) {
 	int i;
 	for( i=0; i<InfosGene->GeneralParams.SizesInfos.nbr_phys_inputs; i++) {
@@ -131,14 +134,14 @@ void HalWriteFloatOutputs(void) {
 // your timer are using multiples of 100 microseconds they might not be accurate.
 // t0 and t1 are for keeping track of how long the refresh of sections, 
 // and HAL pins take (it is displayed in the 'section display' GUI (in microseconds). 
-
+static long last_period;
 static void hal_task(void *arg, long period) {
 	unsigned long t0, t1,milliseconds;
 	static unsigned long leftover=0;
 	leftover += period;
 	milliseconds= leftover / 1000000;
 	leftover %= 1000000;
-
+        last_period = period;
 	if (milliseconds >= 1) {
 		InfosGene->GeneralParams.PeriodicRefreshMilliSecs=milliseconds;
 		*hal_state = InfosGene->LadderState;

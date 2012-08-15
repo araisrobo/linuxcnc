@@ -57,6 +57,11 @@ struct set_spindle_speed {
     double speed;
 };
 
+struct set_spindle_dir {
+    int line_number;
+    setup_pointer settings;
+};
+
 struct comment {
     char *comment;
 };
@@ -65,6 +70,11 @@ struct mcommand {
     int    index;
     double p_number;
     double q_number;
+    double r_number;
+    double s_number;
+    double j_number;
+    double k_number;
+    double l_number;
 };
 
 struct orient_spindle {
@@ -89,6 +99,7 @@ struct queued_canon {
         struct set_spindle_speed set_spindle_speed;
         struct comment comment;
         struct mcommand mcommand;
+        struct set_spindle_dir set_spindle_dir;
 	struct orient_spindle orient_spindle;
 	struct wait_orient_spindle_complete wait_orient_spindle_complete;
     } data;
@@ -103,8 +114,11 @@ void enqueue_MIST_ON(void);
 void enqueue_MIST_OFF(void);
 void enqueue_FLOOD_ON(void);
 void enqueue_FLOOD_OFF(void);
-void enqueue_START_SPINDLE_CLOCKWISE(void);
-void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void);
+// void enqueue_START_SPINDLE_CLOCKWISE(void);
+// void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void);
+// get wrong line number while tool comp is on
+void enqueue_START_SPINDLE_CLOCKWISE(int l);
+void enqueue_START_SPINDLE_COUNTERCLOCKWISE(int l);
 void enqueue_STOP_SPINDLE_TURNING(void);
 void enqueue_SET_SPINDLE_MODE(double mode);
 void enqueue_SET_SPINDLE_SPEED(double speed);
@@ -126,13 +140,16 @@ void enqueue_ARC_FEED(setup_pointer settings, int l,
                       double end3,
                       double a, double b, double c,
                       double u, double v, double w);
-void enqueue_M_USER_COMMAND(int index,double p_number,double q_number);
+void enqueue_M_USER_COMMAND(int index,double p_number,double q_number,
+                            double r_number, double s_number, double j_number, 
+                            double k_number, double l_number);
 void enqueue_START_CHANGE(void);
 void enqueue_ORIENT_SPINDLE(double orientation, int mode);
 void enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(double timeout);
 void dequeue_canons(setup_pointer settings);
 void set_endpoint(double x, double y);
-void set_endpoint_zx(double z, double x);
+void offset_endpoint(setup_pointer settings, double offset_x, double offset_y, double offset_z);
+//2012-03-16 obsolete: void set_endpoint_zx(double z, double x);
 int move_endpoint_and_flush(setup_pointer settings, double x, double y);
 void qc_reset(void);
 void qc_scale(double scale);

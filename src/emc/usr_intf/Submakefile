@@ -2,6 +2,8 @@ EMCSHSRCS := emc/usr_intf/emcsh.cc \
              emc/usr_intf/shcom.cc
 EMCRSHSRCS := emc/usr_intf/emcrsh.cc \
               emc/usr_intf/shcom.cc
+LCOMSRCS := emc/usr_intf/linuxcnc_over_modbus.cc \
+              emc/usr_intf/shcom.cc
 EMCSCHEDSRCS := emc/usr_intf/schedrmt.cc \
               emc/usr_intf/emcsched.cc \
               emc/usr_intf/shcom.cc
@@ -18,7 +20,7 @@ XEMCSRCS := emc/usr_intf/xemc.cc
 endif
 
 TCLSRCS := emc/usr_intf/emcsh.cc emc/usr_intf/iosh.cc
-USERSRCS += $(EMCSHSRCS) $(EMCRSHSRCS) $(EMCSCHEDSRCS) $(EMCLCDSRCS) $(USRMOTSRCS) $(HALUISRCS) $(KEYSTICKSRCS)
+USERSRCS += $(EMCSHSRCS) $(EMCRSHSRCS) $(LCOMSRCS) $(EMCSCHEDSRCS) $(EMCLCDSRCS) $(USRMOTSRCS) $(HALUISRCS) $(KEYSTICKSRCS)
 
 ifeq "$(HAVE_NCURSES)" "yes"
 USERSRCS += $(KEYSTICKSRCS)
@@ -30,6 +32,7 @@ endif
 
 $(call TOOBJSDEPS, $(TCLSRCS)) : EXTRAFLAGS = $(ULFLAGS) $(TCL_CFLAGS)
 $(call TOOBJSDEPS, $(EMCSHSRCS)) : EXTRAFLAGS = $(ULFLAGS) $(TCL_CFLAGS) -fPIC
+$(call TOOBJSDEPS, $(LCOMSRCS)) : EXTRAFLAGS = $(LIBMODBUS_CFLAGS)
 
 ../bin/tooledit: emc/usr_intf/tooledit.tcl
 	cp $< $@
@@ -45,6 +48,11 @@ TARGETS += ../tcl/linuxcnc.so
 	$(ECHO) Linking $(notdir $@)
 	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ -lpthread
 TARGETS += ../bin/linuxcncrsh
+
+../bin/linuxcnc_over_modbus: $(call TOOBJS, $(LCOMSRCS)) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
+	$(ECHO) Linking $(notdir $@)
+	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ -lpthread $(LIBMODBUS_LIBS) -lrt
+TARGETS += ../bin/linuxcnc_over_modbus
 
 ../bin/schedrmt: $(call TOOBJS, $(EMCSCHEDSRCS)) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)

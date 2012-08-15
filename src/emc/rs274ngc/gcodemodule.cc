@@ -18,6 +18,7 @@
 
 #include <Python.h>
 #include <structmember.h>
+#include <assert.h>
 
 #include "rs274ngc.hh"
 #include "rs274ngc_interp.hh"
@@ -169,14 +170,160 @@ static void maybe_new_line(int sequence_number) {
     Py_XDECREF(result);
 }
 
+void NURBS_FEED_3D (
+    int line_number, 
+    const std::vector<CONTROL_POINT> & c, // nurbs_control_points
+    const std::vector<double> & k,  // nurbs_knot_vector 
+    unsigned int order,double length, uint32_t axis_mask )
+{
+    double u = 0.0;
+    int   i;
+    
+    // INPUT:
+    //    d - Degree of the B-Spline.
+    //    c - Control Points, matrix of size (dim,nc).
+    //    k - Knot sequence, row vector of size nk.
+    //    u - Parametric evaluation points, row vector of size nu.
+    // OUTPUT:
+    //    p - Evaluated points, matrix of size (dim,nu)
+
+    int d = order-1;
+    int nu = c.size() * 10 + 1; // u.length();
+    int nc = c.size(), knot_size;
+    double       *N ,*knot,R, X, Y, Z, A , B, C, U, V, W;
+    CONTROL_POINT *cp ;
+
+    knot = (double*)malloc(sizeof(double)*k.size());
+    cp = (CONTROL_POINT*)malloc(sizeof(CONTROL_POINT)*c.size());
+    N = (double*)malloc(sizeof(double)*(d+1));
+    memcpy(knot,&k[0],sizeof(double)*k.size());
+    memcpy(cp,&c[0],sizeof(CONTROL_POINT)*c.size());
+    knot_size = k.size();
+
+    if (nc + d == (int)(knot_size - 1)) {
+        int s, tmp1;
+        
+        for (int col(0); col<nu; col++) {
+
+            u = (double) col / (nu - 1.0);
+                 // control points -1 , spline degree, paramatic point, knots
+            s = nurbs_findspan(nc-1, d, u, knot);  //return span index of u_i
+            nurbs_basisfun(s, u, d, knot, N);    // input: s:knot span index u:u_0 d:B-Spline degree  k:Knots
+                                  // output: N:basis functions
+            tmp1 = s - d;                
+            
+            R = 0.0;
+            for (i=0; i<=d; i++) {
+                R += N[i]*cp[tmp1+i].R;
+            }
+
+            if ( axis_mask &  AXIS_MASK_X ) {
+                X = 0.0;
+                for (i=0; i<=d; i++) {
+                    X += N[i]*cp[tmp1+i].X*cp[tmp1+i].R;
+                }
+                X = X/R;
+                _pos_x = X;
+            }
+
+            if ( axis_mask & AXIS_MASK_Y) {
+                Y = 0.0;
+                for (i=0; i<=d; i++) {
+                    Y += N[i]*cp[tmp1+i].Y*cp[tmp1+i].R;
+                }
+                Y = Y/R;
+                _pos_y = Y;
+            }
+
+            if ( axis_mask & AXIS_MASK_Z) {
+                    Z = 0.0;
+                    for (i=0; i<=d; i++) {
+                            Z += N[i]*cp[tmp1+i].Z*cp[tmp1+i].R;
+                    }
+                    Z = Z/R;
+                    _pos_z = Z;
+            }
+
+            if ( axis_mask & AXIS_MASK_A) {
+                    A = 0.0;
+                    for (i=0; i<=d; i++) {
+                            A += N[i]*cp[tmp1+i].A*cp[tmp1+i].R;
+                    }
+                    A = A/R;
+                    _pos_a = A;
+            }
+            if ( axis_mask & AXIS_MASK_B) {
+                    B = 0.0;
+                    for (i=0; i<=d; i++) {
+                            B += N[i]*cp[tmp1+i].B*cp[tmp1+i].R;
+                    }
+                    B = B/R;
+                    _pos_b = B;
+            }
+            if ( axis_mask & AXIS_MASK_C) {
+                    C = 0.0;
+                    for (i=0; i<=d; i++) {
+                            C += N[i]*cp[tmp1+i].C*cp[tmp1+i].R;
+                    }
+                    C = C/R;
+                    _pos_c = C;
+            }
+            if ( axis_mask & AXIS_MASK_U) {
+                    U = 0.0;
+                    for (i=0; i<=d; i++) {
+                            U += N[i]*cp[tmp1+i].U*cp[tmp1+i].R;
+                    }
+                    U = U/R;
+                    _pos_u = u;
+            }
+            if ( axis_mask & AXIS_MASK_V) {
+                    V = 0.0;
+                    for (i=0; i<=d; i++) {
+                            V += N[i]*cp[tmp1+i].V*cp[tmp1+i].R;
+                    }
+                    V = V/R;
+                    _pos_v = V;
+            }
+            if ( axis_mask & AXIS_MASK_W) {
+                    W = 0.0;
+                    for (i=0; i<=d; i++) {
+                            W += N[i]*cp[tmp1+i].W*cp[tmp1+i].R;
+                    }
+                    W = W/R;
+                    _pos_w = W;
+            }
+
+            STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
+                          _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+
+
+        }
+    } else {
+        /*fprintf(stderr, "inconsistent bspline data, d(%d) + columns(c(%d)) != length(k(%d)) - 1.\n",
+                d, nc, k);*/
+        fprintf(stderr, "src/emc/rs274gnc/gcodemodule.cc:inconsistent bspline data, d + columns(c) != length(k).\n");
+    }
+
+    free(N);
+    free(cp);
+    free(knot);
+    
+    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() end\n", //TODO-eric:GCODE NURBS_FEED_3D Print
+    //         __FILE__, __FUNCTION__, __LINE__, c.size());
+}
+
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
     unsigned int n = nurbs_control_points.size() - 1;
     double umax = n - k + 2;
-    unsigned int div = nurbs_control_points.size()*15;
+    double div = (double) nurbs_control_points.size() * 15.0;
+    // printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() begin\n",
+    //         __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
     std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
     PLANE_POINT P1;
     while (u+umax/div < umax) {
+        // printf("%s: (%s:%d): (u(%f)+umax(%f))/div(%f)=%f\n",
+        //     __FILE__, __FUNCTION__, __LINE__, u, umax, div, u+umax/div);
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
         STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
         u = u + umax/div;
@@ -185,6 +332,8 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     P1.Y = nurbs_control_points[n].Y;
     STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
     knot_vector.clear();
+    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() end\n",
+            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
 }
 
 void ARC_FEED(int line_number,
@@ -401,8 +550,26 @@ void STOP_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void START_SPEED_FEED_SYNCH() {}
 void START_SPEED_FEED_SYNCH(double sync, bool vel) {}
 void STOP_SPEED_FEED_SYNCH() {}
-void START_SPINDLE_COUNTERCLOCKWISE() {}
-void START_SPINDLE_CLOCKWISE() {}
+void START_SPINDLE_COUNTERCLOCKWISE(int l)
+{
+// DEBUG:    printf("start spindle counterclockwise\n");
+    maybe_new_line(l);
+    if(interp_error) return;
+    PyObject *result =
+        callmethod(callback, "start_spindle_counterclockwise", "f");
+    if(result == NULL) interp_error ++;
+    Py_XDECREF(result);
+}
+void START_SPINDLE_CLOCKWISE(int l)
+{
+// DEBUG:    printf("start spindle clockwise\n");
+    maybe_new_line(l);
+    if(interp_error) return;
+    PyObject *result =
+        callmethod(callback, "start_spindle_clockwise", "f");
+    if(result == NULL) interp_error ++;
+    Py_XDECREF(result);
+}
 void SET_SPINDLE_MODE(double) {}
 void STOP_SPINDLE_TURNING() {}
 void SET_SPINDLE_SPEED(double rpm) {}
@@ -458,6 +625,7 @@ void SET_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_VALUE(int index, double value) {}
 void CLEAR_MOTION_OUTPUT_BIT(int bit) {}
 void SET_MOTION_OUTPUT_BIT(int bit) {}
+void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type, double timeout, unsigned char now) {}
 void SET_MOTION_OUTPUT_VALUE(int index, double value) {}
 void TURN_PROBE_ON() {}
 void TURN_PROBE_OFF() {}
@@ -545,12 +713,13 @@ int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) { return def; }
 int WAIT(int index, int input_type, int wait_type, double timeout) { return 0;}
 
-static void user_defined_function(int num, double arg1, double arg2) {
+static void user_defined_function(int num, double arg1, double arg2, double arg3,
+                                  double arg4, double arg5, double arg6, double arg7) {
     if(interp_error) return;
     maybe_new_line();
     PyObject *result =
         callmethod(callback, "user_defined_function",
-                            "idd", num, arg1, arg2);
+                            "idd", num, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
     if(result == NULL) interp_error++;
     Py_XDECREF(result);
 }
@@ -826,6 +995,7 @@ static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
             min_zt = std::min(min_zt, ze+zt);
         }
     }
+    
     return Py_BuildValue("[ddd][ddd][ddd][ddd]",
         min_x, min_y, min_z,  max_x, max_y, max_z,
         min_xt, min_yt, min_zt,  max_xt, max_yt, max_zt);
@@ -953,7 +1123,7 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
     if(rot > 1) theta2 += 2*M_PI*(rot-1);
 
     int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
-    double rsteps = 1. / steps;
+    double rsteps = 1. / (steps); 
     PyObject *segs = PyList_New(steps);
 
     double dtheta = theta2 - theta1;
@@ -961,10 +1131,10 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
     d[Z] = n[Z] - o[Z];
 
     double tx = o[X] - cx, ty = o[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
-    for(int i=0; i<steps-1; i++) {
-        double f = (i+1) * rsteps;
+    for(int i=0; i<steps; i++) {
+        double f = (i) * rsteps; 
         double p[9];
-        rotate(tx, ty, dc, ds);
+        if (i>0) rotate(tx, ty, dc, ds);
         p[X] = tx + cx;
         p[Y] = ty + cy;
         p[Z] = o[Z] + d[Z] * f;

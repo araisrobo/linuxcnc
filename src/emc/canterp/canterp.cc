@@ -555,12 +555,12 @@ int Canterp::execute(const char *line) {
     }
 
     if (!strcmp(the_command_name, "START_SPINDLE_CLOCKWISE")) {
-	START_SPINDLE_CLOCKWISE();
+	START_SPINDLE_CLOCKWISE(ln);
 	return 0;
     }
 
     if (!strcmp(the_command_name, "START_SPINDLE_COUNTERCLOCKWISE")) {
-	START_SPINDLE_COUNTERCLOCKWISE();
+	START_SPINDLE_COUNTERCLOCKWISE(ln);
 	return 0;
     }
 

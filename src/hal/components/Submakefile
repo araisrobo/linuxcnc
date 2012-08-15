@@ -105,3 +105,5 @@ hal/components/conv_u32_bit.comp: hal/components/conv.comp.in hal/components/mkc
 hal/components/conv_u32_s32.comp: hal/components/conv.comp.in hal/components/mkconv.sh hal/components/Submakefile
 	$(ECHO) converting conv for $(notdir $@)
 	$(Q)sh hal/components/mkconv.sh u32 s32 "" -1 2147483647 < $< > $@
+
+#not for binary release: # TARGETS += ../bin/audio

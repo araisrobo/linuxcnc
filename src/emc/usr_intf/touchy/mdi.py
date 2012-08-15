@@ -26,6 +26,7 @@
 
 class mdi:
     def __init__(self, emc):
+        print "mdi module init +++++"
         self.clear()
         self.emc = emc
         self.emcstat = emc.stat()
@@ -44,6 +45,7 @@ class mdi:
         self.gcode = 'M2'
 
         self.codes = {
+          # gcode | description | words
             'M3' : [_('Spindle CW'), 'S'],
             'M4' : [_('Spindle CCW'), 'S'],
             'M6' : [_('Tool change'), 'T'],
@@ -95,20 +97,22 @@ class mdi:
             self.ocodes.append(call)
             self.codes[call] = args
 
+        print "mdi module init ----"
+
     def get_description(self, gcode):
         return self.codes[gcode][0]
     
     def get_words(self, gcode):
-        self.gcode = gcode
+        self.gcode = gcode #apply input gcode
         if gcode[0] == 'M' and gcode.find(".") == -1 and int(gcode[1:]) >= 100 and int(gcode[1:]) <= 199:
             return ['P', 'Q']
         if not self.codes.has_key(gcode):
             return []
         # strip description
-        words = self.codes[gcode][1:]
+        words = self.codes[gcode][1:]  #find in G-code dict
         # replace A with the real axis names
-        if 'A' in words:
-            i = words.index('A')
+        if 'A' in words:         # if A in word , apply axes into words, 
+            i = words.index('A') # ex 'G03' words = 'A', 'I', 'J', 'K', 'R', 'F' => 'X', 'Y', 'Z', 'I', 'J', 'K', 'R', 'F'
             words = words[:i] + self.axes + words[i+1:]
             if self.polar and 'X' in self.axes and 'Y' in self.axes:
                 words[self.axes.index('X')] = '@'
@@ -125,6 +129,7 @@ class mdi:
         self.polar = p;
 
     def issue(self):
+        print "mdi issue ++++"
         m = self.gcode
         if m.lower().startswith('o'):
             codes = self.codes[m]
@@ -147,10 +152,11 @@ class mdi:
             self.emccommand.mode(self.emc.MODE_MDI)
             self.emccommand.wait_complete()
         self.emccommand.mdi(m)
-
+        print "mdi issue ----"
 
 class mdi_control:
     def __init__(self, gtk, emc, labels, eventboxes):
+        print "mdi_control module ++++"
         self.labels = labels
         self.eventboxes = eventboxes
         self.numlabels = len(labels)
@@ -164,6 +170,7 @@ class mdi_control:
             self.not_editing(i)
         self.editing(self.selected)
         self.set_text("G")
+        print "mdi_control module -----"
             
     def not_editing(self, n):
         e = self.eventboxes[n]
