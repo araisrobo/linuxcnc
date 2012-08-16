@@ -10,7 +10,7 @@ Build-Depends: debhelper (>= 6),
     python, python-dev, python-support, python-tk, python-lxml, python-scipy,
     libglu1-mesa-dev, libgl1-mesa-dev | libgl1-mesa-swx11-dev,
     libgtk2.0-dev, libgnomeprintui2.2-dev, gettext, autoconf, libboost-python-dev,
-    texlive-lang-cyrillic, libwou-dev (>= 0.1-9),
+    texlive-lang-cyrillic, libwou-dev (>= 0.1-9), libmodbus-dev
 Standards-Version: 2.1.0
 
 Package: @MAIN_PACKAGE_NAME@-dev
@@ -21,7 +21,7 @@ Provides: @OLD_PACKAGE_NAME@-dev
 Depends: g++, @KERNEL_HEADERS@,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends}, ${misc:Depends},
-    @MAIN_PACKAGE_NAME@ (= ${binary:Version}), libwou-dev,
+    @MAIN_PACKAGE_NAME@ (= ${binary:Version}), libwou-dev, libmodbus-dev,
     yapps2-runtime
 Section: libs
 Description: PC based motion controller for real-time Linux
@@ -40,7 +40,7 @@ Architecture: any
 Recommends: linuxcnc-doc-en | linuxcnc-doc-fr | linuxcnc-doc-de | linuxcnc-doc-es | linuxcnc-doc-pl, @EXTRA_RECOMMENDS@
 Depends: ${shlibs:Depends}, @KERNEL_DEPENDS@,
     tcl@TCLTK_VERSION@, tk@TCLTK_VERSION@, bwidget (>= 1.7), libtk-img (>=1.13),
-    libwou,
+    libwou, libmodbus5,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends}, ${misc:Depends},
     python@PYTHON_VERSION@-tk,
