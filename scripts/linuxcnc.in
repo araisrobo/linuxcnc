@@ -266,6 +266,8 @@ fi
 # delete directories from path, save name only
 INI_NAME="${INIFILE##*/}"
 INI_DIR="${INIFILE%/*}"
+CONFIG_DIR="${INIFILE%/*}"
+export CONFIG_DIR
 
 # for python modules in $INI_DIR
 PYTHONPATH=${INI_DIR}:$PYTHONPATH

@@ -31,6 +31,9 @@ from scipy import linalg
 from numpy import cross
 from numpy import linalg as LA
 
+def minmax(*args):
+    return min(*args), max(*args)
+
 homeicon = array.array('B',
         [0x2, 0x00,   0x02, 0x00,   0x02, 0x00,   0x0f, 0x80,
         0x1e, 0x40,   0x3e, 0x20,   0x3e, 0x20,   0x3e, 0x20,
@@ -652,7 +655,7 @@ class GlCanonDraw:
         'back': (0.00, 0.00, 0.00),
         'lathetool_alpha': 0.10,
         'axis_x': (0, 0, 0),
-        # 'axis_x': (0.20, 1.00, 0.20),
+        # 'axis_x': (0.20, 1.00, 0.20), # original
         'cone': (1.00, 1.00, 0.00), # yellow
         # 'cone': (1.00, 1.00, 1.00), # green 
         'cone_xy': (0.00, 1.00, 0.00),
@@ -692,6 +695,7 @@ class GlCanonDraw:
         'arc_feed_alpha_uv': 1/3.,
         # 'axis_y': (1.00, 0.20, 0.20),
         'axis_y': (0, 0, 0),
+        'grid': (0.15, 0.15, 0.15),
     }
     def __init__(self, s, lp, g=None):
         self.stat = s
@@ -1115,6 +1119,130 @@ class GlCanonDraw:
         if self.canon: return self.canon.foam_w
         return 1.5
 
+    def get_grid(self):
+        if self.canon and self.canon.grid: return self.canon.grid
+        return 5./25.4
+
+    def comp(self, (sx, sy), (cx, cy)):
+        return -(sx*cx + sy*cy) / (sx*sx + sy*sy)
+
+    def param(self, (x1, y1), (dx1, dy1), (x3, y3), (dx3, dy3)):
+        den = (dy3)*(dx1) - (dx3)*(dy1)
+        if den == 0: return 0
+        num = (dx3)*(y1-y3) - (dy3)*(x1-x3)
+        return num * 1. / den
+
+    def draw_grid_lines(self, space, (ox, oy), (dx, dy), lim_min, lim_max,
+            inverse_permutation):
+        # draw a series of line segments of the form
+        #   dx(x-ox) + dy(y-oy) + k*space = 0
+        # for integers k that intersect the AABB [lim_min, lim_max]
+        lim_pts = [
+                (lim_min[0], lim_min[1]),
+                (lim_max[0], lim_min[1]),
+                (lim_min[0], lim_max[1]),
+                (lim_max[0], lim_max[1])]
+        od = self.comp((dy, -dx), (ox, oy))
+        d0, d1 = minmax(*(self.comp((dy, -dx), i)-od for i in lim_pts))
+        k0 = int(math.ceil(d0/space))
+        k1 = int(math.floor(d1/space))
+        delta = (dx, dy)
+        for k in range(k0, k1+1):
+            d = k*space
+            # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
+            p0 = (ox - dy * d, oy + dx * d)
+            # which is the same as the line p0 + u * delta
+
+            # but we only want the part that's inside the box lim_pts...
+            if dx and dy:
+                times = [
+                        self.param(p0, delta, lim_min[:2], (0, 1)),
+                        self.param(p0, delta, lim_min[:2], (1, 0)),
+                        self.param(p0, delta, lim_max[:2], (0, 1)),
+                        self.param(p0, delta, lim_max[:2], (1, 0))]
+                times.sort()
+                t0, t1 = times[1], times[2] # Take the middle two times
+            elif dx:
+                times = [
+                        self.param(p0, delta, lim_min[:2], (0, 1)),
+                        self.param(p0, delta, lim_max[:2], (0, 1))]
+                times.sort()
+                t0, t1 = times[0], times[1] # Take the only two times
+            else:
+                times = [
+                        self.param(p0, delta, lim_min[:2], (1, 0)),
+                        self.param(p0, delta, lim_max[:2], (1, 0))]
+                times.sort()
+                t0, t1 = times[0], times[1] # Take the only two times
+            x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
+            x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
+            xm, ym = (x0+x1)/2, (y0+y1)/2
+            # The computation of k0 and k1 above should mean that
+            # the lines are always in the limits, but I observed
+            # that this wasn't always the case...
+            #if xm < lim_min[0] or xm > lim_max[0]: continue
+            #if ym < lim_min[1] or ym > lim_max[1]: continue
+            glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
+            glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
+
+    def draw_grid_permuted(self, rotation, permutation, inverse_permutation):
+        grid_size=self.get_grid_size()
+        if not grid_size: return
+
+        glLineWidth(1)
+        glColor3f(*self.colors['grid'])
+        lim_min, lim_max = self.soft_limits()
+        lim_min = permutation(lim_min)
+        lim_max = permutation(lim_max)
+
+        lim_pts = (
+                (lim_min[0], lim_min[1]),
+                (lim_max[0], lim_min[1]),
+                (lim_min[0], lim_max[1]),
+                (lim_max[0], lim_max[1]))
+        s = self.stat
+        g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:2]
+        g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:2]
+        if self.get_show_relative():
+            cos_rot = math.cos(rotation)
+            sin_rot = math.sin(rotation)
+            offset = (
+                    g5x_offset[0] + g92_offset[0] * cos_rot
+                                  - g92_offset[1] * sin_rot,
+                    g5x_offset[1] + g92_offset[0] * sin_rot
+                                  + g92_offset[1] * cos_rot)
+        else:
+            offset = 0., 0.
+            cos_rot = 1.
+            sin_rot = 0.
+        glDepthMask(False)
+        glBegin(GL_LINES)
+        self.draw_grid_lines(grid_size, offset, (cos_rot, sin_rot),
+                lim_min, lim_max, inverse_permutation)
+        self.draw_grid_lines(grid_size, offset, (sin_rot, -cos_rot),
+                lim_min, lim_max, inverse_permutation)
+        glEnd()
+        glDepthMask(True)
+
+    def draw_grid(self):
+        x,y,z,p = 0,1,2,3
+        view = self.get_view()
+        if view == p: return
+        rotation = math.radians(self.stat.rotation_xy % 90)
+        if rotation != 0 and view != z and self.get_show_relative(): return
+        permutations = [
+                lambda (x, y, z): (z, y, x),  # YZ X
+                lambda (x, y, z): (z, x, y),  # ZX Y
+                lambda (x, y, z): (x, y, z),  # XY Z
+        ]
+        inverse_permutations = [
+                lambda (z, y, x): (x, y, z),  # YZ X
+                lambda (z, x, y): (x, y, z),  # ZX Y
+                lambda (x, y, z): (x, y, z),  # XY Z
+        ]
+        self.draw_grid_permuted(rotation, permutations[view],
+                inverse_permutations[view])
+
     def redraw(self):
         s = self.stat
         s.poll()
@@ -1144,7 +1272,7 @@ class GlCanonDraw:
 
         glDisable(GL_LIGHTING)
         glMatrixMode(GL_MODELVIEW)
-
+        self.draw_grid()
         if self.get_show_program():
             if self.get_program_alpha():
                 glDisable(GL_DEPTH_TEST)
@@ -1450,18 +1578,34 @@ class GlCanonDraw:
         ypos -= linespace+5
         i=0
         glColor3f(*self.colors['overlay_foreground'])
-        for string in posstrs:
-            maxlen = max(maxlen, len(string))
-            glRasterPos2i(5, ypos)
-            for char in string:
-                glCallList(base + ord(char))
-            if i < len(homed) and homed[i]:
-                glRasterPos2i(pixel_width + 8, ypos)
-                glBitmap(13, 16, 0, 3, 17, 0, homeicon)
-            if i < len(homed) and limit[i]:
-                glBitmap(13, 16, 0, 1, 17, 0, limiticon)
-            ypos -= linespace
-            i = i + 1
+        if not self.get_show_offsets():
+            for string in posstrs:
+                maxlen = max(maxlen, len(string))
+                glRasterPos2i(5, ypos)
+                for char in string:
+                    glCallList(base + ord(char))
+                if i < len(homed) and homed[i]:
+                    glRasterPos2i(pixel_width + 8, ypos)
+                    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
+                if i < len(homed) and limit[i]:
+                    glBitmap(13, 16, 0, 1, 17, 0, limiticon)
+                ypos -= linespace
+                i = i + 1
+        if self.get_show_offsets():
+            if self.is_lathe():
+                homed.insert(0,homed[0])
+            i=0
+            for string in droposstrs:
+                maxlen = max(maxlen, len(string))
+                glRasterPos2i(5, ypos)
+                for char in string:
+                    glCallList(base + ord(char))
+                if i < len(homed) and homed[i]:
+                    glRasterPos2i(charwidth *3, ypos)
+                    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
+                ypos -= linespace
+                i = i + 1
+
         glDepthFunc(GL_LESS)
         glDepthMask(GL_TRUE)
 
@@ -1553,12 +1697,18 @@ class GlCanonDraw:
                 g92_offset = self.from_internal_units(g92_offset, 1)
                 tlo_offset = self.from_internal_units(tlo_offset, 1)
                 format = "% 6s:% 9.3f"
-                droformat = " " + format + "  DTG %1s:% 9.3f"
+                if self.get_show_distance_to_go():
+                    droformat = " " + format + "  DTG %1s:% 9.3f"
+                else:
+                    droformat = " " + format
                 offsetformat = "% 5s %1s:% 9.3f  G92 %1s:% 9.3f"
                 rotformat = "% 5s %1s:% 9.3f"
             else:
                 format = "% 6s:% 9.4f"
-                droformat = " " + format + "  DTG %1s:% 9.4f"
+                if self.get_show_distance_to_go():
+                    droformat = " " + format + "  DTG %1s:% 9.4f"
+                else:
+                    droformat = " " + format
                 offsetformat = "% 5s %1s:% 9.4f  G92 %1s:% 9.4f"
                 rotformat = "% 5s %1s:% 9.4f"
             diaformat = " " + format
@@ -1569,8 +1719,10 @@ class GlCanonDraw:
                 a = "XYZABCUVW"[i]
                 if s.axis_mask & (1<<i):
                     posstrs.append(format % (a, positions[i]))
-                    droposstrs.append(droformat % (a, positions[i], a, axisdtg[i]))
-
+                    if self.get_show_distance_to_go():
+                        droposstrs.append(droformat % (a, positions[i], a, axisdtg[i]))
+                    else:
+                        droposstrs.append(droformat % (a, positions[i]))
             droposstrs.append("")
 
             for i in range(9):
@@ -1595,8 +1747,12 @@ class GlCanonDraw:
             if self.is_lathe():
                 posstrs[0] = format % ("Rad", positions[0])
                 posstrs.insert(1, format % ("Dia", positions[0]*2.0))
-                droposstrs[0] = droformat % ("Rad", positions[0], "R", axisdtg[0])
-                droposstrs.insert(1, diaformat % ("Dia", positions[0]*2.0))
+                if self.get_show_distance_to_go():
+                    droposstrs[0] = droformat % ("Rad", positions[0], "R", axisdtg[0])
+                    droposstrs.insert(1, droformat % ("Dia", positions[0]*2.0, "D", axisdtg[0]*2.0))
+                else:
+                    droposstrs[0] = droformat % ("Rad", positions[0])
+                    droposstrs.insert(1, diaformat % ("Dia", positions[0]*2.0))
 
             if self.get_show_machine_speed():
                 spd = self.to_internal_linear_unit(s.current_vel)
@@ -1605,6 +1761,12 @@ class GlCanonDraw:
                 else:
                     spd = spd * 60
                 posstrs.append(format % ("Vel", spd))
+                pos=0
+                for i in range(9):
+                    if s.axis_mask & (1<<i): pos +=1
+                if self.is_lathe():
+                    pos +=1
+                droposstrs.insert(pos, " " + format % ("Vel", spd))
 
             if self.get_show_distance_to_go():
                 dtg = self.to_internal_linear_unit(s.distance_to_go)
@@ -1616,7 +1778,6 @@ class GlCanonDraw:
             posstrs = ["  %s:% 9.4f" % i for i in
                 zip(range(self.get_num_joints()), s.joint_actual_position)]
             droposstrs = posstrs
-
         return limit, homed, posstrs, droposstrs
 
 

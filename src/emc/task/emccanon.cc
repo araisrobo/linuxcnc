@@ -51,6 +51,7 @@
 static FILE *dptrace = fopen("emccanon.log","w");
 #endif
 
+
 /*
   Origin offsets, length units, and active plane are all maintained
   here in this file. Controller runs in absolute mode, and does not
@@ -324,6 +325,8 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
 			FROM_PROG_LEN(u),FROM_PROG_LEN(v),FROM_PROG_LEN(w));
 }
 
+/* Spindle speed is saved here */
+static double spindleSpeed = 0.0; // always positive
 static double toExtVel(double vel) {
     if (canon.cartesian_move && !canon.angular_move) {
 	return TO_EXT_LEN(vel);
@@ -393,7 +396,6 @@ static void send_g92_msg(void) {
 	emc_spindle_speed_msg.speed = canon.css_maximum;
 	emc_spindle_speed_msg.factor = canon.css_numerator;
 	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
-	interp_list.append(emc_spindle_speed_msg);
     }
     interp_list.append(set_g92_msg);
 }
@@ -2080,7 +2082,7 @@ void SPINDLE_RETRACT_TRAVERSE()
 }
 
 void SET_SPINDLE_MODE(double css_max) {
-    canon.css_maximum = css_max;
+    canon.css_maximum = fabs(css_max);
 }
 
 void START_SPINDLE_CLOCKWISE(int l)
@@ -2088,17 +2090,18 @@ void START_SPINDLE_CLOCKWISE(int l)
     EMC_SPINDLE_ON emc_spindle_on_msg;
 
     flush_segments();
+    canon.spindle_dir = 1;
 
     if(canon.css_maximum) {
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
 	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
 	else
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
-	emc_spindle_on_msg.speed = canon.css_maximum;
-	emc_spindle_on_msg.factor = canon.css_numerator;
+	emc_spindle_on_msg.speed = canon.spindle_dir * canon.css_maximum;
+	emc_spindle_on_msg.factor = canon.spindle_dir * canon.css_numerator;
 	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
-	emc_spindle_on_msg.speed = canon.spindleSpeed;
+	emc_spindle_on_msg.speed = canon.spindle_dir * canon.spindleSpeed;
 	canon.css_numerator = 0;
     }
     interp_list.append(emc_spindle_on_msg);
@@ -2109,32 +2112,27 @@ void START_SPINDLE_COUNTERCLOCKWISE(int l)
     EMC_SPINDLE_ON emc_spindle_on_msg;
 
     flush_segments();
+    canon.spindle_dir = -1;
 
     if(canon.css_maximum) {
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
-	    canon.css_numerator = -12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
+	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
 	else
-	    canon.css_numerator = -1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
-// <<<<<<< HEAD
-// 	emc_spindle_on_msg.speed = -canon.css_maximum;
-// =======
-	emc_spindle_on_msg.speed = canon.css_maximum;
-//>>>>>>> lcnc-ja3
-	emc_spindle_on_msg.factor = canon.css_numerator;
+	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
+	emc_spindle_on_msg.speed = canon.spindle_dir * canon.css_maximum;
+	emc_spindle_on_msg.factor = canon.spindle_dir * canon.css_numerator;
 	emc_spindle_on_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
-	emc_spindle_on_msg.speed = -canon.spindleSpeed;
+	emc_spindle_on_msg.speed = canon.spindle_dir * canon.spindleSpeed;
 	canon.css_numerator = 0;
     }
-
-
     interp_list.append(emc_spindle_on_msg);
 }
 
 void SET_SPINDLE_SPEED(double r)
 {
     // speed is in RPMs everywhere
-    canon.spindleSpeed = r;
+    canon.spindleSpeed = fabs(r); // interp will never send negative anyway ...
 
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
 
@@ -2152,11 +2150,11 @@ void SET_SPINDLE_SPEED(double r)
 // >>>>>>> lcnc-ja3
 	else
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
-	emc_spindle_speed_msg.speed = canon.css_maximum;
-	emc_spindle_speed_msg.factor = canon.css_numerator;
+	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.css_maximum;
+	emc_spindle_speed_msg.factor = canon.spindle_dir * canon.css_numerator;
 	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
     } else {
-	emc_spindle_speed_msg.speed = canon.spindleSpeed;
+	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.spindleSpeed;
 	canon.css_numerator = 0;
     }
     interp_list.append(emc_spindle_speed_msg);
@@ -2262,6 +2260,7 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
     set_offset_msg.offset.w = TO_EXT_LEN(canon.toolOffset.w);
 
     if(canon.css_maximum) {
+        // SET_SPINDLE_SPEED(spindleSpeed);
 	EMC_SPINDLE_SPEED emc_spindle_speed_msg;
 	emc_spindle_speed_msg.speed = canon.css_maximum;
 	emc_spindle_speed_msg.factor = canon.css_numerator;
@@ -2749,6 +2748,7 @@ void INIT_CANON()
     canon.rotary_unlock_for_traverse = -1;
     canon.css_maximum = 0.0;
     canon.css_numerator = 0.0;
+    canon.spindle_dir = 0;
     canon.feed_mode = 0;
     canon.synched = 0;
     canon.g5xOffset.x = 0.0;
@@ -2990,7 +2990,7 @@ int GET_EXTERNAL_FLOOD()
 double GET_EXTERNAL_SPEED()
 {
     // speed is in RPMs everywhere
-    return emcStatus->motion.spindle.speed;
+    return spindleSpeed;
 }
 
 CANON_DIRECTION GET_EXTERNAL_SPINDLE()

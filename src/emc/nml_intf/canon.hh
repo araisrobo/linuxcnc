@@ -149,6 +149,7 @@ typedef struct CanonConfig_t {
     int rotary_unlock_for_traverse;
     double css_maximum;
     double css_numerator;
+    int spindle_dir;
     int feed_mode;
     int synched;
     CANON_POSITION g5xOffset;

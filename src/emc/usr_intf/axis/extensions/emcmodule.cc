@@ -311,6 +311,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"input_timeout", T_BOOL, O(task.input_timeout), READONLY},
     {(char*)"rotation_xy", T_DOUBLE, O(task.rotation_xy), READONLY},
     {(char*)"delay_left", T_DOUBLE, O(task.delayLeft), READONLY},
+    {(char*)"queued_mdi_commands", T_INT, O(task.queuedMDIcommands), READONLY},
 
 // motion
 //   EMC_TRAJ_STAT traj
@@ -808,13 +809,17 @@ static PyObject *spindleoverride(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *spindle(pyCommandChannel *s, PyObject *o) {
     int dir;
-    if(!PyArg_ParseTuple(o, "i", &dir)) return NULL;
+    double vel;
+    if(!PyArg_ParseTuple(o, "i|d", &dir, &vel)) return NULL;
     switch(dir) {
         case LOCAL_SPINDLE_FORWARD:
         case LOCAL_SPINDLE_REVERSE:
         {
+            if(PyTuple_Size(o) != 2) {
+            vel = 1;
+            }
             EMC_SPINDLE_ON m;
-            m.speed = dir;
+            m.speed = dir * vel;
             m.serial_number = next_serial(s);
             s->c->write(m);
             emcWaitCommandReceived(s->serial, s->s);
@@ -1921,11 +1926,17 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                 rx = status->motion.traj.position.u - status->task.toolOffset.u,
                 ry = status->motion.traj.position.v - status->task.toolOffset.v,
                 rz = s->foam_w;
-                add_point |= dist2(x, y, oop->x, oop->y) > .01
-                    || dist2(rx, ry, oop->rx, oop->ry) > .01;
-                add_point |= !colinear( x, y, z, op->x, op->y, op->z,
+                /* TODO .01, the distance at which a preview line is dropped,
+                 * should either be dependent on units or configurable, because
+                 * 0.1 is inappropriate for mm systems
+                 */
+                add_point = add_point || (dist2(x, y, oop->x, oop->y) > .01)
+                    || (dist2(rx, ry, oop->rx, oop->ry) > .01);
+                add_point = add_point || !colinear( x, y, z,
+                                op->x, op->y, op->z,
                                 oop->x, oop->y, oop->z);
-                add_point |= !colinear( rx, ry, rz, op->rx, op->ry, op->rz,
+                add_point = add_point || !colinear( rx, ry, rz,
+                                op->rx, op->ry, op->rz,
                                 oop->rx, oop->ry, oop->rz);
             } else {
                 double pt[9] = {
@@ -1944,7 +1955,8 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                 x = p[0]; y = p[1]; z = p[2];
                 rx = pt[3]; ry = -pt[4]; rz = pt[5];
 
-                add_point |= !colinear( x, y, z, op->x, op->y, op->z,
+                add_point = add_point || !colinear( x, y, z,
+                                op->x, op->y, op->z,
                                 oop->x, oop->y, oop->z);
             }
             if(add_point) {

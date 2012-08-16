@@ -3693,7 +3693,8 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
 	   block->a_flag || block->b_flag || block->c_flag ||
 	   block->u_flag || block->v_flag || block->w_flag ||
-	   block->r_flag || block->q_flag),
+	   block->r_flag || block->q_flag || block->i_flag ||
+           block->j_flag),
 	 _("G10 L1 without offsets has no effect"));
 
     if(direct) {
@@ -4166,7 +4167,7 @@ int Interp::convert_spindle_mode(block_pointer block, setup_pointer settings)
     } else { /* G_96 */
         settings->spindle_mode = CONSTANT_SURFACE;
 	if(block->d_flag)
-	    enqueue_SET_SPINDLE_MODE(block->d_number_float);
+	    enqueue_SET_SPINDLE_MODE(fabs(block->d_number_float));
 	else
 	    enqueue_SET_SPINDLE_MODE(1e30);
     }
