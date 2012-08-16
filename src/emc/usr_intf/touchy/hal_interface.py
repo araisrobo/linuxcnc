@@ -190,6 +190,7 @@ class hal_interface:
         self.vn_sw = n == 7  
         self.wn_sw = n == 8 
         self.sw_button_presented = 1
+        
     def periodic(self, mdi_mode):
           # check if MANUAL mode
         jog_on = self.c["jog.continuous.x.positive"] + \
@@ -371,15 +372,15 @@ class hal_interface:
         if singleblock ^ self.singleblock: self.emc_control.single_block(singleblock)
         self.singleblock = singleblock
 
-        cyclestart = self.c["cycle-start"]
-        if cyclestart and not self.cyclestart:
-            if self.gui.wheel == "jogging": self.gui.wheel = "mv"
-            self.gui.jogsettings_activate(0)
-            if mdi_mode:
-                if not self.singleblock: self.mdi_control.ok(0)
-            else:
-                self.emc_control.cycle_start()
-        self.cyclestart = cyclestart
+#        cyclestart = self.c["cycle-start"]
+#        if cyclestart and not self.cyclestart:
+#            if self.gui.wheel == "jogging": self.gui.wheel = "mv"
+#            self.gui.jogsettings_activate(0)
+#            if mdi_mode:
+#                if not self.singleblock: self.mdi_control.ok(0)
+#            else:
+#                self.emc_control.cycle_start()
+#        self.cyclestart = cyclestart
 
         abort = self.c["abort"]
         if abort and not self.abort:

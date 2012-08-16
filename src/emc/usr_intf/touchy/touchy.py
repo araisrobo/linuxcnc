@@ -152,19 +152,19 @@ class touchy:
                 self.window_max = self.prefs.getpref('window_force_max', 'False', bool)
 
                 # initial screen setup
-                if os.path.exists(themedir):
-                    model = self.wTree.get_object("theme_choice").get_model()
+#                if os.path.exists(themedir):
+                    # model = self.wTree.get_object("theme_choice").get_model()
                     #model = self.wTree.get_widget("theme_choice").get_model()
-                    model.clear()
-                    model.append(("Follow System Theme",))
-                    temp = 0
-                    names = os.listdir(themedir)
-                    names.sort()
-                    for search,dirs in enumerate(names):
-                        model.append((dirs,))
-                        if dirs  == self.theme_name:
-                            temp = search+1
-                    self.wTree.get_object("theme_choice").set_active(temp)
+                    # model.clear()
+                    # model.append(("Follow System Theme",))
+#                    temp = 0
+#                    names = os.listdir(themedir)
+#                    names.sort()
+#                    for search,dirs in enumerate(names):
+#                        model.append((dirs,))
+#                        if dirs  == self.theme_name:
+#                            temp = search+1
+#                    self.wTree.get_object("theme_choice").set_active(temp)
                     # self.wTree.get_widget("theme_choice").set_active(temp)
 
                 if self.window_geometry == "default":
@@ -184,19 +184,19 @@ class touchy:
                 else:
                         # self.wTree.get_widget("MainWindow").window.set_cursor(None)
                         self.wTree.get_object("MainWindow").window.set_cursor(None)
-                self.wTree.get_object("controlfontbutton").set_font_name(self.control_font_name)
+#                self.wTree.get_object("controlfontbutton").set_font_name(self.control_font_name)
                 # self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
                 self.control_font = pango.FontDescription(self.control_font_name)
 
-                self.wTree.get_object("drofontbutton").set_font_name(self.dro_font_name)
+#                self.wTree.get_object("drofontbutton").set_font_name(self.dro_font_name)
                 # self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
                 self.dro_font = pango.FontDescription(self.dro_font_name)
 
-                self.wTree.get_object("errorfontbutton").set_font_name(self.error_font_name)
+#                self.wTree.get_object("errorfontbutton").set_font_name(self.error_font_name)
                 # self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
                 self.error_font = pango.FontDescription(self.error_font_name)
 
-                self.wTree.get_object("listingfontbutton").set_font_name(self.listing_font_name)
+#                self.wTree.get_object("listingfontbutton").set_font_name(self.listing_font_name)
                 # self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
                 self.listing_font = pango.FontDescription(self.listing_font_name)
 
@@ -205,31 +205,32 @@ class touchy:
                 if not self.theme_name == "Follow System Theme":
                     settings.set_string_property("gtk-theme-name", self.theme_name, "")
 
-                # interactive mdi command builder and issuer
-                mdi_labels = []
-                mdi_eventboxes = []
-                for i in range(self.num_mdi_labels):
-                        mdi_labels.append(self.wTree.get_object("mdi%d" % i))
-                        mdi_eventboxes.append(self.wTree.get_object("eventbox_mdi%d" % i))
-                self.mdi_control = mdi.mdi_control(gtk, linuxcnc, mdi_labels, mdi_eventboxes)
+#                # interactive mdi command builder and issuer
+#                mdi_labels = []
+#                mdi_eventboxes = []
+#                for i in range(self.num_mdi_labels):
+#                        mdi_labels.append(self.wTree.get_object("mdi%d" % i))
+#                        mdi_eventboxes.append(self.wTree.get_object("eventbox_mdi%d" % i))
+#                self.mdi_control = mdi.mdi_control(gtk, linuxcnc, mdi_labels, mdi_eventboxes)
 
                 if inifile:
                     ini = linuxcnc.ini(inifile)
-                    self.mdi_control.mdi.add_macros(
-                        ini.findall("TOUCHY", "MACRO"))
+#                    self.mdi_control.mdi.add_macros(
+#                        ini.findall("TOUCHY", "MACRO"))
                     self.ini = ini
                 else:
                     self.ini = None
 
-                listing_labels = []
-                listing_eventboxes = []
-                for i in range(self.num_listing_labels):
-                        listing_labels.append(self.wTree.get_object("listing%d" % i))
-                        listing_eventboxes.append(self.wTree.get_object("eventbox_listing%d" % i))
-                self.listing = listing.listing(gtk, linuxcnc, listing_labels, listing_eventboxes)
+#                listing_labels = []
+#                listing_eventboxes = []
+#                for i in range(self.num_listing_labels):
+#                        listing_labels.append(self.wTree.get_object("listing%d" % i))
+#                        listing_eventboxes.append(self.wTree.get_object("eventbox_listing%d" % i))
+#                self.listing = listing.listing(gtk, linuxcnc, listing_labels, listing_eventboxes)
 
                 # emc interface
-                self.linuxcnc = emc_interface.emc_control(linuxcnc, self.listing, self.wTree.get_object("error"))
+                # self.linuxcnc = emc_interface.emc_control(linuxcnc, self.listing, self.wTree.get_object("error"))
+                self.linuxcnc = emc_interface.emc_control(linuxcnc, None, None)
                 self.linuxcnc.continuous_jog_velocity(self.mv_val)
 
                 # set injector to 1 if use_injection is set
@@ -242,7 +243,8 @@ class touchy:
                     from injector import InjectorClass
                     self.injector = 1
   
-                self.hal = hal_interface.hal_interface(self, self.linuxcnc, self.mdi_control, linuxcnc)
+                #self.hal = hal_interface.hal_interface(self, self.linuxcnc, self.mdi_control, linuxcnc)
+                self.hal = hal_interface.hal_interface(self, self.linuxcnc, None, linuxcnc)
                 if self.injector == 1:
                     # instance injector after halcomp initialized
                     # make hal pin depends description from the xml file
@@ -250,13 +252,13 @@ class touchy:
                             self.gladefile, self.wTree, None)
                     self.injector = InjectorClass(self,self.hal.c, self.wTree) #
 
-                # silly file chooser
-                filechooser_labels = []
-                filechooser_eventboxes = []
-                for i in range(self.num_filechooser_labels):
-                        filechooser_labels.append(self.wTree.get_object("filechooser%d" % i))
-                        filechooser_eventboxes.append(self.wTree.get_object("eventbox_filechooser%d" % i))
-                self.filechooser = filechooser.filechooser(gtk, linuxcnc, filechooser_labels, filechooser_eventboxes, self.listing)
+#                # silly file chooser
+#                filechooser_labels = []
+#                filechooser_eventboxes = []
+#                for i in range(self.num_filechooser_labels):
+#                        filechooser_labels.append(self.wTree.get_object("filechooser%d" % i))
+#                        filechooser_eventboxes.append(self.wTree.get_object("eventbox_filechooser%d" % i))
+#                self.filechooser = filechooser.filechooser(gtk, linuxcnc, filechooser_labels, filechooser_eventboxes, self.listing)
 
                 relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
                 absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
@@ -297,7 +299,7 @@ class touchy:
                 # opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
                 blockdel = ['on', 'off']
                 blockdel = dict((i, self.wTree.get_object("blockdel_" + i)) for i in blockdel)
-                self.status = emc_interface.emc_status(gtk, linuxcnc, self.listing, relative, absolute, distance,
+                self.status = emc_interface.emc_status(gtk, linuxcnc, None, relative, absolute, distance,
                                                        self.wTree.get_object("dro_table"),
                                                        self.wTree.get_object("error"),
                                                        estops, machines,
@@ -379,28 +381,28 @@ class touchy:
                         "on_estop_reset_clicked" : self.linuxcnc.estop_reset,
                         "on_machine_off_clicked" : self.linuxcnc.machine_off,
                         "on_machine_on_clicked" : self.linuxcnc.machine_on,
-                        "on_mdi_clear_clicked" : self.mdi_control.clear,
-                        "on_mdi_back_clicked" : self.mdi_control.back,
-                        "on_mdi_next_clicked" : self.mdi_control.next,
-                        "on_mdi_decimal_clicked" : self.mdi_control.decimal,
-                        "on_mdi_minus_clicked" : self.mdi_control.minus,
-                        "on_mdi_keypad_clicked" : self.mdi_control.keypad,
-                        "on_mdi_g_clicked" : self.mdi_control.g,
-                        "on_mdi_gp_clicked" : self.mdi_control.gp,
-                        "on_mdi_m_clicked" : self.mdi_control.m,
-                        "on_mdi_t_clicked" : self.mdi_control.t,
-                        "on_mdi_select" : self.mdi_control.select,
-                        "on_mdi_set_tool_clicked" : self.mdi_set_tool,
-                        "on_mdi_set_origin_clicked" : self.mdi_set_origin,
-                        "on_mdi_macro_clicked" : self.mdi_macro,
-                        "on_filechooser_select" : self.fileselect,
-                        "on_filechooser_up_clicked" : self.filechooser.up,
-                        "on_filechooser_down_clicked" : self.filechooser.down,
-                        "on_filechooser_reload_clicked" : self.filechooser.reload,
-                        "on_listing_up_clicked" : self.listing.up,
-                        "on_listing_down_clicked" : self.listing.down,
-                        "on_listing_previous_clicked" : self.listing.previous,
-                        "on_listing_next_clicked" : self.listing.next,
+#                        "on_mdi_clear_clicked" : self.mdi_control.clear,
+#                        "on_mdi_back_clicked" : self.mdi_control.back,
+#                        "on_mdi_next_clicked" : self.mdi_control.next,
+#                        "on_mdi_decimal_clicked" : self.mdi_control.decimal,
+#                        "on_mdi_minus_clicked" : self.mdi_control.minus,
+#                        "on_mdi_keypad_clicked" : self.mdi_control.keypad,
+#                        "on_mdi_g_clicked" : self.mdi_control.g,
+#                        "on_mdi_gp_clicked" : self.mdi_control.gp,
+#                        "on_mdi_m_clicked" : self.mdi_control.m,
+#                        "on_mdi_t_clicked" : self.mdi_control.t,
+#                        "on_mdi_select" : self.mdi_control.select,
+#                        "on_mdi_set_tool_clicked" : self.mdi_set_tool,
+#                        "on_mdi_set_origin_clicked" : self.mdi_set_origin,
+#                        "on_mdi_macro_clicked" : self.mdi_macro,
+#                        "on_filechooser_select" : self.fileselect,
+#                        "on_filechooser_up_clicked" : self.filechooser.up,
+#                        "on_filechooser_down_clicked" : self.filechooser.down,
+#                        "on_filechooser_reload_clicked" : self.filechooser.reload,
+#                        "on_listing_up_clicked" : self.listing.up,
+#                        "on_listing_down_clicked" : self.listing.down,
+#                        "on_listing_previous_clicked" : self.listing.previous,
+#                        "on_listing_next_clicked" : self.listing.next,
                         "on_mist_on_clicked" : self.linuxcnc.mist_on,
                         "on_mist_off_clicked" : self.linuxcnc.mist_off,
                         "on_flood_on_clicked" : self.linuxcnc.flood_on,
@@ -671,66 +673,66 @@ class touchy:
 
 		notebook = self.wTree.get_object('notebook1')
 		# notebook = self.wTree.get_widget('notebook1')
-		for i in range(notebook.get_n_pages()):
-			w = notebook.get_nth_page(i)
-			notebook.get_tab_label(w).modify_font(self.control_font)
+#		for i in range(notebook.get_n_pages()):
+#			w = notebook.get_nth_page(i)
+#			notebook.get_tab_label(w).modify_font(self.control_font)
+#
+#                # labels
+#                for i in range(self.num_mdi_labels):
+#                        w = self.wTree.get_object("mdi%d" % i)
+#                        # w = self.wTree.get_widget("mdi%d" % i)
+#                        w.modify_font(self.control_font)
+#                for i in range(self.num_filechooser_labels):
+#                        w = self.wTree.get_object("filechooser%d" % i)
+#                        # w = self.wTree.get_widget("filechooser%d" % i)
+#                        w.modify_font(self.control_font)
+#                for i in range(self.num_listing_labels):
+#                        w = self.wTree.get_object("listing%d" % i)
+#                        # w = self.wTree.get_widget("listing%d" % i)
+#                        w.modify_font(self.listing_font)
+#                for i in ["mdi", "startup", "manual", "auto", "preferences", "status",
+#                          "relative", "absolute", "dtg", "ss2label", "status_spindlespeed2"]:
+#                        w = self.wTree.get_object(i)
+#                        # w = self.wTree.get_widget(i)
+#                        w.modify_font(self.control_font)
+#
+#                # dro
+#                for i in ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr',
+#                          'xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa',
+#                          'xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']:
+#                        w = self.wTree.get_object(i)
+#                        # w = self.wTree.get_widget(i)
+#                        if w:
+#                            w.modify_font(self.dro_font)
+#                            if "r" in i and not self.rel_textcolor == "default":
+#                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.rel_textcolor))
+#                            elif "a" in i and not self.abs_textcolor == "default":
+#                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.abs_textcolor))
+#                            elif "d" in i and not self.dtg_textcolor == "default":
+#                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.dtg_textcolor))
+#
+#                # status bar
+#                for i in ["error"]:
+#                        w = self.wTree.get_object(i)
+#                        # w = self.wTree.get_widget(i)
+#                        w.modify_font(self.error_font)
+#                        if not self.err_textcolor == "default":
+#                            w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.err_textcolor))
 
-                # labels
-                for i in range(self.num_mdi_labels):
-                        w = self.wTree.get_object("mdi%d" % i)
-                        # w = self.wTree.get_widget("mdi%d" % i)
-                        w.modify_font(self.control_font)
-                for i in range(self.num_filechooser_labels):
-                        w = self.wTree.get_object("filechooser%d" % i)
-                        # w = self.wTree.get_widget("filechooser%d" % i)
-                        w.modify_font(self.control_font)
-                for i in range(self.num_listing_labels):
-                        w = self.wTree.get_object("listing%d" % i)
-                        # w = self.wTree.get_widget("listing%d" % i)
-                        w.modify_font(self.listing_font)
-                for i in ["mdi", "startup", "manual", "auto", "preferences", "status",
-                          "relative", "absolute", "dtg", "ss2label", "status_spindlespeed2"]:
-                        w = self.wTree.get_object(i)
-                        # w = self.wTree.get_widget(i)
-                        w.modify_font(self.control_font)
-
-                # dro
-                for i in ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr',
-                          'xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa',
-                          'xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']:
-                        w = self.wTree.get_object(i)
-                        # w = self.wTree.get_widget(i)
-                        if w:
-                            w.modify_font(self.dro_font)
-                            if "r" in i and not self.rel_textcolor == "default":
-                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.rel_textcolor))
-                            elif "a" in i and not self.abs_textcolor == "default":
-                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.abs_textcolor))
-                            elif "d" in i and not self.dtg_textcolor == "default":
-                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.dtg_textcolor))
-
-                # status bar
-                for i in ["error"]:
-                        w = self.wTree.get_object(i)
-                        # w = self.wTree.get_widget(i)
-                        w.modify_font(self.error_font)
-                        if not self.err_textcolor == "default":
-                            w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.err_textcolor))
-
-        def mdi_set_tool(self, b):
-                self.mdi_control.set_tool(self.status.get_current_tool(), self.g10l11)
-
-        def mdi_set_origin(self, b):
-                self.mdi_control.set_origin(self.status.get_current_system())
-
-        def mdi_macro(self, b):
-                self.mdi_control.o(b)
-
-        def fileselect(self, eb, e):
-                if self.wheel == "jogging": self.wheel = "mv"
-                self.jogsettings_activate(0)
-                self.filechooser.select(eb, e)
-                self.listing.clear_startline()
+#        def mdi_set_tool(self, b):
+#                self.mdi_control.set_tool(self.status.get_current_tool(), self.g10l11)
+#
+#        def mdi_set_origin(self, b):
+#                self.mdi_control.set_origin(self.status.get_current_system())
+#
+#        def mdi_macro(self, b):
+#                self.mdi_control.o(b)
+#
+#        def fileselect(self, eb, e):
+#                if self.wheel == "jogging": self.wheel = "mv"
+#                self.jogsettings_activate(0)
+#                self.filechooser.select(eb, e)
+#                self.listing.clear_startline()
 
         def periodic_status(self):
                 self.linuxcnc.mask()
