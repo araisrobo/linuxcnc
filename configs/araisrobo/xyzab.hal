@@ -69,12 +69,6 @@ net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
 net tool-change-loop iocontrol.0.tool-change iocontrol.0.tool-changed
 
-# connect sync in signal
-# net sync_in_trigger      motion.sync-in-trigger =>  wou.sync.in.trigger
-# net sync_in_index        motion.sync-in-index   =>  wou.sync.in.index
-# net sync_in_wait_type    motion.sync-in-wait-type =>  wou.sync.in.wait_type
-# net sync_in_timeout      motion.sync-in-timeout => wou.sync.in.timeout
-
 # amp control
 net xena joint.0.amp-enable-out => wou.stepgen.0.enable
 net yena joint.1.amp-enable-out => wou.stepgen.1.enable
