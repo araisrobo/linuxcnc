@@ -111,12 +111,10 @@ class touchy:
 		# self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
                 # self.wTree.get_widget('MainWindow').grab_focus()
 	  	for obj in self.wTree.get_objects():
-                    if (type(obj) == gtk.Button):
-	  		 obj.set_flags(gtk.CAN_FOCUS)
-	  		# print obj
-	  		# obj.unset_flags(gtk.CAN_FOCUS)
-		# self.wTree.get_object('MainWindow').set_flags(gtk.CAN_FOCUS)
-                # self.wTree.get_object('MainWindow').grab_focus()
+                    if (type(obj) == gtk.Object):
+	  		 obj.unset_flags(gtk.CAN_FOCUS)
+		self.wTree.get_object('MainWindow').set_flags(gtk.CAN_FOCUS)
+                self.wTree.get_object('MainWindow').grab_focus()
                 self.num_mdi_labels = 11
                 self.num_filechooser_labels = 11
                 self.num_listing_labels = 20
@@ -431,10 +429,10 @@ class touchy:
                   self.wTree.connect_signals(self.injector)
                 # self.wTree.signal_autoconnect(dic)
 
-		for widget in self.wTree.get_objects():
-		# for widget in self.wTree.get_widget_prefix(''):
-			if isinstance(widget, gtk.Button):
-				widget.connect_after('released',self.hack_leave)
+		#necessary? for widget in self.wTree.get_objects():
+		#necessary? # for widget in self.wTree.get_widget_prefix(''):
+		#necessary? 	if isinstance(widget, gtk.Button):
+		#necessary? 		widget.connect_after('released',self.hack_leave)
 
                 self._dynamic_childs = {}
                 atexit.register(self.kill_dynamic_childs)
@@ -847,12 +845,13 @@ class touchy:
                         
                 return True
 
-	def hack_leave(self,w):
-		w = self.wTree.get_object("MainWindow").window
-		d = w.get_display()
-		s = w.get_screen()
-		x, y = w.get_origin()
-		d.warp_pointer(s, x, y)
+	#necessary? def hack_leave(self,w):
+        #necessary?         return
+	#necessary? 	#for invisible cursor:  w = self.wTree.get_object("MainWindow").window
+	#necessary? 	#for invisible cursor:  d = w.get_display()
+	#necessary? 	#for invisible cursor:  s = w.get_screen()
+	#necessary? 	#for invisible cursor:  x, y = w.get_origin()
+	#necessary? 	#for invisible cursor:  d.warp_pointer(s, x, y)
 
 	def _dynamic_tab(self, notebook, text):
 		s = gtk.Socket()
