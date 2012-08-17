@@ -105,13 +105,18 @@ class touchy:
                 self.wTree = gtk.Builder()
                 self.wTree.add_from_file(self.gladefile)
 
-	        # self.wTree = gtk.glade.XML(self.gladefile) 
+	        #for libglade: self.wTree = gtk.glade.XML(self.gladefile) 
 	# 	for widget in self.wTree.get_widget_prefix(''):
 	# 		widget.unset_flags(gtk.CAN_FOCUS)
 		# self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
                 # self.wTree.get_widget('MainWindow').grab_focus()
-		self.wTree.get_object('MainWindow').set_flags(gtk.CAN_FOCUS)
-                self.wTree.get_object('MainWindow').grab_focus()
+	  	for obj in self.wTree.get_objects():
+                    if (type(obj) == gtk.Button):
+	  		 obj.set_flags(gtk.CAN_FOCUS)
+	  		# print obj
+	  		# obj.unset_flags(gtk.CAN_FOCUS)
+		# self.wTree.get_object('MainWindow').set_flags(gtk.CAN_FOCUS)
+                # self.wTree.get_object('MainWindow').grab_focus()
                 self.num_mdi_labels = 11
                 self.num_filechooser_labels = 11
                 self.num_listing_labels = 20
