@@ -71,16 +71,7 @@ from touchy import filechooser
 from touchy import listing
 from touchy import preferences
 
-pix_data = '''/* XPM */
-static char * invisible_xpm[] = {
-"1 1 1 1",
-"	c None",
-" "};'''
-
-
 color = gtk.gdk.Color()
-pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
-invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
         def __init__(self, inifile):
@@ -177,15 +168,7 @@ class touchy:
                         self.wTree.get_object("MainWindow").window.maximize()
                         # self.wTree.get_widget("MainWindow").window.maximize()
 
-                self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
-                if self.invisible_cursor:
-                        self.wTree.get_object("MainWindow").window.set_cursor(invisible)
-                        # self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
-                else:
-                        # self.wTree.get_widget("MainWindow").window.set_cursor(None)
-                        self.wTree.get_object("MainWindow").window.set_cursor(None)
-#                self.wTree.get_object("controlfontbutton").set_font_name(self.control_font_name)
-                # self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
+                self.wTree.get_object("MainWindow").window.set_cursor(None)
                 self.control_font = pango.FontDescription(self.control_font_name)
 
 #                self.wTree.get_object("drofontbutton").set_font_name(self.dro_font_name)
@@ -361,8 +344,6 @@ class touchy:
                 # event bindings
                 dic = {
                         "quit" : self.quit,
-                        "on_pointer_show_clicked" : self.pointer_show,
-                        "on_pointer_hide_clicked" : self.pointer_hide,
                         "on_opstop_on_clicked" : self.opstop_on,
                         "on_opstop_off_clicked" : self.opstop_off,
                         "on_blockdel_on_clicked" : self.blockdel_on,
@@ -467,19 +448,19 @@ class touchy:
         def tabselect(self, notebook, b, tab):
                 self.tab = tab
 
-        def pointer_hide(self, b):
-                if self.radiobutton_mask: return
-                self.prefs.putpref('invisible_cursor', 1)
-                self.invisible_cursor = 1
-                self.wTree.get_object("MainWindow").window.set_cursor(invisible)
-                # self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
+        #always display cursor: def pointer_hide(self, b):
+        #always display cursor:         if self.radiobutton_mask: return
+        #always display cursor:         self.prefs.putpref('invisible_cursor', 1)
+        #always display cursor:         self.invisible_cursor = 1
+        #always display cursor:         self.wTree.get_object("MainWindow").window.set_cursor(invisible)
+        #always display cursor:         # self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
 
-        def pointer_show(self, b):
-                if self.radiobutton_mask: return
-                self.prefs.putpref('invisible_cursor', 0)
-                self.invisible_cursor = 0
-                self.wTree.get_object("MainWindow").window.set_cursor(None)
-                # self.wTree.get_widget("MainWindow").window.set_cursor(None)
+        #always display cursor: def pointer_show(self, b):
+        #always display cursor:         if self.radiobutton_mask: return
+        #always display cursor:         self.prefs.putpref('invisible_cursor', 0)
+        #always display cursor:         self.invisible_cursor = 0
+        #always display cursor:         self.wTree.get_object("MainWindow").window.set_cursor(None)
+        #always display cursor:         # self.wTree.get_widget("MainWindow").window.set_cursor(None)
 
         def dro_commanded(self, b):
                 if self.radiobutton_mask: return
@@ -663,7 +644,7 @@ class touchy:
                           "spindle_faster", "spindle_slower",
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
-                          "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show",
+                          "blockdel_on", "blockdel_off",
                           "toolset_workpiece", "toolset_fixture","change_theme"]:
                         w = self.wTree.get_object(i)
                         # w = self.wTree.get_widget(i)
@@ -748,24 +729,24 @@ class touchy:
                 s = linuxcnc.stat()
                 s.poll()
                 am = s.axis_mask
-                if not self.resized_wheelbuttons:
-                        at = self.wTree.get_object("axis_table")
-                        # at = self.wTree.get_widget("axis_table")
-                        for i in range(9):
-                                b = ["wheelx", "wheely", "wheelz",
-                                     "wheela", "wheelb", "wheelc",
-                                     "wheelu", "wheelv", "wheelw"][i]
-                                w = self.wTree.get_object(b)
-                                # w = self.wTree.get_widget(b)
-                                if not (am & (1<<i)):
-                                        at.remove(w)
-                        if (am & 0700) == 0:
-                                at.resize(3, 2)
-                                if (am & 070) == 0:
-                                        at.resize(3, 1)
-                                        self.wTree.get_object("wheel_hbox").set_homogeneous(1)
-                                        # self.wTree.get_widget("wheel_hbox").set_homogeneous(1)
-                        self.resized_wheelbuttons = 1
+#                if not self.resized_wheelbuttons:
+#                        at = self.wTree.get_object("axis_table")
+#                        # at = self.wTree.get_widget("axis_table")
+#                        for i in range(9):
+#                                b = ["wheelx", "wheely", "wheelz",
+#                                     "wheela", "wheelb", "wheelc",
+#                                     "wheelu", "wheelv", "wheelw"][i]
+#                                w = self.wTree.get_object(b)
+#                                # w = self.wTree.get_widget(b)
+#                                if not (am & (1<<i)):
+#                                        at.remove(w)
+#                        if (am & 0700) == 0:
+#                                at.resize(3, 2)
+#                                if (am & 070) == 0:
+#                                        at.resize(3, 1)
+#                                        self.wTree.get_object("wheel_hbox").set_homogeneous(1)
+#                                        # self.wTree.get_widget("wheel_hbox").set_homogeneous(1)
+#                        self.resized_wheelbuttons = 1
                 
                 # set_active(self.wTree.get_widget("wheelx"), self.wheelxyz == 0)
                 # set_active(self.wTree.get_widget("wheely"), self.wheelxyz == 1)
@@ -787,15 +768,15 @@ class touchy:
                 # set_active(self.wTree.get_widget("pointer_hide"), self.invisible_cursor)
                 # set_active(self.wTree.get_widget("toolset_workpiece"), not self.g10l11)
                 # set_active(self.wTree.get_widget("toolset_fixture"), self.g10l11)
-                set_active(self.wTree.get_object("wheelx"), self.wheelxyz == 0)
-                set_active(self.wTree.get_object("wheely"), self.wheelxyz == 1)
-                set_active(self.wTree.get_object("wheelz"), self.wheelxyz == 2)
-                set_active(self.wTree.get_object("wheela"), self.wheelxyz == 3)
-                set_active(self.wTree.get_object("wheelb"), self.wheelxyz == 4)
-                set_active(self.wTree.get_object("wheelc"), self.wheelxyz == 5)
-                set_active(self.wTree.get_object("wheelu"), self.wheelxyz == 6)
-                set_active(self.wTree.get_object("wheelv"), self.wheelxyz == 7)
-                set_active(self.wTree.get_object("wheelw"), self.wheelxyz == 8)
+#                set_active(self.wTree.get_object("wheelx"), self.wheelxyz == 0)
+#                set_active(self.wTree.get_object("wheely"), self.wheelxyz == 1)
+#                set_active(self.wTree.get_object("wheelz"), self.wheelxyz == 2)
+#                set_active(self.wTree.get_object("wheela"), self.wheelxyz == 3)
+#                set_active(self.wTree.get_object("wheelb"), self.wheelxyz == 4)
+#                set_active(self.wTree.get_object("wheelc"), self.wheelxyz == 5)
+#                set_active(self.wTree.get_object("wheelu"), self.wheelxyz == 6)
+#                set_active(self.wTree.get_object("wheelv"), self.wheelxyz == 7)
+#                set_active(self.wTree.get_object("wheelw"), self.wheelxyz == 8)
                 set_active(self.wTree.get_object("wheelinc1"), self.wheelinc == 0)
                 set_active(self.wTree.get_object("wheelinc2"), self.wheelinc == 1)
                 set_active(self.wTree.get_object("wheelinc3"), self.wheelinc == 2)
@@ -803,8 +784,6 @@ class touchy:
                 set_active(self.wTree.get_object("so"), self.wheel == "so")
                 set_active(self.wTree.get_object("mv"), self.wheel == "mv")
                 set_active(self.wTree.get_object("jogging"), self.wheel == "jogging")
-                set_active(self.wTree.get_object("pointer_show"), not self.invisible_cursor)
-                set_active(self.wTree.get_object("pointer_hide"), self.invisible_cursor)
                 set_active(self.wTree.get_object("toolset_workpiece"), not self.g10l11)
                 set_active(self.wTree.get_object("toolset_fixture"), self.g10l11)
                 self.radiobutton_mask = 0
@@ -856,17 +835,15 @@ class touchy:
                 # set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
                 # set_label(self.wTree.get_widget("so").child, "SO: %d%%" % self.so_val)
                 # set_label(self.wTree.get_widget("mv").child, "MV: %d" % self.mv_val)
-                set_label(self.wTree.get_object("fo").child, "FO: %d%%" % self.fo_val)
-                set_label(self.wTree.get_object("so").child, "SO: %d%%" % self.so_val)
-                set_label(self.wTree.get_object("mv").child, "MV: %d" % self.mv_val)
+#                set_label(self.wTree.get_object("fo").child, "FO: %d%%" % self.fo_val)
+#                set_label(self.wTree.get_object("so").child, "SO: %d%%" % self.so_val)
+#                set_label(self.wTree.get_object("mv").child, "MV: %d" % self.mv_val)
 
                         
                 return True
 
 	def hack_leave(self,w):
-		if not self.invisible_cursor: return
 		w = self.wTree.get_object("MainWindow").window
-		# w = self.wTree.get_widget("MainWindow").window
 		d = w.get_display()
 		s = w.get_screen()
 		x, y = w.get_origin()
