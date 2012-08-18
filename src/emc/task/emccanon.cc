@@ -848,10 +848,13 @@ double getStraightVelocity(double x, double y, double z,
         else
             dtot = sqrt(du * du + dv * dv + dw * dw);
 
-        vel = FROM_EXT_LEN(MIN4( vel,
-                                (du?emcAxisGetMaxVelocity(6): 1e9),
-                                (dv?emcAxisGetMaxVelocity(7): 1e9),
-                                (dw?emcAxisGetMaxVelocity(8): 1e9)));
+        vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
+                    (dy?emcAxisGetMaxVelocity(1): 1e9),
+                    (dz?emcAxisGetMaxVelocity(2): 1e9));
+        vel = FROM_EXT_LEN(MIN4((vel),
+                        (du?emcAxisGetMaxVelocity(6): 1e9),
+                        (dv?emcAxisGetMaxVelocity(7): 1e9),
+                        (dw?emcAxisGetMaxVelocity(8): 1e9)));
 
         ang_vel = FROM_EXT_ANG(MIN3(
                             (da?emcAxisGetMaxVelocity(3): 1e9),
@@ -859,6 +862,7 @@ double getStraightVelocity(double x, double y, double z,
                             (dc?emcAxisGetMaxVelocity(5): 1e9)));
 
         vel = MIN(vel, ang_vel);
+        printf("debug: vel(%f)", vel);
         assert(vel > 0);
     }
 

@@ -84,7 +84,7 @@ struct scara_data {
 #define D5      (*(haldata->d5))
 #define D6      (*(haldata->d6))
 #define PPD     (*(haldata->ppd))
-#define SING    ((*(haldata->sing))*PM_PI/180)
+#define SINGU    ((*(haldata->sing))*PM_PI/180)
 
 /**
  * kinematicsLimit - calculate the the cartesian limit(MAX/MIN) of given AXIS
@@ -144,7 +144,7 @@ int kinematicsForward(const double * joint,
     
     /* calculate inverse kinematics flags */
     *iflags = 0;
-    if (fabs(joint[1]) < SING) {
+    if (fabs(joint[1]) < SINGU) {
         *iflags |= SCARA_SINGULAR;
     }
     if (joint[1] < 0) {         // 是左撇子嗎？
@@ -213,7 +213,7 @@ int kinematicsInverse(const EmcPose *world,
     if(cc > 1) cc = 1;
     q1 = acos(cc);
     
-    if (fabs(q1) < SING) {
+    if (fabs(q1) < SINGU) {
         DP ("quit when SCARA is about to move to SINGULAR position\n");
         DP ("x(%f) y(%f) q1(%f) cur_j1(%f)\n", x, y, q1, joint[1]);
         return -1;
@@ -315,7 +315,7 @@ int rtapi_app_main(void) {
     DPS("D5=%f ", D5);
     DPS("D6=%f ", D6);
     DPS("PPD=%f ", PPD);
-    DPS("SING=%f ", SING);
+    DPS("SINGU=%f ", SINGU);
     DPS("\n");
     // D1 = DEFAULT_D1;
     // D2 = DEFAULT_D2;

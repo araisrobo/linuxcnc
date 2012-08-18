@@ -1,0 +1,14 @@
+# home: home switch status from FPGA
+net home_j0       wou.gpio.in.02    =>  joint.0.home-sw-in
+net home_j1       wou.gpio.in.03    =>  joint.1.home-sw-in
+net home_j2       wou.gpio.in.04    =>  joint.2.home-sw-in
+net home_j3       wou.gpio.in.05    =>  joint.3.home-sw-in
+
+net dout_0        wou.gpio.out.00    # SVO-ON, controlled by CL
+net dout_1        wou.gpio.out.01    # ALM_CLR, controlled by CL
+net dout_2        wou.gpio.out.02    #
+net dout_3        wou.gpio.out.03    # BREAK_N, controlled by CL
+net dout_4        wou.gpio.out.04    #
+net dout_5        wou.gpio.out.05    #
+net dout_6        wou.gpio.out.06    #
+net dout_7        wou.gpio.out.07    #
