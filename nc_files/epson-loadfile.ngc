@@ -1,0 +1,10 @@
+( by Yishin Li, Arais Robot Technology - 2009, 2010 )
+#1 = 0
+
+;O101 while [#1 lt 3000]
+o<epson-hole> call
+o<epson-nurbs-helix-upperbullet> call
+#1 = [#1+1]
+;O101 endwhile
+
+M5 M9 M2
