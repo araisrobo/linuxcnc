@@ -34,7 +34,7 @@
 
     So a command line like this:
 
-	insmod stepgen step_type=0,0,1,2  ctrl_type=p,p,v,p
+	insmod stepgen ctrl_type=p,p,v,p
 
     will install four step generators, two using stepping type 0,
     one using type 1, and one using type 2.  The first two and
@@ -135,6 +135,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -251,17 +252,17 @@ RTAPI_MP_ARRAY_STRING(j7_pid_str, NUM_PID_PARAMS,
 
 
 const char *max_vel_str[MAX_CHAN] =
-    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+    { "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0" };
 RTAPI_MP_ARRAY_STRING(max_vel_str, MAX_CHAN,
                       "max velocity value for up to 8 channels");
 
 const char *max_accel_str[MAX_CHAN] =
-    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+    { "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0" };
 RTAPI_MP_ARRAY_STRING(max_accel_str, MAX_CHAN,
                       "max acceleration value for up to 8 channels");
 
 const char *max_jerk_str[MAX_CHAN] =
-    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+    { "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0" };
 RTAPI_MP_ARRAY_STRING(max_jerk_str, MAX_CHAN,
                       "max jerk value for up to 8 channels");
 
@@ -361,6 +362,7 @@ typedef struct {
     // hal_param_*_newf: varaiable not necessary to be pointer
     /* stuff that is read but not written by makepulses */
     int64_t  rawcount;          /* precision: 64.16; accumulated pulse sent to FPGA */
+    hal_s32_t *rawcount32;	/* 32-bit integer part of rawcount */
     hal_bit_t prev_enable;
     hal_bit_t *enable;		/* pin for enable stepgen */
     hal_u32_t step_len;		/* parameter: step pulse length */
@@ -395,6 +397,12 @@ typedef struct {
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
     int printed_error;		/* flag to avoid repeated printing */
+    uint32_t    pulse_maxv;     /* max-vel in pulse */
+    uint32_t    pulse_maxa;     /* max-accel in pulse */
+    uint32_t    pulse_maxj;     /* max-jerk  in pulse */
+    int32_t     pulse_vel;      /* velocity in pulse */
+    int32_t     pulse_accel;    /* accel in pulse */
+    int32_t     pulse_jerk;     /* jerk in pulse */
 
     /* motion type be set */
     int32_t motion_type;          /* motion type wrote to risc */
@@ -1146,6 +1154,7 @@ int rtapi_app_main(void)
 	}
 	num_joints++;
     }
+    
     assert (num_joints <=6);  // support up to 6 joints for USB/7i43 
     if (num_joints == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1157,8 +1166,8 @@ int rtapi_app_main(void)
     // issue a WOU_WRITE to RESET SSIF position registers
     data[0] = (1 << num_joints) - 1;  // bit-map-for-num_joints
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-
     while(wou_flush(&w_param) == -1);
+
     // issue a WOU_WRITE to clear SSIF_RST_POS register
     data[0] = 0x00;
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
@@ -1175,116 +1184,10 @@ int rtapi_app_main(void)
         recip_dt = 1.0 / dt;
     }
 
-    pid_str[0] = j0_pid_str;
-    pid_str[1] = j1_pid_str;
-    pid_str[2] = j2_pid_str;
-    pid_str[3] = j3_pid_str;
-    pid_str[4] = j4_pid_str;
-    pid_str[5] = j5_pid_str;
-    pid_str[6] = j6_pid_str;
-    pid_str[7] = j7_pid_str;
-
-    /* configure motion parameters */
-    for(n=0; n<num_joints; n++) {
-        // const char **pid_str;
-
-        /* compute fraction bits */
-        // compute proper fraction bit for command
-        // compute fraction bit for velocity
-        // accurate 0.0001 mm
-        pos_scale   = fabs(atof(pos_scale_str[n]));
-        max_vel     = atof(max_vel_str[n]);
-        max_accel   = atof(max_accel_str[n]);
-        max_jerk    = atof(max_jerk_str[n]);
-        
-        /* config MAX velocity */
-        // +1: rounding to last fixed point unit
-        immediate_data = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);    
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                        "j[%d] max_vel(%d) = %f*%f*%f*%f\n", 
-                        n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
-        max_pulse_tick = immediate_data;
-        assert(immediate_data>0);
-        write_mot_param (n, (MAX_VELOCITY), immediate_data);
-        while(wou_flush(&w_param) == -1);
-        /* config acceleration */
-        // +1: rounding to last fixed point unit
-        immediate_data = ((uint32_t)(max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt) + 1);
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                        "j[%d] max_accel(%d) = %f*%f*(%f^2)*(%f)\n",
-                        n, immediate_data, max_accel, pos_scale, dt, FIXED_POINT_SCALE);
-        assert(immediate_data > 0);
-        write_mot_param (n, (MAX_ACCEL), immediate_data);
-        while(wou_flush(&w_param) == -1);
-        /* config acceleration recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt));
-        rtapi_print_msg(RTAPI_MSG_DBG, 
-                        "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
-                        n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
-        assert(immediate_data > 0);
-        write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
-        while(wou_flush(&w_param) == -1);
-        /* config max jerk */
-        immediate_data = (uint32_t)((max_jerk * pos_scale * dt * dt * dt * FIXED_POINT_SCALE )+1);
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                        "j[%d] max_jerk(%d) = (%f * %f * %f * %f^3)))\n",
-                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
-        assert(immediate_data != 0);
-        write_mot_param (n, (MAX_JERK), immediate_data);
-        while(wou_flush(&w_param) == -1);
-        /* config max jerk recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(max_jerk * pos_scale * dt * dt * dt));
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                        "j[%d] max_jerk_recip(%d) = %f/(%f * %f * %f^3)))\n",
-                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
-        assert(immediate_data != 0);
-        write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
-        while(wou_flush(&w_param) == -1);
-        /* config max following error */
-        // following error send with unit pulse
-        max_following_error = atof(ferror_str[n]);
-        immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
-        rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
-        write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
-        while(wou_flush(&w_param) == -1);
-        /* config jog setting */
-        jog_config_value = strtoul(jog_config_str[n],NULL, 16);
-        jog_config_value &= 0x000FFFFF;
-        jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                  "j[%d] JOG_CONFIG(0x%0X)\n",
-                  n, jog_config_value);
-        write_mot_param (n, (JOG_CONFIG), jog_config_value);
-        while(wou_flush(&w_param) == -1);
-    }
-
-    // config PID parameter
-    for (n=0; n < PID_LOOP; n++) {
-        if (pid_str[n][0] != NULL) {
-            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
-            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
-            // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
-            // all the others units are '1 pulse'
-            for (i=0; i < NUM_PID_PARAMS; i++) {
-                value = atof(pid_str[n][i]);
-                immediate_data = (int32_t) (value);
-                // P_GAIN: the mot_param index for P_GAIN value
-                write_mot_param (n, (P_GAIN + i), immediate_data);
-                while(wou_flush(&w_param) == -1);
-                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
-            }
-
-            value = 0;
-            immediate_data = (int32_t) (value);
-            write_mot_param (n, (ENABLE), immediate_data);
-            while(wou_flush(&w_param) == -1);
-            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
-        }
-    }
-    
     // configure NUM_JOINTS after all joint parameters are set
     write_machine_param(NUM_JOINTS, (uint32_t) num_joints);
     while(wou_flush(&w_param) == -1);
+
     // JCMD_CTRL: 
     //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
     //  [bit-1]: SSIF_EN, servo/stepper interface enable
@@ -1315,6 +1218,124 @@ int rtapi_app_main(void)
 	return -1;
     }
     
+    /* configure motion parameters */
+    for(n=0; n<num_joints; n++) {
+        stepgen_array[n].pulse_vel = 0;
+        stepgen_array[n].pulse_accel = 0;
+        stepgen_array[n].pulse_jerk = 0;
+
+        /* compute fraction bits */
+        // compute proper fraction bit for command
+        // compute fraction bit for velocity
+        // accurate 0.0001 mm
+        pos_scale   = fabs(atof(pos_scale_str[n]));
+        max_vel     = atof(max_vel_str[n]);
+        max_accel   = atof(max_accel_str[n]);
+        max_jerk    = atof(max_jerk_str[n]);
+        assert (max_vel > 0);
+        assert (max_accel > 0);
+        assert (max_jerk > 0);
+        
+        /* config MAX velocity */
+        // +1: rounding to last fixed point unit
+        immediate_data = (uint32_t)((max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);    
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_vel(%d) = %f*%f*%f*%f\n", 
+                        n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
+        max_pulse_tick = immediate_data;
+        assert(immediate_data>0);
+        write_mot_param (n, (MAX_VELOCITY), immediate_data);
+        while(wou_flush(&w_param) == -1);
+        stepgen_array[n].pulse_maxv = immediate_data;
+        
+        /* config acceleration */
+        // +1: rounding to last fixed point unit
+        immediate_data = (uint32_t)((max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt) + 1);
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_accel(%d) = %f*%f*(%f^2)*(%f)\n",
+                        n, immediate_data, max_accel, pos_scale, dt, FIXED_POINT_SCALE);
+        assert(immediate_data > 0);
+        write_mot_param (n, (MAX_ACCEL), immediate_data);
+        while(wou_flush(&w_param) == -1);
+        stepgen_array[n].pulse_maxa = immediate_data;
+        /* config acceleration recip */
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG, 
+                        "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
+        assert(immediate_data > 0);
+        write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
+        while(wou_flush(&w_param) == -1);
+
+        /* config max jerk */
+        /* in tp.c, the tc->jerk is ~2.17x of ini-jerk */
+        immediate_data = (uint32_t)(3.0 * (max_jerk * pos_scale * FIXED_POINT_SCALE * dt * dt * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_jerk(%d) = (%f * %f * %f * %f^3)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
+        assert(immediate_data != 0);
+        write_mot_param (n, (MAX_JERK), immediate_data);
+        while(wou_flush(&w_param) == -1);
+        stepgen_array[n].pulse_maxj = immediate_data;
+        /* config max jerk recip */
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(3.0 * max_jerk * pos_scale * dt * dt * dt));
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                        "j[%d] max_jerk_recip(%d) = %f/(%f * %f * %f^3)))\n",
+                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
+        assert(immediate_data != 0);
+        write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
+        while(wou_flush(&w_param) == -1);
+
+        /* config max following error */
+        // following error send with unit pulse
+        max_following_error = atof(ferror_str[n]);
+        immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
+        rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
+        write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
+        while(wou_flush(&w_param) == -1);
+
+        /* config jog setting */
+        jog_config_value = strtoul(jog_config_str[n],NULL, 16);
+        jog_config_value &= 0x000FFFFF;
+        jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
+        rtapi_print_msg(RTAPI_MSG_DBG,
+                  "j[%d] JOG_CONFIG(0x%0X)\n",
+                  n, jog_config_value);
+        write_mot_param (n, (JOG_CONFIG), jog_config_value);
+        while(wou_flush(&w_param) == -1);
+    }
+
+    // config PID parameter
+    pid_str[0] = j0_pid_str;
+    pid_str[1] = j1_pid_str;
+    pid_str[2] = j2_pid_str;
+    pid_str[3] = j3_pid_str;
+    pid_str[4] = j4_pid_str;
+    pid_str[5] = j5_pid_str;
+    pid_str[6] = j6_pid_str;
+    pid_str[7] = j7_pid_str;
+    for (n=0; n < PID_LOOP; n++) {
+        if (pid_str[n][0] != NULL) {
+            rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
+            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
+            // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
+            // all the others units are '1 pulse'
+            for (i=0; i < NUM_PID_PARAMS; i++) {
+                value = atof(pid_str[n][i]);
+                immediate_data = (int32_t) (value);
+                // P_GAIN: the mot_param index for P_GAIN value
+                write_mot_param (n, (P_GAIN + i), immediate_data);
+                while(wou_flush(&w_param) == -1);
+                rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
+            }
+
+            value = 0;
+            immediate_data = (int32_t) (value);
+            write_mot_param (n, (ENABLE), immediate_data);
+            while(wou_flush(&w_param) == -1);
+            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
+        }
+    }
     analog = hal_malloc(sizeof(analog_t));
     if (analog == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1344,7 +1365,6 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
-
 
     retval = export_analog(analog);	// up to 16-ch-adc-in
     if (retval != 0) {
@@ -1429,7 +1449,7 @@ static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
     int n, i, enable;
-    double physical_maxvel, maxvel;	// max vel supported by current step timings & position-scal
+    double physical_maxvel;	// max vel supported by current step timings & position-scal
 
     uint16_t sync_cmd;
     int32_t wou_pos_cmd, integer_pos_cmd;
@@ -1439,7 +1459,6 @@ static void update_freq(void *arg, long period)
     // for homing:
     uint8_t r_load_pos;
     uint8_t r_switch_en;
-    static uint32_t host_tick = 0;
     uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
 #if (TRACE!=0)
@@ -1680,6 +1699,9 @@ static void update_freq(void *arg, long period)
     stepgen = arg;
     enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_joints; n++) {
+
+        *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
+
         /* begin: handle jog config for RISC */
         if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.01) {
             double vel;
@@ -1871,8 +1893,34 @@ static void update_freq(void *arg, long period)
 	}
 	
         {
-            
+            int32_t pulse_accel; 
+            int32_t pulse_jerk; 
+
             integer_pos_cmd = (int32_t)(*stepgen->vel_cmd * (stepgen->pos_scale) * FIXED_POINT_SCALE);
+            
+            // integer_pos_cmd is indeed pulse_vel (velocity in pulse)
+            assert (abs(integer_pos_cmd) <= stepgen->pulse_maxv);
+            pulse_accel = integer_pos_cmd - stepgen->pulse_vel;
+            /* TODO: there's S-CURVE decel bug in tp.c; enable the
+             * pulse_maxa assertion after resolving that bug */
+            // TODO: assert (abs(pulse_accel) <= stepgen->pulse_maxa);
+            pulse_jerk = pulse_accel - stepgen->pulse_accel;
+            //pulse_maxj: if (abs(pulse_jerk) > stepgen->pulse_maxj) {
+            //pulse_maxj:     DP("j[%d], vel_cmd(%f)\n",
+            //pulse_maxj:             n, *stepgen->vel_cmd);
+            //pulse_maxj:     DP("j[%d], pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
+            //pulse_maxj:             n, integer_pos_cmd, pulse_accel, pulse_jerk);
+            //pulse_maxj:     DP("j[%d], PREV pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
+            //pulse_maxj:             n, stepgen->pulse_vel, stepgen->pulse_accel, stepgen->pulse_jerk);
+            //pulse_maxj:     DP("j[%d], pulse_maxv(%d), pulse_maxa(%d), pulse_maxj(%d)\n",
+            //pulse_maxj:             n, stepgen->pulse_maxv, stepgen->pulse_maxa, stepgen->pulse_maxj);
+            //pulse_maxj: }
+            /* TODO: there's S-CURVE decel bug in tp.c; enable the
+             * pulse_maxj assertion after resolving that bug */
+            // TODO: assert (abs(pulse_jerk) <= stepgen->pulse_maxj);
+            stepgen->pulse_vel = integer_pos_cmd;
+            stepgen->pulse_accel = pulse_accel;
+            stepgen->pulse_jerk = pulse_jerk;
 
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
@@ -2104,6 +2152,13 @@ static int export_stepgen(int num, stepgen_t * addr,
     if (retval != 0) {
 	return retval;
     }
+
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->rawcount32), comp_id,
+			      "wou.stepgen.%d.rawcount32", num);
+    if (retval != 0) {
+	return retval;
+    }
+
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_pos), comp_id,
 			      "wou.stepgen.%d.enc_pos", num);
     if (retval != 0) {
@@ -2266,6 +2321,7 @@ static int export_stepgen(int num, stepgen_t * addr,
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
     *(addr->pulse_pos) = 0;
+    *(addr->rawcount32) = 0;
     addr->prev_enc_pos = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
