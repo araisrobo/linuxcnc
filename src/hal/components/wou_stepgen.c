@@ -182,6 +182,17 @@ const char *ctrl_type[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 		      "control type (pos or vel) for up to 8 channels");
 
+const char *pulse_type[MAX_CHAN] =
+    { " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(pulse_type, MAX_CHAN,
+		      "pulse type (AB-PHASE(a) or STEP-DIR(s)) for up to 8 channels");
+
+const char *enc_type[MAX_CHAN] =
+    { " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(enc_type, MAX_CHAN,
+		      "encoder type (REAL(r) or LOOP-BACK(l)) for up to 8 channels");
+
+
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
 
@@ -191,11 +202,11 @@ RTAPI_MP_STRING(bins, "RISC binfile");
 int alarm_en = -1;
 RTAPI_MP_INT(alarm_en, "hardware alarm dection mode");
 
-int pulse_type = -1;
-RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
-
-int enc_type = -1;
-RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
+// int pulse_type = -1;
+// RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
+// 
+// int enc_type = -1;
+// RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
@@ -1036,27 +1047,60 @@ int rtapi_app_main(void)
         return -1;
     }
 
-    if(pulse_type != -1) {
-        data[0] = pulse_type;
+    // "pulse type (AB-PHASE(a) or STEP-DIR(s)) for up to 8 channels")
+    data[0] = 0;
+    for (n = 0; n < MAX_CHAN && (pulse_type[n][0] != ' ') ; n++) {
+	if ((pulse_type[n][0] == 'a') || (pulse_type[n][0] == 'A')) {
+            // PULSE_TYPE(0): ab-phase
+	} else if ((pulse_type[n][0] == 's') || (pulse_type[n][0] == 'S')) {
+            // PULSE_TYPE(1): step-dir
+            data[0] |= (1 << n);
+	} else {
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+			    "STEPGEN: ERROR: bad pulse_type '%s' for joint %i (must be 'a' or 's')\n",
+			    pulse_type[n], n);
+	    return -1;
+	}
+    }
+    if(n > 0) {
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
                 (uint8_t) 1, data);
+        rtapi_print_msg(RTAPI_MSG_INFO,
+                        "STEPGEN: PULSE_TYPE: 0x%02X\n", data[0]);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
-                        "WOU: ERROR: no pulse type: pulse_type\n");
+                        "WOU: ERROR: no pulse_type defined\n");
         return -1;
     }
-
-    if(enc_type != -1) {
-        data[0] = enc_type;
+        
+    // "encoder type: (REAL(r) or LOOP-BACK(l)) for up to 8 channels"
+    data[0] = 0;
+    for (n = 0; n < MAX_CHAN && (enc_type[n][0] != ' ') ; n++) {
+	if ((enc_type[n][0] == 'l') || (enc_type[n][0] == 'L')) {
+            // ENC_TYPE(0): fake ENCODER counts (loop PULSE_CMD to ENCODER)
+	} else if ((enc_type[n][0] == 'r') || (enc_type[n][0] == 'R')) {
+            // ENC_TYPE(1): real ENCODER counts
+            data[0] |= (1 << n);
+	} else {
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+			    "STEPGEN: ERROR: bad enc_type '%s' for joint %i (must be 'r' or 'l')\n",
+			    enc_type[n], n);
+	    return -1;
+	}
+    }
+    if(n > 0) {
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE),
                 (uint8_t) 1, data);
+        rtapi_print_msg(RTAPI_MSG_INFO,
+                        "STEPGEN: ENC_TYPE: 0x%02X\n", data[0]);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
-                        "WOU: ERROR: no encoder type: enc_type\n");
+                        "WOU: ERROR: no enc_type defined\n");
         return -1;
     }
+        
     // config machine type
     if (strcmp(machine_param_str, "XYZA") == 0) {
         // config machine type normal (no synchronized joints)
@@ -1140,6 +1184,7 @@ int rtapi_app_main(void)
         assert(0);
     }
     while(wou_flush(&w_param) == -1);
+
     num_joints = 0;
     for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') ; n++) {
 	if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
