@@ -1220,10 +1220,6 @@ int rtapi_app_main(void)
     
     /* configure motion parameters */
     for(n=0; n<num_joints; n++) {
-        stepgen_array[n].pulse_vel = 0;
-        stepgen_array[n].pulse_accel = 0;
-        stepgen_array[n].pulse_jerk = 0;
-
         /* compute fraction bits */
         // compute proper fraction bit for command
         // compute fraction bit for velocity
@@ -1771,6 +1767,9 @@ static void update_freq(void *arg, long period)
 	    stepgen->prev_vel_cmd = 0;
 	    *(stepgen->vel_fb) = 0;
 	    *(stepgen->ctrl_type_switch) = 0;
+            stepgen->pulse_vel = 0;
+            stepgen->pulse_accel = 0;
+            stepgen->pulse_jerk = 0;
 
 #ifdef DEBUG
             debug_msg_tick = 0;
@@ -1789,6 +1788,7 @@ static void update_freq(void *arg, long period)
                 wou_cmd(&w_param,
                         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
             }
+
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
@@ -1852,6 +1852,9 @@ static void update_freq(void *arg, long period)
 	        *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
+                stepgen->pulse_vel = 0;
+                stepgen->pulse_accel = 0;
+                stepgen->pulse_jerk = 0;
 //	        fprintf(stderr,"ignore_host_cmd(%d) align_pos_cmd(%d)\n",
 //	            *machine_control->ignore_host_cmd, *machine_control->align_pos_cmd);
 	    }
@@ -1862,29 +1865,14 @@ static void update_freq(void *arg, long period)
 	        stepgen->prev_vel_cmd = 0;
 	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
+                stepgen->pulse_vel = 0;
+                stepgen->pulse_accel = 0;
+                stepgen->pulse_jerk = 0;
                 assert(0); // TODO: confirm if we need to update rawcount?
 	        // do more thing if necessary.
 	    }
 	    if (*stepgen->ctrl_type_switch == 0) {
                 *stepgen->vel_cmd = (*stepgen->pos_cmd) * dt ; // notice: has to wire *pos_cmd-pin to velocity command input
-
-                // constrained at RSIC: /* begin:  ramp up/down spindle */
-                // constrained at RSIC: maxvel = stepgen->maxvel;   /* unit/s */
-                // constrained at RSIC: if (*stepgen->vel_cmd > maxvel) {
-                // constrained at RSIC:     *stepgen->vel_cmd = maxvel;
-                // constrained at RSIC: } else if(*stepgen->vel_cmd < -maxvel){
-                // constrained at RSIC:     *stepgen->vel_cmd = -maxvel;
-                // constrained at RSIC: }
-                // constrained at RSIC: stepgen->accel_cmd = (*stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
-
-                // constrained at RSIC: if (stepgen->accel_cmd > stepgen->maxaccel) {
-                // constrained at RSIC:     stepgen->accel_cmd = stepgen->maxaccel;
-                // constrained at RSIC:     *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                // constrained at RSIC: } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
-                // constrained at RSIC:     stepgen->accel_cmd = -(stepgen->maxaccel);
-                // constrained at RSIC:     *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                // constrained at RSIC: }
-
                 /* end: ramp up/down spindle */
 	    } else {
 	        *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
@@ -2331,6 +2319,9 @@ static int export_stepgen(int num, stepgen_t * addr,
     *(addr->pos_cmd) = 0.0;
     *(addr->vel_cmd) = 0.0;
     (addr->prev_vel_cmd) = 0.0;
+    addr->pulse_vel = 0;
+    addr->pulse_accel = 0;
+    addr->pulse_jerk = 0;
     (addr->accel_cmd) = 0.0;
     *(addr->ctrl_type_switch) = 0;
     *(addr->jog_scale) = 1.0;
