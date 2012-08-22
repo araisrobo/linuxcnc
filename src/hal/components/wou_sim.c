@@ -344,9 +344,9 @@ RTAPI_MP_STRING(alr_output,
 
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
-static const char *board = "7i43u";
+// static const char *board = "7i43u";
 static const char wou_id = 0;
-static wou_param_t w_param;
+// static wou_param_t w_param;
 static int pending_cnt;
 
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
@@ -384,10 +384,9 @@ typedef struct {
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
-    hal_float_t *pos_scale_pin;  /* param: steps per position unit */
+    hal_float_t *pos_scale_pin; /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
-    double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
-    hal_float_t *vel_cmd;	        /* pin: velocity command (pos units/sec) */
+    hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
@@ -396,9 +395,7 @@ typedef struct {
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
-    hal_bit_t *ctrl_type_switch;/* switch between vel ctrl and pos ctrl (valid for vel ctrl only) */
     hal_bit_t *ferror_flag;     /* following error flag from risc */
-    int32_t    prev_ctrl_type_switch;
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
@@ -555,7 +552,7 @@ static int export_stepgen(int num, stepgen_t * addr, /* obsolete: int step_type,
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
-static void update_rt_cmd(void);
+// static void update_rt_cmd(void);
 
 
 void endian_swap(uint32_t  *x)
@@ -563,248 +560,248 @@ void endian_swap(uint32_t  *x)
     *x = (*x>>24) | ((*x<<8) & 0x00FF0000) |((*x>>8) & 0x0000FF00) |(*x<<24);
 }
 
-/************************************************************************
- * callback functions for libwou                                        *
- ************************************************************************/
-static void get_crc_error_counter(int32_t crc_error_counter)
-{
-    // store crc_error_counter
-    return;
-}
+// /************************************************************************
+//  * callback functions for libwou                                        *
+//  ************************************************************************/
+// static void get_crc_error_counter(int32_t crc_error_counter)
+// {
+//     // store crc_error_counter
+//     return;
+// }
 
-static void fetchmail(const uint8_t *buf_head)
-{
-    // char        *buf_head;
-    int         i;
-    uint16_t    mail_tag;
-    uint32_t    *p, din[2], dout[1];
-    stepgen_t   *stepgen;
-    uint32_t    bp_tick;    // served as previous-bp-tick
-    uint32_t    ferror_flag;
-#if (MBOX_LOG)
-    char        dmsg[1024];
-    int         dsize;
-#elif (DEBUG_LOG)
-    char        dmsg[1024];
-    int         dsize;
-#endif
-    
-    // buf_head = (char *) wou_mbox_ptr (&w_param);
-    memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
-
-    // BP_TICK
-    p = (uint32_t *) (buf_head + 4);
-    bp_tick = *p;
-    if (machine_control->prev_bp == bp_tick) {
-        // skip mailbox parsing because there isn't new bp_tick
-        return;
-    }
-    *machine_control->bp_tick = bp_tick;
-
-    switch(mail_tag)
-    {
-    case MT_MOTION_STATUS:
-        /* for PLASMA with ADC_SPI */
-        //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            // PULSE_POS
-            p += 1;
-            *(stepgen->pulse_pos) = *p;
-            //TODO: confirm necessary: 
-            *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
-            // enc counter
-            p += 1;
-            *(stepgen->enc_pos) = *p;
-            p += 1;
-#ifndef __ARMEL__
-            // for unknown reason, the next expression will cause alignment
-            // trap for ARM processor (observed with dmesg)
-            *(stepgen->cmd_fbs) = ((int32_t)*p);
-            //TODO: confirm necessary: 
-            *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
-#endif
-            p += 1;
-            *(stepgen->switch_pos) = (*p) * (stepgen->scale_recip);
-            stepgen += 1;   // point to next joint
-        }
-
-        // digital input
-        p += 1;
-        din[0] = *p;
-        p += 1;
-        din[1] = *p;
-        // digital output
-        p += 1;
-        dout[0] = *p;
-        *machine_control->dout0 = dout[0];
-        
-        // update gpio_in[31:0]
-        // compare if there's any GPIO.DIN bit got toggled
-        if (machine_control->prev_in0 != din[0]) {
-            // avoid for-loop to save CPU cycles
-            machine_control->prev_in0 = din[0];
-            for (i = 0; i < 32; i++) {
-                *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
-                *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
-            }
-        }
-        
-        // update gpio_in[63:32]
-        // compare if there's any GPIO.DIN bit got toggled
-        if (machine_control->prev_in1 != din[1]) {
-            // avoid for-loop to save CPU cycles
-            machine_control->prev_in1 = din[1];
-            for (i = 32; i < 64; i++) {
-                *(machine_control->in[i]) = ((machine_control->prev_in1) >> (i-32)) & 0x01;
-                *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
-            }
-        }
-
-        // ADC_SPI (raw ADC value)
-        p += 1;
-        //obsolete: *(gpio->a_in[0]) = (((double)*p)/20.0);
-        *(analog->in[0]) = *p;
-        p += 1; *(analog->in[1]) = *p;
-        p += 1; *(analog->in[2]) = *p;
-        p += 1; *(analog->in[3]) = *p;
-        p += 1; *(analog->in[4]) = *p;
-        p += 1; *(analog->in[5]) = *p;
-        p += 1; *(analog->in[6]) = *p;
-        p += 1; *(analog->in[7]) = *p;
-        p += 1; *(analog->in[8]) = *p;
-        p += 1; *(analog->in[9]) = *p;
-        p += 1; *(analog->in[10]) = *p;
-        p += 1; *(analog->in[11]) = *p;
-        p += 1; *(analog->in[12]) = *p;
-        p += 1; *(analog->in[13]) = *p;
-        p += 1; *(analog->in[14]) = *p;
-        p += 1; *(analog->in[15]) = *p;
-
-        // MPG
-        p += 1;
-        *(machine_control->mpg_count) = *p;
-        // the MPG on my hand is 1-click for a full-AB-phase-wave.
-        // therefore the mpg_count will increase by 4.
-        // divide it by 4 for smooth jogging.
-        // otherwise, there will be 4 units of motions for every MPG click.
-        *(machine_control->mpg_count) >>= 2;
-        //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
-        
-        // FERROR FLAG
-        p += 1;
-        ferror_flag = *p;
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            *stepgen->ferror_flag = ferror_flag & (1 << i);
-            stepgen += 1;   // point to next joint
-        }
-
-        // DEBUG  : MOVE to MT_DEBUG
-
-#if (MBOX_LOG)
-        dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
-        // fprintf (mbox_fp, "%10d  ", bp_tick);
-        stepgen = stepgen_array;
-        for (i=0; i<num_joints; i++) {
-            dsize += sprintf (dmsg + dsize, "%10d %10d %10f %10f %10d  ",
-                              *(stepgen->pulse_pos),
-                              *(stepgen->enc_pos),
-                              *(stepgen->pid_output),
-                              *(stepgen->cmd_error),
-                              *(stepgen->joint_cmd)
-                             );
-            stepgen += 1;   // point to next joint
-        }
-        dsize += sprintf (dmsg + dsize, "0x%04X 0x%04X 0x%04X", // #21 #22 #23
-                          din[0],
-                          din[1],
-                          dout[0]);
-        dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #24 #25
-
-
-        // number of debug words: to match "send_joint_status() at common.c
-        for (i=0; i<MBOX_DEBUG_VARS; i++) {
-            p += 1;
-            dsize += sprintf (dmsg + dsize, "%10d ", *p);
-        }
-        assert (dsize < 1023);
-        fprintf (mbox_fp, "%s\n", dmsg);
-#endif
-        break;
-    case MT_ERROR_CODE:
-        // error code
-        p = (uint32_t *) (buf_head + 4);    // prev_bp_tick - bp_offset
-        p += 1;
-        bp_tick = *p;                      
-        p += 1;
-        if (ERROR_BASE_PERIOD == *p) {
-            DP("ERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
-        }
-        break;
-
-    case MT_USB_STATUS:
-            // update wou status only if a cmd ongoing
-        p = (uint32_t *) (buf_head + 4);
-        /* probe status */
-        p += 1;
-//        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
-        *machine_control->wou_status = *p;
-//        fprintf(stderr,"usb status(0x%0X)\n", *p);
-//        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
-//            // section report status normally
-//            *machine_control->wou_status = *p;
-//        } else {
-//            *machine_control->wou_status = USB_STATUS_READY;
-//        }
-        break;
-
-    case MT_DEBUG:
-        p = (uint32_t *) (buf_head + 4);
-        bp_tick = *p;
-#if (DEBUG_LOG)
-        dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
-#endif
-        for (i=0; i<8; i++) {
-            p += 1;
-            *machine_control->debug[i] = *p;
-
-#if (DEBUG_LOG)
-            dsize += sprintf (dmsg + dsize, "%10d", *p);
-            assert (dsize < 1023);
-#endif
-        }
-#if (DEBUG_LOG)
-        fprintf (debug_fp, "%s\n", dmsg);
-#endif
-        break;
-    case MT_TICK:
-        p = (uint32_t *) (buf_head + 4);
-        for (i=0; i<14; i++) {
-            p += 1;
-            *machine_control->tick[i] = *p;
-        }
-        break;
-    case MT_PROBED_POS:
-        stepgen = stepgen_array;
-        p = (uint32_t *) (buf_head + 4);
-
-        for (i=0; i<num_joints; i++) {
-            p += 1;
-//            fprintf(stderr,"(%d) probed pos(%d)\n", i, (int32_t)*p);
-            *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
-            stepgen += 1;   // point to next joint
-
-        }
-        break;
-        break;
-    default:
-        fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
-        *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
-        //? assert(0);
-        break;
-    }
-}
+// static void fetchmail(const uint8_t *buf_head)
+// {
+//     // char        *buf_head;
+//     int         i;
+//     uint16_t    mail_tag;
+//     uint32_t    *p, din[2], dout[1];
+//     stepgen_t   *stepgen;
+//     uint32_t    bp_tick;    // served as previous-bp-tick
+//     uint32_t    ferror_flag;
+// #if (MBOX_LOG)
+//     char        dmsg[1024];
+//     int         dsize;
+// #elif (DEBUG_LOG)
+//     char        dmsg[1024];
+//     int         dsize;
+// #endif
+//     
+//     // buf_head = (char *) wou_mbox_ptr (&w_param);
+//     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
+// 
+//     // BP_TICK
+//     p = (uint32_t *) (buf_head + 4);
+//     bp_tick = *p;
+//     if (machine_control->prev_bp == bp_tick) {
+//         // skip mailbox parsing because there isn't new bp_tick
+//         return;
+//     }
+//     *machine_control->bp_tick = bp_tick;
+// 
+//     switch(mail_tag)
+//     {
+//     case MT_MOTION_STATUS:
+//         /* for PLASMA with ADC_SPI */
+//         //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
+//         stepgen = stepgen_array;
+//         for (i=0; i<num_joints; i++) {
+//             // PULSE_POS
+//             p += 1;
+//             *(stepgen->pulse_pos) = *p;
+//             //TODO: confirm necessary: 
+//             *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
+//             // enc counter
+//             p += 1;
+//             *(stepgen->enc_pos) = *p;
+//             p += 1;
+// #ifndef __ARMEL__
+//             // for unknown reason, the next expression will cause alignment
+//             // trap for ARM processor (observed with dmesg)
+//             *(stepgen->cmd_fbs) = ((int32_t)*p);
+//             //TODO: confirm necessary: 
+//             *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
+// #endif
+//             p += 1;
+//             *(stepgen->switch_pos) = (*p) * (stepgen->scale_recip);
+//             stepgen += 1;   // point to next joint
+//         }
+// 
+//         // digital input
+//         p += 1;
+//         din[0] = *p;
+//         p += 1;
+//         din[1] = *p;
+//         // digital output
+//         p += 1;
+//         dout[0] = *p;
+//         *machine_control->dout0 = dout[0];
+//         
+//         // update gpio_in[31:0]
+//         // compare if there's any GPIO.DIN bit got toggled
+//         if (machine_control->prev_in0 != din[0]) {
+//             // avoid for-loop to save CPU cycles
+//             machine_control->prev_in0 = din[0];
+//             for (i = 0; i < 32; i++) {
+//                 *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
+//                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
+//             }
+//         }
+//         
+//         // update gpio_in[63:32]
+//         // compare if there's any GPIO.DIN bit got toggled
+//         if (machine_control->prev_in1 != din[1]) {
+//             // avoid for-loop to save CPU cycles
+//             machine_control->prev_in1 = din[1];
+//             for (i = 32; i < 64; i++) {
+//                 *(machine_control->in[i]) = ((machine_control->prev_in1) >> (i-32)) & 0x01;
+//                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
+//             }
+//         }
+// 
+//         // ADC_SPI (raw ADC value)
+//         p += 1;
+//         //obsolete: *(gpio->a_in[0]) = (((double)*p)/20.0);
+//         *(analog->in[0]) = *p;
+//         p += 1; *(analog->in[1]) = *p;
+//         p += 1; *(analog->in[2]) = *p;
+//         p += 1; *(analog->in[3]) = *p;
+//         p += 1; *(analog->in[4]) = *p;
+//         p += 1; *(analog->in[5]) = *p;
+//         p += 1; *(analog->in[6]) = *p;
+//         p += 1; *(analog->in[7]) = *p;
+//         p += 1; *(analog->in[8]) = *p;
+//         p += 1; *(analog->in[9]) = *p;
+//         p += 1; *(analog->in[10]) = *p;
+//         p += 1; *(analog->in[11]) = *p;
+//         p += 1; *(analog->in[12]) = *p;
+//         p += 1; *(analog->in[13]) = *p;
+//         p += 1; *(analog->in[14]) = *p;
+//         p += 1; *(analog->in[15]) = *p;
+// 
+//         // MPG
+//         p += 1;
+//         *(machine_control->mpg_count) = *p;
+//         // the MPG on my hand is 1-click for a full-AB-phase-wave.
+//         // therefore the mpg_count will increase by 4.
+//         // divide it by 4 for smooth jogging.
+//         // otherwise, there will be 4 units of motions for every MPG click.
+//         *(machine_control->mpg_count) >>= 2;
+//         //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
+//         
+//         // FERROR FLAG
+//         p += 1;
+//         ferror_flag = *p;
+//         stepgen = stepgen_array;
+//         for (i=0; i<num_joints; i++) {
+//             *stepgen->ferror_flag = ferror_flag & (1 << i);
+//             stepgen += 1;   // point to next joint
+//         }
+// 
+//         // DEBUG  : MOVE to MT_DEBUG
+// 
+// #if (MBOX_LOG)
+//         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
+//         // fprintf (mbox_fp, "%10d  ", bp_tick);
+//         stepgen = stepgen_array;
+//         for (i=0; i<num_joints; i++) {
+//             dsize += sprintf (dmsg + dsize, "%10d %10d %10f %10f %10d  ",
+//                               *(stepgen->pulse_pos),
+//                               *(stepgen->enc_pos),
+//                               *(stepgen->pid_output),
+//                               *(stepgen->cmd_error),
+//                               *(stepgen->joint_cmd)
+//                              );
+//             stepgen += 1;   // point to next joint
+//         }
+//         dsize += sprintf (dmsg + dsize, "0x%04X 0x%04X 0x%04X", // #21 #22 #23
+//                           din[0],
+//                           din[1],
+//                           dout[0]);
+//         dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #24 #25
+// 
+// 
+//         // number of debug words: to match "send_joint_status() at common.c
+//         for (i=0; i<MBOX_DEBUG_VARS; i++) {
+//             p += 1;
+//             dsize += sprintf (dmsg + dsize, "%10d ", *p);
+//         }
+//         assert (dsize < 1023);
+//         fprintf (mbox_fp, "%s\n", dmsg);
+// #endif
+//         break;
+//     case MT_ERROR_CODE:
+//         // error code
+//         p = (uint32_t *) (buf_head + 4);    // prev_bp_tick - bp_offset
+//         p += 1;
+//         bp_tick = *p;                      
+//         p += 1;
+//         if (ERROR_BASE_PERIOD == *p) {
+//             DP("ERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
+//         }
+//         break;
+// 
+//     case MT_USB_STATUS:
+//             // update wou status only if a cmd ongoing
+//         p = (uint32_t *) (buf_head + 4);
+//         /* probe status */
+//         p += 1;
+// //        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
+//         *machine_control->wou_status = *p;
+// //        fprintf(stderr,"usb status(0x%0X)\n", *p);
+// //        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
+// //            // section report status normally
+// //            *machine_control->wou_status = *p;
+// //        } else {
+// //            *machine_control->wou_status = USB_STATUS_READY;
+// //        }
+//         break;
+// 
+//     case MT_DEBUG:
+//         p = (uint32_t *) (buf_head + 4);
+//         bp_tick = *p;
+// #if (DEBUG_LOG)
+//         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
+// #endif
+//         for (i=0; i<8; i++) {
+//             p += 1;
+//             *machine_control->debug[i] = *p;
+// 
+// #if (DEBUG_LOG)
+//             dsize += sprintf (dmsg + dsize, "%10d", *p);
+//             assert (dsize < 1023);
+// #endif
+//         }
+// #if (DEBUG_LOG)
+//         fprintf (debug_fp, "%s\n", dmsg);
+// #endif
+//         break;
+//     case MT_TICK:
+//         p = (uint32_t *) (buf_head + 4);
+//         for (i=0; i<14; i++) {
+//             p += 1;
+//             *machine_control->tick[i] = *p;
+//         }
+//         break;
+//     case MT_PROBED_POS:
+//         stepgen = stepgen_array;
+//         p = (uint32_t *) (buf_head + 4);
+// 
+//         for (i=0; i<num_joints; i++) {
+//             p += 1;
+// //            fprintf(stderr,"(%d) probed pos(%d)\n", i, (int32_t)*p);
+//             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
+//             stepgen += 1;   // point to next joint
+// 
+//         }
+//         break;
+//         break;
+//     default:
+//         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
+//         *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
+//         //? assert(0);
+//         break;
+//     }
+// }
 
 static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 {
@@ -1055,25 +1052,8 @@ int rtapi_app_main(void)
                         "WOU: ERROR: no alarm_en\n");
         return -1;
     }
+    rtapi_print_msg(RTAPI_MSG_INFO, "ALARM_EN: 0x%02X\n", data[0]);
 
-    if(pulse_type != -1) {
-        data[0] = pulse_type;
-    } else {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                        "WOU: ERROR: no pulse type: pulse_type\n");
-        return -1;
-    }
-
-    if(enc_type != -1) {
-        data[0] = enc_type;
-        // wou_cmd (&w_param, WB_WR_CMD,
-        //         (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE),
-        //         (uint8_t) 1, data);
-    } else {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                        "WOU: ERROR: no encoder type: enc_type\n");
-        return -1;
-    }
     // config machine type
     if (strcmp(machine_param_str, "XYZA") == 0) {
         // config machine type normal (no synchronized joints)
@@ -1418,32 +1398,32 @@ static double force_precision(double d)
 {
     return d;
 }
-//obsolete: static FILE *f_abort;
-static void update_rt_cmd(void)
-{
-    uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
-    int32_t immediate_data = 0;
-    if (machine_control) {
-        if (*machine_control->rt_abort == 1 ||
-                *machine_control->cl_abort == 1) {
-            immediate_data = RT_ABORT;
-            memcpy(data, &immediate_data, sizeof(uint32_t));
-            // rt_wou_cmd (&w_param, 
-            //             WB_WR_CMD, 
-            //             (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-            //             sizeof(uint32_t), 
-            //             data);
-            // rt_wou_flush(&w_param);
-//            *machine_control->align_pos_cmd = 2;
-        }
-    }
-}
+// //obsolete: static FILE *f_abort;
+// static void update_rt_cmd(void)
+// {
+//     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
+//     int32_t immediate_data = 0;
+//     if (machine_control) {
+//         if (*machine_control->rt_abort == 1 ||
+//                 *machine_control->cl_abort == 1) {
+//             immediate_data = RT_ABORT;
+//             memcpy(data, &immediate_data, sizeof(uint32_t));
+//             // rt_wou_cmd (&w_param, 
+//             //             WB_WR_CMD, 
+//             //             (uint16_t) (JCMD_BASE | OR32_RT_CMD),
+//             //             sizeof(uint32_t), 
+//             //             data);
+//             // rt_wou_flush(&w_param);
+// //            *machine_control->align_pos_cmd = 2;
+//         }
+//     }
+// }
 
 static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
     int n, i, enable;
-    double physical_maxvel, maxvel;	// max vel supported by current step timings & position-scal
+    double physical_maxvel;	// max vel supported by current step timings & position-scal
 
     // int32_t wou_cmd_accum;
     uint16_t sync_cmd;
@@ -1778,6 +1758,7 @@ static void update_freq(void *arg, long period)
                 //DEBUG:                 *(stepgen->vel_fb)
                 //DEBUG:                );
                 machine_control->prev_bp = *machine_control->bp_tick;
+                *machine_control->bp_tick += 1; // for sim
             }
         }
 
@@ -1802,7 +1783,6 @@ static void update_freq(void *arg, long period)
 	    *stepgen->vel_cmd = 0;
 	    stepgen->prev_vel_cmd = 0;
 	    *(stepgen->vel_fb) = 0;
-	    *(stepgen->ctrl_type_switch) = 0;
 
             r_load_pos = 0;
             if (stepgen->rawcount != *(stepgen->enc_pos)) {
@@ -1888,38 +1868,10 @@ static void update_freq(void *arg, long period)
 
 	} else {
 	    /* velocity command mode */
-	    if (stepgen->prev_ctrl_type_switch != *stepgen->ctrl_type_switch) {
-	        stepgen->prev_vel_cmd = 0;
-	        stepgen->prev_pos_cmd = *stepgen->pos_cmd;
-	        // do more thing if necessary.
-	    }
-	    if (*stepgen->ctrl_type_switch == 0) {
-                *stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
-
-                /* begin:  ramp up/down spindle */
-                maxvel = stepgen->maxvel;   /* unit/s */
-                if (*stepgen->vel_cmd > maxvel) {
-                    *stepgen->vel_cmd = maxvel;
-                } else if(*stepgen->vel_cmd < -maxvel){
-                    *stepgen->vel_cmd = -maxvel;
-                }
-                stepgen->accel_cmd = (*stepgen->vel_cmd - stepgen->prev_vel_cmd) * recip_dt; /* unit/s^2 */
-
-                if (stepgen->accel_cmd > stepgen->maxaccel) {
-                    stepgen->accel_cmd = stepgen->maxaccel;
-                    *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                } else if (stepgen->accel_cmd < -(stepgen->maxaccel)) {
-                    stepgen->accel_cmd = -(stepgen->maxaccel);
-                    *stepgen->vel_cmd = stepgen->prev_vel_cmd + stepgen->accel_cmd * dt;
-                }
-                /* end: ramp up/down spindle */
-//                fprintf(stderr,"prev_vel(%f) accel_cmd(%f) \n", stepgen->prev_vel_cmd, stepgen->accel_cmd);
-	    } else {
-	        *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
-	    }
-	    stepgen->prev_ctrl_type_switch = *stepgen->ctrl_type_switch;
+            *stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
 	}
-	{
+	
+        {
             
             integer_pos_cmd = (int32_t)((*stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
 
@@ -1960,65 +1912,17 @@ static void update_freq(void *arg, long period)
             // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
             (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
             stepgen->prev_vel_cmd = *stepgen->vel_cmd;
-	    *(stepgen->pos_fb) = *stepgen->pos_cmd; // for sim:
 
+            // pos_mode(1): position mode: 
+            if (stepgen->pos_mode == 1) {
+                // for sim:
+                *stepgen->enc_pos =  *stepgen->pos_cmd * stepgen->pos_scale;
+            }
+
+            // pos_mode(0): velocity mode: 
             if (stepgen->pos_mode == 0) {
-                    // TODO: find a better way for spindle control
-                    // TODO: let TRAJ-PLANNER judge the index/revolution
-                    // TODO: remove this section from wou_stepgen.c
-                    double delta;
-//                    double spindle_pos;
-                    int32_t spindle_pos;
-//                    double spindle_irevs;
-                    int32_t spindle_irevs, pos_cmd, tmp;
-                    double pos_scale;
-                    pos_scale = stepgen->pos_scale;
-                    pos_cmd = integer_pos_cmd >> FRACTION_BITS;
-
-                    // machine_control->spindle_enc_count += (wou_cmd_accum/(1<<FRACTION_BITS));
-//                    machine_control->spindle_enc_count += (integer_pos_cmd >> FRACTION_BITS);
-
-                    /* limit the spindle encoder count in a revolution and
-                     * keep tracking the revolution of the spindle cmd */
-                    tmp = pos_cmd + machine_control->spindle_enc_count;
-                    if (tmp >= (int32_t) abs(pos_scale)) {
-                        machine_control->spindle_enc_count = tmp - abs(pos_scale);
-                        machine_control->spindle_revs_integer += 1;
-                    } else if (tmp <-(int32_t)(abs(pos_scale))) {
-                        machine_control->spindle_enc_count = tmp + abs(pos_scale);
-                        machine_control->spindle_revs_integer -= 1;
-                    } else {
-                        machine_control->spindle_enc_count = tmp;
-                    }
-
-                    spindle_pos = machine_control->spindle_enc_count;
-                    spindle_irevs = (machine_control->spindle_enc_count % ((int32_t)(pos_scale)));
-
-                    delta = ((double)(spindle_irevs - machine_control->prev_spindle_irevs))/pos_scale;
-
-                    /* communicate with motion control */
-                    if ((*machine_control->spindle_index_enable == 1) && (*machine_control->spindle_at_speed)) {
-
-                        if (delta < -0.5) {
-                            // ex.: 0.9 -> 0.1 (forward)
-                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
-                           machine_control->last_spindle_index_pos_int = machine_control->spindle_revs_integer;
-                            *machine_control->spindle_index_enable = 0;
-//                            fprintf(stderr,"revs_int(%d)\n", machine_control->spindle_revs_integer);
-                        } else if (delta > 0.5) {
-                            // ex.: 0.1 -> 0.9 (backward)
-                           machine_control->last_spindle_index_pos = machine_control->spindle_enc_count;
-                           machine_control->last_spindle_index_pos_int = machine_control->spindle_revs_integer;
-                            *machine_control->spindle_index_enable = 0;
-
-                        }
-                    }
-                    /* compute the absolute position of the spindle */
-                    *machine_control->spindle_revs = (spindle_pos -
-                                       machine_control->last_spindle_index_pos)/pos_scale +
-                                       machine_control->spindle_revs_integer -
-                                       machine_control->last_spindle_index_pos_int;
-                   machine_control->prev_spindle_irevs = spindle_irevs;
+                // for sim:
+                *stepgen->enc_pos += *stepgen->vel_cmd * stepgen->pos_scale * dt;
             }
 
 	}
@@ -2280,13 +2184,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
         return retval;
     }
 
-    /* export pin for control type switch (for vel control only) */
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->ctrl_type_switch), comp_id,
-                              "wou.stepgen.%d.ctrl-type-switch", num);
-    if (retval != 0) {
-        return retval;
-    }
-
     /* export pin for following error */
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->ferror_flag), comp_id,
                               "wou.stepgen.%d.ferror-flag", num);
@@ -2350,8 +2247,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     *(addr->pos_cmd) = 0.0;
     *(addr->vel_cmd) = 0.0;
     (addr->prev_vel_cmd) = 0.0;
-    (addr->accel_cmd) = 0.0;
-    *(addr->ctrl_type_switch) = 0;
     *(addr->jog_scale) = 1;
     /* config jog setting */
     max_pulse_tick = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);
@@ -2650,7 +2545,8 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-    *(machine_control->bp_tick) = 0;
+    *(machine_control->bp_tick) = 1; // for sim
+    machine_control->prev_bp = 0;
 
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->crc_error_counter), comp_id,
