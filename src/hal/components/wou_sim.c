@@ -174,14 +174,21 @@ MODULE_AUTHOR("Yi-Shin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
 
-//obsolete: int step_type[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-//obsolete: RTAPI_MP_ARRAY_INT(step_type, MAX_CHAN,
-//obsolete: 		   "stepping types for up to 8 channels");
-
 const char *ctrl_type[MAX_CHAN] =
     { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 		      "control type (pos or vel) for up to 8 channels");
+
+const char *pulse_type[MAX_CHAN] =
+    { " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(pulse_type, MAX_CHAN,
+		      "pulse type (AB-PHASE(a) or STEP-DIR(s)) for up to 8 channels");
+
+const char *enc_type[MAX_CHAN] =
+    { " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(enc_type, MAX_CHAN,
+		      "encoder type (REAL(r) or LOOP-BACK(l)) for up to 8 channels");
+
 
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
@@ -192,18 +199,14 @@ RTAPI_MP_STRING(bins, "RISC binfile");
 int alarm_en = -1;
 RTAPI_MP_INT(alarm_en, "hardware alarm dection mode");
 
-int pulse_type = -1;
-RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
-
-int enc_type = -1;
-RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
+// int pulse_type = -1;
+// RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
+// 
+// int enc_type = -1;
+// RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
-
-//obsolete: int step_cur[MAX_CHAN] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-//obsolete: RTAPI_MP_ARRAY_INT(step_cur, MAX_CHAN,
-//obsolete: 		   "current limit for up to 8 channel of stepping drivers");
 
 int num_gpio_in = 64;
 RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
@@ -236,38 +239,38 @@ RTAPI_MP_ARRAY_STRING(j3_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[3]");
 
 const char *j4_pid_str[NUM_PID_PARAMS] =
-        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j4_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[4]");
 
 const char *j5_pid_str[NUM_PID_PARAMS] =
-        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j5_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[5]");
 
 const char *j6_pid_str[NUM_PID_PARAMS] =
-        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j6_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[6]");
 
 const char *j7_pid_str[NUM_PID_PARAMS] =
-        { NULL, "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
+        { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
 RTAPI_MP_ARRAY_STRING(j7_pid_str, NUM_PID_PARAMS,
                       "pid parameters for joint[7]");
 
 
 const char *max_vel_str[MAX_CHAN] =
-    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+    { "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0" };
 RTAPI_MP_ARRAY_STRING(max_vel_str, MAX_CHAN,
                       "max velocity value for up to 8 channels");
 
 const char *max_accel_str[MAX_CHAN] =
-    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+    { "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0" };
 RTAPI_MP_ARRAY_STRING(max_accel_str, MAX_CHAN,
                       "max acceleration value for up to 8 channels");
 
 const char *max_jerk_str[MAX_CHAN] =
-    { "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0", "100.0" };
+    { "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0" };
 RTAPI_MP_ARRAY_STRING(max_jerk_str, MAX_CHAN,
                       "max jerk value for up to 8 channels");
 
@@ -318,8 +321,8 @@ RTAPI_MP_STRING(probe_config,
                 "probe config for RISC");
 
 const char *jog_config_str[MAX_CHAN] =
-    { "0x00020000", "0x00020000", "0x00020000", "0x00020000",
-        "0x00020000", "0x00020000", "0x00020000", "0x00020000" };
+    { "0x00000000", "0x00000000", "0x00000000", "0x00000000",
+        "0x00000000", "0x00000000", "0x00000000", "0x00000000" };
 RTAPI_MP_ARRAY_STRING(jog_config_str, MAX_CHAN,
                       "jog config for RISC");
 
@@ -333,10 +336,6 @@ const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
                 "indicate probing level used by analog probing");
 
-//obsolete: const char *act_jnt_num="4";
-//obsolete: RTAPI_MP_STRING(act_jnt_num,
-//obsolete:                "actual joints controlled by risc");
-
 // int alr_output = 0x00000000;
 // RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
 const char *alr_output= "0";
@@ -349,11 +348,8 @@ static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
 static int pending_cnt;
-//static int normal_move_flag[MAX_CHAN] = {0, 0, 0, 0, 0, 0, 0, 0};
-//static uint8_t is_probing = 0;
 
 #define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
-
 
 //trace INDEX_HOMING: static int debug_cnt = 0;
 
