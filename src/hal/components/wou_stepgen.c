@@ -384,7 +384,7 @@ typedef struct {
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
-    double switch_pos_i;
+    int32_t   switch_pos_i;
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
@@ -604,7 +604,7 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *(stepgen->cmd_fbs) = ((int32_t)*p);
             p += 1;
-            (stepgen->switch_pos_i) = (*p);// * (stepgen->scale_recip);
+            (stepgen->switch_pos_i) = (*p);
             stepgen += 1;   // point to next joint
         }
 
@@ -1767,6 +1767,7 @@ static void update_freq(void *arg, long period)
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         *(stepgen->switch_pos) = stepgen->switch_pos_i * stepgen->scale_recip;
+
         // update velocity-feedback only after encoder movement
         if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
