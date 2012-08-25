@@ -15,9 +15,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "simple_tp.h"
 #include "rtapi_math.h"
+#include "posemath.h"
 
 // to disable DP(): #define TRACE 0
 #define TRACE 0
@@ -45,47 +47,46 @@ void simple_tp_update(simple_tp_t *tp, double period)
     double max_dv, tiny_dp, pos_err, vel_req;
     double max_da;
     double next_acc;
-    double acc_req;
-    double vel_err;
-    double tiny_dv;
 
     tp->active = 0;
-    max_da = tp->max_jerk * period;
-
-    /* calculate desired velocity */
-    if (tp->enable) {
-
+    /* compute max change in velocity per servo period */
+    if (tp->position_mode) {
+        max_dv = tp->max_acc * period;
+    } else {
+        // s-curve for non-positioning motion only
+        max_da = tp->max_jerk * period;
         next_acc = fabs(tp->curr_acc) + max_da;
         if (next_acc > tp->max_acc) {
             next_acc = tp->max_acc;
         }
-        /* compute max change in velocity per servo period */
         max_dv = next_acc * period;
-        /* compute a tiny position range, to be treated as zero */
-        tiny_dp = max_dv * period * 0.001;
-
-	/* planner enabled, request a velocity that tends to drive
-	   pos_err to zero, but allows for stopping without position
-	   overshoot */
-	pos_err = tp->pos_cmd - tp->curr_pos;
-	/* positive and negative errors require some sign flipping to
-	   avoid sqrt(negative) */
-	if (pos_err > tiny_dp) {
-	    vel_req = -max_dv +
-		       sqrt(2.0 * tp->max_acc /* next_acc */ * pos_err + max_dv * max_dv);
-	    //checked by curr_vel: /* mark planner as active */
-	    //checked by curr_vel: tp->active = 1;
-	} else if (pos_err < -tiny_dp) {
-	    vel_req =  max_dv -
-		       sqrt(-2.0 * tp->max_acc /* next_acc */ * pos_err + max_dv * max_dv);
-	    //checked by curr_vel: /* mark planner as active */
-	    //checked by curr_vel: tp->active = 1;
-	} else {
-	    /* within 'tiny_dp' of desired pos, no need to move */
-	    vel_req = 0.0;
-            /* disable tp after hitting pos_cmd to prevent futrher movement */
-	    tp->enable = 0;
-	}
+    }
+        
+    /* compute a tiny position range, to be treated as zero */
+    tiny_dp = max_dv * period * 0.001;
+    /* calculate desired velocity */
+    if (tp->enable) {
+        /* accurately positioning at "tp->pos_cmd" */
+        /* planner enabled, request a velocity that tends to drive
+           pos_err to zero, but allows for stopping without position
+           overshoot */
+        pos_err = tp->pos_cmd - tp->curr_pos;
+        /* positive and negative errors require some sign flipping to
+           avoid sqrt(negative) */
+        if (pos_err > tiny_dp) {
+            vel_req = -max_dv +
+                       sqrt(2.0 * tp->max_acc * pos_err + max_dv * max_dv);
+            /* mark planner as active */
+            tp->active = 1;
+        } else if (pos_err < -tiny_dp) {
+            vel_req =  max_dv -
+                       sqrt(-2.0 * tp->max_acc * pos_err + max_dv * max_dv);
+            /* mark planner as active */
+            tp->active = 1;
+        } else {
+            /* within 'tiny_dp' of desired pos, no need to move */
+            vel_req = 0.0;
+        }
     } else {
 	/* planner disabled, request zero velocity */
 	vel_req = 0.0;
@@ -93,71 +94,45 @@ void simple_tp_update(simple_tp_t *tp, double period)
 	   next enabled */
 	tp->pos_cmd = tp->curr_pos;
     }
-
     /* limit velocity request */
     if (vel_req > tp->max_vel) {
         vel_req = tp->max_vel;
     } else if (vel_req < -tp->max_vel) {
 	vel_req = -tp->max_vel;
     }
-	
-    /* compute a tiny velocity range, to be treated as zero */
-    tiny_dv = max_da * period * 0.001;
-    vel_err = vel_req - tp->curr_vel;
-    if (vel_err > tiny_dv) {
-        acc_req = -max_da +
-                   sqrt(2.0 * tp->max_jerk * vel_err + max_da * max_da);
-    } else if (vel_err < -tiny_dv) { 
-        // vel_req <= 0
-        acc_req =  max_da -
-                   sqrt(-2.0 * tp->max_jerk * vel_err + max_da * max_da);
+    /* ramp velocity toward request at accel limit */
+    if (vel_req > tp->curr_vel + max_dv) {
+	tp->curr_vel += max_dv;
+    } else if (vel_req < tp->curr_vel - max_dv) {
+	tp->curr_vel -= max_dv;
     } else {
-        acc_req = 0;
+	tp->curr_vel = vel_req;
     }
-    
-    /* limit accel request */
-    if (acc_req > tp->max_acc) {
-        acc_req = tp->max_acc;
-    } else if (acc_req < -tp->max_acc) {
-        acc_req = -tp->max_acc;
-    }
-
-    /* limit accel toward request at jerk limit */
-    if (acc_req > tp->curr_acc + max_da) {
-        tp->curr_acc += max_da;
-    } else if (acc_req < tp->curr_acc - max_da) {
-        tp->curr_acc -= max_da;
-    } else {
-        tp->curr_acc =  acc_req;
-    }
-
-    tp->curr_vel += (tp->curr_acc * period);
-
     /* check for still moving */
-    if (fabs(tp->curr_vel) > tiny_dv) {
+    if (tp->curr_vel != 0.0) {
 	/* yes, mark planner active */
 	tp->active = 1;
-    } else {
-        tp->curr_vel = 0;
     }
-
     /* integrate velocity to get new position */
     tp->curr_pos += tp->curr_vel * period;
+
+
+
 
 #if (TRACE!=0)
     if (dptrace == 0) {
         dptrace = fopen("simple_tp.log","w");
         dt = 0;
-        DPS("%11s  %15s%15s%15s%15s%15s%15s%15s%7s%7s ",
-             "#dt",  "pos_cmd", "curr_pos", "curr_vel", "curr_acc", "vel_req", "max_vel", "tiny_dv", "enable", "active"
+        DPS("%11s  %15s%15s%15s%15s%15s%15s%7s%7s ",
+             "#dt",  "pos_cmd", "curr_pos", "curr_vel", "curr_acc", "vel_req", "max_vel", "enable", "active"
            );
     }
 
-    if ((dt % 4) == 0) {
+    if ((dt % 5) == 3) {        // check for j3 of 5-joints
         DPS("\n%11u ", dt >> 2);    
     }
-    DPS(" %15.7f%15.7f%15.7f%15.7f%15.7f%15.7f%15.7f%7d%7d ",
-          tp->pos_cmd, tp->curr_pos, tp->curr_vel, tp->curr_acc, vel_req, tp->max_vel, tiny_dv, tp->enable, tp->active
+    DPS(" %15.7f%15.7f%15.7f%15.7f%15.7f%15.7f%7d%7d ",
+          tp->pos_cmd, tp->curr_pos, tp->curr_vel, tp->curr_acc, vel_req, tp->max_vel, tp->enable, tp->active
        );
     dt += 1;
 #endif

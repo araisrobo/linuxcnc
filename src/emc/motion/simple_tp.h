@@ -33,6 +33,7 @@ extern "C" {
 	double curr_vel;	/* current velocity */
         double curr_acc;        /* current acceleration */
 	int active;		/* non-zero if motion in progress */
+	int position_mode;      /* accurate positioning at pos_cmd */
     } simple_tp_t;
 
 /* I could write a bunch of functions to read and write the first four
