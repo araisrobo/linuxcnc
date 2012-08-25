@@ -179,16 +179,16 @@ def main():
     if opts.component is None:
         opts.component = os.path.splitext(os.path.basename(xmlname))[0]
 
-    #try loading as a libglade project
+    # try loading as a gtk.builder project
     try:
-        builder = gtk.glade.XML(xmlname)
-        builder = GladeBuilder(builder)
+        builder = gtk.Builder()
+        builder.add_from_file(xmlname)
     except:
+        #try loading as a libglade project
         try:
-            # try loading as a gtk.builder project
-            dbg("**** GLADE VCP INFO:    Not a libglade project, trying to load as a GTK builder project")
-            builder = gtk.Builder()
-            builder.add_from_file(xmlname)
+            dbg("**** GLADE VCP INFO:    Not a GtkBuilder project, trying to load as a GTK builder project")
+            builder = gtk.glade.XML(xmlname)
+            builder = GladeBuilder(builder)
         except Exception,e:
             print >> sys.stderr, "**** GLADE VCP ERROR:    With xml file: %s : %s" % (xmlname,e)
             sys.exit(0)
