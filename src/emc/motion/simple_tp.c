@@ -46,7 +46,6 @@ void simple_tp_update(simple_tp_t *tp, double period)
 {
     double max_dv, tiny_dp, pos_err, vel_req;
     double max_da;
-    double next_acc;
 
     tp->active = 0;
     /* compute max change in velocity per servo period */
@@ -55,11 +54,10 @@ void simple_tp_update(simple_tp_t *tp, double period)
     } else {
         // s-curve for non-positioning motion only
         max_da = tp->max_jerk * period;
-        next_acc = fabs(tp->curr_acc) + max_da;
-        if (next_acc > tp->max_acc) {
-            next_acc = tp->max_acc;
+        max_dv = fabs(tp->curr_acc) + max_da;  //curr_acc: unit/base_period
+        if (max_dv > (tp->max_acc * period)) {
+            max_dv = tp->max_acc * period;
         }
-        max_dv = next_acc * period;
     }
         
     /* compute a tiny position range, to be treated as zero */
@@ -102,12 +100,19 @@ void simple_tp_update(simple_tp_t *tp, double period)
     }
     /* ramp velocity toward request at accel limit */
     if (vel_req > tp->curr_vel + max_dv) {
-	tp->curr_vel += max_dv;
+//	tp->curr_vel += max_dv;
+        vel_req = tp->curr_vel + max_dv;
     } else if (vel_req < tp->curr_vel - max_dv) {
-	tp->curr_vel -= max_dv;
-    } else {
-	tp->curr_vel = vel_req;
+//	tp->curr_vel -= max_dv;
+        vel_req = tp->curr_vel - max_dv;
     }
+//    else {
+//	tp->curr_vel = vel_req;
+//    }
+    tp->curr_acc += (vel_req - tp->curr_vel);
+    tp->curr_vel = vel_req;
+
+
     /* check for still moving */
     if (tp->curr_vel != 0.0) {
 	/* yes, mark planner active */
