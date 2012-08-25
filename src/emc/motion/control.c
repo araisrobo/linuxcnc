@@ -1445,7 +1445,7 @@ static void get_pos_cmds(long period)
                  * the joint->free_tp.max_vel was set at command.c::EMCMOT_JOG_*,
                  * which was set by the "Jog Speed" of AXIS_GUI
                  **/
-                //vel_lim = joint->free_tp.max_vel * emcmotStatus->net_feed_scale;
+                joint->free_tp.max_vel = fabs(emcmotCommand->vel) * emcmotStatus->net_feed_scale;
                 /* must not be greater than the joint physical limit */
                 if (joint->free_tp.max_vel > joint->vel_limit) {
                     joint->free_tp.max_vel = joint->vel_limit;
@@ -1479,6 +1479,7 @@ static void get_pos_cmds(long period)
                         GET_JOINT_NHL_FLAG(joint))) {
                     joint->free_tp.max_vel = 0;
                 }
+
                 simple_tp_update(&(joint->free_tp), servo_period );
             }
             /* copy free TP output to pos_cmd and coarse_pos */
