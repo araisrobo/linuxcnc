@@ -760,6 +760,8 @@ void emcmotCommandHandler(void *arg, long period)
 	        joint->kb_jog_active = 1;
 	        /* and let it go */
 	        joint->free_tp.enable = 1;
+                joint->free_tp.position_mode = 0; // jerk limition without accurate positioning
+
 	        /*! \todo FIXME - should we really be clearing errors here? */
 	        SET_JOINT_ERROR_FLAG(joint, 0);
 	        /* clear joints homed flag(s) if we don't have forward kins.
@@ -855,6 +857,7 @@ void emcmotCommandHandler(void *arg, long period)
 	        joint->kb_jog_active = 1;
 	        /* and let it go */
 	        joint->free_tp.enable = 1;
+                joint->free_tp.position_mode = 1; // accurate position for jog-incremental
 	        SET_JOINT_ERROR_FLAG(joint, 0);
 	        /* clear joint homed flag(s) if we don't have forward kins.
 	           Otherwise, a transition into coordinated mode will incorrectly
@@ -944,6 +947,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    joint->kb_jog_active = 1;
 	    /* and let it go */
 	    joint->free_tp.enable = 1;
+            joint->free_tp.position_mode = 0; // absolute jog: jerk limition without accurate positioning
 	    SET_JOINT_ERROR_FLAG(joint, 0);
 	    /* clear joint homed flag(s) if we don't have forward kins.
 	       Otherwise, a transition into coordinated mode will incorrectly

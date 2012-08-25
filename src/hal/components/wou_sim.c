@@ -347,12 +347,6 @@ static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 // static const char *board = "7i43u";
 static const char wou_id = 0;
 // static wou_param_t w_param;
-static int pending_cnt;
-
-#define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
-
-//trace INDEX_HOMING: static int debug_cnt = 0;
-
 
 /***********************************************************************
 *                STRUCTURES AND GLOBAL VARIABLES                       *
@@ -377,7 +371,6 @@ typedef struct {
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
     //obsolete: hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
-    int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
@@ -391,7 +384,7 @@ typedef struct {
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *probed_pos;
-    hal_bit_t *align_pos_cmd;
+//    hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
@@ -985,7 +978,6 @@ int rtapi_app_main(void)
 #endif
 
     machine_control = NULL;
-    pending_cnt = 0;
 
     /* test for bitfile string: bits */
     if ((bits == 0) || (bits[0] == '\0')) {
@@ -1434,7 +1426,6 @@ static void update_freq(void *arg, long period)
     // for homing:
     uint8_t r_load_pos;
     uint8_t r_switch_en;
-    static uint32_t host_tick = 0;
     uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
 #if (TRACE!=0)
@@ -1464,19 +1455,6 @@ static void update_freq(void *arg, long period)
     //obsolete:     rt_wou_flush(&w_param);
     //obsolete: }
     //obsolete: 
-
-    // update host tick for risc
-    write_machine_param(HOST_TICK, host_tick);
-    *machine_control->wou_bp_tick = host_tick;
-    if (host_tick == REQUEST_TICK_SYNC_AFTER) {
-        sync_cmd = SYNC_BP ;
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        //         sizeof(uint16_t), data);
-        // wou_flush(&w_param);
-    }
-    host_tick += 1;
-
 
     // wou_update(&w_param);
     //obsolete: fetchmail();
@@ -1677,8 +1655,6 @@ static void update_freq(void *arg, long period)
             for(i=0; i<num_joints; i++) {
                 immediate_data = 1;
                 write_mot_param (i, (ENABLE), immediate_data);
-//                immediate_data = NORMAL_MOVE;
-//                write_mot_param (i, (MOTION_TYPE), immediate_data);
             }
 
         } else {
@@ -1747,7 +1723,6 @@ static void update_freq(void *arg, long period)
                                   / (*machine_control->bp_tick - machine_control->prev_bp)
                                  );
             stepgen->prev_pos_fb = *stepgen->pos_fb;
-            stepgen->prev_enc_pos = *stepgen->enc_pos;
             if (n == (num_joints - 1)) {
                 // update bp_tick for the last joint
                 //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
@@ -2238,7 +2213,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
     *(addr->pulse_pos) = 0;
-    addr->prev_enc_pos = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     *(addr->vel_fb) = 0;

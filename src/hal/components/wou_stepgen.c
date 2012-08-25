@@ -150,6 +150,8 @@
 #define FIXED_POINT_SCALE   65536.0     // (double (1 << FRACTION_BITS))
 #define FRACTION_MASK 0x0000FFFF
 #define PID_LOOP 8
+#define SON_DELAY_TICK  1500
+
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include "dptrace.h"
@@ -350,12 +352,6 @@ static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 static const char *board = "7i43u";
 static const char wou_id = 0;
 static wou_param_t w_param;
-static int pending_cnt;
-
-#define JNT_PER_WOF     2       // SYNC_JNT commands per WOU_FRAME
-
-//trace INDEX_HOMING: static int debug_cnt = 0;
-
 
 /***********************************************************************
 *                STRUCTURES AND GLOBAL VARIABLES                       *
@@ -371,16 +367,14 @@ static int pending_cnt;
 typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
-    /* stuff that is read but not written by makepulses */
-    int64_t  rawcount;          /* precision: 64.16; accumulated pulse sent to FPGA */
-    hal_s32_t *rawcount32;	/* 32-bit integer part of rawcount */
-    hal_bit_t prev_enable;
-    hal_bit_t *enable;		/* pin for enable stepgen */
-    hal_u32_t step_len;		/* parameter: step pulse length */
-    /* stuff that is not accessed by makepulses */
+    int64_t     rawcount;       /* precision: 64.16; accumulated pulse sent to FPGA */
+    hal_s32_t   *rawcount32;	/* 32-bit integer part of rawcount */
+    hal_bit_t   prev_enable;
+    uint32_t    son_delay;      /* eanble delay tick for svo-on of ac-servo drivers */
+    hal_bit_t   *enable;		/* pin for enable stepgen */
+    hal_u32_t   step_len;		/* parameter: step pulse length */
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
-    int32_t   prev_enc_pos;     /* previous encoder position for "vel-fb" calculation */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
@@ -786,6 +780,30 @@ static void fetchmail(const uint8_t *buf_head)
     }
 }
 
+
+static void write_mot_pos_cmd (uint32_t joint, int64_t mot_pos_cmd)
+{
+    uint16_t    sync_cmd;
+    uint8_t     buf[sizeof(uint16_t)];
+    int         j;
+
+    for(j=0; j<sizeof(int64_t); j++) {
+        // byte sequence for int64_t: "4, 5, 6, 7, 0, 1, 2, 3"
+        sync_cmd = SYNC_DATA | ((uint8_t *)&mot_pos_cmd)[(4+j) & 0x07];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+                sizeof(uint16_t), buf);
+    }
+
+    sync_cmd = SYNC_MOT_POS_CMD | PACK_MOT_PARAM_ID(joint);
+    memcpy(buf, &sync_cmd, sizeof(uint16_t));
+    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+            sizeof(uint16_t), buf);
+    while(wou_flush(&w_param) == -1);
+
+    return;
+}
+
 static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 {
     uint16_t    sync_cmd;
@@ -803,6 +821,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     memcpy(buf, &sync_cmd, sizeof(uint16_t));
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
+    while(wou_flush(&w_param) == -1);
 
     return;
 }
@@ -907,8 +926,10 @@ static void write_usb_cmd(machine_control_t *mc)
       break;
     }
   *mc->usb_cmd = 0;
+  while(wou_flush(&w_param) == -1);
   return;
 }
+
 static void write_machine_param (uint32_t addr, int32_t data)
 {
     uint16_t    sync_cmd;
@@ -925,6 +946,9 @@ static void write_machine_param (uint32_t addr, int32_t data)
     memcpy(buf, &sync_cmd, sizeof(uint16_t));
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
+
+    while(wou_flush(&w_param) == -1);
+
     return;
 }
 
@@ -961,7 +985,6 @@ int rtapi_app_main(void)
 #endif
 
     machine_control = NULL;
-    pending_cnt = 0;
 
     /* test for bitfile string: bits */
     if ((bits == 0) || (bits[0] == '\0')) {
@@ -1479,7 +1502,7 @@ static void update_rt_cmd(void)
 static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
-    int n, i, enable;
+    int n, i;
     double physical_maxvel;	// max vel supported by current step timings & position-scal
 
     uint16_t sync_cmd;
@@ -1487,9 +1510,6 @@ static void update_freq(void *arg, long period)
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     uint32_t sync_out_data;
 
-    // for homing:
-    uint8_t r_load_pos;
-    uint8_t r_switch_en;
     uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
 #if (TRACE!=0)
@@ -1678,58 +1698,31 @@ static void update_freq(void *arg, long period)
     }
 #endif
 
-    // num_joints: calculated from ctrl_type;
-    /* loop thru generators */
-    r_load_pos = 0;
-    r_switch_en = 0;
-    /* check if we should update SWITCH/INDEX positions for HOMING */
-    if (r_load_pos != 0) {
-	// issue a WOU_WRITE
-	wou_cmd(&w_param,
-		WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-	fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
-	while(wou_flush(&w_param) == -1);
-    }
-
-    /* check if we should enable HOME Switch Detection */
-    if (r_switch_en != 0) {
-	// issue a WOU_WRITE
-	wou_cmd(&w_param,
-		WB_WR_CMD, SSIF_BASE | SSIF_SWITCH_EN, 1, &r_switch_en);
-	// fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-	while(wou_flush(&w_param) == -1);
-    }
-
-
-    // check wou.stepgen.00.enable signal directly
-    stepgen = arg;
-    if (*stepgen->enable != stepgen->prev_enable) {
-        stepgen->prev_enable = *stepgen->enable;
-        fprintf(stderr,"enable changed(%d)\n", *stepgen->enable);
-        if (*stepgen->enable) {
-            for(i=0; i<num_joints; i++) {
-                immediate_data = 1;
-                write_mot_param (i, (ENABLE), immediate_data);
-            }
-        } else {
-            for(i=0; i<num_joints; i++) {
-                immediate_data = 0;
-                write_mot_param (i, (ENABLE), immediate_data);
-            }
-        }
-    }
-    
     // in[0] == 1 (ESTOP released)
     // in[0] == 0 (ESTOP pressed)
     if (*(machine_control->in[0]) == 0) {
-        // force updating prev_out and ignore out[] if ESTOP is pressed
+        // force updating prev_out and ignore "out[] for RISC" if ESTOP is pressed
+        // The dout0 is forced by ALARM_OUT when ESTOP is pressed
         machine_control->prev_out =  *machine_control->dout0;
     }
 
     i = 0;
     stepgen = arg;
-    enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_joints; n++) {
+
+        if (*stepgen->enable != stepgen->prev_enable) {
+            if ((stepgen->son_delay > SON_DELAY_TICK)
+                 || (*stepgen->enable == 0)) {
+                stepgen->son_delay = 0;
+                stepgen->prev_enable = *stepgen->enable;
+                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
+                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
+                write_mot_param (n, (ENABLE), (int32_t) *stepgen->enable);
+            } else {
+                stepgen->son_delay ++;
+            }
+        }
+
 
         *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
 
@@ -1774,7 +1767,6 @@ static void update_freq(void *arg, long period)
                                   / (*machine_control->bp_tick - machine_control->prev_bp)
                                  );
             stepgen->prev_pos_fb = *stepgen->pos_fb;
-            stepgen->prev_enc_pos = *stepgen->enc_pos;
             if (n == (num_joints - 1)) {
                 // update bp_tick for the last joint
                 machine_control->prev_bp = *machine_control->bp_tick;
@@ -1782,7 +1774,7 @@ static void update_freq(void *arg, long period)
         }
 
 	/* test for disabled stepgen */
-	if (enable == 0) {
+	if (stepgen->prev_enable == 0) {
 	    /* AXIS not PWR-ON */
 	    /* keep updating parameters for better performance */
 	    stepgen->scale_recip = 1.0 / stepgen->pos_scale;
@@ -1809,21 +1801,6 @@ static void update_freq(void *arg, long period)
 #ifdef DEBUG
             debug_msg_tick = 0;
 #endif
-
-            r_load_pos = 0;
-            if (stepgen->rawcount !=  (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS)) {
-                r_load_pos |= (1 << n);
-                /**
-                 * accumulator gets a half step offset, so it will step
-                 * half way between integer positions, not at the integer
-                 * positions.
-                 **/
-                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
-                /* load SWITCH, INDEX, and PULSE positions with enc_counter */
-                wou_cmd(&w_param,
-                        WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-            }
-
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
@@ -1884,11 +1861,11 @@ static void update_freq(void *arg, long period)
 	    /* position command mode */
 	    if (*machine_control->align_pos_cmd == 1 ||
 	        *machine_control->ignore_host_cmd) {
-                rtapi_print_msg(RTAPI_MSG_ERR,
-                                "align_pos_cmd: j[%d]\n",
-                                n);
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
+                printf("j[%d] cmd_fbs(%d) rawcount32(%d) \n",
+                        n, *stepgen->cmd_fbs, (int32_t) (stepgen->rawcount >> FRACTION_BITS));
+                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
                 stepgen->pulse_vel = 0;
                 stepgen->pulse_accel = 0;
                 stepgen->pulse_jerk = 0;
@@ -2191,6 +2168,7 @@ static int export_stepgen(int num, stepgen_t * addr,
 
     /* export pin for enable command */
     addr->prev_enable = 0;
+    addr->son_delay = 0;
     retval = hal_pin_bit_newf(HAL_IN, &(addr->enable), comp_id,
 			      "wou.stepgen.%d.enable", num);
     if (retval != 0) {
@@ -2285,7 +2263,6 @@ static int export_stepgen(int num, stepgen_t * addr,
     /* set initial pin values */
     *(addr->pulse_pos) = 0;
     *(addr->rawcount32) = 0;
-    addr->prev_enc_pos = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     *(addr->vel_fb) = 0;

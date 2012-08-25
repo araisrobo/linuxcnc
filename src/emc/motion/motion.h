@@ -552,7 +552,6 @@ Suggestion: Split this in to an Error and a Status flag register..
         double index_pos;       /* motor index position in absolute motor pulse counts */
 	double motor_offset;	/* diff between internal and motor pos, used
 				   to set position to zero during homing */
-	double motor_offset_fb;
 	int old_jog_counts;	/* prior value, used for deltas */
 	double probed_pos;
     } emcmot_joint_t;

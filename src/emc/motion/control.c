@@ -471,17 +471,8 @@ static void process_inputs(void)
         joint->motor_pos_fb = *(joint_data->motor_pos_fb);  // absolute motor position
         joint->switch_pos = *(joint_data->switch_pos_pin);  // absolute switch position
         joint->index_pos = *(joint_data->index_pos_pin);  // absolute switch position
-        /* calculate pos_fb */
-//        if (joint->home_state == HOME_SET_SWITCH_POSITION) {
-//            fprintf(stderr, "setting pos_fb(%f)\n", joint->pos_cmd);
-//            joint->pos_fb = joint->pos_cmd;
-//        } else
-
-//        joint->pos_fb = joint->motor_pos_fb -
-//                (joint->backlash_filt + joint->motor_offset);
         joint->pos_fb = joint->motor_pos_fb -
-                        (joint->backlash_filt + joint->motor_offset_fb);
-
+                        (joint->backlash_filt + joint->motor_offset);
 
 //#ifndef MOTION_OVER_USB
 //      if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
@@ -506,6 +497,7 @@ static void process_inputs(void)
 //      /* calculate following error for motion over usb */
 //      /* joint->ferror updated above */
 //#endif
+
         /* calculate following error */
         joint->ferror = joint->pos_cmd - joint->pos_fb;
         abs_ferror = fabs(joint->ferror);
@@ -761,6 +753,7 @@ static void process_probe_inputs(void)
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
         }
         break;
+
     case USB_STATUS_PROBE_HIT:
       /* 先將當前的tp pause然後適合的時機abort他，之後呼叫resume繼續後面的tp */
         wait_resume = 1;
@@ -784,7 +777,7 @@ static void process_probe_inputs(void)
                      joint = &joints[joint_num];
                      /* update probed pos  */
                      joint_pos[joint_num] =  joint->probed_pos -
-                                             (joint->backlash_filt + joint->motor_offset_fb);
+                                             (joint->backlash_filt + joint->motor_offset);
                  }
                 /* tell USB that we've got the status */
                 fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK() to confirm if it is valid\n");
@@ -809,7 +802,7 @@ static void process_probe_inputs(void)
                  joint = &joints[joint_num];
                  /* update probed pos  */
                  joint_pos[joint_num] =  joint->probed_pos -
-                                         (joint->backlash_filt + joint->motor_offset_fb);
+                                         (joint->backlash_filt + joint->motor_offset);
              }
             fprintf(stderr,"PROBE: USB_STATUS_PROBE_HIT\n");
             tpAbort(&emcmotDebug->coord_tp);
@@ -828,6 +821,7 @@ static void process_probe_inputs(void)
             emcmotStatus->align_pos_cmd = 1;
         }
         break;
+
     case USB_STATUS_PROBE_ERROR:// only one error reason from risc
         SET_MOTION_ERROR_FLAG(1);
         for (i = 0; i < emcmotConfig->numJoints; i++) {
@@ -860,7 +854,7 @@ static void process_probe_inputs(void)
 //          emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
           fprintf(stderr,"USB_STATUS_PROBE_ERROR setting align pos cmd 1\n");
           emcmotStatus->align_pos_cmd = 1;
-          *emcmot_hal_data->align_pos_cmd = 1;
+          // *emcmot_hal_data->align_pos_cmd = 1;
 
         }
 
@@ -943,7 +937,7 @@ static void process_probe_inputs(void)
                    joint = &joints[joint_num];
                    /* update probed pos  */
                    joint_pos[joint_num] =  joint->probed_pos -
-                                           (joint->backlash_filt + joint->motor_offset_fb);
+                                           (joint->backlash_filt + joint->motor_offset);
                }
 
               /* record current pos as probed pos */
@@ -1375,6 +1369,7 @@ static void handle_jogwheels(void)
         joint->wheel_jog_active = 1;
         /* and let it go */
         joint->free_tp.enable = 1;
+        joint->free_tp.position_mode = 1; // wheel jog: accurate positioning
         SET_JOINT_ERROR_FLAG(joint, 0);
         /* clear joint homed flag(s) if we don't have forward kins.
            Otherwise, a transition into coordinated mode will incorrectly
@@ -1434,7 +1429,7 @@ static void get_pos_cmds(long period)
                 continue;
             }
 
-            // ysli TODO: distinguish LINEAR and ANGULAR vel/acc/jerk
+            // TODO: distinguish LINEAR and ANGULAR vel/acc/jerk
             if(joint->acc_limit > emcmotStatus->acc)
                 joint->acc_limit = emcmotStatus->acc;
             if(joint->jerk_limit > emcmotStatus->jerk)
@@ -1456,8 +1451,6 @@ static void get_pos_cmds(long period)
                     joint->free_tp.max_vel = joint->vel_limit;
                 }
                 /* set vel limit in free TP */
-              //  joint->free_tp.max_vel = vel_lim;
-
             } else {
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
@@ -2138,15 +2131,8 @@ static void output_to_hal(void)
 
     if (emcmotStatus->align_pos_cmd || (emcmotStatus->sync_pos_cmd == 1) ||
         (emcmotStatus->sync_risc_pos == 1)) {
-//        if (emcmotStatus->align_pos_cmd  > 3) {
-//            emcmotStatus->align_pos_cmd = 0;
-//            emcmotStatus->special_cmd = 0;
-//        } else {
             *(emcmot_hal_data->align_pos_cmd) = 1;
-//            fprintf(stderr,"control.c: align_pos_cmd = 1\n");
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-//            emcmotStatus->align_pos_cmd ++;
-//        }
     } else {
 
         *(emcmot_hal_data->align_pos_cmd) = 0;
