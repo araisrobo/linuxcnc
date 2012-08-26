@@ -174,7 +174,23 @@ void simple_tp_update(simple_tp_t *tp, double period)
             tp->curr_acc = acc_req;
         }
 
-        tp->curr_vel += (tp->curr_acc * period);
+        vel_req = tp->curr_vel + (tp->curr_acc * period);
+        
+        /* ramp velocity toward request at accel limit */
+        if (vel_req > tp->curr_vel + dv_upper) {
+            vel_req = tp->curr_vel + dv_upper;
+        } else if (vel_req < tp->curr_vel + dv_lower) {
+            vel_req = tp->curr_vel + dv_lower;
+        }
+
+        /* limit velocity request */
+        if (vel_req > tp->max_vel) {
+            vel_req = tp->max_vel;
+        } else if (vel_req < -tp->max_vel) {
+            vel_req = -tp->max_vel;
+        }
+
+        tp->curr_vel = vel_req;
 
         /* check for still moving */
         if (fabs(tp->curr_vel) <= tiny_dv) {
