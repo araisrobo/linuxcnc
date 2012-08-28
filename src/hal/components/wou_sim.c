@@ -34,7 +34,7 @@
 
     So a command line like this:
 
-	insmod stepgen step_type=0,0,1,2  ctrl_type=p,p,v,p
+	insmod stepgen ctrl_type=p,p,v,p
 
     will install four step generators, two using stepping type 0,
     one using type 1, and one using type 2.  The first two and
@@ -135,6 +135,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -149,6 +150,8 @@
 #define FIXED_POINT_SCALE   65536.0     // (double (1 << FRACTION_BITS))
 #define FRACTION_MASK 0x0000FFFF
 #define PID_LOOP 8
+#define SON_DELAY_TICK  1500
+
 // to disable DP(): #define TRACE 0
 #define TRACE 0
 #include "dptrace.h"
@@ -168,6 +171,8 @@ static FILE *mbox_fp;
 #if (DEBUG_LOG)
 static FILE *debug_fp;
 #endif
+
+#undef  DEBUG
 
 /* module information */
 MODULE_AUTHOR("Yi-Shin Li");
@@ -345,7 +350,7 @@ RTAPI_MP_STRING(alr_output,
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
 // static const char *board = "7i43u";
-static const char wou_id = 0;
+// static const char wou_id = 0;
 // static wou_param_t w_param;
 
 /***********************************************************************
@@ -362,18 +367,21 @@ static const char wou_id = 0;
 typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
-    /* stuff that is read but not written by makepulses */
-    int32_t rawcount;
-    hal_bit_t prev_enable;
-    hal_bit_t *enable;		/* pin for enable stepgen */
-    hal_u32_t step_len;		/* parameter: step pulse length */
-    /* stuff that is not accessed by makepulses */
+    int64_t     rawcount;       /* precision: 64.16; accumulated pulse sent to FPGA */
+    hal_s32_t   *rawcount32;	/* 32-bit integer part of rawcount */
+    hal_bit_t   prev_enable;
+    uint32_t    son_delay;      /* eanble delay tick for svo-on of ac-servo drivers */
+    hal_bit_t   *enable;		/* pin for enable stepgen */
+    hal_u32_t   step_len;		/* parameter: step pulse length */
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
-    //obsolete: hal_u32_t step_space;	/* parameter: min step pulse spacing */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
+    hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
+    hal_float_t pulse_per_rev;	/* param: number of pulse per revolution */
+    
 
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
+    int32_t   switch_pos_i;
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
@@ -381,10 +389,11 @@ typedef struct {
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
+    double      pos_cmd_s;	/* saved pos_cmd at rising edge of usb_busy */
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *probed_pos;
-//    hal_bit_t *align_pos_cmd;
+    hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
@@ -393,20 +402,17 @@ typedef struct {
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
     hal_float_t maxaccel;	/* param: max accel (pos units/sec^2) */
     int printed_error;		/* flag to avoid repeated printing */
+    uint32_t    pulse_maxv;     /* max-vel in pulse */
+    uint32_t    pulse_maxa;     /* max-accel in pulse */
+    uint32_t    pulse_maxj;     /* max-jerk  in pulse */
+    int32_t     pulse_vel;      /* velocity in pulse */
+    int32_t     pulse_accel;    /* accel in pulse */
+    int32_t     pulse_jerk;     /* jerk in pulse */
 
-//    hal_s32_t *home_state;	/* pin: home_state from homing.c */
-//    hal_s32_t prev_home_state;	/* param: previous home_state for homing */
-    
-    /* pid info */
-    hal_float_t *pid_cmd;
-    hal_float_t *cmd_error;       /* cmd error */
-    hal_float_t *pid_output;      /* pid output */
-    
     /* motion type be set */
     int32_t motion_type;          /* motion type wrote to risc */
     
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
-    hal_float_t   *cmd_fbf;     /* position command retained by RISC (cmd_fbs divided by scale) */
     uint32_t      jog_config;   /* for risc jogging */
     hal_float_t   *jog_scale;   /* for risc jogging */
     hal_float_t   *jog_vel;
@@ -414,7 +420,6 @@ typedef struct {
     hal_bit_t     *jog_enable;
     int8_t        prev_jog_enable;
     double       prev_jog_vel;
-//    hal_bit_t     *tp_enable;  /* connect to joint jog active */
 } stepgen_t;
 // #pragma pack(pop)   /* restore original alignment from stack */
 
@@ -426,10 +431,11 @@ typedef struct {
 
 // machine_control_t:
 typedef struct {
-    hal_bit_t *usb_busy;
-    hal_bit_t *ignore_ahc_limit;
-    hal_bit_t *align_pos_cmd;
-    hal_bit_t *ignore_host_cmd;
+    hal_bit_t   *usb_busy;
+    hal_bit_t   usb_busy_s;
+    hal_bit_t   *ignore_ahc_limit;
+    hal_bit_t   *align_pos_cmd;
+    hal_bit_t   *ignore_host_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -488,20 +494,10 @@ typedef struct {
     uint32_t prev_wou_cmd;
     hal_u32_t *wou_status;
     uint32_t a_cmd_on_going;
-    /* spindle */
-    hal_bit_t *spindle_index_enable;    // TODO: move spindle-index sync into motion
-    hal_bit_t *spindle_at_speed;
-    hal_float_t *spindle_revs;
-    double   spindle_revs_integer;
-    int32_t last_spindle_index_pos;
-    double  last_spindle_index_pos_int;
-    int32_t spindle_enc_count;          // predicted spindle-encoder count
-    int32_t prev_spindle_irevs;
     /* test pattern  */
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
-    /* DEBUG */
     hal_s32_t *debug[8];
     /* tick */
     hal_u32_t *tick[14];
@@ -513,15 +509,12 @@ typedef struct {
     hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
     hal_float_t *last_usb_cmd_param[4];
-//    hal_bit_t *prog_is_running;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
 static stepgen_t *stepgen_array;
-//obsolete: static gpio_t *gpio;
 static analog_t *analog;
 static machine_control_t *machine_control;
-//obsolete: static int32_t actual_joint_num;
 /* file handle for wou step commands */
 // static FILE *wou_fh;
 
@@ -539,9 +532,8 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
 *                  LOCAL FUNCTION DECLARATIONS                         *
 ************************************************************************/
 
-static int export_stepgen(int num, stepgen_t * addr, /* obsolete: int step_type, */
+static int export_stepgen(int num, stepgen_t * addr,
 			  int pos_mode);
-//obsolete: static int export_gpio(gpio_t * addr);
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
@@ -553,248 +545,23 @@ void endian_swap(uint32_t  *x)
     *x = (*x>>24) | ((*x<<8) & 0x00FF0000) |((*x>>8) & 0x0000FF00) |(*x<<24);
 }
 
-// /************************************************************************
-//  * callback functions for libwou                                        *
-//  ************************************************************************/
-// static void get_crc_error_counter(int32_t crc_error_counter)
-// {
-//     // store crc_error_counter
-//     return;
-// }
+static void write_mot_pos_cmd (uint32_t joint, int64_t mot_pos_cmd)
+{
+    uint16_t    sync_cmd;
+    uint8_t     buf[sizeof(uint16_t)];
+    int         j;
 
-// static void fetchmail(const uint8_t *buf_head)
-// {
-//     // char        *buf_head;
-//     int         i;
-//     uint16_t    mail_tag;
-//     uint32_t    *p, din[2], dout[1];
-//     stepgen_t   *stepgen;
-//     uint32_t    bp_tick;    // served as previous-bp-tick
-//     uint32_t    ferror_flag;
-// #if (MBOX_LOG)
-//     char        dmsg[1024];
-//     int         dsize;
-// #elif (DEBUG_LOG)
-//     char        dmsg[1024];
-//     int         dsize;
-// #endif
-//     
-//     // buf_head = (char *) wou_mbox_ptr (&w_param);
-//     memcpy(&mail_tag, (buf_head + 2), sizeof(uint16_t));
-// 
-//     // BP_TICK
-//     p = (uint32_t *) (buf_head + 4);
-//     bp_tick = *p;
-//     if (machine_control->prev_bp == bp_tick) {
-//         // skip mailbox parsing because there isn't new bp_tick
-//         return;
-//     }
-//     *machine_control->bp_tick = bp_tick;
-// 
-//     switch(mail_tag)
-//     {
-//     case MT_MOTION_STATUS:
-//         /* for PLASMA with ADC_SPI */
-//         //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
-//         stepgen = stepgen_array;
-//         for (i=0; i<num_joints; i++) {
-//             // PULSE_POS
-//             p += 1;
-//             *(stepgen->pulse_pos) = *p;
-//             //TODO: confirm necessary: 
-//             *(stepgen->pid_cmd) = (*(stepgen->pulse_pos))*(stepgen->scale_recip);
-//             // enc counter
-//             p += 1;
-//             *(stepgen->enc_pos) = *p;
-//             p += 1;
-// #ifndef __ARMEL__
-//             // for unknown reason, the next expression will cause alignment
-//             // trap for ARM processor (observed with dmesg)
-//             *(stepgen->cmd_fbs) = ((int32_t)*p);
-//             //TODO: confirm necessary: 
-//             *(stepgen->cmd_fbf) = ((int32_t)*p) * (stepgen->scale_recip);
-// #endif
-//             p += 1;
-//             *(stepgen->switch_pos) = (*p) * (stepgen->scale_recip);
-//             stepgen += 1;   // point to next joint
-//         }
-// 
-//         // digital input
-//         p += 1;
-//         din[0] = *p;
-//         p += 1;
-//         din[1] = *p;
-//         // digital output
-//         p += 1;
-//         dout[0] = *p;
-//         *machine_control->dout0 = dout[0];
-//         
-//         // update gpio_in[31:0]
-//         // compare if there's any GPIO.DIN bit got toggled
-//         if (machine_control->prev_in0 != din[0]) {
-//             // avoid for-loop to save CPU cycles
-//             machine_control->prev_in0 = din[0];
-//             for (i = 0; i < 32; i++) {
-//                 *(machine_control->in[i]) = ((machine_control->prev_in0) >> i) & 0x01;
-//                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
-//             }
-//         }
-//         
-//         // update gpio_in[63:32]
-//         // compare if there's any GPIO.DIN bit got toggled
-//         if (machine_control->prev_in1 != din[1]) {
-//             // avoid for-loop to save CPU cycles
-//             machine_control->prev_in1 = din[1];
-//             for (i = 32; i < 64; i++) {
-//                 *(machine_control->in[i]) = ((machine_control->prev_in1) >> (i-32)) & 0x01;
-//                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
-//             }
-//         }
-// 
-//         // ADC_SPI (raw ADC value)
-//         p += 1;
-//         //obsolete: *(gpio->a_in[0]) = (((double)*p)/20.0);
-//         *(analog->in[0]) = *p;
-//         p += 1; *(analog->in[1]) = *p;
-//         p += 1; *(analog->in[2]) = *p;
-//         p += 1; *(analog->in[3]) = *p;
-//         p += 1; *(analog->in[4]) = *p;
-//         p += 1; *(analog->in[5]) = *p;
-//         p += 1; *(analog->in[6]) = *p;
-//         p += 1; *(analog->in[7]) = *p;
-//         p += 1; *(analog->in[8]) = *p;
-//         p += 1; *(analog->in[9]) = *p;
-//         p += 1; *(analog->in[10]) = *p;
-//         p += 1; *(analog->in[11]) = *p;
-//         p += 1; *(analog->in[12]) = *p;
-//         p += 1; *(analog->in[13]) = *p;
-//         p += 1; *(analog->in[14]) = *p;
-//         p += 1; *(analog->in[15]) = *p;
-// 
-//         // MPG
-//         p += 1;
-//         *(machine_control->mpg_count) = *p;
-//         // the MPG on my hand is 1-click for a full-AB-phase-wave.
-//         // therefore the mpg_count will increase by 4.
-//         // divide it by 4 for smooth jogging.
-//         // otherwise, there will be 4 units of motions for every MPG click.
-//         *(machine_control->mpg_count) >>= 2;
-//         //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
-//         
-//         // FERROR FLAG
-//         p += 1;
-//         ferror_flag = *p;
-//         stepgen = stepgen_array;
-//         for (i=0; i<num_joints; i++) {
-//             *stepgen->ferror_flag = ferror_flag & (1 << i);
-//             stepgen += 1;   // point to next joint
-//         }
-// 
-//         // DEBUG  : MOVE to MT_DEBUG
-// 
-// #if (MBOX_LOG)
-//         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
-//         // fprintf (mbox_fp, "%10d  ", bp_tick);
-//         stepgen = stepgen_array;
-//         for (i=0; i<num_joints; i++) {
-//             dsize += sprintf (dmsg + dsize, "%10d %10d %10f %10f %10d  ",
-//                               *(stepgen->pulse_pos),
-//                               *(stepgen->enc_pos),
-//                               *(stepgen->pid_output),
-//                               *(stepgen->cmd_error),
-//                               *(stepgen->joint_cmd)
-//                              );
-//             stepgen += 1;   // point to next joint
-//         }
-//         dsize += sprintf (dmsg + dsize, "0x%04X 0x%04X 0x%04X", // #21 #22 #23
-//                           din[0],
-//                           din[1],
-//                           dout[0]);
-//         dsize += sprintf (dmsg + dsize, "  %10d 0x%04X", *(analog->in[0]), ferror_flag); // #24 #25
-// 
-// 
-//         // number of debug words: to match "send_joint_status() at common.c
-//         for (i=0; i<MBOX_DEBUG_VARS; i++) {
-//             p += 1;
-//             dsize += sprintf (dmsg + dsize, "%10d ", *p);
-//         }
-//         assert (dsize < 1023);
-//         fprintf (mbox_fp, "%s\n", dmsg);
-// #endif
-//         break;
-//     case MT_ERROR_CODE:
-//         // error code
-//         p = (uint32_t *) (buf_head + 4);    // prev_bp_tick - bp_offset
-//         p += 1;
-//         bp_tick = *p;                      
-//         p += 1;
-//         if (ERROR_BASE_PERIOD == *p) {
-//             DP("ERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
-//         }
-//         break;
-// 
-//     case MT_USB_STATUS:
-//             // update wou status only if a cmd ongoing
-//         p = (uint32_t *) (buf_head + 4);
-//         /* probe status */
-//         p += 1;
-// //        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
-//         *machine_control->wou_status = *p;
-// //        fprintf(stderr,"usb status(0x%0X)\n", *p);
-// //        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
-// //            // section report status normally
-// //            *machine_control->wou_status = *p;
-// //        } else {
-// //            *machine_control->wou_status = USB_STATUS_READY;
-// //        }
-//         break;
-// 
-//     case MT_DEBUG:
-//         p = (uint32_t *) (buf_head + 4);
-//         bp_tick = *p;
-// #if (DEBUG_LOG)
-//         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
-// #endif
-//         for (i=0; i<8; i++) {
-//             p += 1;
-//             *machine_control->debug[i] = *p;
-// 
-// #if (DEBUG_LOG)
-//             dsize += sprintf (dmsg + dsize, "%10d", *p);
-//             assert (dsize < 1023);
-// #endif
-//         }
-// #if (DEBUG_LOG)
-//         fprintf (debug_fp, "%s\n", dmsg);
-// #endif
-//         break;
-//     case MT_TICK:
-//         p = (uint32_t *) (buf_head + 4);
-//         for (i=0; i<14; i++) {
-//             p += 1;
-//             *machine_control->tick[i] = *p;
-//         }
-//         break;
-//     case MT_PROBED_POS:
-//         stepgen = stepgen_array;
-//         p = (uint32_t *) (buf_head + 4);
-// 
-//         for (i=0; i<num_joints; i++) {
-//             p += 1;
-// //            fprintf(stderr,"(%d) probed pos(%d)\n", i, (int32_t)*p);
-//             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
-//             stepgen += 1;   // point to next joint
-// 
-//         }
-//         break;
-//         break;
-//     default:
-//         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
-//         *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
-//         //? assert(0);
-//         break;
-//     }
-// }
+    for(j=0; j<sizeof(int64_t); j++) {
+        // byte sequence for int64_t: "4, 5, 6, 7, 0, 1, 2, 3"
+        sync_cmd = SYNC_DATA | ((uint8_t *)&mot_pos_cmd)[(4+j) & 0x07];
+        memcpy(buf, &sync_cmd, sizeof(uint16_t));
+    }
+
+    sync_cmd = SYNC_MOT_POS_CMD | PACK_MOT_PARAM_ID(joint);
+    memcpy(buf, &sync_cmd, sizeof(uint16_t));
+
+    return;
+}
 
 static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
 {
@@ -805,16 +572,10 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     for(j=0; j<sizeof(int32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        //         sizeof(uint16_t), buf);
-        // wou_flush(&w_param);
     }
 
     sync_cmd = SYNC_MOT_PARAM | PACK_MOT_PARAM_ADDR(addr) | PACK_MOT_PARAM_ID(joint);
     memcpy(buf, &sync_cmd, sizeof(uint16_t));
-    // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-    //         sizeof(uint16_t), buf);
-    // wou_flush(&w_param);
 
     return;
 }
@@ -839,16 +600,11 @@ static void write_usb_cmd(machine_control_t *mc)
           for(j=0; j<sizeof(int32_t); j++) {
               sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
               memcpy(buf, &sync_cmd, sizeof(uint16_t));
-              // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-              // sim:       sizeof(uint16_t), buf);
           }
       }
       /* write command */
         sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        // sim:         sizeof(uint16_t), buf);
-        // sim: wou_flush(&w_param);
       break;
     case HOME_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
@@ -864,31 +620,22 @@ static void write_usb_cmd(machine_control_t *mc)
       for(j=0; j<sizeof(int32_t); j++) {
           sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
           memcpy(buf, &sync_cmd, sizeof(uint16_t));
-          // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-          // sim:       sizeof(uint16_t), buf);
       }
       data = (int32_t)(*mc->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
       fprintf(stderr,"get home command param1 (0x%0d) joint\n", data);
       for(j=0; j<sizeof(int32_t); j++) {
           sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
           memcpy(buf, &sync_cmd, sizeof(uint16_t));
-          // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-          // sim:       sizeof(uint16_t), buf);
       }
       data = (int32_t)(*mc->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
       fprintf(stderr,"get home command param2 (0x%0d) joint\n", data);
       for(j=0; j<sizeof(int32_t); j++) {
           sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
           memcpy(buf, &sync_cmd, sizeof(uint16_t));
-          // sim:wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-          // sim:      sizeof(uint16_t), buf);
       }
       /* write command */
         sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        // sim:         sizeof(uint16_t), buf);
-        // sim: wou_flush(&w_param);
       break;
     case SPECIAL_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
@@ -902,16 +649,11 @@ static void write_usb_cmd(machine_control_t *mc)
             for(j=0; j<sizeof(int32_t); j++) {
                 sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
                 memcpy(buf, &sync_cmd, sizeof(uint16_t));
-                // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                //       sizeof(uint16_t), buf);
             }
       }
       /* write command */
         sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        // sim: wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        // sim:         sizeof(uint16_t), buf);
-        // sim: wou_flush(&w_param);
     default:
       // do nothing, don't write command if it is invalid.
       break;
@@ -928,16 +670,10 @@ static void write_machine_param (uint32_t addr, int32_t data)
     for(j=0; j<sizeof(int32_t); j++) {
         sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
         memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        //         sizeof(uint16_t), buf);
-        // wou_flush(&w_param);
     }
 
     sync_cmd = SYNC_MACH_PARAM | PACK_MACH_PARAM_ADDR(addr);
     memcpy(buf, &sync_cmd, sizeof(uint16_t));
-    // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-    //         sizeof(uint16_t), buf);
-    // wou_flush(&w_param);
 
 
     return;
@@ -986,12 +722,6 @@ int rtapi_app_main(void)
 	return -1;
     } else {
 	// initialize FPGA with bitfile(bits)
-	// sim: wou_init(&w_param, board, wou_id, bits);
-	// sim: if (wou_connect(&w_param) == -1) {
-	// sim:     rtapi_print_msg(RTAPI_MSG_ERR,
-	// sim: 		    "WOU: ERROR: Connection failed\n");
-	// sim:     return -1;
-	// sim: }
     }
 
     /* test for risc image file string: bins */
@@ -1001,7 +731,6 @@ int rtapi_app_main(void)
 	return -1;
     } else {
 	// programming risc with binfile(bins)
-        // wou_prog_risc(&w_param, bins);
 #if (MBOX_LOG)
         mbox_fp = fopen ("./mbox.log", "w");
         fprintf (mbox_fp, "%10s  ", "bp_tick");
@@ -1020,13 +749,10 @@ int rtapi_app_main(void)
         debug_fp = fopen ("./debug.log", "w");
 #endif
         // set mailbox callback function
-        // sim: wou_set_mbox_cb (&w_param, fetchmail);
         
         // set crc counter callback function
-        // sim: wou_set_crc_error_cb (&w_param, get_crc_error_counter);
         
         // set rt_cmd callback function
-        // sim: wou_set_rt_cmd_cb (&w_param, update_rt_cmd);
     }
 
     if(alarm_en != -1) {
@@ -1045,6 +771,7 @@ int rtapi_app_main(void)
         return -1;
     }
     rtapi_print_msg(RTAPI_MSG_INFO, "ALARM_EN: 0x%02X\n", data[0]);
+	
 
     // config machine type
     if (strcmp(machine_param_str, "XYZA") == 0) {
@@ -1121,7 +848,7 @@ int rtapi_app_main(void)
     }
 
     num_joints = 0;
-    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') /* obsolete: step_type[n] != -1 */; n++) {
+    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') ; n++) {
 	if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
 	    ctrl_type[n] = "p";
 	} else if ((ctrl_type[n][0] == 'v') || (ctrl_type[n][0] == 'V')) {
@@ -1134,6 +861,9 @@ int rtapi_app_main(void)
 	}
 	num_joints++;
     }
+    
+    DPS("num_joints: %d\n", num_joints);
+    
     assert (num_joints <=6);  // support up to 6 joints for USB/7i43 
     if (num_joints == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1144,14 +874,8 @@ int rtapi_app_main(void)
     /* to clear PULSE/ENC/SWITCH/INDEX positions for all joints*/
     // issue a WOU_WRITE to RESET SSIF position registers
     data[0] = (1 << num_joints) - 1;  // bit-map-for-num_joints
-    // wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-    // wou_flush(&w_param);
-    
     // issue a WOU_WRITE to clear SSIF_RST_POS register
     data[0] = 0x00;
-    // wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
-    // wou_flush(&w_param);
-
     /* test for dt: servo_period_ns */
     if ((servo_period_ns == -1)) {
         rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1163,19 +887,37 @@ int rtapi_app_main(void)
         recip_dt = 1.0 / dt;
     }
 
-    pid_str[0] = j0_pid_str;
-    pid_str[1] = j1_pid_str;
-    pid_str[2] = j2_pid_str;
-    pid_str[3] = j3_pid_str;
-    pid_str[4] = j4_pid_str;
-    pid_str[5] = j5_pid_str;
-    pid_str[6] = j6_pid_str;
-    pid_str[7] = j7_pid_str;
+    // configure NUM_JOINTS after all joint parameters are set
 
+    // JCMD_CTRL: 
+    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
+    //  [bit-1]: SSIF_EN, servo/stepper interface enable
+    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
+    // TODO: RTL: remove SSIF_EN (always enable SSIF)
+    // FIXME: WORKAROUND: always enable SSIF_EN by SW
+    // SSIF_EN = 1
+    data[0] = 2;
+    // RISC ON
+    data[0] = 1;        
+    /* have good config info, connect to the HAL */
+    comp_id = hal_init("wou_sim");
+    if (comp_id < 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"STEPGEN: ERROR: hal_init(wou_sim) failed\n");
+	return -1;
+    }
+
+    /* allocate shared memory for counter data */
+    stepgen_array = hal_malloc(num_joints * sizeof(stepgen_t));
+    if (stepgen_array == 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"STEPGEN: ERROR: hal_malloc() failed\n");
+	hal_exit(comp_id);
+	return -1;
+    }
+    
     /* configure motion parameters */
     for(n=0; n<num_joints; n++) {
-        // const char **pid_str;
-
         /* compute fraction bits */
         // compute proper fraction bit for command
         // compute fraction bit for velocity
@@ -1184,28 +926,33 @@ int rtapi_app_main(void)
         max_vel     = atof(max_vel_str[n]);
         max_accel   = atof(max_accel_str[n]);
         max_jerk    = atof(max_jerk_str[n]);
+        assert (max_vel > 0);
+        assert (max_accel > 0);
+        assert (max_jerk > 0);
         
         /* config MAX velocity */
-        // +1: rounding to last fixed point unit
-        immediate_data = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);    
+        // * 1.05 : add 5% head room
+        immediate_data = (uint32_t)((max_vel * pos_scale * dt * FIXED_POINT_SCALE) * 1.05);    
         rtapi_print_msg(RTAPI_MSG_DBG,
                         "j[%d] max_vel(%d) = %f*%f*%f*%f\n", 
                         n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
         max_pulse_tick = immediate_data;
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
-
+        stepgen_array[n].pulse_maxv = immediate_data;
+        
         /* config acceleration */
-        // +1: rounding to last fixed point unit
-        immediate_data = ((uint32_t)(max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt) + 1);
+        // * 1.05 : add 5% head room
+        immediate_data = (uint32_t)((max_accel * pos_scale * dt * FIXED_POINT_SCALE * dt) * 1.05 );
         rtapi_print_msg(RTAPI_MSG_DBG,
                         "j[%d] max_accel(%d) = %f*%f*(%f^2)*(%f)\n",
                         n, immediate_data, max_accel, pos_scale, dt, FIXED_POINT_SCALE);
         assert(immediate_data > 0);
         write_mot_param (n, (MAX_ACCEL), immediate_data);
+        stepgen_array[n].pulse_maxa = immediate_data;
 
         /* config acceleration recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt));
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt * 1.05));
         rtapi_print_msg(RTAPI_MSG_DBG, 
                         "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
                         n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
@@ -1213,15 +960,17 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
 
         /* config max jerk */
-        immediate_data = (uint32_t)((max_jerk * pos_scale * dt * dt * dt * FIXED_POINT_SCALE )+1);
+        /* in tp.c, the tc->jerk is ~2.17x of ini-jerk */
+        immediate_data = (uint32_t)(3.0 * (max_jerk * pos_scale * FIXED_POINT_SCALE * dt * dt * dt));
         rtapi_print_msg(RTAPI_MSG_DBG,
                         "j[%d] max_jerk(%d) = (%f * %f * %f * %f^3)))\n",
                         n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
         assert(immediate_data != 0);
         write_mot_param (n, (MAX_JERK), immediate_data);
-        
+        stepgen_array[n].pulse_maxj = immediate_data;
+
         /* config max jerk recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(max_jerk * pos_scale * dt * dt * dt));
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(3.0 * max_jerk * pos_scale * dt * dt * dt));
         rtapi_print_msg(RTAPI_MSG_DBG,
                         "j[%d] max_jerk_recip(%d) = %f/(%f * %f * %f^3)))\n",
                         n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
@@ -1245,15 +994,24 @@ int rtapi_app_main(void)
     }
 
     // config PID parameter
+    pid_str[0] = j0_pid_str;
+    pid_str[1] = j1_pid_str;
+    pid_str[2] = j2_pid_str;
+    pid_str[3] = j3_pid_str;
+    pid_str[4] = j4_pid_str;
+    pid_str[5] = j5_pid_str;
+    pid_str[6] = j6_pid_str;
+    pid_str[7] = j7_pid_str;
     for (n=0; n < PID_LOOP; n++) {
         if (pid_str[n][0] != NULL) {
             rtapi_print_msg(RTAPI_MSG_INFO, "J%d_PID: ", n);
-            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO 14:PE 15:PB\n");
+            rtapi_print_msg(RTAPI_MSG_INFO,"#   0:P 1:I 2:D 3:FF0 4:FF1 5:FF2 6:DB 7:BI 8:M_ER 9:M_EI 10:M_ED 11:MCD 12:MCDD 13:MO\n");
             // all gains (P, I, D, FF0, FF1, FF2) varie from 0(0%) to 65535(100%)
             // all the others units are '1 pulse'
-            for (i=0; i < (MAXOUTPUT-P_GAIN+1); i++) {
+            for (i=0; i < NUM_PID_PARAMS; i++) {
                 value = atof(pid_str[n][i]);
                 immediate_data = (int32_t) (value);
+                // P_GAIN: the mot_param index for P_GAIN value
                 write_mot_param (n, (P_GAIN + i), immediate_data);
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
@@ -1264,42 +1022,6 @@ int rtapi_app_main(void)
             rtapi_print_msg(RTAPI_MSG_INFO, "\n");
         }
     }
-    
-    // configure NUM_JOINTS after all joint parameters are set
-    write_machine_param(NUM_JOINTS, (uint32_t) num_joints);
-
-    //obsolete: actual_joint_num = atoi(act_jnt_num);
-
-    // JCMD_CTRL: 
-    //  [bit-0]: BasePeriod WOU Registers Update (1)enable (0)disable
-    //  [bit-1]: SSIF_EN, servo/stepper interface enable
-    //  [bit-2]: RST, reset JCMD_FIFO and JCMD_FSMs
-    // TODO: RTL: remove SSIF_EN (always enable SSIF)
-    // FIXME: WORKAROUND: always enable SSIF_EN by SW
-    // SSIF_EN = 1
-    data[0] = 2;
-    // wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_CTRL), 1, data);
-    // RISC ON
-    data[0] = 1;        
-    // wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | OR32_CTRL), 1, data);
-    // wou_flush(&w_param);
-    /* have good config info, connect to the HAL */
-    comp_id = hal_init("wou_sim");
-    if (comp_id < 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"STEPGEN: ERROR: hal_init() failed\n");
-	return -1;
-    }
-
-    /* allocate shared memory for counter data */
-    stepgen_array = hal_malloc(num_joints * sizeof(stepgen_t));
-    if (stepgen_array == 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"STEPGEN: ERROR: hal_malloc() failed\n");
-	hal_exit(comp_id);
-	return -1;
-    }
-    
     analog = hal_malloc(sizeof(analog_t));
     if (analog == 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1329,7 +1051,6 @@ int rtapi_app_main(void)
 	    return -1;
 	}
     }
-
 
     retval = export_analog(analog);	// up to 16-ch-adc-in
     if (retval != 0) {
@@ -1366,7 +1087,11 @@ int rtapi_app_main(void)
     rtapi_set_msg_level(msg);
 
     hal_ready(comp_id);
+    
+    DPS("rtapi_app_main: end\n");
+
     return 0;
+
 }
 
 void rtapi_app_exit(void)
@@ -1390,47 +1115,28 @@ static double force_precision(double d)
 {
     return d;
 }
-// //obsolete: static FILE *f_abort;
-// static void update_rt_cmd(void)
-// {
-//     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
-//     int32_t immediate_data = 0;
-//     if (machine_control) {
-//         if (*machine_control->rt_abort == 1 ||
-//                 *machine_control->cl_abort == 1) {
-//             immediate_data = RT_ABORT;
-//             memcpy(data, &immediate_data, sizeof(uint32_t));
-//             // rt_wou_cmd (&w_param, 
-//             //             WB_WR_CMD, 
-//             //             (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-//             //             sizeof(uint32_t), 
-//             //             data);
-//             // rt_wou_flush(&w_param);
-// //            *machine_control->align_pos_cmd = 2;
-//         }
-//     }
-// }
 
 static void update_freq(void *arg, long period)
 {
     stepgen_t *stepgen;
-    int n, i, enable;
+    int n, i;
     double physical_maxvel;	// max vel supported by current step timings & position-scal
 
-    // int32_t wou_cmd_accum;
     uint16_t sync_cmd;
-    int wou_pos_cmd, integer_pos_cmd;
+    int32_t wou_pos_cmd, integer_pos_cmd;
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     uint32_t sync_out_data;
 
-    // for homing:
-    uint8_t r_load_pos;
-    uint8_t r_switch_en;
     uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
 #endif
+
+#ifdef DEBUG
+    static int debug_msg_tick = 0;
+#endif
+
     /* FIXME - while this code works just fine, there are a bunch of
        internal variables, many of which hold intermediate results that
        don't really need their own variables.  They are used either for
@@ -1441,32 +1147,24 @@ static void update_freq(void *arg, long period)
        of msg_level and restore it later.  If you actually need to log this
        function's actions, change the second line below */
     int msg;
+        
+    // TODO: confirm trajecotry planning thread is always ahead of wou
+        *(machine_control->usb_busy) = 0;
+        if (machine_control->usb_busy_s == 1) {
+            // DP("usb_busy: end\n");
+            // reload saved traj-planning command
+            stepgen = arg;
+            for (n = 0; n < num_joints; n++) {
+                *(stepgen->pos_cmd) = stepgen->pos_cmd_s;
+                stepgen ++;
+            }
+        }
+        machine_control->usb_busy_s = 0;
+
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
     
-    //obsolete: rtapi_print_msg(RTAPI_MSG_ERR,
-    //obsolete:                 "update_freq:debug: begin\n");
-    //obsolete: if (*machine_control->rt_abort == 1) {
-    //obsolete:     immediate_data = RT_ABORT;
-    //obsolete:     memcpy(data, &immediate_data, sizeof(uint32_t));
-    //obsolete:     rt_wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | OR32_RT_CMD),
-    //obsolete:             sizeof(uint32_t), data);
-    //obsolete:     rt_wou_flush(&w_param);
-    //obsolete: }
-    //obsolete: 
-
-    // wou_update(&w_param);
-    //obsolete: fetchmail();
-
-    // read SSIF_INDEX_LOCK
-//TODO: implement RISC homing:    memcpy(&r_index_lock,
-//TODO: implement RISC homing:	   wou_reg_ptr(&w_param, SSIF_BASE + SSIF_INDEX_LOCK), 1);
-//TODO: implement RISC homing:    if (r_index_lock != prev_r_index_lock) {
-//TODO: implement RISC homing:	rtapi_print_msg(RTAPI_MSG_DBG, "STEPGEN: index_lock(0x%02X) prev_index_lock(0x%02X)\n",
-//TODO: implement RISC homing:	                                r_index_lock, prev_r_index_lock);
-//TODO: implement RISC homing:	prev_r_index_lock = r_index_lock;
-//TODO: implement RISC homing:    }
 
     /* begin: sending debug pattern */
     if (test_pattern_type != NO_TEST) {
@@ -1483,15 +1181,6 @@ static void update_freq(void *arg, long period)
     /* end: */
 
     /* begin: handle usb cmd */
-    /* OLD ONE */
-//    if ((*machine_control->wou_cmd) != machine_control->prev_wou_cmd) {
-//        // call api to parse wou_cmd to risc
-//        parse_usb_cmd (*machine_control->wou_cmd);
-//        fprintf(stderr, "wou_cmd(%d) prev_wou_cmd(%d)\n", *machine_control->wou_cmd,
-//                machine_control->prev_wou_cmd);
-//    }
-//    machine_control->prev_wou_cmd = *machine_control->wou_cmd;
-    /* NEW ONE*/
     if (*machine_control->usb_cmd != 0) {
         write_usb_cmd(machine_control);
         *machine_control->usb_cmd = 0; // reset usb_cmd
@@ -1519,25 +1208,6 @@ static void update_freq(void *arg, long period)
         machine_control->prev_ahc_state = *machine_control->ahc_state;
     }
     /* end: handle AHC state, AHC level */
-
-    // obsolste: /* begin: handle ahc max offset */
-    // obsolste: if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
-    // obsolste:     int32_t max_offset, pos_scale;
-    // obsolste:     stepgen = arg;
-    // obsolste:     stepgen += atoi(ahc_joint_str);
-    // obsolste:     pos_scale = (stepgen->pos_scale);
-    // obsolste:     max_offset = *(machine_control->ahc_max_offset);
-    // obsolste:     max_offset = max_offset >= 0? max_offset:0;
-    // obsolste:     fprintf(stderr,"wou_stepgen.c: ahc_max_offset(%d) ahc_joint(%d) \n",
-    // obsolste:                         (uint32_t)abs(max_offset * (pos_scale)),
-    // obsolste:                         atoi(ahc_joint_str));
-
-    // obsolste:     /* ahc max_offset */
-    // obsolste:     write_machine_param(AHC_MAX_OFFSET, (uint32_t)
-    // obsolste:             abs((max_offset)) * (pos_scale));
-    // obsolste:     machine_control->prev_ahc_max_level = *(machine_control->ahc_max_level);
-    // obsolste: }
-    // obsolste: /* begin: process ahc limit control */
 
     /* begin: process ahc limit control */
     if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
@@ -1571,8 +1241,6 @@ static void update_freq(void *arg, long period)
         // begin: trigger sync in and wait timeout 
         sync_cmd = SYNC_DIN | PACK_IO_ID((uint32_t)*(machine_control->sync_in)) |
                                            PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
-        // wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-        //                               sizeof(uint16_t), (uint8_t *) &sync_cmd);
         // end: trigger sync in and wait timeout
         *(machine_control->sync_in_trigger) = 0;
     }
@@ -1591,7 +1259,6 @@ static void update_freq(void *arg, long period)
 //                        num_joints);
                 sync_cmd = SYNC_DOUT | PACK_IO_ID(i) | PACK_DO_VAL(*(machine_control->out[i]));
                 memcpy(data, &sync_cmd, sizeof(uint16_t));
-                // wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
         }
 
@@ -1623,49 +1290,6 @@ static void update_freq(void *arg, long period)
     }
 #endif
 
-    // num_joints: calculated from ctrl_type;
-    /* loop thru generators */
-    r_load_pos = 0;
-    r_switch_en = 0;
-    /* check if we should update SWITCH/INDEX positions for HOMING */
-    if (r_load_pos != 0) {
-	// issue a WOU_WRITE
-	// wou_cmd(&w_param,
-	// 	WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-	// fprintf(stderr, "wou: r_load_pos(0x%x)\n", r_load_pos);
-	// wou_flush(&w_param);
-    }
-
-    /* check if we should enable HOME Switch Detection */
-    if (r_switch_en != 0) {
-	// issue a WOU_WRITE
-	// wou_cmd(&w_param,
-	// 	WB_WR_CMD, SSIF_BASE | SSIF_SWITCH_EN, 1, &r_switch_en);
-	// // fprintf(stderr, "wou: r_switch_en(0x%x)\n", r_switch_en);
-	// wou_flush(&w_param);
-    }
-
-
-    // check wou.stepgen.00.enable signal directly
-    stepgen = arg;
-    if (*stepgen->enable != stepgen->prev_enable) {
-        stepgen->prev_enable = *stepgen->enable;
-        fprintf(stderr,"enable changed(%d)\n", *stepgen->enable);
-        if (*stepgen->enable) {
-            for(i=0; i<num_joints; i++) {
-                immediate_data = 1;
-                write_mot_param (i, (ENABLE), immediate_data);
-            }
-
-        } else {
-            for(i=0; i<num_joints; i++) {
-                immediate_data = 0;
-                write_mot_param (i, (ENABLE), immediate_data);
-            }
-        }
-
-    }
-    
     // in[0] == 1 (ESTOP released)
     *(machine_control->in[0]) = 1;
     if (*(machine_control->in[0]) == 0) {
@@ -1675,28 +1299,40 @@ static void update_freq(void *arg, long period)
 
     i = 0;
     stepgen = arg;
-    enable = *stepgen->enable;            // take enable status of first joint
     for (n = 0; n < num_joints; n++) {
+
+        if (*stepgen->enable != stepgen->prev_enable) {
+            if ((stepgen->son_delay > SON_DELAY_TICK)
+                 || (*stepgen->enable == 0)) {
+                stepgen->son_delay = 0;
+                stepgen->prev_enable = *stepgen->enable;
+                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
+                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
+                write_mot_param (n, (ENABLE), (int32_t) *stepgen->enable);
+            } else {
+                stepgen->son_delay ++;
+            }
+        }
+
+
+        *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
+
         /* begin: handle jog config for RISC */
         if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.01) {
-        	double vel;
-        	fprintf(stderr, "wou_stepgen.c: j (%d) jog_scale(%f) jog_vel(%f) prev_vel(%f)\n",
-						n, *stepgen->jog_scale, *stepgen->jog_vel, stepgen->prev_jog_vel);
+            double vel;
             /* config jog setting */
-        	vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
-        	if (vel > stepgen->maxvel) {
-        		fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
-        		vel = stepgen->maxvel;
-        		(*stepgen->jog_vel) = vel;
-        	}
-        	fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
+            vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
+            if (vel > stepgen->maxvel) {
+                fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
+                vel = stepgen->maxvel;
+                (*stepgen->jog_vel) = vel;
+            }
+            fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
             jog_var = abs((uint32_t) (vel * (*stepgen->pos_scale_pin) * dt));
             new_jog_config = (jog_var << 20) | (stepgen->jog_config & 0x000FFFFF);
             new_jog_config = (new_jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            fprintf(stderr, "wou_stepgen.c: j (%d) jog-vel has been changed new jog_config(0x%0X)\n",
-                n, new_jog_config);
             stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
             stepgen->jog_config = new_jog_config;
         }
@@ -1705,18 +1341,17 @@ static void update_freq(void *arg, long period)
         if (stepgen->prev_jog_enable != *stepgen->jog_enable) {
             new_jog_config = (stepgen->jog_config & 0xFFF0FFFF);
             new_jog_config |= (*stepgen->jog_enable) << 16;
-            jog_var = (stepgen->jog_config & 0xFFF00000) >> 20; // fetch jog velocity
-            jog_var = (uint32_t)(((double)jog_var) * (*stepgen->jog_scale));
-            new_jog_config = (jog_var << 20) | (new_jog_config & 0x000FFFFF);
             write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            DP(stderr, "wou_stepgen.c: j (%d) jog-enable has been changed new jog_config(0x%0X)\n", n, new_jog_config);
             stepgen->prev_jog_enable = *stepgen->jog_enable;
+            stepgen->jog_config = new_jog_config;
         }
         /* end: handle jog config for RISC */
 
 
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+        *(stepgen->switch_pos) = stepgen->switch_pos_i * stepgen->scale_recip;
+
         // update velocity-feedback only after encoder movement
         if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
             *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
@@ -1725,20 +1360,13 @@ static void update_freq(void *arg, long period)
             stepgen->prev_pos_fb = *stepgen->pos_fb;
             if (n == (num_joints - 1)) {
                 // update bp_tick for the last joint
-                //DEBUG: rtapi_print_msg(RTAPI_MSG_WARN,
-                //DEBUG:                 "WOU: j[%d] bp(%u) prev_bp(%u) vel_fb(%f)\n",
-                //DEBUG:                 n,
-                //DEBUG:                 machine_control->bp_tick,
-                //DEBUG:                 machine_control->prev_bp,
-                //DEBUG:                 *(stepgen->vel_fb)
-                //DEBUG:                );
                 machine_control->prev_bp = *machine_control->bp_tick;
-                *machine_control->bp_tick += 1; // for sim
+                *machine_control->bp_tick += 1; // for sim, always increase bp_tick
             }
         }
 
 	/* test for disabled stepgen */
-	if (enable == 0) {
+	if (stepgen->prev_enable == 0) {
 	    /* AXIS not PWR-ON */
 	    /* keep updating parameters for better performance */
 	    stepgen->scale_recip = 1.0 / stepgen->pos_scale;
@@ -1758,24 +1386,16 @@ static void update_freq(void *arg, long period)
 	    *stepgen->vel_cmd = 0;
 	    stepgen->prev_vel_cmd = 0;
 	    *(stepgen->vel_fb) = 0;
+            stepgen->pulse_vel = 0;
+            stepgen->pulse_accel = 0;
+            stepgen->pulse_jerk = 0;
 
-            r_load_pos = 0;
-            if (stepgen->rawcount != *(stepgen->enc_pos)) {
-                r_load_pos |= (1 << n);
-                /**
-                 * accumulator gets a half step offset, so it will step
-                 * half way between integer positions, not at the integer
-                 * positions.
-                 **/
-                stepgen->rawcount = *(stepgen->enc_pos);
-                /* load SWITCH, INDEX, and PULSE positions with enc_counter */
-                // wou_cmd(&w_param,
-                //         WB_WR_CMD, SSIF_BASE | SSIF_LOAD_POS, 1, &r_load_pos);
-            }
+#ifdef DEBUG
+            debug_msg_tick = 0;
+#endif
 
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
-            // wou_flush(&w_param);
             wou_pos_cmd = 0;
             sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
 
@@ -1787,9 +1407,6 @@ static void update_freq(void *arg, long period)
                                sizeof(uint16_t));
             if (n == (num_joints - 1)) {
                 // send to WOU when all axes commands are generated
-                // wou_cmd(&w_param,
-                //         WB_WR_CMD,
-                //         (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
             }
 
             // maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
@@ -1821,7 +1438,7 @@ static void update_freq(void *arg, long period)
             stepgen++;
 	    continue;
 	}
-        
+	    
 	//
 	// first sanity-check our maxaccel and maxvel params
 	//
@@ -1833,22 +1450,69 @@ static void update_freq(void *arg, long period)
 	if (stepgen->pos_mode) {
 	    /* position command mode */
 	    if (*machine_control->align_pos_cmd == 1 ||
-	       *machine_control->ignore_host_cmd) {
+	        *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
-//	        fprintf(stderr,"ignore_host_cmd(%d) align_pos_cmd(%d)\n",
-//	            *machine_control->ignore_host_cmd, *machine_control->align_pos_cmd);
-
+                stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
+                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
+                stepgen->pulse_vel = 0;
+                stepgen->pulse_accel = 0;
+                stepgen->pulse_jerk = 0;
 	    }
-	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd)) * recip_dt;
-
+	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
 	} else {
 	    /* velocity command mode */
-            *stepgen->vel_cmd = (*stepgen->pos_cmd) ; // notice: has to wire *pos_cmd-pin to velocity command input
+            /* NB: has to wire *pos_cmd-pin to velocity command input */
+            if (fabs(*stepgen->pos_cmd) > stepgen->maxvel) {
+                *stepgen->vel_cmd = (stepgen->maxvel) * dt ; 
+                if (*stepgen->pos_cmd < 0) {
+                    *stepgen->vel_cmd *= -1.0;
+                }
+            } else {
+                *stepgen->vel_cmd = (*stepgen->pos_cmd) * dt ; // notice: has to wire *pos_cmd-pin to velocity command input
+            }
 	}
 	
         {
+            int32_t pulse_accel; 
+            int32_t pulse_jerk; 
+
+            integer_pos_cmd = (int32_t)(*stepgen->vel_cmd * (stepgen->pos_scale) * FIXED_POINT_SCALE);
             
-            integer_pos_cmd = (int32_t)((*stepgen->vel_cmd * dt *(stepgen->pos_scale)) * (1 << FRACTION_BITS));
+            // integer_pos_cmd is indeed pulse_vel (velocity in pulse)
+            if (abs(integer_pos_cmd) > stepgen->pulse_maxv) {
+                pulse_accel = integer_pos_cmd - stepgen->pulse_vel;
+                pulse_jerk = pulse_accel - stepgen->pulse_accel;
+                printf("j[%d], vel_cmd(%f)\n",
+                        n, *stepgen->vel_cmd);
+                printf("j[%d], pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
+                        n, integer_pos_cmd, pulse_accel, pulse_jerk);
+                printf("j[%d], PREV pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
+                        n, stepgen->pulse_vel, stepgen->pulse_accel, stepgen->pulse_jerk);
+                printf("j[%d], pulse_maxv(%d), pulse_maxa(%d), pulse_maxj(%d)\n",
+                        n, stepgen->pulse_maxv, stepgen->pulse_maxa, stepgen->pulse_maxj);
+            }
+            assert (abs(integer_pos_cmd) <= stepgen->pulse_maxv);
+            pulse_accel = integer_pos_cmd - stepgen->pulse_vel;
+            /* TODO: there's S-CURVE decel bug in tp.c; enable the
+             * pulse_maxa assertion after resolving that bug */
+            // TODO: assert (abs(pulse_accel) <= stepgen->pulse_maxa);
+            pulse_jerk = pulse_accel - stepgen->pulse_accel;
+            //pulse_maxj: if (abs(pulse_jerk) > stepgen->pulse_maxj) {
+            //pulse_maxj:     DP("j[%d], vel_cmd(%f)\n",
+            //pulse_maxj:             n, *stepgen->vel_cmd);
+            //pulse_maxj:     DP("j[%d], pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
+            //pulse_maxj:             n, integer_pos_cmd, pulse_accel, pulse_jerk);
+            //pulse_maxj:     DP("j[%d], PREV pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
+            //pulse_maxj:             n, stepgen->pulse_vel, stepgen->pulse_accel, stepgen->pulse_jerk);
+            //pulse_maxj:     DP("j[%d], pulse_maxv(%d), pulse_maxa(%d), pulse_maxj(%d)\n",
+            //pulse_maxj:             n, stepgen->pulse_maxv, stepgen->pulse_maxa, stepgen->pulse_maxj);
+            //pulse_maxj: }
+            /* TODO: there's S-CURVE decel bug in tp.c; enable the
+             * pulse_maxj assertion after resolving that bug */
+            // TODO: assert (abs(pulse_jerk) <= stepgen->pulse_maxj);
+            stepgen->pulse_vel = integer_pos_cmd;
+            stepgen->pulse_accel = pulse_accel;
+            stepgen->pulse_jerk = pulse_jerk;
 
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
@@ -1858,68 +1522,93 @@ static void update_freq(void *arg, long period)
                         n ,
                         (*stepgen->pos_cmd), 
                         (stepgen->prev_pos_cmd), 
-//                        *stepgen->home_state,
                         *stepgen->vel_cmd);
                 fprintf(stderr,"wou_stepgen.c: wou_pos_cmd(%d) too large\n", wou_pos_cmd);
                 assert(0);
             }
+
             // SYNC_JNT: opcode for SYNC_JNT command
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
             
             if (integer_pos_cmd >= 0) {
-                // wou_cmd_accum = wou_pos_cmd << FRACTION_BITS;
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
             } else {
-                // wou_cmd_accum = -(wou_pos_cmd << FRACTION_BITS);
                 sync_cmd = SYNC_JNT | DIR_N | (POS_MASK & wou_pos_cmd);
             }
             memcpy(data + (2 * n * sizeof(uint16_t)), &sync_cmd, sizeof(uint16_t));
             
-            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
-
-
             /* packing fraction part */
+            wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
             sync_cmd = (uint16_t) wou_pos_cmd;
-            memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd,
-                   sizeof(uint16_t));
+            memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
 
-            // (stepgen->prev_pos_cmd) += (double) ((wou_cmd_accum * stepgen->scale_recip)/(1<<FRACTION_BITS));
-            (stepgen->prev_pos_cmd) += (double) ((integer_pos_cmd * stepgen->scale_recip)/(1<<FRACTION_BITS));
+            stepgen->rawcount += (int64_t) integer_pos_cmd; // precision: 64.16
+            stepgen->prev_pos_cmd = (((double)stepgen->rawcount * stepgen->scale_recip)/(FIXED_POINT_SCALE));
             stepgen->prev_vel_cmd = *stepgen->vel_cmd;
+            *stepgen->rpm = *stepgen->vel_cmd 
+                            * stepgen->pos_scale 
+                            / stepgen->pulse_per_rev
+                            * recip_dt * 60.0;
+            if (n == 4) {
+                printf("j[4] rpm(%f) vel_cmd(%f) pos_scale(%f) pulse_per_rev(%f) recip_dt(%f)\n",
+                            *stepgen->rpm,
+                            *stepgen->vel_cmd,
+                            stepgen->pos_scale,
+                            stepgen->pulse_per_rev,
+                            recip_dt);
+            }
 
             // pos_mode(1): position mode: 
             if (stepgen->pos_mode == 1) {
                 // for sim:
                 *stepgen->enc_pos =  *stepgen->pos_cmd * stepgen->pos_scale;
+                *stepgen->pulse_pos = *stepgen->enc_pos;
             }
 
             // pos_mode(0): velocity mode: 
             if (stepgen->pos_mode == 0) {
                 // for sim:
-                *stepgen->enc_pos += *stepgen->vel_cmd * stepgen->pos_scale * dt;
+                *stepgen->enc_pos += *stepgen->vel_cmd * stepgen->pos_scale;
+                *stepgen->pulse_pos = *stepgen->enc_pos;
             }
 
 	}
 
         if (n == (num_joints - 1)) {
             // send to WOU when all axes commands are generated
-            // wou_cmd(&w_param,
-            //         WB_WR_CMD,
-            //         (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
         }
-	DPS("  0x%13X%15.7f%15.7f%3d",
+
+	DPS("       0x%08X%15.7f%15.7f",
 	    integer_pos_cmd, 
             (stepgen->prev_pos_cmd), 
-            *stepgen->pos_fb,
-            *stepgen->home_state);
+            *stepgen->pos_fb);
+	
+#ifdef DEBUG
+        if (debug_msg_tick == 1700) {
+            rtapi_print("j[%d]: rawcount.int(%lld) enc_pos(%d) cmd_fbs(%d) debug(%d) pulse_pos(%d) pos_cmd(%f) pos_fb(%f)\n",
+                        n, 
+                        (stepgen->rawcount >> FRACTION_BITS),
+                        *(stepgen->enc_pos),
+                        *(stepgen->cmd_fbs),
+                        *(machine_control->debug[n]),
+                        *(stepgen->pulse_pos),
+                        *stepgen->pos_cmd,
+                        *stepgen->pos_fb);
+        }
+#endif
 
 	/* move on to next channel */
 	stepgen++;
     }
-//    *machine_control->align_pos_cmd = 0;
 
-    DPS("  %15.7f", *machine_control->spindle_revs);
+#ifdef DEBUG
+    debug_msg_tick ++;
+    if (debug_msg_tick > 1700) {
+        debug_msg_tick = 0;
+    }
+#endif
+
     sync_cmd = SYNC_VEL;
     // send velocity status to RISC
     if ( (*machine_control->vel_sync_scale) *
@@ -1934,15 +1623,13 @@ static void update_freq(void *arg, long period)
     }
     if (sync_cmd != machine_control->prev_vel_sync) {
         memcpy(data, &sync_cmd, sizeof(uint16_t));
-        // wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-        //             sizeof(uint16_t), data);
-        // debug: fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
     }
     machine_control->prev_vel_sync = sync_cmd;
     machine_control->prev_motion_state = *machine_control->motion_state;
 
 #if (TRACE!=0)
-    if (*(stepgen - 1)->enable) {
+    stepgen = arg;
+    if (*(stepgen->enable)) {
 	DPS("\n");
     }
 #endif
@@ -1986,7 +1673,7 @@ static int export_analog(analog_t * addr)
 } // export_analog ()
 
 
-static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*/
+static int export_stepgen(int num, stepgen_t * addr,
 			  int pos_mode)
 {
     int retval, msg;
@@ -2016,11 +1703,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     if (retval != 0) {
 	return retval;
     }
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_fbf), comp_id,
-			      "wou.stepgen.%d.cmd-fbf", num);
-    if (retval != 0) {
-	return retval;
-    }
 
     /* export pin for counts captured by wou_update() */
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_pos), comp_id,
@@ -2028,6 +1710,13 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     if (retval != 0) {
 	return retval;
     }
+
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->rawcount32), comp_id,
+			      "wou.stepgen.%d.rawcount32", num);
+    if (retval != 0) {
+	return retval;
+    }
+
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_pos), comp_id,
 			      "wou.stepgen.%d.enc_pos", num);
     if (retval != 0) {
@@ -2087,15 +1776,10 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     if (retval != 0) {
         return retval;
     }
-    /* export parameter to obtain homing state */
-//    retval = hal_pin_s32_newf(HAL_IN, &(addr->home_state), comp_id,
-//			      "wou.stepgen.%d.home-state", num);
-//    if (retval != 0) {
-//	return retval;
-//    }
 
     /* export pin for enable command */
     addr->prev_enable = 0;
+    addr->son_delay = 0;
     retval = hal_pin_bit_newf(HAL_IN, &(addr->enable), comp_id,
 			      "wou.stepgen.%d.enable", num);
     if (retval != 0) {
@@ -2140,24 +1824,6 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     if (retval != 0) {
 	return retval;
     }
-    /* export parameter for pid error term */
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->cmd_error), comp_id,
-                              "wou.stepgen.%d.pid.error", num);
-    if (retval != 0) {
-        return retval;
-    }
-    /* export parameter for pid output in risc */
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_output), comp_id,
-                              "wou.stepgen.%d.pid.output", num);
-    if (retval != 0) {
-        return retval;
-    }
-    /* export parameter for cmd in risc*/
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->pid_cmd), comp_id,
-                              "wou.stepgen.%d.pid.cmd", num);
-    if (retval != 0) {
-        return retval;
-    }
 
     /* export pin for following error */
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->ferror_flag), comp_id,
@@ -2183,21 +1849,31 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     if (retval != 0) {
         return retval;
     }
+    
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->rpm), comp_id,
+                                    "wou.stepgen.%d.rpm", num);
+    if (retval != 0) {
+        return retval;
+    }
 
-//    retval = hal_pin_bit_newf(HAL_IN, &(addr->tp_enable), comp_id,
-//                                    "wou.stepgen.%d.tp-enable", num);
-//    if (retval != 0) {
-//        return retval;
-//    }
-//    *addr->tp_enable = 1;
-    /* set default parameter values */
+    /* export parameter for pulse_per_rev */
+    retval = hal_param_float_newf(HAL_RW, &(addr->pulse_per_rev), comp_id,
+				  "wou.stepgen.%d.pulse_per_rev", num);
+    if (retval != 0) {
+	return retval;
+    }
+
+    /* set default values */
+    addr->pulse_per_rev = 1.0;
+    *addr->rpm           = 0.0;
+
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
     addr->freq = 0.0;
     addr->maxvel = 0.0;
     addr->maxaccel = 0.0;
-    //obsolete: addr->step_type = step_type;
     addr->pos_mode = pos_mode;
+    addr->pos_cmd_s = 0;
     /* timing parameter defaults depend on step type */
     addr->step_len = 1;
     /* init the step generator core to zero output */
@@ -2213,6 +1889,7 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
     *(addr->pulse_pos) = 0;
+    *(addr->rawcount32) = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     *(addr->vel_fb) = 0;
@@ -2221,7 +1898,10 @@ static int export_stepgen(int num, stepgen_t * addr,/* obsolete: int step_type,*
     *(addr->pos_cmd) = 0.0;
     *(addr->vel_cmd) = 0.0;
     (addr->prev_vel_cmd) = 0.0;
-    *(addr->jog_scale) = 1;
+    addr->pulse_vel = 0;
+    addr->pulse_accel = 0;
+    addr->pulse_jerk = 0;
+    *(addr->jog_scale) = 1.0;
     /* config jog setting */
     max_pulse_tick = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);
     jog_config_value = strtoul(jog_config_str[num],NULL, 16);
@@ -2244,7 +1924,6 @@ static int export_machine_control(machine_control_t * machine_control)
 
     msg = rtapi_get_msg_level();
     rtapi_set_msg_level(RTAPI_MSG_WARN);
-
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->usb_busy), comp_id,
                                   "wou.usb-busy");
     if (retval != 0) {
@@ -2271,6 +1950,7 @@ static int export_machine_control(machine_control_t * machine_control)
                              "wou.motion.requested-vel");
     if (retval != 0) { return retval; }
     *(machine_control->requested_vel) = 0;    // pin index must not beyond index
+
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
@@ -2453,27 +2133,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    retval = hal_pin_float_newf(HAL_OUT, &(machine_control->spindle_revs), comp_id,
-                                     "wou.spindle.spindle-revs");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->spindle_revs) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->spindle_index_enable), comp_id,
-                                    "wou.spindle.index-enable");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->spindle_index_enable) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->spindle_at_speed), comp_id,
-                                       "wou.spindle.at-speed");
-    if (retval != 0) {
-       return retval;
-    }
-    *(machine_control->spindle_at_speed) = 0;
-    
     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
                              "wou.mpg_count");
     if (retval != 0) {
@@ -2519,8 +2178,9 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-    *(machine_control->bp_tick) = 1; // for sim
+    *(machine_control->bp_tick) = 1; // for sim, force bp_tick to 1, and prev_bp to 0
     machine_control->prev_bp = 0;
+
 
 
     retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->crc_error_counter), comp_id,
@@ -2546,18 +2206,9 @@ static int export_machine_control(machine_control_t * machine_control)
         }
         *(machine_control->app_param[i]) = 0;
     }
-//    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->prog_is_running), comp_id,
-//                                    "wou.prog-is-running");
-//    if (retval != 0) {
-//        return retval;
-//    }
-//    *(machine_control->prog_is_running) = 1;
 
     machine_control->prev_out = 0;
-
-    machine_control->last_spindle_index_pos = 0;
-    machine_control->prev_spindle_irevs = 0;
-    machine_control->spindle_revs_integer  = 0;
+    machine_control->usb_busy_s = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);

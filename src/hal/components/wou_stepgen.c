@@ -376,15 +376,17 @@ typedef struct {
     int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
+    hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
+    hal_float_t pulse_per_rev;	/* param: number of pulse per revolution */
+    
 
     hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
     int32_t   switch_pos_i;
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
-    hal_float_t *pos_scale_pin;  /* param: steps per position unit */
+    hal_float_t *pos_scale_pin; /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
-    double accel_cmd;           /* accel_cmd: difference between vel_cmd and prev_vel_cmd */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     double      pos_cmd_s;	/* saved pos_cmd at rising edge of usb_busy */
@@ -1863,8 +1865,6 @@ static void update_freq(void *arg, long period)
 	        *machine_control->ignore_host_cmd) {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
-                printf("j[%d] cmd_fbs(%d) rawcount32(%d) \n",
-                        n, *stepgen->cmd_fbs, (int32_t) (stepgen->rawcount >> FRACTION_BITS));
                 write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
                 stepgen->pulse_vel = 0;
                 stepgen->pulse_accel = 0;
@@ -1958,6 +1958,11 @@ static void update_freq(void *arg, long period)
             stepgen->rawcount += (int64_t) integer_pos_cmd; // precision: 64.16
             stepgen->prev_pos_cmd = (((double)stepgen->rawcount * stepgen->scale_recip)/(FIXED_POINT_SCALE));
             stepgen->prev_vel_cmd = *stepgen->vel_cmd;
+            *stepgen->rpm = *stepgen->vel_cmd 
+                            * stepgen->pos_scale 
+                            / stepgen->pulse_per_rev
+                            * recip_dt * 60.0;
+                           
 	}
 
         if (n == (num_joints - 1)) {
@@ -2238,8 +2243,24 @@ static int export_stepgen(int num, stepgen_t * addr,
     if (retval != 0) {
         return retval;
     }
+    
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->rpm), comp_id,
+                                    "wou.stepgen.%d.rpm", num);
+    if (retval != 0) {
+        return retval;
+    }
 
-    /* set default parameter values */
+    /* export parameter for pulse_per_rev */
+    retval = hal_param_float_newf(HAL_RW, &(addr->pulse_per_rev), comp_id,
+				  "wou.stepgen.%d.pulse_per_rev", num);
+    if (retval != 0) {
+	return retval;
+    }
+
+    /* set default values */
+    addr->pulse_per_rev = 1.0;
+    *addr->rpm           = 0.0;
+
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
     addr->freq = 0.0;
@@ -2274,7 +2295,6 @@ static int export_stepgen(int num, stepgen_t * addr,
     addr->pulse_vel = 0;
     addr->pulse_accel = 0;
     addr->pulse_jerk = 0;
-    (addr->accel_cmd) = 0.0;
     *(addr->jog_scale) = 1.0;
     /* config jog setting */
     max_pulse_tick = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);
