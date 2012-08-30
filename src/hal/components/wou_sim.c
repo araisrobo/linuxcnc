@@ -1550,14 +1550,6 @@ static void update_freq(void *arg, long period)
                             * stepgen->pos_scale 
                             / stepgen->pulse_per_rev
                             * recip_dt * 60.0;
-            if (n == 4) {
-                printf("j[4] rpm(%f) vel_cmd(%f) pos_scale(%f) pulse_per_rev(%f) recip_dt(%f)\n",
-                            *stepgen->rpm,
-                            *stepgen->vel_cmd,
-                            stepgen->pos_scale,
-                            stepgen->pulse_per_rev,
-                            recip_dt);
-            }
 
             // pos_mode(1): position mode: 
             if (stepgen->pos_mode == 1) {
