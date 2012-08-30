@@ -153,7 +153,7 @@
 #define SON_DELAY_TICK  1500
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 // FILE *dptrace = fopen("dptrace.log","w");
@@ -390,7 +390,7 @@ typedef struct {
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     double      pos_cmd_s;	/* saved pos_cmd at rising edge of usb_busy */
-    hal_float_t *pos_cmd;	/* pin: position command (position units) */
+    hal_float_t *pos_cmd;	/* pin: motor_pos_cmd (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *probed_pos;
     hal_bit_t *align_pos_cmd;
@@ -1713,11 +1713,13 @@ static void update_freq(void *arg, long period)
     for (n = 0; n < num_joints; n++) {
 
         if (*stepgen->enable != stepgen->prev_enable) {
+            // delay for SON_DELAY_TICK before actually svo-on 
+            // TODO: let control.c know that if the motor is ready
             if ((stepgen->son_delay > SON_DELAY_TICK)
                  || (*stepgen->enable == 0)) {
                 stepgen->son_delay = 0;
                 stepgen->prev_enable = *stepgen->enable;
-                stepgen->rawcount = (((int64_t) *(stepgen->enc_pos)) << FRACTION_BITS);
+                stepgen->rawcount = (int64_t) (stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale);
                 write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
                 write_mot_param (n, (ENABLE), (int32_t) *stepgen->enable);
             } else {
@@ -1784,10 +1786,6 @@ static void update_freq(void *arg, long period)
 	    /* set velocity to zero */
 	    stepgen->freq = 0;
 
-	    /* update pos fb*/
-	    // fetchmail will update enc_pos
-	    //*(stepgen->pos_fb) = (*stepgen->enc_counter) * stepgen->scale_recip;
-
             /* to prevent position drift while toggeling "PWR-ON" switch */
 	    (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
 
@@ -1799,7 +1797,7 @@ static void update_freq(void *arg, long period)
             stepgen->pulse_vel = 0;
             stepgen->pulse_accel = 0;
             stepgen->pulse_jerk = 0;
-
+            
 #ifdef DEBUG
             debug_msg_tick = 0;
 #endif
@@ -1857,8 +1855,6 @@ static void update_freq(void *arg, long period)
 	// first sanity-check our maxaccel and maxvel params
 	//
 
-	/* at this point, all scaling, limits, and other parameter
-	   changes hrawcount_diff_accumave been handled - time for the main control */
 	if (stepgen->pos_mode) {
 	    /* position command mode */
 	    if (*machine_control->align_pos_cmd == 1 ||
@@ -1894,8 +1890,10 @@ static void update_freq(void *arg, long period)
             if (abs(integer_pos_cmd) > stepgen->pulse_maxv) {
                 pulse_accel = integer_pos_cmd - stepgen->pulse_vel;
                 pulse_jerk = pulse_accel - stepgen->pulse_accel;
-                printf("j[%d], vel_cmd(%f)\n",
-                        n, *stepgen->vel_cmd);
+                printf("j[%d], pos_fb(%f) prev_pos_fb(%f)\n",
+                        n, (*stepgen->pos_fb), (stepgen->prev_pos_fb));
+                printf("j[%d], vel_cmd(%f) pos_cmd(%f) prev_pos_cmd(%f)\n",
+                        n, *stepgen->vel_cmd, (*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
                 printf("j[%d], pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
                         n, integer_pos_cmd, pulse_accel, pulse_jerk);
                 printf("j[%d], PREV pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
