@@ -12,6 +12,8 @@
 *
 ********************************************************************/
 
+#include "string.h"
+#include "assert.h"
 #include "rtapi_math.h"
 #include "kinematics.h"		/* these decls */
 
@@ -32,7 +34,8 @@ typedef struct {
     double prev_theta;
     double x_cent, prev_x_cent, y_cent, prev_y_cent;
     double x_offset, prev_x_offset, y_offset, prev_y_offset;
-    hal_bit_t * touch_off_cent;
+    hal_bit_t *touch_off_cent;
+    hal_float_t *gantry_polarity;
 } align_pins_t;
 
 static align_pins_t *align_pins;
@@ -47,7 +50,17 @@ static align_pins_t *align_pins;
 #define Y_OFFSET        (align_pins->y_offset)
 #define X_CENT          (align_pins->x_cent)
 #define Y_CENT          (align_pins->y_cent)
-#define TOUCH_OFF_CENT	(*(align_pins->touch_off_cent))
+#define TOUCH_OFF_CENT	 (*(align_pins->touch_off_cent))
+#define GANTRY_POLARITY (*(align_pins->gantry_polarity))
+
+const char *machine_type = "";
+RTAPI_MP_STRING(machine_type, "Gantry Machine Type");
+
+EXPORT_SYMBOL(kinematicsType);
+EXPORT_SYMBOL(kinematicsForward);
+EXPORT_SYMBOL(kinematicsInverse);
+MODULE_LICENSE("GPL");
+
 void cord_change_handler(EmcPose * pos, double  * joints) {
     // update XYZ position but keep joint position unchanged 
     if (TOUCH_OFF_CENT == 1) {
@@ -83,25 +96,18 @@ int kinematicsForward(const double *joints,
 		      const KINEMATICS_FORWARD_FLAGS * fflags,
 		      KINEMATICS_INVERSE_FLAGS * iflags)
 {
-    // double c_rad = -joints[5]*M_PI/180;
-    // fprintf(stderr,"kF j0(%f) j1(%f)\n",joints[0], joints[1]);
+
     cord_change_handler((EmcPose *)pos, (double*)joints);
     pos->tran.x  = (joints[0] - X_CENT - X_OFFSET) * cos(THETA) +
                    (joints[1] - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
     pos->tran.y  = -(joints[0] - X_CENT - X_OFFSET)* sin(THETA) +
                     (joints[1] - Y_CENT - Y_OFFSET) * cos(THETA) + Y_OFFSET + Y_CENT;
-//    pos->tran.x  = (joints[0] - X_OFFSET) * cos(THETA) + (joints[1] - Y_OFFSET) * sin(THETA) ;
-//    pos->tran.y  = -(joints[0] - X_OFFSET)* sin(THETA) + (joints[1] - Y_OFFSET) * cos(THETA);
-//    pos->tran.x = joints[0] * cos(THETA) - joints[1] * sin(THETA);
-//    pos->tran.y =joints[0] * sin(THETA) + joints[1] * cos(THETA);
+
     pos->tran.z = joints[3];
     pos->a = joints[4];
     pos->b = joints[5];
     pos->c = joints[6];
-    // pos->u = joints[6];
-    // pos->v = joints[7];
-    // pos->w = joints[8];
-    // fprintf(stderr,"kF x(%f) y(%f)\n",pos->tran.x, pos->tran.y);
+
     DP("kFWD: theta(%f), j0(%f), j1(%f), x(%f), y(%f)\n",
        THETA, joints[0], joints[1], pos->tran.x, pos->tran.y);
 
@@ -138,7 +144,7 @@ int kinematicsInverse(const EmcPose * pos,
 
     joints[1] = (pos->tran.x - x_cent - X_OFFSET) * sin(rad) +
                 (pos->tran.y - y_cent - Y_OFFSET) * cos(rad) + Y_OFFSET + y_cent;
-    joints[2] = joints[1];      // joint2: YY
+    joints[2] = joints[1] * GANTRY_POLARITY;      // joint2: YY
     joints[3] = pos->tran.z;
     joints[4] = pos->a;
     joints[5] = pos->b;
@@ -170,10 +176,6 @@ KINEMATICS_TYPE kinematicsType()
     return KINEMATICS_BOTH;
 }
 
-EXPORT_SYMBOL(kinematicsType);
-EXPORT_SYMBOL(kinematicsForward);
-EXPORT_SYMBOL(kinematicsInverse);
-MODULE_LICENSE("GPL");
 
 int comp_id;
 int rtapi_app_main(void) 
@@ -200,6 +202,12 @@ int rtapi_app_main(void)
     TOUCH_OFF_CENT = 0;
     // align_pins->theta = 0;
     // align_pins->theta = 0.78539815;   // 45 degree
+
+    /* export param for scaled velocity (frequency in Hz) */
+    res = hal_pin_float_new("align-gantry-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
+    if (res != 0) {
+        goto error;
+    }
 
     hal_ready(comp_id);
     DP ("success\n");
