@@ -3,7 +3,7 @@
 *               This file, 'wou_stepgen.c', is a HAL component that
 *               It was based on stepgen.c by John Kasunich.
 *
-* Author: Yi-Shin Li
+* Author: Yishin Li
 * License: GPL Version 2
 *
 * Copyright (c) 2009-2010 All rights reserved.
@@ -175,7 +175,7 @@ static FILE *debug_fp;
 #undef  DEBUG
 
 /* module information */
-MODULE_AUTHOR("Yi-Shin Li");
+MODULE_AUTHOR("Yishin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
 
