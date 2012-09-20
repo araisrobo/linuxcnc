@@ -1193,6 +1193,8 @@ static PyObject *teleop(pyCommandChannel *s, PyObject *o) {
     en.serial_number = next_serial(s);
     s->c->write(en);
     emcWaitCommandReceived(s->serial, s->s);
+
+    printf ("emcmodule: teleop.en(%d)\n", en.enable);
     
     Py_INCREF(Py_None);
     return Py_None;
@@ -1207,6 +1209,22 @@ static PyObject *set_traj_mode(pyCommandChannel *s, PyObject *o) {
     s->c->write(mo);
     emcWaitCommandReceived(s->serial, s->s);
     
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *set_teleop_vector(pyCommandChannel *s, PyObject *o) {
+    EMC_TRAJ_SET_TELEOP_VECTOR mo;
+
+    mo.vector.a = mo.vector.b = mo.vector.c = 0.;
+
+    if(!PyArg_ParseTuple(o, "ddd|ddd", &mo.vector.tran.x, &mo.vector.tran.y, &mo.vector.tran.z, &mo.vector.a, &mo.vector.b, &mo.vector.c))
+        return NULL;
+
+    mo.serial_number = next_serial(s);
+    s->c->write(mo);
+    emcWaitCommandReceived(s->serial, s->s);
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1332,6 +1350,7 @@ static PyMemberDef Command_members[] = {
 static PyMethodDef Command_methods[] = {
     {"debug", (PyCFunction)debug, METH_VARARGS},
     {"teleop_enable", (PyCFunction)teleop, METH_VARARGS},
+    {"teleop_vector", (PyCFunction)set_teleop_vector, METH_VARARGS},
     {"traj_mode", (PyCFunction)set_traj_mode, METH_VARARGS},
     {"wait_complete", (PyCFunction)wait_complete, METH_VARARGS},
     {"state", (PyCFunction)state, METH_VARARGS},

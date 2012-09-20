@@ -932,6 +932,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
+	    case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
@@ -1912,6 +1913,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	}
 	break;
 
+    case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:
+	retval =
+	    emcTrajSetTeleopVector(((EMC_TRAJ_SET_TELEOP_VECTOR *) cmd)->
+				   vector);
+	break;
+
     case EMC_MOTION_SET_AOUT_TYPE:
 	retval = emcMotionSetAout(((EMC_MOTION_SET_AOUT *) cmd)->index,
 				  ((EMC_MOTION_SET_AOUT *) cmd)->start,
@@ -2386,6 +2393,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_RIGID_TAP_TYPE:
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
     case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
+    case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:
     case EMC_TRAJ_SET_FO_ENABLE_TYPE:
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:

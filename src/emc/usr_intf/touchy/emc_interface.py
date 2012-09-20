@@ -144,7 +144,7 @@ class emc_control:
                         if self.isjogging[i]:
                                 self.emccommand.jog(self.emc.JOG_CONTINUOUS, i, self.isjogging[i] * self.jog_velocity)
         
-        def continuous_jog(self, axis, direction):
+        def continuous_jog(self, joint, direction):
                 self.emcstat.poll()
                 if self.emcstat.task_mode != self.emc.MODE_MANUAL:
                     # TODO wait till task_mode equal to emc.MODE_MANUAL
@@ -152,13 +152,13 @@ class emc_control:
                 if self.masked: 
                     return False
                 # DEBUG:
-                # print "continuous_jog(%d) dir(%d) vel(%d)" % (axis, direction, direction * self.jog_velocity)
+                # print "continuous_jog(%d) dir(%d) vel(%d)" % (joint, direction, direction * self.jog_velocity)
                 if direction == 0:
-                        self.isjogging[axis] = 0
-                        self.emccommand.jog(self.emc.JOG_STOP, axis)
+                        self.isjogging[joint] = 0
+                        self.emccommand.jog(self.emc.JOG_STOP, joint)
                 else:
-                        self.isjogging[axis] = direction
-                        self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
+                        self.isjogging[joint] = direction
+                        self.emccommand.jog(self.emc.JOG_CONTINUOUS, joint, direction * self.jog_velocity)
                 return True
                 
 	def quill_up(self):

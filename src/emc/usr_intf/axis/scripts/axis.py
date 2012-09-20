@@ -2818,16 +2818,22 @@ def jog_on(a, b):
         return
     b = b*vars.feedrate.get()/100.0
     jogincr = widgets.jogincr.get()
-    if jogincr != _("Continuous"):
-        s.poll()
-        if s.state != 1: return
-        distance = parse_increment(jogincr)
-        jog(linuxcnc.JOG_INCREMENT, a, b, distance)
-        jog_cont[a] = False
-    else:
-        jog(linuxcnc.JOG_CONTINUOUS, a, b)
-        jog_cont[a] = True
+    if s.motion_mode == linuxcnc.TRAJ_MODE_TELEOP:
         jogging[a] = b
+        jog_cont[a] = False
+        cartesian_only=jogging[:6]
+        c.teleop_vector(*cartesian_only)
+    else:
+        if jogincr != _("Continuous"):
+            s.poll()
+            if s.state != 1: return
+            distance = parse_increment(jogincr)
+            jog(linuxcnc.JOG_INCREMENT, a, b, distance)
+            jog_cont[a] = False
+        else:
+            jog(linuxcnc.JOG_CONTINUOUS, a, b)
+            jog_cont[a] = True
+            jogging[a] = b
 
 def jog_off(a):
     if isinstance(a, (str, unicode)):
@@ -2840,8 +2846,12 @@ def jog_off_actual(a):
     activate_axis(a)
     jog_after[a] = None
     jogging[a] = 0
-    if jog_cont[a]:
-        jog(linuxcnc.JOG_STOP, a)
+    if s.motion_mode == linuxcnc.TRAJ_MODE_TELEOP:
+        cartesian_only=jogging[:6]
+        c.teleop_vector(*cartesian_only)
+    else:
+        if jog_cont[a]:
+            jog(linuxcnc.JOG_STOP, a)
 
 def jog_off_all():
     for i in range(6):

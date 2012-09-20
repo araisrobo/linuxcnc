@@ -980,6 +980,19 @@ class EMC_TRAJ_SET_TELEOP_ENABLE:public EMC_TRAJ_CMD_MSG {
     int enable;
 };
 
+class EMC_TRAJ_SET_TELEOP_VECTOR:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_SET_TELEOP_VECTOR():EMC_TRAJ_CMD_MSG
+	(EMC_TRAJ_SET_TELEOP_VECTOR_TYPE,
+	 sizeof(EMC_TRAJ_SET_TELEOP_VECTOR)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    EmcPose vector;
+};
+
 class EMC_TRAJ_PROBE:public EMC_TRAJ_CMD_MSG {
   public:
     EMC_TRAJ_PROBE():EMC_TRAJ_CMD_MSG(EMC_TRAJ_PROBE_TYPE,

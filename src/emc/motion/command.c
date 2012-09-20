@@ -274,17 +274,11 @@ void clearHomes(int joint_num)
 
 void emcmotSetRotaryUnlock(int axis, int unlock) {
 
-    if(axis >= 3 && axis <= 5) {
-        *(emcmot_hal_data->joint[axis].unlock) = unlock;
-    }
+    *(emcmot_hal_data->joint[axis].unlock) = unlock;
 }
 
 int emcmotGetRotaryIsUnlocked(int axis) {
-    if(axis >= 3 && axis <= 5) {
-        return *(emcmot_hal_data->joint[axis].is_unlocked);
-    } else {
-        return 1;
-    }
+    return *(emcmot_hal_data->joint[axis].is_unlocked);
 }
 
 /*! \function emcmotDioWrite()
@@ -441,16 +435,17 @@ void emcmotCommandHandler(void *arg, long period)
 	       it calls the traj planner abort function (don't know what that
 	       does yet), and if in free mode, it disables the free mode traj
 	       planners which stops joint motion */
-	    rtapi_print_msg(RTAPI_MSG_DBG, " ABORT ");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "ABORT");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    /* check for coord or free space motion active */
 	    if (GET_MOTION_TELEOP_FLAG()) {
-		for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
-		    /* point to joint struct */
-		    axis = &axes[axis_num];
-		    /* tell teleop planner to stop */
-		    axis->teleop_tp.enable = 0;
-                }
+                ZERO_EMC_POSE(emcmotDebug->teleop_data.desiredVel);
+//orig:		for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
+//orig:		    /* point to joint struct */
+//orig:		    axis = &axes[axis_num];
+//orig:		    /* tell teleop planner to stop */
+//orig:		    axis->teleop_tp.enable = 0;
+//orig:                }
 	    } else if (GET_MOTION_COORD_FLAG()) {
 		tpAbort(&emcmotDebug->coord_tp);
 	    } else {
@@ -483,7 +478,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    /* this command stops a single joint.  It is only usefull
 	       in free mode, so in coord or teleop mode it does
 	       nothing. */
-	    rtapi_print_msg(RTAPI_MSG_DBG, " JOINT_ABORT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "JOINT_ABORT");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    if (GET_MOTION_TELEOP_FLAG()) {
 		axis = &axes[joint_num];
@@ -516,7 +511,7 @@ void emcmotCommandHandler(void *arg, long period)
 	       requests the transition by clearing a couple of flags */
 	    /* reset the emcmotDebug->coordinating flag to defer transition
 	       to controller cycle */
-	    rtapi_print_msg(RTAPI_MSG_DBG, " FREE");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "FREE");
 	    emcmotDebug->coordinating = 0;
 	    emcmotDebug->teleoperating = 0;
 	    break;
@@ -529,7 +524,7 @@ void emcmotCommandHandler(void *arg, long period)
 	       transition */
 	    /* set the emcmotDebug->coordinating flag to defer transition to
 	       controller cycle */
-	    rtapi_print_msg(RTAPI_MSG_DBG, " COORD ");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "COORD");
 	    emcmotDebug->coordinating = 1;
 	    emcmotDebug->teleoperating = 0;
 	    if (emcmotConfig->kinType != KINEMATICS_IDENTITY) {
@@ -1554,6 +1549,41 @@ void emcmotCommandHandler(void *arg, long period)
 		break;
 	    } else {
 		SET_MOTION_ERROR_FLAG(0);
+	    }
+	    break;
+
+	case EMCMOT_SET_TELEOP_VECTOR:
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_TELEOP_VECTOR");
+	    if (!GET_MOTION_TELEOP_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
+		reportError
+		    (_("need to be enabled, in teleop mode for teleop move"));
+	    } else {
+		double velmag;
+		emcmotDebug->teleop_data.desiredVel = emcmotCommand->pos;
+		pmCartMag(emcmotDebug->teleop_data.desiredVel.tran, &velmag);
+		if (emcmotDebug->teleop_data.desiredVel.a > velmag) {
+		    velmag = emcmotDebug->teleop_data.desiredVel.a;
+		}
+		if (emcmotDebug->teleop_data.desiredVel.b > velmag) {
+		    velmag = emcmotDebug->teleop_data.desiredVel.b;
+		}
+		if (emcmotDebug->teleop_data.desiredVel.c > velmag) {
+		    velmag = emcmotDebug->teleop_data.desiredVel.c;
+		}
+		if (velmag > emcmotConfig->limitVel) {
+		    pmCartScalMult(emcmotDebug->teleop_data.desiredVel.tran,
+			emcmotConfig->limitVel / velmag,
+			&emcmotDebug->teleop_data.desiredVel.tran);
+		    emcmotDebug->teleop_data.desiredVel.a *=
+			emcmotConfig->limitVel / velmag;
+		    emcmotDebug->teleop_data.desiredVel.b *=
+			emcmotConfig->limitVel / velmag;
+		    emcmotDebug->teleop_data.desiredVel.c *=
+			emcmotConfig->limitVel / velmag;
+		}
+		/* flag that all joints need to be homed, if any joint is
+		   jogged individually later */
+		rehomeAll = 1;
 	    }
 	    break;
 
