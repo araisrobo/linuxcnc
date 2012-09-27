@@ -177,14 +177,14 @@ endif
 # Compilation options.  Perhaps some of these should come from Makefile.inc?
 # original: OPT := -Os $(call cc-option,-fno-strict-aliasing) $(call cc-option,-fno-stack-protector)
 # for debug: 
-# OPT := -O0
+OPT := -O0
 # for release: 
-OPT := -Os
+# OPT := -Os
 
 # for debug: 
-# DEBUG := -g -Wall
+DEBUG := -g -Wall
 # for release: 
-DEBUG := -Wall
+# DEBUG := -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
