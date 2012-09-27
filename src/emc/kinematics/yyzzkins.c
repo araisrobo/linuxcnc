@@ -19,7 +19,7 @@
 #include "hal.h"
 
 // to disable DP():
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE *dptrace;
@@ -52,6 +52,9 @@ int kinematicsForward(const double *joints,
     pos->tran.y = joints[0];
     pos->tran.z = joints[2];
 
+    DP("kFWD: y(%f), z(%f), j0(%f), j2(%f)\n",
+        pos->tran.y, pos->tran.z, joints[0], joints[2]);
+
     return 0;
 }
 
@@ -66,8 +69,8 @@ int kinematicsInverse(const EmcPose * pos,
     joints[2] = pos->tran.z;
     joints[3] = (pos->tran.z + ZZ_OFFSET) * GANTRY_POLARITY_Z;
 
-    DP("kINV: theta(%f), j0(%f), j1(%f), x(%f), y(%f)\n",
-       THETA, joints[0], joints[1], pos->tran.x, pos->tran.y);
+    DP("kINV: j0(%f), j1(%f), j2(%f), j3(%f), y(%f), z(%f)\n",
+              joints[0], joints[1], joints[2], joints[3], pos->tran.y, pos->tran.z);
 
     return 0;
 }
@@ -109,10 +112,10 @@ int rtapi_app_main(void)
     
     yyzz_pins = hal_malloc(sizeof(yyzz_pins_t));
     if (!yyzz_pins) goto error;
-    if ((res = hal_pin_float_new("yyzz-kins.yy_offset", HAL_IN, &(yyzz_pins->yy_offset), comp_id)) < 0) goto error;
-    if ((res = hal_pin_float_new("yyzz-kins.zz_offset", HAL_IN, &(yyzz_pins->zz_offset), comp_id)) < 0) goto error;
-    if ((res = hal_pin_float_new("yyzz-kins.gantry_polarity_y", HAL_IN, &(yyzz_pins->gantry_polarity_y), comp_id)) < 0) goto error;
-    if ((res = hal_pin_float_new("yyzz-kins.gantry_polarity_z", HAL_IN, &(yyzz_pins->gantry_polarity_z), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("yyzzkins.yy_offset", HAL_IN, &(yyzz_pins->yy_offset), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("yyzzkins.zz_offset", HAL_IN, &(yyzz_pins->zz_offset), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("yyzzkins.gantry-polarity-y", HAL_IN, &(yyzz_pins->gantry_polarity_y), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("yyzzkins.gantry-polarity-z", HAL_IN, &(yyzz_pins->gantry_polarity_z), comp_id)) < 0) goto error;
 
     hal_ready(comp_id);
     DP ("done\n");
