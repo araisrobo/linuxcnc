@@ -1730,6 +1730,13 @@ static void get_pos_cmds(long period)
                 emcmotDebug->teleop_data.desiredVel.tran.x,
                 emcmotDebug->teleop_data.desiredAccell.tran.x
            );
+        DPS("y.pos_cmd(%f) y.cur_vel(%f) y.desired_vel(%f) y.desired_acc(%f)\n",
+                emcmotStatus->carte_pos_cmd.tran.y,
+                emcmotDebug->teleop_data.currentVel.tran.y,
+                emcmotDebug->teleop_data.desiredVel.tran.y,
+                emcmotDebug->teleop_data.desiredAccell.tran.y
+           );
+
         /* the next position then gets run through the inverse kins,
             to compute the next positions of the joints */
 

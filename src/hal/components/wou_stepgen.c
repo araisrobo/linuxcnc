@@ -156,7 +156,6 @@
 #define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
-// FILE *dptrace = fopen("dptrace.log","w");
 static FILE *dptrace;
 #endif
 

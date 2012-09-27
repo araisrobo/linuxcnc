@@ -1581,6 +1581,11 @@ void emcmotCommandHandler(void *arg, long period)
 		    emcmotDebug->teleop_data.desiredVel.c *=
 			emcmotConfig->limitVel / velmag;
 		}
+		/**
+		 * 2012-09-21 ysli TODO:
+		 * We should limit the desiredVel vector based on each AXES's MAX_VEL.
+		 * Not simply the [TRAJ]MAX_LINEAR_VELOCITY
+		 **/
 		/* flag that all joints need to be homed, if any joint is
 		   jogged individually later */
 		rehomeAll = 1;
