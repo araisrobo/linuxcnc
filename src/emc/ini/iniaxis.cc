@@ -182,10 +182,15 @@ int iniAxis(int axis, const char *filename)
         return -1;
     }
 
-    if (axis < 0 || axis >= axes) {
-	// requested axis exceeds machine axes
-	return -1;
-    }
+    /**
+     * If we set "AXES as 4" and "COORDINATES as Y Z V W",
+     * we will hit "axis==7" for "V", where "axes==4".
+     * In this case, the following judgment will fail.
+     */
+    // if (axis < 0 || axis >= axes) {
+    //	// requested axis exceeds machine axes
+    //	return -1;
+    // }
 
     // load its values
     if (0 != loadAxis(axis, &axisIniFile)) {

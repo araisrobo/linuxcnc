@@ -882,6 +882,9 @@ alignmentkins-objs := emc/kinematics/alignmentkins.o
 obj-m += align_gantry_kins.o
 align_gantry_kins-objs := emc/kinematics/align_gantry_kins.o
 
+obj-m += yyzzkins.o
+yyzzkins-objs := emc/kinematics/yyzzkins.o
+
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o
 motmod-objs += emc/kinematics/tc.o
@@ -1010,6 +1013,7 @@ endif
 ../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
 ../rtlib/alignmentkins$(MODULE_EXT): $(addprefix objects/rt,$(alignmentkins-objs))
 ../rtlib/align_gantry_kins$(MODULE_EXT): $(addprefix objects/rt,$(align_gantry_kins-objs))
+../rtlib/yyzzkins$(MODULE_EXT): $(addprefix objects/rt,$(yyzzkins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))
