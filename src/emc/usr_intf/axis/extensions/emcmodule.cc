@@ -1194,7 +1194,7 @@ static PyObject *teleop(pyCommandChannel *s, PyObject *o) {
     s->c->write(en);
     emcWaitCommandReceived(s->serial, s->s);
 
-    printf ("emcmodule: teleop.en(%d)\n", en.enable);
+    printf ("emcmodule.cc: teleop.en(%d)\n", en.enable);
     
     Py_INCREF(Py_None);
     return Py_None;
