@@ -308,10 +308,6 @@ const char *ahc_level_min_str ="1100";
 RTAPI_MP_STRING(ahc_level_min_str,
                 "auto height control: min level");
 
-const char *machine_param_str = "XYZA"; // XYZY, XYZY_
-RTAPI_MP_STRING(machine_param_str,
-                "specify machine type");
-
 const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
                 "indicate test pattern type");
@@ -1113,21 +1109,6 @@ int rtapi_app_main(void)
         return -1;
     }
         
-    // config machine type
-    if (strcmp(machine_param_str, "XYZA") == 0) {
-        // config machine type normal (no synchronized joints)
-        write_machine_param (MACHINE_TYPE, XYZA);
-    } else if (strcmp(machine_param_str, "XYZY") == 0) {
-        // config machine type YY (one kind of gantry)
-        write_machine_param (MACHINE_TYPE, XYZY);
-    } else if (strcmp(machine_param_str, "XYZY_") == 0) {
-       // config machine type YY_ (one kind of gantry)
-        write_machine_param (MACHINE_TYPE, XYZY_);
-    } else {
-        fprintf(stderr, "wou_stepgen.c: non-supported machine type\n");
-        assert(0);
-    }
-    while(wou_flush(&w_param) == -1);
     // configure alarm output (for E-Stop)
     write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
     fprintf(stderr, "ALR_OUTPUT(%08X)",(uint32_t) strtoul(alr_output, NULL, 16));
