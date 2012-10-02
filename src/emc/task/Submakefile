@@ -1,4 +1,3 @@
-
 EMCSVRSRCS := \
 	emc/task/emcsvr.cc
 USERSRCS += $(EMCSVRSRCS)
@@ -8,7 +7,6 @@ USERSRCS += $(EMCSVRSRCS)
 	@$(CXX) $(LDFLAGS) -o $@ $^ 
 TARGETS += ../bin/linuxcncsvr
 
-# disabled:	emc/task/iotaskintf.cc
 MILLTASKSRCS := \
 	emc/motion/emcmotglb.c \
 	emc/task/emctask.cc \
@@ -23,15 +21,10 @@ MILLTASKSRCS := \
 	emc/task/taskmodule.cc \
 	emc/task/taskclass.cc \
 	emc/task/backtrace.cc \
-	$(ULAPISRCS)
 
 USERSRCS += $(MILLTASKSRCS)
 
-#LDFLAGS +=
-
 ../bin/milltask: $(call TOOBJS, $(MILLTASKSRCS)) ../lib/librs274.so.0 ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0 ../lib/libposemath.so.0 ../lib/liblinuxcnchal.so.0 ../lib/libpyplugin.so.0
-
-
 	$(ECHO) Linking $(notdir $@)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON)
 TARGETS += ../bin/milltask
