@@ -504,6 +504,13 @@ typedef struct {
     hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
     hal_float_t *last_usb_cmd_param[4];
+
+    hal_bit_t   *teleop_mode;
+    hal_bit_t   *coord_mode;
+    uint8_t     motion_mode;
+    uint8_t     motion_mode_prev;
+    uint8_t     pid_enable;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1222,8 +1229,13 @@ int rtapi_app_main(void)
         recip_dt = 1.0 / dt;
     }
 
+    // MACHINE_CTRL,   // [31:24]  RESERVED
+    //                 // [23:16]  NUM_JOINTS
+    //                 // [15: 8]  WORLD(1)/JOINT(0) mode
+    //                 // [ 7: 0]  PID_ENABLE
     // configure NUM_JOINTS after all joint parameters are set
-    write_machine_param(NUM_JOINTS, (uint32_t) num_joints);
+    immediate_data = (num_joints << 16); // assume motion_mode(0) and pid_enable(0)
+    write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
     while(wou_flush(&w_param) == -1);
 
     // JCMD_CTRL: 
@@ -1566,6 +1578,18 @@ static void update_freq(void *arg, long period)
         fprintf(stderr,"wou_stepgen.c: analog_ref_level(%d) \n", (uint32_t)*machine_control->analog_ref_level);
     }
     machine_control->prev_analog_ref_level = *machine_control->analog_ref_level;
+    /* end: */
+
+    /* begin motion_mode */
+    machine_control->motion_mode = *machine_control->teleop_mode | *machine_control->coord_mode;
+    if (machine_control->motion_mode != machine_control->motion_mode_prev) {
+        immediate_data = (num_joints << 16) |
+                         (machine_control->motion_mode << 8) |
+                         machine_control->pid_enable;
+        write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
+        // TODO: should we compare the motion_mode with the one from RISC through fetchmail()?
+        machine_control->motion_mode_prev = machine_control->motion_mode;
+    }
     /* end: */
 
     /* begin: handle usb cmd */
@@ -2579,6 +2603,20 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->prev_out = 0;
     machine_control->usb_busy_s = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->teleop_mode), comp_id,
+                              "wou.motion.teleop-mode");
+    if (retval != 0) { return retval; }
+    *(machine_control->teleop_mode) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->coord_mode), comp_id,
+                              "wou.motion.coord-mode");
+    if (retval != 0) { return retval; }
+    *(machine_control->coord_mode) = 0;
+
+    machine_control->motion_mode = 0;
+    machine_control->motion_mode_prev = 0;
+    machine_control->pid_enable = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
