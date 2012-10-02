@@ -19,7 +19,7 @@
 #include "hal.h"
 
 // to disable DP():
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE *dptrace;
@@ -52,8 +52,8 @@ int kinematicsForward(const double *joints,
     pos->tran.y = joints[0];
     pos->tran.z = joints[2];
 
-    DP("kFWD: y(%f), z(%f), j0(%f), j2(%f)\n",
-        pos->tran.y, pos->tran.z, joints[0], joints[2]);
+    DP("kFWD: y(%f), z(%f), j0(%f), j1(%f), j2(%f), j3(%f)\n",
+        pos->tran.y, pos->tran.z, joints[0], joints[1], joints[2], joints[3]);
 
     return 0;
 }
