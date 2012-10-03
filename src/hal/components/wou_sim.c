@@ -505,6 +505,13 @@ typedef struct {
     hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
     hal_float_t *last_usb_cmd_param[4];
+
+    hal_bit_t   *teleop_mode;
+    hal_bit_t   *coord_mode;
+    uint8_t     motion_mode;
+    uint8_t     motion_mode_prev;
+    uint8_t     pid_enable;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -2184,6 +2191,20 @@ static int export_machine_control(machine_control_t * machine_control)
 
     machine_control->prev_out = 0;
     machine_control->usb_busy_s = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->teleop_mode), comp_id,
+                              "wou.motion.teleop-mode");
+    if (retval != 0) { return retval; }
+    *(machine_control->teleop_mode) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->coord_mode), comp_id,
+                              "wou.motion.coord-mode");
+    if (retval != 0) { return retval; }
+    *(machine_control->coord_mode) = 0;
+
+    machine_control->motion_mode = 0;
+    machine_control->motion_mode_prev = 0;
+    machine_control->pid_enable = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
