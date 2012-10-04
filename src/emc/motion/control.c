@@ -642,8 +642,11 @@ static void do_forward_kins(void)
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint struct */
         joint = &joints[joint_num];
-        /* copy feedback */
-        joint_pos[joint_num] = joint->pos_fb;
+        /* copy feedback
+         * original linuxcnc: joint_pos[joint_num] = joint->pos_fb;
+         */
+        /* copy previous joint pos_cmd for KinematicsForward */
+        joint_pos[joint_num] = joint->pos_cmd;
     }
     switch (emcmotConfig->kinType) {
     // switch (emcmotConfig->kinType)
