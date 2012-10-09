@@ -112,7 +112,7 @@ int kinematicsForward(const double *joints,
     pos->b = joints[5];
     pos->c = joints[6];
 
-    YY_OFFSET = joints[1] - (joints[2] * GANTRY_POLARITY);
+    // YY_OFFSET = joints[1] - (joints[2] * GANTRY_POLARITY);
 
     DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f),POLARITY(%f)\n",
         pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
@@ -206,7 +206,7 @@ int rtapi_app_main(void)
     if (!align_pins) goto error;
     // if ((res = hal_pin_float_new("align-gantry-kins.theta", HAL_IN, &(align_pins->theta), comp_id)) < 0) goto error;
     // THETA = 0;
-    if ((res = hal_pin_float_new("align-gantry-kins.yy_offset", HAL_IN, &(align_pins->yy_offset), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("align-gantry-kins.yy-offset", HAL_IN, &(align_pins->yy_offset), comp_id)) < 0) goto error;
     YY_OFFSET = 0;
     // if ((res = hal_pin_bit_new("align-gantry-kins.touch-off-cent", HAL_IO, &(align_pins->touch_off_cent), comp_id)) < 0) goto error;
     // TOUCH_OFF_CENT = 0;
