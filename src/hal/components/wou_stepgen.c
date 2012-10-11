@@ -10,111 +10,6 @@
 *
 * Last change:
 ********************************************************************/
-/** This file, 'wou_stepgen.c', is a HAL component that provides software
-    based step pulse generation.  The maximum step rate will depend
-    on the speed of the PC, but is expected to exceed 5KHz for even
-    the slowest computers, and may reach 25KHz on fast ones.  It is
-    a realtime component.
-
-    It supports up to 8 pulse generators.  Each generator can produce
-    several types of outputs in addition to step/dir, including
-    quadrature, half- and full-step unipolar and bipolar, three phase,
-    and five phase.  A 32 bit feedback value is provided indicating
-    the current position of the motor in counts (assuming no lost
-    steps), and a floating point feedback in user specified position
-    units is also provided.
-
-    The number of step generators and type of outputs is determined
-    by the insmod command line parameter 'step_type'.  It accepts
-    a comma separated (no spaces) list of up to 8 stepping types
-    to configure up to 8 channels.  A second command line parameter
-    "ctrl_type", selects between position and velocity control modes
-    for each step generator.  (ctrl_type is optional, the default
-    control type is position.)
-
-    So a command line like this:
-
-	insmod stepgen ctrl_type=p,p,v,p
-
-    will install four step generators, two using stepping type 0,
-    one using type 1, and one using type 2.  The first two and
-    the last one will be running in position mode, and the third
-    one will be running in velocity mode.
-
-    The driver exports three functions.  'wou.stepgen.make-pulses', is
-    responsible for actually generating the step pulses.  It must
-    be executed in a fast thread to reduce pulse jitter.  The other
-    two functions are normally called from a much slower thread.
-    'wou.stepgen.update-freq' reads the position or frequency command
-    and sets internal variables used by 'wou.stepgen.make-pulses'.
-    'wou.stepgen.capture-position' captures and scales the current
-    values of the position feedback counters.  Both 'update-freq' and
-    'capture-position' use floating point, 'make-pulses' does not.
-
-    Polarity:
-
-    All signals from this module have fixed polarity (active high
-    in most cases).  If the driver needs the opposite polarity,
-    the signals can be inverted using parameters exported by the
-    hardware driver(s) such as ParPort.
-
-    Timing parameters:
-
-    There are five timing parameters which control the output waveform.
-    No step type uses all five, and only those which will be used are
-    exported to HAL.  The values of these parameters are in nano-secondindex_enables,
-    so no recalculation is needed when changing thread periods.  In
-    the timing diagrams that follow, they are identfied by the
-    following numbers:
-
-    (1): 'wou.stepgen.n.steplen' = length of the step pulse
-    (2): 'wou.stepgen.n.stepspace' = minimum space between step pulses
-	  (actual space depends on frequency command, and is infinite
-	  if the frequency command is zero)
-    (3): 'wou.stepgen.n.dirhold' = minimum delay after a step pulse before
-	  a direction change - may be longer
-    (4): 'wou.stepgen.n.dirsetup' = minimum delay after a direction change
-	  and before the next step - may be longer
-    (5): 'wou.stepgen.n.dirdelay' = minimum delay after a step before a
-	 step in the opposite direction - may be longer
-
-    Stepping Types:
-
-    This module supports Type-2 only.
-
-    Type 2:  Quadrature (aka Gray/Grey code)
-    State   Phase A   Phase B
-      0        1        0
-      1        1        1
-      2        0        1
-      3        0        0
-      0        1        0
-*/
-
-/** This program is free software; you can redistribute it and/or
-    modify it under the terms of version 2 of the GNU General
-    Public License as published by the Free Software Foundation.
-    This library is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public
-    License along with this library; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111 USA
-
-    THE AUTHORS OF THIS LIBRARY ACCEPT ABSOLUTELY NO LIABILITY FOR
-    ANY HARM OR LOSS RESULTING FROM ITS USE.  IT IS _EXTREMELY_ UNWISE
-    TO RELY ON SOFTWARE ALONE FOR SAFETY.  Any machinery capable of
-    harming persons must have provisions for completely removing power
-    from all motors, etc, before persons enter any danger area.  All
-    machinery must be designed to comply with local and national safety
-    codes, and the authors of this software can not, and do not, take
-    any responsibility for such compliance.
-
-    This code was written as part of the EMC HAL project.  For more
-    information, go to www.linuxcnc.org.
-*/
 
 #ifndef RTAPI
 #error This is a realtime component only!
@@ -430,7 +325,7 @@ typedef struct {
     hal_bit_t   usb_busy_s;
     hal_bit_t   *ignore_ahc_limit;
     hal_bit_t   *align_pos_cmd;
-    hal_bit_t   *ignore_host_cmd;
+    // hal_bit_t   *ignore_host_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -1861,11 +1756,12 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
 	    /* position command mode */
-	    if (*machine_control->align_pos_cmd == 1 ||
-	        *machine_control->ignore_host_cmd) {
+	    if (*machine_control->align_pos_cmd == 1 /* || *machine_control->ignore_host_cmd */ )
+	    {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
                 write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
+	        DP("align_pos_cmd == 1\n");
                 stepgen->pulse_vel = 0;
                 stepgen->pulse_accel = 0;
                 stepgen->pulse_jerk = 0;
@@ -2368,12 +2264,12 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->ignore_host_cmd), comp_id,
-                                    "wou.ignore-host-cmd");
-    if (retval != 0) {
-        return retval;
-    }
-    *machine_control->ignore_host_cmd = 0;
+//    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->ignore_host_cmd), comp_id,
+//                                    "wou.ignore-host-cmd");
+//    if (retval != 0) {
+//        return retval;
+//    }
+//    *machine_control->ignore_host_cmd = 0;
     // export input status pin
      for (i = 0; i < machine_control->num_gpio_in; i++) {
          retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
