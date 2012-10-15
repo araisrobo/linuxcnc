@@ -37,6 +37,7 @@ typedef struct {
     hal_float_t *motor_offset;	/* RPI: motor offset, for checking homing stability */
     hal_float_t *motor_pos_cmd;	/* WPI: commanded position, with comp */
     hal_float_t *motor_pos_fb;	/* RPI: position feedback, with comp */
+    hal_float_t *risc_pos_cmd;  /* RPI: position command issued by RISC */
     hal_float_t *joint_pos_cmd;	/* WPI: commanded position w/o comp, mot ofs */
     hal_float_t *joint_pos_fb;	/* RPI: position feedback, w/o comp */
     hal_float_t *f_error;	/* RPI: following error */
@@ -99,6 +100,12 @@ typedef struct {
     hal_float_t *last_usb_cmd_param[4];
     hal_u32_t *usb_status;      /* usb status input */
     hal_bit_t *usb_busy;
+
+    /* signal for RISC_CMD REQ and ACK */
+    hal_bit_t *update_pos_req;
+    hal_bit_t *update_pos_ack;
+    hal_u32_t *rcmd_seq_num_ack;
+    hal_u32_t *rcmd_seq_num_req;
 
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;

@@ -31,6 +31,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -285,6 +286,7 @@ typedef struct {
     hal_float_t *probed_pos;
     hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
+    hal_float_t *risc_pos_cmd;  /* pin: position command issued by RISC (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
     hal_bit_t *ferror_flag;     /* following error flag from risc */
@@ -406,6 +408,11 @@ typedef struct {
     uint8_t     motion_mode_prev;
     uint8_t     pid_enable;
 
+    hal_bit_t   *update_pos_req;
+    hal_bit_t   *update_pos_ack;
+    hal_u32_t   *rcmd_seq_num_req;
+    hal_u32_t   *rcmd_seq_num_ack;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -490,7 +497,6 @@ static void fetchmail(const uint8_t *buf_head)
             // PULSE_POS
             p += 1;
             *(stepgen->pulse_pos) = *p;
-
             // enc counter
             p += 1;
             *(stepgen->enc_pos) = *p;
@@ -599,6 +605,7 @@ static void fetchmail(const uint8_t *buf_head)
         fprintf (mbox_fp, "%s\n", dmsg);
 #endif
         break;
+
     case MT_ERROR_CODE:
         // error code
         p = (uint32_t *) (buf_head + 4);    // prev_bp_tick - bp_offset
@@ -651,6 +658,21 @@ static void fetchmail(const uint8_t *buf_head)
         //debug:     printf ("sm.ctrl_state(0x%03X)\n", *machine_control->debug[2]);
         //debug: }
         break;
+
+    case MT_RISC_CMD:
+        p = (uint32_t *) (buf_head + 8);
+        if (*p == RCMD_UPDATE_POS_REQ)
+        {
+            *machine_control->update_pos_req = 1;
+            p += 1;
+            *machine_control->rcmd_seq_num_req = *p;
+        }
+        else if (*p == RCMD_DONE)
+        {
+            *machine_control->update_pos_req = 0;
+        }
+        break;
+
     case MT_TICK:
         p = (uint32_t *) (buf_head + 4);
         for (i=0; i<14; i++) {
@@ -658,6 +680,7 @@ static void fetchmail(const uint8_t *buf_head)
             *machine_control->tick[i] = *p;
         }
         break;
+
     case MT_PROBED_POS:
         stepgen = stepgen_array;
         p = (uint32_t *) (buf_head + 4);
@@ -670,7 +693,7 @@ static void fetchmail(const uint8_t *buf_head)
 
         }
         break;
-        break;
+
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
         *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
@@ -721,6 +744,27 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
+
+    return;
+}
+
+static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
+{
+    uint16_t    buf;
+    int         i, j;
+
+    // TODO: pack whole data into a single WB_WR_CMD
+    for (i=0; i<size; i++)
+    {
+        for(j=0; j<sizeof(int32_t); j++) {
+            buf = SYNC_DATA | ((uint8_t *)data)[j];
+            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&buf);
+        }
+        data++;
+    }
+
+    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&sync_cmd);
+    while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
 
     return;
 }
@@ -799,6 +843,7 @@ static void write_usb_cmd(machine_control_t *mc)
         wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
                 sizeof(uint16_t), buf);
       break;
+
     case SPECIAL_CMD_TYPE:
       *mc->last_usb_cmd = *mc->usb_cmd;
       for (i=0; i<4; i++) {
@@ -874,12 +919,12 @@ int rtapi_app_main(void)
     // initialize file handle for logging wou steps
     dptrace = fopen("wou_stepgen.log", "w");
     /* prepare header for gnuplot */
-    DPS("#%10s  %15s%15s%15s  %15s%15s%15s  %15s%15s%15s  %15s%15s%15s\n",
+    DPS("#%10s  %15s%15s%15s%15s  %15s%15s%15s%15s  %15s%15s%15s%15s  %15s%15s%15s%15s\n",
          "dt",
-         "int_pcmd[0]", "prev_pcmd[0]", "pos_fb[0]",
-         "int_pcmd[1]", "prev_pcmd[1]", "pos_fb[1]",
-         "int_pcmd[2]", "prev_pcmd[2]", "pos_fb[2]",
-         "int_pcmd[3]", "prev_pcmd[3]", "pos_fb[3]"
+         "int_pcmd[0]", "prev_pcmd[0]", "pos_fb[0]", "risc_pos_cmd[0]",
+         "int_pcmd[1]", "prev_pcmd[1]", "pos_fb[1]", "risc_pos_cmd[1]",
+         "int_pcmd[2]", "prev_pcmd[2]", "pos_fb[2]", "risc_pos_cmd[2]",
+         "int_pcmd[3]", "prev_pcmd[3]", "pos_fb[3]", "risc_pos_cmd[3]"
        );
 #endif
 
@@ -1422,7 +1467,8 @@ static void update_freq(void *arg, long period)
         
     // TODO: confirm trajecotry planning thread is always ahead of wou
     if (wou_flush(&w_param) == -1) {
-        struct timespec time;
+        // struct timespec time;
+
         // raise flag to pause trajectory planning
         *(machine_control->usb_busy) = 1;
         if (machine_control->usb_busy_s == 0) {
@@ -1436,10 +1482,11 @@ static void update_freq(void *arg, long period)
         }
         machine_control->usb_busy_s = 1;
 
-        time.tv_sec = 0;
-        time.tv_nsec = 300000;      // 0.3ms
-        nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
-
+        // time.tv_sec = 0;
+        // time.tv_nsec = 300000;      // 0.3ms
+        // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
+        // sleep(1);
+        usleep(10000);  // suspend for 10ms
         return;
     } else {
         *(machine_control->usb_busy) = 0;
@@ -1491,6 +1538,13 @@ static void update_freq(void *arg, long period)
     if (*machine_control->usb_cmd != 0) {
         write_usb_cmd(machine_control);
         *machine_control->usb_cmd = 0; // reset usb_cmd
+    }
+    if (*machine_control->update_pos_ack)
+    {
+        uint32_t dbuf[2];
+        dbuf[0] = RCMD_UPDATE_POS_ACK;
+        dbuf[1] = *machine_control->rcmd_seq_num_ack;
+        send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
     }
     /* end: handle usb cmd */
 
@@ -1662,6 +1716,7 @@ static void update_freq(void *arg, long period)
 
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
+        *(stepgen->risc_pos_cmd) = (*stepgen->cmd_fbs) * stepgen->scale_recip;
         *(stepgen->switch_pos) = stepgen->switch_pos_i * stepgen->scale_recip;
 
         // update velocity-feedback only after encoder movement
@@ -1756,6 +1811,11 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
 	    /* position command mode */
+            if (*machine_control->update_pos_ack == 1)
+            {
+                (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
+                stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
+            }
 	    if (*machine_control->align_pos_cmd == 1 /* || *machine_control->ignore_host_cmd */ )
 	    {
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
@@ -1870,10 +1930,11 @@ static void update_freq(void *arg, long period)
                     (JCMD_BASE | JCMD_SYNC_CMD), 4 * num_joints, data);
         }
 
-	DPS("       0x%08X%15.7f%15.7f",
+	DPS("       0x%08X%15.7f%15.7f%15.7f",
 	    integer_pos_cmd, 
             (stepgen->prev_pos_cmd), 
-            *stepgen->pos_fb);
+            *stepgen->pos_fb,
+            *stepgen->risc_pos_cmd);
 	
 #ifdef DEBUG
         if (debug_msg_tick == 1700) {
@@ -2085,6 +2146,12 @@ static int export_stepgen(int num, stepgen_t * addr,
 	return retval;
     }
     
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->risc_pos_cmd), comp_id,
+                                    "wou.stepgen.%d.risc-pos-cmd", num);
+    if (retval != 0) {
+        return retval;
+    }
+
     /* export pin for velocity feedback (unit/sec) */
     retval = hal_pin_float_newf(HAL_IN, &(addr->vel_fb), comp_id,
 				    "wou.stepgen.%d.velocity-fb", num);
@@ -2381,8 +2448,7 @@ static int export_machine_control(machine_control_t * machine_control)
     }
 
     /* usb command */
-    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->usb_cmd), comp_id,
-                             "wou.usb.cmd");
+    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->usb_cmd), comp_id, "wou.usb.cmd");
     *(machine_control->usb_cmd) = 0;    // pin index must not beyond index
     if (retval != 0) {
         return retval;
@@ -2513,6 +2579,27 @@ static int export_machine_control(machine_control_t * machine_control)
     machine_control->motion_mode = 0;
     machine_control->motion_mode_prev = 0;
     machine_control->pid_enable = 0;
+
+    // for RISC_CMD REQ and ACK
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->update_pos_req), comp_id,
+                              "wou.motion.update-pos-req");
+    if (retval != 0) { return retval; }
+    *(machine_control->update_pos_req) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->rcmd_seq_num_req), comp_id,
+                              "wou.motion.rcmd-seq-num-req");
+    if (retval != 0) { return retval; }
+    *(machine_control->rcmd_seq_num_req) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->update_pos_ack), comp_id,
+                              "wou.motion.update-pos-ack");
+    if (retval != 0) { return retval; }
+    *(machine_control->update_pos_ack) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->rcmd_seq_num_ack), comp_id,
+                              "wou.motion.rcmd-seq-num-ack");
+    if (retval != 0) { return retval; }
+    *(machine_control->rcmd_seq_num_ack) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);

@@ -27,7 +27,6 @@
 #include "simple_tp.h"
 #include "motion_debug.h"
 #include "config.h"
-//#include "usb.h"
 #include "assert.h"
 #include <sync_cmd.h>
 
@@ -473,30 +472,7 @@ static void process_inputs(void)
         joint->index_pos = *(joint_data->index_pos_pin);  // absolute switch position
         joint->pos_fb = joint->motor_pos_fb -
                         (joint->backlash_filt + joint->motor_offset);
-
-//#ifndef MOTION_OVER_USB
-//      if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
-//          ( joint->index_enable == 0 )) {
-//          /* special case - we're homing the joint, and it just
-//             hit the index.  The encoder count might have made a
-//             step change.  The homing code will correct for it
-//             later, so we ignore motor_pos_fb and set pos_fb
-//             to match the commanded value instead. */
-//          joint->pos_fb = joint->pos_cmd;
-//      } else {
-//          /* normal case: subtract backlash comp and motor offset */
-//          fprintf(stderr, "pos_fb(%f)\n", joint->pos_fb);
-//          joint->pos_fb = joint->motor_pos_fb -
-//              (joint->backlash_filt + joint->motor_offset);
-//      }
-//#else
-//        // MOTION_OVER_USB
-//      /* normal case: subtract backlash comp and motor offset */
-//      joint->pos_fb = joint->motor_pos_fb -
-//                      (joint->backlash_filt + joint->motor_offset);
-//      /* calculate following error for motion over usb */
-//      /* joint->ferror updated above */
-//#endif
+        joint->risc_pos_cmd = *(joint_data->risc_pos_cmd);
 
         /* calculate following error */
         joint->ferror = joint->pos_cmd - joint->pos_fb;
@@ -698,7 +674,7 @@ static void do_forward_kins(void)
         break;
     }
 }
-//
+
 typedef enum {
         NO_REASON,
         TP_END,
@@ -895,20 +871,12 @@ static void process_probe_inputs(void)
     }
 }
 
-//#define USB_STATUS_REQ_CMD_SYNC 0x00000100
-//#define SPECIAL_CMD_MASK 0x0000F000
-//#define SPECIAL_CMD_TYPE 0x0008
 static int update_current_pos = 0;
 static void handle_special_cmd(void)
 {
-//    emcmot_joint_status_t *joint_status;
     if (update_current_pos == 1) {
-//        if (!GET_MOTION_COORD_FLAG() &&
-//            !GET_MOTION_ENABLE_FLAG() && GET_MOTION_INPOS_FLAG() &&
-//            tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
-//           fprintf(stderr,"control.c: requested update pos\n");
 
-//            /* sync current pos-cmd with pos-fb */
+            /* sync current pos-cmd with pos-fb */
             update_current_pos = 0;
             emcmotStatus->update_current_pos_flag = 1;
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
@@ -919,26 +887,42 @@ static void handle_special_cmd(void)
             emcmotStatus->usb_cmd |= SPECIAL_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->special_cmd;
 
-//        }
     } else {
         emcmotStatus->update_current_pos_flag = 0;
     }
+
     if (*emcmot_hal_data->req_cmd_sync == 1) {
         emcmotStatus->sync_pos_cmd = 1;
         update_current_pos = 1;
     } else {
         emcmotStatus->sync_pos_cmd = 0;
     }
+
+    *emcmot_hal_data->update_pos_ack = *emcmot_hal_data->update_pos_req;
+    if (*emcmot_hal_data->update_pos_req != 0) {
+        double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
+        int joint_num;
+        emcmot_joint_t *joint;
+
+        *emcmot_hal_data->rcmd_seq_num_ack = *emcmot_hal_data->rcmd_seq_num_req;
+
+        for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
+            /* point to joint struct */
+            joint = &joints[joint_num];
+            /* copy risc_pos_cmd feedback */
+            joint->coarse_pos = joint->risc_pos_cmd;
+            joint->pos_cmd = joint->risc_pos_cmd;
+            joint->free_tp.curr_pos = joint->risc_pos_cmd;
+        }
+    }
+
     switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
     case USB_STATUS_REQ_CMD_SYNC:
-//        fprintf(stderr,"get USB_STATUS_REQ_CMD_SYNC\n");
-//        if (emcmotStatus->special_cmd != SPEC_CMD_ACK) {
-          emcmotStatus->sync_risc_pos = 1;
-          update_current_pos = 1;
-//        }
+        emcmotStatus->sync_risc_pos = 1;
+        update_current_pos = 1;
         break;
     default:
-      emcmotStatus->sync_risc_pos = 0;
+        emcmotStatus->sync_risc_pos = 0;
         // deal with PROBE related status only
         break;
     }
@@ -976,7 +960,7 @@ static void check_for_faults(void)
             pos_limit_override = emcmotStatus->overrideLimitMask & ( 2 << (joint_num*2));
             /* check for hard limits */
             if ((GET_JOINT_PHL_FLAG(joint) && ! pos_limit_override ) ||
-                (GET_JOINT_NHL_FLAG(joint) && ! neg_limit_override )) {
+                    (GET_JOINT_NHL_FLAG(joint) && ! neg_limit_override )) {
                 /* joint is on limit switch, should we trip? */
                 if (GET_JOINT_HOMING_FLAG(joint)) {
                     /* no, ignore limits */
@@ -985,7 +969,7 @@ static void check_for_faults(void)
                     if (!GET_JOINT_ERROR_FLAG(joint)) {
                         /* report the error just this once */
                         reportError(_("joint %d on limit switch error"),
-                            joint_num);
+                                joint_num);
                         // override limit automatically.
                         emcmotStatus->overrideLimitMask |= ( 2 << (joint_num*2));
                         emcmotStatus->overrideLimitMask |= ( 1 << (joint_num*2));
@@ -1030,17 +1014,16 @@ static void check_for_faults(void)
 
             }
             /* risc probe error */
-//        if (emcmotStatus->usb_status == USB_STATUS_RISC_PROBE_ERROR) {
             if (abort_reason == RISC_PROBE_END) {
-            fprintf(stderr, "(USB_STATUS_RISC_PROBE_ERROR)\n");
-            SET_MOTION_ERROR_FLAG(1);
-            //emcmotDebug->enabling = 0;
-            abort_reason = NO_REASON;
+                fprintf(stderr, "(USB_STATUS_RISC_PROBE_ERROR)\n");
+                SET_MOTION_ERROR_FLAG(1);
+                //emcmotDebug->enabling = 0;
+                abort_reason = NO_REASON;
 
+            }
+            /* end of if JOINT_ACTIVE_FLAG(joint) */
         }
-        /* end of if JOINT_ACTIVE_FLAG(joint) */
-        }
-    /* end of check for joint faults loop */
+        /* end of check for joint faults loop */
     }
 }
 
@@ -1049,7 +1032,6 @@ static void set_operating_mode(void)
     int joint_num, axis_num;
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
-//    joint_hal_t *joint_data;
     double positions[EMCMOT_MAX_JOINTS];
 
     /* check for disabling */
@@ -1345,14 +1327,10 @@ static void get_pos_cmds(long period)
         positions[joint_num] = joint->coarse_pos;
     }
     /* if less than a full complement of joints, zero out the rest */
-
     while ( joint_num < EMCMOT_MAX_JOINTS ) {
         positions[joint_num] = 0.0;
-        // reset axis tmp also
-        //tmp_pos[joint_num];
         joint_num++;
     }
-
 
     /* RUN MOTION CALCULATIONS: */
 
@@ -2127,8 +2105,6 @@ static void output_to_hal(void)
         /* calculate css and exprot to hal pin */
         // TODO: confirm rad or diam mode??
         *(emcmot_hal_data->spindle_css) = *(emcmot_hal_data->spindle_speed_out_rps) * denom * 2 * PI;
-        /*fprintf(stderr," css_factor(%f) spindle_speed_out(%f) denom(%f) cs(%f) \n",emcmotStatus->spindle.css_factor,  speed,
-          denom, emcmotStatus->spindle.css_factor*2*PI/60);*/
     } else {
         *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
         *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;

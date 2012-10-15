@@ -59,7 +59,6 @@
 #include "posemath.h"
 #include "rtapi.h"
 #include "hal.h"
-#include "usb.h"
 #include "motion.h"
 #include "motion_debug.h"
 #include "motion_struct.h"

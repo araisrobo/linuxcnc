@@ -21,7 +21,6 @@
 #include "mot_priv.h"
 #include "rtapi_math.h"
 #include <sync_cmd.h>
-//#include "usb.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -298,6 +297,16 @@ static int init_hal_io(void)
     /* export machine wide hal pins */
     //obsolete on arias-emc2-usb: if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
 
+    // RISC_CMD REQ and ACK
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->update_pos_req), mot_comp_id, "motion.update-pos-req")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->update_pos_ack), mot_comp_id, "motion.update-pos-ack")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->rcmd_seq_num_req), mot_comp_id, "motion.rcmd-seq-num-req")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->rcmd_seq_num_ack), mot_comp_id, "motion.rcmd-seq-num-ack")) < 0) goto error;
+    *emcmot_hal_data->update_pos_req = 0;
+    *emcmot_hal_data->update_pos_ack = 0;
+    *emcmot_hal_data->rcmd_seq_num_req = 0;
+    *emcmot_hal_data->rcmd_seq_num_ack = 0;
+
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->usb_busy), mot_comp_id, "motion.usb-busy")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->align_pos_cmd), mot_comp_id, "motion.align-pos-cmd")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->req_cmd_sync), mot_comp_id, "motion.req-cmd-syn")) < 0) goto error;
@@ -573,6 +582,7 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->switch_pos_pin), mot_comp_id, "joint.%d.switch-pos", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->index_pos_pin), mot_comp_id, "joint.%d.index-pos", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->usb_ferror_flag), mot_comp_id, "joint.%d.usb-ferror-flag", num)) != 0) return retval;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->risc_pos_cmd), mot_comp_id, "joint.%d.risc-pos-cmd", num)) != 0) return retval;
     if(num >= 3 && num <= 5) {
         // for rotaries only...
         if ((hal_pin_bit_newf(HAL_OUT, &(addr->unlock), mot_comp_id, "joint.%d.unlock", num)) != 0) return retval;
@@ -751,6 +761,7 @@ static int init_comm_buffers(void)
 	joint->ferror = 0.0;
 	joint->ferror_limit = joint->min_ferror;
 	joint->ferror_high_mark = 0.0;
+        joint->risc_pos_cmd = 0.0;
 
 	/* init internal info */
 	cubicInit(&(joint->cubic));

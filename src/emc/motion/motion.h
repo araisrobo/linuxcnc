@@ -529,6 +529,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double motor_pos_cmd;	/* commanded position, with comp */
 	double motor_pos_fb;	/* position feedback, with comp */
 	double pos_fb;		/* position feedback, comp removed */
+        double risc_pos_cmd;   /* position command issued by RISC */
 	double ferror;		/* following error */
 	double ferror_limit;	/* limit depends on speed */
 	double ferror_high_mark;	/* max following error */
