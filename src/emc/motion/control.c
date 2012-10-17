@@ -12,7 +12,6 @@
 *
 * Copyright (c) 2004 All rights reserved.
 ********************************************************************/
-// TODO: To add a new control block for USB protocol.
 #include <stdint.h>
 
 #include "posemath.h"
@@ -44,7 +43,7 @@ KINEMATICS_INVERSE_FLAGS iflags = 0;
 double servo_freq;
 
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE* dptrace = 0;
