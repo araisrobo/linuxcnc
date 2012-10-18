@@ -1019,7 +1019,7 @@ static void check_for_faults(void)
             }
             /* check for excessive following error */
             if (GET_JOINT_FERROR_FLAG(joint)) {
-                if (!   (joint)) {
+                if (!GET_JOINT_ERROR_FLAG(joint)) {
                     /* report the error just this once */
                     reportError(_("joint %d following error"), joint_num);
                 }
