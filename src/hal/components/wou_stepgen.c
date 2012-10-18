@@ -566,9 +566,6 @@ static void fetchmail(const uint8_t *buf_head)
         // divide it by 4 for smooth jogging.
         // otherwise, there will be 4 units of motions for every MPG click.
         *(machine_control->mpg_count) >>= 2;
-        //debug: fprintf (stdout, "MPG: 0x%08X\n", *(machine_control->mpg_count));
-        
-        // FERROR FLAG
         p += 1;
         ferror_flag = *p;
         stepgen = stepgen_array;
@@ -622,15 +619,7 @@ static void fetchmail(const uint8_t *buf_head)
         p = (uint32_t *) (buf_head + 4);
         /* probe status */
         p += 1;
-//        if (*machine_control->wou_cmd != USB_CMD_NOOP) {
         *machine_control->wou_status = *p;
-//        fprintf(stderr,"usb status(0x%0X)\n", *p);
-//        } else if (*p == USB_STATUS_RISC_PROBE_ERROR) {
-//            // section report status normally
-//            *machine_control->wou_status = *p;
-//        } else {
-//            *machine_control->wou_status = USB_STATUS_READY;
-//        }
         break;
 
     case MT_DEBUG:
@@ -651,12 +640,6 @@ static void fetchmail(const uint8_t *buf_head)
 #if (DEBUG_LOG)
         fprintf (debug_fp, "%s\n", dmsg);
 #endif
-        //debug: // For debugging purpose:
-        //debug: if (*machine_control->debug[3] == 0) {
-        //debug:     // ESTOP is on
-        //debug:     printf ("sm.torch_on(0x%03X)\n", *machine_control->debug[1]);
-        //debug:     printf ("sm.ctrl_state(0x%03X)\n", *machine_control->debug[2]);
-        //debug: }
         break;
 
     case MT_RISC_CMD:
@@ -687,7 +670,6 @@ static void fetchmail(const uint8_t *buf_head)
 
         for (i=0; i<num_joints; i++) {
             p += 1;
-//            fprintf(stderr,"(%d) probed pos(%d)\n", i, (int32_t)*p);
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
 
@@ -1285,7 +1267,9 @@ int rtapi_app_main(void)
         /* config jog setting */
         jog_config_value = strtoul(jog_config_str[n],NULL, 16);
         jog_config_value &= 0x000FFFFF;
-        jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
+//        jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
+        /* set jog velocity as 0.5*MAX_JOINT_VEL */
+        jog_config_value |= ((max_pulse_tick << 3) & 0xFFF00000); // ignore fraction part
         rtapi_print_msg(RTAPI_MSG_DBG,
                   "j[%d] JOG_CONFIG(0x%0X)\n",
                   n, jog_config_value);
