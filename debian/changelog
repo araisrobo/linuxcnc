@@ -1,3 +1,10 @@
+linuxcnc (1:2.5.0-2012.10.21) lucid; urgency=low
+
+  * Add TELEOP implementation to araisrobo branch
+  * Add FPGA/RISC-JOGGING
+
+ -- Yishin Li <ysli@araisrobo.com>  Sun, 21 Oct 2012 21:14:55 +0800
+
 linuxcnc (1:2.5.0-2012.08.03) lucid; urgency=low
 
   * BUGFIX for usb-busy-lock issue
