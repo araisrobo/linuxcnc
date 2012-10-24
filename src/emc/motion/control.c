@@ -942,6 +942,7 @@ static void handle_special_cmd(void)
     	DP("USB_STATUS_REQ_CMD_SYNC begin\n");
         emcmotStatus->sync_risc_pos = 1;
         update_current_pos = 1;
+        assert(0);
         break;
     default:
         emcmotStatus->sync_risc_pos = 0;

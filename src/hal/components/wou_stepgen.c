@@ -404,9 +404,12 @@ typedef struct {
 
     hal_bit_t   *teleop_mode;
     hal_bit_t   *coord_mode;
-    uint8_t     motion_mode;
-    uint8_t     motion_mode_prev;
-    uint8_t     pid_enable;
+    // uint8_t     motion_mode;
+    // uint8_t     motion_mode_prev;
+    // uint8_t     pid_enable;
+
+    uint32_t	prev_machine_ctrl;	// num_joints is not included
+    hal_bit_t	*machine_on;
 
     hal_bit_t   *update_pos_req;
     hal_bit_t   *update_pos_ack;
@@ -1323,6 +1326,7 @@ int rtapi_app_main(void)
 	hal_exit(comp_id);
 	return -1;
     }
+    machine_control->prev_machine_ctrl = 0;	// num_joints is not included
 
     /* export all the variables for each pulse generator */
     for (n = 0; n < num_joints; n++) {
@@ -1427,6 +1431,7 @@ static void update_freq(void *arg, long period)
     int32_t wou_pos_cmd, integer_pos_cmd;
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     uint32_t sync_out_data;
+    uint32_t tmp;
 
     uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
@@ -1507,14 +1512,18 @@ static void update_freq(void *arg, long period)
     /* end: */
 
     /* begin motion_mode */
-    machine_control->motion_mode = *machine_control->teleop_mode | *machine_control->coord_mode;
-    if (machine_control->motion_mode != machine_control->motion_mode_prev) {
-        immediate_data = (num_joints << 16) |
-                         (machine_control->motion_mode << 8) |
-                         machine_control->pid_enable;
+	//    MACHINE_CTRL,   // [31:24]  RESERVED
+	//                    // [23:16]  NUM_JOINTS
+	//                    // [15: 3]  RESERVED
+	//                    // [ 2: 1]  MOTION_MODE: FREE(0) TELEOP(1) COORD(2)
+	//                    // [    0]  MACHINE_ON
+    tmp = (*machine_control->coord_mode << 2)
+    		| (*machine_control->teleop_mode << 1)
+    		| (*machine_control->machine_on);
+    if (tmp != machine_control->prev_machine_ctrl) {
+    	machine_control->prev_machine_ctrl = tmp;
+        immediate_data = (num_joints << 16) | tmp;
         write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
-        // TODO: should we compare the motion_mode with the one from RISC through fetchmail()?
-        machine_control->motion_mode_prev = machine_control->motion_mode;
     }
     /* end: */
 
@@ -2294,6 +2303,11 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->requested_vel) = 0;    // pin index must not beyond index
 
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->machine_on), comp_id,
+                             "wou.machine-on");
+    if (retval != 0) { return retval; }
+    *(machine_control->machine_on) = 0;
+
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     machine_control->num_gpio_in = num_gpio_in;
     machine_control->num_gpio_out = num_gpio_out;
@@ -2560,9 +2574,9 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->coord_mode) = 0;
 
-    machine_control->motion_mode = 0;
-    machine_control->motion_mode_prev = 0;
-    machine_control->pid_enable = 0;
+//     machine_control->motion_mode = 0;
+//     machine_control->motion_mode_prev = 0;
+//     machine_control->pid_enable = 0;
 
     // for RISC_CMD REQ and ACK
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->update_pos_req), comp_id,

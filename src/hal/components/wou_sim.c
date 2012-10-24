@@ -508,9 +508,9 @@ typedef struct {
 
     hal_bit_t   *teleop_mode;
     hal_bit_t   *coord_mode;
-    uint8_t     motion_mode;
-    uint8_t     motion_mode_prev;
-    uint8_t     pid_enable;
+//    uint8_t     motion_mode;
+//    uint8_t     motion_mode_prev;
+//    uint8_t     pid_enable;
 
 } machine_control_t;
 
@@ -2202,9 +2202,9 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->coord_mode) = 0;
 
-    machine_control->motion_mode = 0;
-    machine_control->motion_mode_prev = 0;
-    machine_control->pid_enable = 0;
+//    machine_control->motion_mode = 0;
+//    machine_control->motion_mode_prev = 0;
+//    machine_control->pid_enable = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
