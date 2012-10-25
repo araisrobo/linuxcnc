@@ -49,7 +49,7 @@
 #define SON_DELAY_TICK  1500
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE *dptrace;
@@ -1475,7 +1475,8 @@ static void update_freq(void *arg, long period)
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
         // sleep(1);
-        usleep(10000);  // suspend for 10ms
+        // usleep(10000);  // suspend for 10ms
+        usleep(10);  // suspend for 0.01ms
         return;
     } else {
         *(machine_control->usb_busy) = 0;
