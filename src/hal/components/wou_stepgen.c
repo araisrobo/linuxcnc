@@ -1475,7 +1475,7 @@ static void update_freq(void *arg, long period)
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
         // sleep(1);
-        // usleep(10000);  // sleep 10ms will be drop usb fifo
+        // usleep(10000);  // usleep for 10ms will suspend too long to keep usb-link alive
         usleep(10);  // suspend for 0.01ms
         return;
     } else {
