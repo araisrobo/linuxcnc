@@ -512,6 +512,7 @@ typedef struct {
 //    uint8_t     motion_mode_prev;
 //    uint8_t     pid_enable;
 
+    hal_bit_t   *update_pos_ack;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1439,8 +1440,12 @@ static void update_freq(void *arg, long period)
 
 	if (stepgen->pos_mode) {
 	    /* position command mode */
-	    if (*machine_control->align_pos_cmd == 1 ||
-	        *machine_control->ignore_host_cmd) {
+        if (*machine_control->update_pos_ack == 1)
+        {
+            (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
+            stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
+        }
+	    if (*machine_control->align_pos_cmd == 1 /* || *machine_control->ignore_host_cmd */ ){
 	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
                 write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
