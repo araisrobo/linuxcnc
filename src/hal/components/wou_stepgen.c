@@ -374,10 +374,10 @@ typedef struct {
     hal_u32_t    *ahc_max_level;
     uint32_t      prev_ahc_min_level;
     hal_u32_t    *ahc_min_level;
-    hal_u32_t   *control_mode;       // for state machine in risc
-    hal_float_t *probe_retract_dist; // for risc probing
-    hal_float_t *probe_vel;          // for risc probing
-    hal_float_t *probe_disct;        // for risc probing
+//    hal_u32_t   *control_mode;       // for state machine in risc
+//    hal_float_t *probe_retract_dist; // for risc probing
+//    hal_float_t *probe_vel;          // for risc probing
+//    hal_float_t *probe_disct;        // for risc probing
     /* motion state tracker */
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
