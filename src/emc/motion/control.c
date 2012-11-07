@@ -537,6 +537,7 @@ static void process_inputs(void)
         } else {
             SET_JOINT_HOME_SWITCH_FLAG(joint, 0);
         }
+        joint->home_sw_id = *(joint_data->home_sw_id);
         joint->probed_pos = *(joint_data->probed_pos);
         /* end of read and process joint inputs loop */
     }
@@ -2103,6 +2104,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->in_position) = GET_MOTION_INPOS_FLAG();
     *(emcmot_hal_data->coord_mode) = GET_MOTION_COORD_FLAG();
     *(emcmot_hal_data->teleop_mode) = GET_MOTION_TELEOP_FLAG();
+    *(emcmot_hal_data->homing) = emcmotStatus->homing_active;
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
     if(emcmotStatus->spindle.css_factor) {
@@ -2245,6 +2247,10 @@ static void output_to_hal(void)
         *(joint_data->f_errored) = GET_JOINT_FERROR_FLAG(joint);
         *(joint_data->faulted) = GET_JOINT_FAULT_FLAG(joint);
         *(joint_data->home_state_pin) = joint->home_state;
+
+        *(joint_data->risc_probe_vel) = joint->risc_probe_vel;
+        *(joint_data->risc_probe_pin) = joint->risc_probe_pin;
+        *(joint_data->risc_probe_type) = joint->risc_probe_type;
 
     }
 

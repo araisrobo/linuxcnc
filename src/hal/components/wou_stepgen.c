@@ -404,6 +404,7 @@ typedef struct {
 
     hal_bit_t   *teleop_mode;
     hal_bit_t   *coord_mode;
+    hal_bit_t   *homing;
     // uint8_t     motion_mode;
     // uint8_t     motion_mode_prev;
     // uint8_t     pid_enable;
@@ -1513,12 +1514,20 @@ static void update_freq(void *arg, long period)
     /* end: */
 
     /* begin motion_mode */
-	//    MACHINE_CTRL,   // [31:24]  RESERVED
-	//                    // [23:16]  NUM_JOINTS
-	//                    // [15: 3]  RESERVED
-	//                    // [ 2: 1]  MOTION_MODE: FREE(0) TELEOP(1) COORD(2)
-	//                    // [    0]  MACHINE_ON
-    tmp = (*machine_control->coord_mode << 2)
+    /**
+     *  MACHINE_CTRL,   // [31:24]  RESERVED
+     *                  // [23:16]  NUM_JOINTS
+     *                  // [15: 4]  RESERVED
+     *                  // [ 3: 1]  MOTION_MODE:
+     *                                  FREE    (0)
+     *                                  TELEOP  (1)
+     *                                  COORD   (2)
+     *                                  HOMING  (4)
+     *                  // [    0]  MACHINE_ON
+     **/
+
+    tmp = (*machine_control->homing << 3)
+    		|(*machine_control->coord_mode << 2)
     		| (*machine_control->teleop_mode << 1)
     		| (*machine_control->machine_on);
     if (tmp != machine_control->prev_machine_ctrl) {
@@ -1533,6 +1542,7 @@ static void update_freq(void *arg, long period)
         write_usb_cmd(machine_control);
         *machine_control->usb_cmd = 0; // reset usb_cmd
     }
+
     if (*machine_control->update_pos_ack)
     {
         uint32_t dbuf[2];
@@ -2575,9 +2585,10 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->coord_mode) = 0;
 
-//     machine_control->motion_mode = 0;
-//     machine_control->motion_mode_prev = 0;
-//     machine_control->pid_enable = 0;
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->homing), comp_id,
+                              "wou.motion.homing");
+    if (retval != 0) { return retval; }
+    *(machine_control->homing) = 0;
 
     // for RISC_CMD REQ and ACK
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->update_pos_req), comp_id,

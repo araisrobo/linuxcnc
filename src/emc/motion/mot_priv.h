@@ -78,6 +78,12 @@ typedef struct {
     hal_float_t *jog_scale;	/* RPI: distance to jog on each count */
     hal_bit_t *jog_vel_mode;	/* RPI: true for "velocity mode" jogwheel */
     hal_float_t *probed_pos;
+
+    hal_float_t *risc_probe_vel;	/* OUT */
+    hal_s32_t   *risc_probe_pin;	/* OUT */
+    hal_s32_t   *risc_probe_type;	/* OUT */
+    hal_s32_t   *home_sw_id;		/* IN */
+
 } joint_hal_t;
 
 typedef struct {
@@ -117,12 +123,13 @@ typedef struct {
     hal_bit_t *in_position;	/* RPI: all joints are in position */
     hal_bit_t *coord_mode;	/* RPA: TRUE if coord, FALSE if free */
     hal_bit_t *teleop_mode;	/* RPA: TRUE if teleop mode */
+    hal_bit_t *homing;	        /* RPA: TRUE if it is homing */
     hal_bit_t *coord_error;	/* RPA: TRUE if coord mode error */
     hal_bit_t *on_soft_limit;	/* RPA: TRUE if outside a limit */
 
     hal_s32_t *program_line;    /* RPA: program line causing current motion */
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
-    hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units */
+    hal_float_t *requested_vel; /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_s32_t *motion_state;    /* indicate s-curve state */
     hal_float_t *feed_scale;
