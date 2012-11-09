@@ -582,6 +582,7 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(addr->homed), mot_comp_id, "joint.%d.homed", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_OUT,  &(addr->homing), mot_comp_id, "joint.%d.homing", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->risc_probe_vel), mot_comp_id, "joint.%d.risc-probe-vel", num)) != 0) return retval;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->risc_probe_dist), mot_comp_id, "joint.%d.risc-probe-dist", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(addr->risc_probe_pin), mot_comp_id, "joint.%d.risc-probe-pin", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(addr->risc_probe_type), mot_comp_id, "joint.%d.risc-probe-type", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_IN, &(addr->home_sw_id), mot_comp_id, "joint.%d.home-sw-id", num)) != 0) return retval;
@@ -771,6 +772,7 @@ static int init_comm_buffers(void)
         joint->risc_pos_cmd = 0.0;
 
         joint->risc_probe_vel = 0;
+        joint->risc_probe_dist = 0;
         joint->risc_probe_pin = -1;
         joint->risc_probe_type = -1;
 

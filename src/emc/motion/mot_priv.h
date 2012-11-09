@@ -80,6 +80,7 @@ typedef struct {
     hal_float_t *probed_pos;
 
     hal_float_t *risc_probe_vel;	/* OUT */
+    hal_float_t *risc_probe_dist;       /* OUT */
     hal_s32_t   *risc_probe_pin;	/* OUT */
     hal_s32_t   *risc_probe_type;	/* OUT */
     hal_s32_t   *home_sw_id;		/* IN */

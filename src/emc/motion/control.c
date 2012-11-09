@@ -2249,6 +2249,7 @@ static void output_to_hal(void)
         *(joint_data->home_state_pin) = joint->home_state;
 
         *(joint_data->risc_probe_vel) = joint->risc_probe_vel;
+        *(joint_data->risc_probe_dist) = joint->risc_probe_dist;
         *(joint_data->risc_probe_pin) = joint->risc_probe_pin;
         *(joint_data->risc_probe_type) = joint->risc_probe_type;
 

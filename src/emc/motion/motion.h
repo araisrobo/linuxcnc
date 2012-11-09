@@ -550,17 +550,18 @@ typedef struct {
     int index_enable;			/* current state of index enable pin */
 
     home_state_t home_state;	/* state machine for homing */
-    double switch_pos;     		/* home switch position in absolute motor pulse counts */
-    double index_pos;     	 	/* motor index position in absolute motor pulse counts */
-    double motor_offset;		/* diff between internal and motor pos, used
+    double      switch_pos;     		/* home switch position in absolute motor pulse counts */
+    double      index_pos;     	 	/* motor index position in absolute motor pulse counts */
+    double      motor_offset;		/* diff between internal and motor pos, used
 				   	   	   	   	   to set position to zero during homing */
-    int old_jog_counts;			/* prior value, used for deltas */
-    double probed_pos;
+    int         old_jog_counts;			/* prior value, used for deltas */
+    double      probed_pos;
 
-    double risc_probe_vel;	/* velocity for RISC probing */
-    int		risc_probe_pin;
-    int		risc_probe_type;
-    int		home_sw_id;
+    double     risc_probe_vel; 	/* velocity for RISC probing */
+    double     risc_probe_dist;
+    int         risc_probe_pin;
+    int         risc_probe_type;
+    int         home_sw_id;
 
 } emcmot_joint_t;
 
