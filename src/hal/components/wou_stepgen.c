@@ -714,6 +714,7 @@ static void write_mot_pos_cmd (uint32_t joint, int64_t mot_pos_cmd)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
+    printf("end of SYNC_MOT_POS_CMD\n");
 
     return;
 }
@@ -736,6 +737,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
+    printf("end of SYNC_MOT_PARAM_CMD\n");
 
     return;
 }
@@ -757,6 +759,7 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
 
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&sync_cmd);
     while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
+//    printf("end of send_sync_cmd\n");
 
     return;
 }
@@ -839,26 +842,6 @@ static void write_usb_cmd(machine_control_t *mc)
 
     case SPECIAL_CMD_TYPE:
         assert(0);
-//        *mc->last_usb_cmd = *mc->usb_cmd;
-//        for (i=0; i<4; i++) {
-//            *mc->last_usb_cmd_param[i] =
-//                    *mc->usb_cmd_param[i];
-//        }
-//        for (i=0; i<4; i++) {
-//            //          fprintf(stderr,"SPEC_CMD type command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
-//            data = (int32_t)(*mc->usb_cmd_param[i]);
-//            for(j=0; j<sizeof(int32_t); j++) {
-//                sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-//                memcpy(buf, &sync_cmd, sizeof(uint16_t));
-//                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//                        sizeof(uint16_t), buf);
-//            }
-//        }
-//        /* write command */
-//        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
-//        memcpy(buf, &sync_cmd, sizeof(uint16_t));
-//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//                sizeof(uint16_t), buf);
         break;
     default:
         // do nothing, don't write command if it is invalid.
@@ -866,6 +849,7 @@ static void write_usb_cmd(machine_control_t *mc)
     }
     *mc->usb_cmd = 0;
     while(wou_flush(&w_param) == -1);
+    printf("end of write_usb_cmd\n");
     return;
 }
 
@@ -887,7 +871,7 @@ static void write_machine_param (uint32_t addr, int32_t data)
             sizeof(uint16_t), buf);
 
     while(wou_flush(&w_param) == -1);
-
+    printf("end of write_machine_param\n");
     return;
 }
 
@@ -1476,12 +1460,13 @@ static void update_freq(void *arg, long period)
             }
         }
         machine_control->usb_busy_s = 1;
-
+        printf ("usb is busy\n");
         // time.tv_sec = 0;
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
         // sleep(1);
         // usleep(10000);  // usleep for 10ms will suspend too long to keep usb-link alive
+        // usleep(1000);  // suspend for 1ms
         usleep(10);  // suspend for 0.01ms
         return;
     } else {
@@ -1502,6 +1487,7 @@ static void update_freq(void *arg, long period)
     //     rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
+    wou_status (&w_param); // print usb bandwidth utilization
     wou_update(&w_param);   // link to wou_recv()
 
     /* begin: sending debug pattern */
@@ -1810,29 +1796,23 @@ static void update_freq(void *arg, long period)
             continue;
         }
 
-        if(*machine_control->homing)
+        if((*stepgen->homing) &&
+           (*stepgen->risc_probe_vel != 0) &&
+           (*machine_control->update_pos_req == 0))
         {
-            if(*stepgen->homing)
-            {
-                // do RISC_PROBE
-                uint32_t dbuf[4];
-
-                printf("j[%d]: homing(%d)", n, *stepgen->homing);
-                dbuf[0] = RCMD_PROBE_REQ;
-                dbuf[1] = n |   // joint_num
-                            (*stepgen->risc_probe_type << 8) |
-                            (*stepgen->risc_probe_pin << 16);
-                dbuf[2] = *stepgen->risc_probe_vel * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
-                dbuf[3] = *stepgen->risc_probe_dist * stepgen->pos_scale;                               // distance in pulse
-                send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
-                assert(*stepgen->risc_probe_pin < 64);
-//                assert(dbuf[2] != 0);   // risc_probe_vel in fixed point format
-                printf(" probe_vel(0x%08X, %f)\n", dbuf[2], *stepgen->risc_probe_vel);
-            }
-
-            /* and skip to next one */
-            stepgen++;
-            continue;
+            // do RISC_PROBE
+            uint32_t dbuf[4];
+//            printf("j[%d]: homing(%d)", n, *stepgen->homing);
+            dbuf[0] = RCMD_PROBE_REQ;
+            dbuf[1] = n |   // joint_num
+                        (*stepgen->risc_probe_type << 8) |
+                        (*stepgen->risc_probe_pin << 16);
+            dbuf[2] = *stepgen->risc_probe_vel * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
+            dbuf[3] = *stepgen->risc_probe_dist * stepgen->pos_scale;                               // distance in pulse
+            send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
+            assert(*stepgen->risc_probe_pin < 64);
+            assert(dbuf[2] != 0);
+//            printf(" probe_vel(0x%08X, %f)\n", dbuf[2], *stepgen->risc_probe_vel);
         }
 
         //
