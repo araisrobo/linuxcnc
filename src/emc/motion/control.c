@@ -928,9 +928,9 @@ static void handle_special_cmd(void)
             /* point to joint struct */
             joint = &joints[joint_num];
             /* copy risc_pos_cmd feedback */
-            joint->coarse_pos = joint->risc_pos_cmd;
-            joint->pos_cmd = joint->risc_pos_cmd;
-            joint->free_tp.curr_pos = joint->risc_pos_cmd;
+            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset;
+            joint->coarse_pos = joint->pos_cmd;
+            joint->free_tp.curr_pos = joint->pos_cmd;
             /* to reset cubic parameters */
             joint->cubic.needNextPoint=1;
             joint->cubic.filled=0;
