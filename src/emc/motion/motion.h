@@ -550,7 +550,6 @@ typedef struct {
     int index_enable;			/* current state of index enable pin */
 
     home_state_t home_state;	/* state machine for homing */
-    double      switch_pos;     		/* home switch position in absolute motor pulse counts */
     double      index_pos;     	 	/* motor index position in absolute motor pulse counts */
     double      motor_offset;		/* diff between internal and motor pos, used
 				   	   	   	   	   to set position to zero during homing */
