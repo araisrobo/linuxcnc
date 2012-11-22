@@ -1456,7 +1456,7 @@ static void update_freq(void *arg, long period)
             }
         }
         machine_control->usb_busy_s = 1;
-        printf ("usb is busy\n");
+//        printf ("usb is busy\n");
         // time.tv_sec = 0;
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop

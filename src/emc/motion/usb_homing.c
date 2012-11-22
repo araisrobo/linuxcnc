@@ -508,6 +508,9 @@ void do_homing(void)
                          (joint->probed_pos - joint->motor_offset);
                 /* this moves the internal position but does not affect the
 		   motor position */
+
+                rtapi_print ("motor_offset(%f)\n", joint->motor_offset);
+
                 joint->pos_cmd += offset;
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
@@ -517,15 +520,16 @@ void do_homing(void)
                 immediate_state = 1;
                 // DEBUG ysli:
                 // rtapi_print (
-                //         _("HOME_SET_SWITCH_POSITION: \nj[%d] offset(%f) risc_pos_cmd(%f) probed_pos(%f)\n    pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"),
-                //         joint_num,
-                //         offset,
-                //         joint->risc_pos_cmd,
-                //         joint->probed_pos,
-                //         joint->pos_cmd,
-                //         joint->pos_fb,
-                //         joint->free_tp.curr_pos,
-                //         joint->motor_offset);
+//                         _("HOME_SET_SWITCH_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+//                         joint_num,
+//                         joint->home_offset,
+//                         offset,
+//                         joint->risc_pos_cmd,
+//                         joint->probed_pos,
+//                         joint->pos_cmd,
+//                         joint->pos_fb,
+//                         joint->free_tp.curr_pos,
+//                         joint->motor_offset);
                 // DEBUG ysli:
                 break;
 
@@ -645,7 +649,9 @@ void do_homing(void)
                     joint->free_tp.max_vel = fabs(joint->home_final_vel);
                     /* clamp on max vel for this joint */
                     if (joint->free_tp.max_vel > joint->vel_limit)
+                    {
                         joint->free_tp.max_vel = joint->vel_limit;
+                    }
                 } else {
                     joint->free_tp.max_vel = joint->vel_limit;
                 }
