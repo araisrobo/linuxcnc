@@ -587,7 +587,6 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(addr->risc_probe_type), mot_comp_id, "joint.%d.risc-probe-type", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_IN, &(addr->home_sw_id), mot_comp_id, "joint.%d.home-sw-id", num)) != 0) return retval;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(addr->home_state_pin), mot_comp_id, "joint.%d.home-state", num)) != 0) return retval;
-    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->switch_pos_pin), mot_comp_id, "joint.%d.switch-pos", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->index_pos_pin), mot_comp_id, "joint.%d.index-pos", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->usb_ferror_flag), mot_comp_id, "joint.%d.usb-ferror-flag", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->risc_pos_cmd), mot_comp_id, "joint.%d.risc-pos-cmd", num)) != 0) return retval;

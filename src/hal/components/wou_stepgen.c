@@ -270,9 +270,6 @@ typedef struct {
     hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
     hal_float_t pulse_per_rev;	/* param: number of pulse per revolution */
 
-
-    hal_float_t *switch_pos;	/* pin: scaled home switch position in absolute motor position */
-    int32_t   switch_pos_i;
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
@@ -513,7 +510,6 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *(stepgen->cmd_fbs) = ((int32_t)*p);
             p += 1;
-            (stepgen->switch_pos_i) = (*p);
             stepgen += 1;   // point to next joint
         }
 
@@ -1460,7 +1456,7 @@ static void update_freq(void *arg, long period)
             }
         }
         machine_control->usb_busy_s = 1;
-        printf ("usb is busy\n");
+//        printf ("usb is busy\n");
         // time.tv_sec = 0;
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
@@ -1712,7 +1708,6 @@ static void update_freq(void *arg, long period)
         *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         *(stepgen->risc_pos_cmd) = (*stepgen->cmd_fbs) * stepgen->scale_recip;
-        *(stepgen->switch_pos) = stepgen->switch_pos_i * stepgen->scale_recip;
 
         // update velocity-feedback only after encoder movement
         if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
@@ -1950,25 +1945,27 @@ static void update_freq(void *arg, long period)
         stepgen++;
     }
 
-    sync_cmd = SYNC_VEL;
-    // send velocity status to RISC
-    if ( (*machine_control->vel_sync_scale) *
-            (*machine_control->feed_scale) *
-            (*(machine_control->requested_vel)) <
-            *machine_control->current_vel) {
-        sync_cmd = SYNC_VEL | 0x0001;
-        *machine_control->vel_sync = 1;
-    } else {
-        sync_cmd = SYNC_VEL;
-        *machine_control->vel_sync = 0;
-    }
-    if (sync_cmd != machine_control->prev_vel_sync) {
-        memcpy(data, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), data);
-        // debug: fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
-    }
-    machine_control->prev_vel_sync = sync_cmd;
+// TODO: move SYNC_VEL to part of MACHINE_CTRL
+//    sync_cmd = SYNC_VEL;
+//    // send velocity status to RISC
+//    if ( (*machine_control->vel_sync_scale) *
+//            (*machine_control->feed_scale) *
+//            (*(machine_control->requested_vel)) <
+//            *machine_control->current_vel) {
+//        sync_cmd = SYNC_VEL | 0x0001;
+//        *machine_control->vel_sync = 1;
+//    } else {
+//        sync_cmd = SYNC_VEL;
+//        *machine_control->vel_sync = 0;
+//    }
+//    if (sync_cmd != machine_control->prev_vel_sync) {
+//        memcpy(data, &sync_cmd, sizeof(uint16_t));
+//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
+//                sizeof(uint16_t), data);
+//        // debug: fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
+//    }
+//    machine_control->prev_vel_sync = sync_cmd;
+
     machine_control->prev_motion_state = *machine_control->motion_state;
 
     sync_cmd = SYNC_EOF;
@@ -2065,13 +2062,6 @@ static int export_stepgen(int num, stepgen_t * addr,
 
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_pos), comp_id,
             "wou.stepgen.%d.enc_pos", num);
-    if (retval != 0) {
-        return retval;
-    }
-
-    /* export pin for scaled switch position (absolute motor position) */
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->switch_pos), comp_id,
-            "wou.stepgen.%d.switch-pos", num);
     if (retval != 0) {
         return retval;
     }
@@ -2266,7 +2256,6 @@ static int export_stepgen(int num, stepgen_t * addr,
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     *(addr->vel_fb) = 0;
-    *(addr->switch_pos) = 0.0;
     *(addr->index_pos) = 0.0;
     *(addr->pos_cmd) = 0.0;
     *(addr->vel_cmd) = 0.0;
