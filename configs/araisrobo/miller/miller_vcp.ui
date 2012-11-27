@@ -308,18 +308,18 @@
               </packing>
             </child>
             <child>
-              <object class="GtkFrame" id="frame7">
+              <object class="GtkFrame" id="frame8">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label_xalign">0</property>
                 <property name="shadow_type">none</property>
                 <child>
-                  <object class="GtkAlignment" id="alignment7">
+                  <object class="GtkAlignment" id="alignment8">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="left_padding">12</property>
                     <child>
-                      <object class="GtkTable" id="table3">
+                      <object class="GtkTable" id="table4">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="n_rows">3</property>
@@ -407,120 +407,6 @@
                   </object>
                 </child>
                 <child type="label">
-                  <object class="GtkLabel" id="label3">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Motor: YY&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkFrame" id="frame8">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label_xalign">0</property>
-                <property name="shadow_type">none</property>
-                <child>
-                  <object class="GtkAlignment" id="alignment8">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="left_padding">12</property>
-                    <child>
-                      <object class="GtkTable" id="table4">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="n_rows">3</property>
-                        <property name="n_columns">2</property>
-                        <child>
-                          <object class="HAL_Meter" id="j3-rpm-meter">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="bg_color">#ffffffffffff</property>
-                            <property name="majorscale">20</property>
-                            <property name="min">-100</property>
-                            <property name="minorscale">10</property>
-                            <property name="sublabel">rpm</property>
-                            <property name="text_template">%4.1f</property>
-                            <property name="z0_border">-75</property>
-                            <property name="z0_color">#ffff00000000</property>
-                            <property name="z1_border">75</property>
-                            <property name="z1_color">#0000ffff0000</property>
-                            <property name="z2_color">#ffff00000000</property>
-                          </object>
-                          <packing>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="j3-rawcount32-label">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="xpad">10</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="ellipsize">start</property>
-                            <property name="text_template">c: %12d</property>
-                            <attributes>
-                              <attribute name="size" value="15000"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="j3-pulse_pos-label">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="xpad">10</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="ellipsize">start</property>
-                            <property name="text_template">p: %12d</property>
-                            <attributes>
-                              <attribute name="size" value="15000"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="j3-enc_pos-label">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="xpad">10</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="ellipsize">start</property>
-                            <property name="text_template">e: %12d</property>
-                            <attributes>
-                              <attribute name="size" value="15000"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child type="label">
                   <object class="GtkLabel" id="label4">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
@@ -532,123 +418,11 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">3</property>
+                <property name="position">2</property>
               </packing>
             </child>
             <child>
-              <object class="GtkFrame" id="frame9">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label_xalign">0</property>
-                <property name="shadow_type">none</property>
-                <child>
-                  <object class="GtkAlignment" id="alignment9">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="left_padding">12</property>
-                    <child>
-                      <object class="GtkTable" id="table5">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="n_rows">3</property>
-                        <property name="n_columns">2</property>
-                        <child>
-                          <object class="HAL_Meter" id="j4-rpm-meter">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="bg_color">#ffffffffffff</property>
-                            <property name="majorscale">50</property>
-                            <property name="max">395</property>
-                            <property name="min">-395</property>
-                            <property name="minorscale">10</property>
-                            <property name="sublabel">rpm</property>
-                            <property name="text_template">%4.1f</property>
-                            <property name="z0_border">-300</property>
-                            <property name="z0_color">#ffff00000000</property>
-                            <property name="z1_border">300</property>
-                            <property name="z1_color">#0000ffff0000</property>
-                            <property name="z2_color">#ffff00000000</property>
-                          </object>
-                          <packing>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="j4-rawcount32-label">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="xpad">10</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="ellipsize">start</property>
-                            <property name="text_template">c: %12d</property>
-                            <attributes>
-                              <attribute name="size" value="15000"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="j4-pulse_pos-label">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="xpad">10</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="ellipsize">start</property>
-                            <property name="text_template">p: %12d</property>
-                            <attributes>
-                              <attribute name="size" value="15000"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="j4-enc_pos-label">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="xpad">10</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="ellipsize">start</property>
-                            <property name="text_template">e: %12d</property>
-                            <attributes>
-                              <attribute name="size" value="15000"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child type="label">
-                  <object class="GtkLabel" id="label5">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Spindle&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">4</property>
-              </packing>
+              <placeholder/>
             </child>
           </object>
           <packing>
@@ -663,107 +437,7 @@
             <property name="can_focus">False</property>
             <property name="spacing">2</property>
             <child>
-              <object class="GtkFrame" id="frame0">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label_xalign">0</property>
-                <property name="shadow_type">none</property>
-                <child>
-                  <object class="GtkAlignment" id="alignment0">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="left_padding">12</property>
-                    <child>
-                      <object class="GtkHBox" id="hbox2">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <child>
-                          <object class="HAL_Meter" id="laser-dist-meter">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="bg_color">#ffffffffffff</property>
-                            <property name="max">120</property>
-                            <property name="min">95</property>
-                            <property name="sublabel">(mm)</property>
-                            <property name="text_template">%5.02f</property>
-                            <property name="z0_border">100</property>
-                            <property name="z0_color">#ffffffff0000</property>
-                            <property name="z1_border">115</property>
-                            <property name="z1_color">#0000ffff0000</property>
-                            <property name="z2_color">#ffff00000000</property>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">0</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkVBox" id="vbox2">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <child>
-                              <object class="HAL_Label" id="laser-dist-label">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="xalign">1</property>
-                                <property name="xpad">10</property>
-                                <property name="label" translatable="yes">label</property>
-                                <property name="label_pin_type">1</property>
-                                <property name="text_template">%5.03f (mm)</property>
-                                <attributes>
-                                  <attribute name="size" value="25000"/>
-                                </attributes>
-                              </object>
-                              <packing>
-                                <property name="expand">True</property>
-                                <property name="fill">True</property>
-                                <property name="position">0</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="HAL_Label" id="laser-volt-label">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="xalign">1</property>
-                                <property name="xpad">10</property>
-                                <property name="label" translatable="yes">label</property>
-                                <property name="text_template">%04d (mV)</property>
-                                <attributes>
-                                  <attribute name="size" value="25000"/>
-                                </attributes>
-                              </object>
-                              <packing>
-                                <property name="expand">True</property>
-                                <property name="fill">True</property>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">1</property>
-                          </packing>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child type="label">
-                  <object class="GtkLabel" id="label0text">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Laser Distance&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
+              <placeholder/>
             </child>
             <child>
               <object class="GtkFrame" id="frame1">
@@ -822,68 +496,43 @@
                       <object class="HAL_Table" id="status">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="n_rows">8</property>
+                        <property name="n_rows">7</property>
                         <property name="n_columns">2</property>
                         <child>
                           <object class="HAL_LED" id="led1">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
+                            <property name="led_shape">2</property>
                             <property name="pick_color_off">#000000000000</property>
                             <property name="pick_color_on">#ffffb7b90b5c</property>
                           </object>
                           <packing>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
                           </packing>
                         </child>
                         <child>
                           <object class="HAL_LED" id="led2">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
+                            <property name="led_shape">2</property>
                             <property name="pick_color_off">#000000000000</property>
                             <property name="pick_color_on">#1d56ab6dfd26</property>
                           </object>
                           <packing>
-                            <property name="top_attach">3</property>
-                            <property name="bottom_attach">4</property>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
                           </packing>
                         </child>
                         <child>
                           <object class="HAL_LED" id="led3">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
+                            <property name="led_shape">2</property>
                             <property name="pick_color_off">#000000000000</property>
                             <property name="pick_color_on">#ffff327ff2b6</property>
                           </object>
                           <packing>
-                            <property name="top_attach">4</property>
-                            <property name="bottom_attach">5</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="prepared-tool">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="text_template">Prepared tool: %s</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_Label" id="current-tool">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="text_template">Current tool: %s</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
                             <property name="top_attach">3</property>
                             <property name="bottom_attach">4</property>
                           </packing>
@@ -895,8 +544,8 @@
                             <property name="led_shape">2</property>
                           </object>
                           <packing>
-                            <property name="top_attach">5</property>
-                            <property name="bottom_attach">6</property>
+                            <property name="top_attach">4</property>
+                            <property name="bottom_attach">5</property>
                           </packing>
                         </child>
                         <child>
@@ -907,8 +556,8 @@
                             <property name="on_color">yellow</property>
                           </object>
                           <packing>
-                            <property name="top_attach">6</property>
-                            <property name="bottom_attach">7</property>
+                            <property name="top_attach">5</property>
+                            <property name="bottom_attach">6</property>
                           </packing>
                         </child>
                         <child>
@@ -919,16 +568,62 @@
                             <property name="on_color">green</property>
                           </object>
                           <packing>
-                            <property name="top_attach">7</property>
-                            <property name="bottom_attach">8</property>
+                            <property name="top_attach">6</property>
+                            <property name="bottom_attach">7</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="HAL_Label" id="combo-value">
+                          <object class="HAL_ToggleButton" id="do1">
+                            <property name="label" translatable="yes">FWD</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="text_template">System: %s</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="HAL_ToggleButton" id="do2">
+                            <property name="label" translatable="yes">REV</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="HAL_ToggleButton" id="do3">
+                            <property name="label" translatable="yes">STOP</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">3</property>
+                            <property name="bottom_attach">4</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="HAL_ToggleButton" id="do4">
+                            <property name="label" translatable="yes">ON</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -938,12 +633,12 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="HAL_Label" id="scale-value">
+                          <object class="HAL_ToggleButton" id="do5">
+                            <property name="label" translatable="yes">VEL-1</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="label_pin_type">1</property>
-                            <property name="text_template">Scale value: %.4f</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -953,12 +648,12 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="HAL_Label" id="spin-value">
+                          <object class="HAL_ToggleButton" id="do6">
+                            <property name="label" translatable="yes">VEL-2</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">label</property>
-                            <property name="label_pin_type">1</property>
-                            <property name="text_template">Spinbutton: %.2f</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -968,34 +663,12 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="hits">
+                          <object class="HAL_ToggleButton" id="do7">
+                            <property name="label" translatable="yes">PUMP</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="label" translatable="yes">Hits: 0</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">7</property>
-                            <property name="bottom_attach">8</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="task_mode">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="label" translatable="yes">task_mode</property>
-                            <property name="ellipsize">start</property>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="task_state">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="label" translatable="yes">task_state</property>
-                            <property name="ellipsize">start</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -1003,42 +676,21 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="exec_state">
+                          <object class="HAL_LED" id="led7">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="label" translatable="yes">exec_state</property>
-                            <property name="ellipsize">start</property>
+                            <property name="led_shape">2</property>
                           </object>
-                          <packing>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="interp_state">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="xalign">0</property>
-                            <property name="label" translatable="yes">interp_state</property>
-                            <property name="ellipsize">start</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
                         </child>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child type="label">
-                  <object class="GtkLabel" id="label2text">
+                  <object class="GtkLabel" id="label3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Status&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Spindle Control&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </object>
                 </child>
@@ -1064,130 +716,37 @@
                       <object class="HAL_Table" id="settings">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="n_rows">3</property>
-                        <property name="n_columns">3</property>
+                        <property name="n_rows">4</property>
+                        <property name="n_columns">2</property>
                         <child>
-                          <object class="HAL_Button" id="button">
-                            <property name="label" translatable="yes">LED 1</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_action_appearance">False</property>
-                            <signal name="pressed" handler="on_button_press" swapped="no"/>
-                          </object>
-                          <packing>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_HScale" id="scale">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="adjustment">adjustment1</property>
-                            <property name="round_digits">1</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_SpinButton" id="spin">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="invisible_char">●</property>
-                            <property name="invisible_char_set">True</property>
-                            <property name="primary_icon_activatable">False</property>
-                            <property name="secondary_icon_activatable">False</property>
-                            <property name="primary_icon_sensitive">True</property>
-                            <property name="secondary_icon_sensitive">True</property>
-                            <property name="adjustment">adjustment2</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_ToggleButton" id="spindle_pump">
-                            <property name="label" translatable="yes">PUMP</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_action_appearance">False</property>
-                          </object>
-                          <packing>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_RadioButton" id="radio1">
-                            <property name="label" translatable="yes">radiobutton</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
-                            <property name="active">True</property>
-                            <property name="draw_indicator">True</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">2</property>
-                            <property name="right_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_RadioButton" id="radio2">
-                            <property name="label" translatable="yes">radiobutton</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
-                            <property name="draw_indicator">True</property>
-                            <property name="group">radio1</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">2</property>
-                            <property name="right_attach">3</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_RadioButton" id="radio3">
-                            <property name="label" translatable="yes">radiobutton</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
-                            <property name="draw_indicator">True</property>
-                            <property name="group">radio1</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">2</property>
-                            <property name="right_attach">3</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_ComboBox" id="combo">
+                          <object class="GtkLabel" id="task_mode">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="model">offset-list</property>
-                            <property name="active">0</property>
-                            <property name="column">1</property>
-                            <child>
-                              <object class="GtkCellRendererText" id="cellrenderertext1"/>
-                              <attributes>
-                                <attribute name="text">0</attribute>
-                              </attributes>
-                            </child>
+                            <property name="xalign">0</property>
+                            <property name="label" translatable="yes">task_mode</property>
+                            <property name="ellipsize">start</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="exec_state">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="xalign">0</property>
+                            <property name="label" translatable="yes">exec_state</property>
+                            <property name="ellipsize">start</property>
+                          </object>
+                          <packing>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="task_state">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="xalign">0</property>
+                            <property name="label" translatable="yes">task_state</property>
+                            <property name="ellipsize">start</property>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -1195,14 +754,59 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="HAL_CheckButton" id="check">
-                            <property name="label" translatable="yes">checkbutton</property>
+                          <object class="GtkLabel" id="interp_state">
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
-                            <property name="draw_indicator">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="xalign">0</property>
+                            <property name="label" translatable="yes">interp_state</property>
+                            <property name="ellipsize">start</property>
                           </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="HAL_Label" id="prepared-tool">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">label</property>
+                            <property name="text_template">Prepared tool: %s</property>
+                          </object>
+                          <packing>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="HAL_Label" id="current-tool">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">label</property>
+                            <property name="text_template">Current tool: %s</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="hits">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">Hits: 0</property>
+                          </object>
+                          <packing>
+                            <property name="top_attach">3</property>
+                            <property name="bottom_attach">4</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <placeholder/>
                         </child>
                       </object>
                     </child>
@@ -1212,7 +816,7 @@
                   <object class="GtkLabel" id="label3text">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Settings&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Status&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </object>
                 </child>
