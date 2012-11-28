@@ -604,7 +604,7 @@
                         </child>
                         <child>
                           <object class="HAL_ToggleButton" id="do3">
-                            <property name="label" translatable="yes">STOP</property>
+                            <property name="label" translatable="yes">JOG-FWD</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
@@ -619,7 +619,7 @@
                         </child>
                         <child>
                           <object class="HAL_ToggleButton" id="do4">
-                            <property name="label" translatable="yes">ON</property>
+                            <property name="label" translatable="yes">JOG-REV</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
@@ -634,7 +634,7 @@
                         </child>
                         <child>
                           <object class="HAL_ToggleButton" id="do5">
-                            <property name="label" translatable="yes">VEL-1</property>
+                            <property name="label" translatable="yes">SPEED-1</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
@@ -649,7 +649,7 @@
                         </child>
                         <child>
                           <object class="HAL_ToggleButton" id="do6">
-                            <property name="label" translatable="yes">VEL-2</property>
+                            <property name="label" translatable="yes">SPEED-2</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
