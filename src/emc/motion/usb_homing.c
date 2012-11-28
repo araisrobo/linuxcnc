@@ -478,7 +478,7 @@ void do_homing(void)
 		   terminates when the switch is cleared. If the move ends or
 		   hits a limit before it clears the switch, the home is
 		   aborted. */
-                if(*emcmot_hal_data->update_pos_req == 1)
+                if(*emcmot_hal_data->update_pos_req == 0)
                 {
                     /* have we cleared the home switch yet? */
                     assert (!home_sw_active);
@@ -519,7 +519,7 @@ void do_homing(void)
                 joint->home_state = HOME_FINAL_MOVE_START;
                 immediate_state = 1;
                 // DEBUG ysli:
-                // rtapi_print (
+//                rtapi_print (
 //                         _("HOME_SET_SWITCH_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
 //                         joint_num,
 //                         joint->home_offset,
