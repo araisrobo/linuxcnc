@@ -509,8 +509,6 @@ void do_homing(void)
                 /* this moves the internal position but does not affect the
 		   motor position */
 
-                rtapi_print ("motor_offset(%f)\n", joint->motor_offset);
-
                 joint->pos_cmd += offset;
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
