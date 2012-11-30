@@ -393,7 +393,7 @@ typedef struct {
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
-    hal_s32_t *debug[8];
+    hal_s32_t *debug[32];
     /* tick */
     hal_u32_t *tick[14];
     /* application parameter*/
@@ -634,7 +634,7 @@ static void fetchmail(const uint8_t *buf_head)
 #if (DEBUG_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
 #endif
-        for (i=0; i<8; i++) {
+        for (i=0; i<32; i++) {
             p += 1;
             *machine_control->debug[i] = *p;
 
@@ -2521,7 +2521,7 @@ static int export_machine_control(machine_control_t * machine_control)
         *(machine_control->tick[i]) = 0;
     }
 
-    for (i=0; i<8; i++) {
+    for (i=0; i<32; i++) {
         retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->debug[i]), comp_id,
                 "wou.debug.value-%d", i);
         if (retval != 0) {
