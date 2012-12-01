@@ -490,6 +490,7 @@ static void fetchmail(const uint8_t *buf_head)
     bp_tick = *p;
     if (machine_control->prev_bp == bp_tick) {
         // skip mailbox parsing because there isn't new bp_tick
+        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
         return;
     }
     *machine_control->bp_tick = bp_tick;
@@ -914,8 +915,7 @@ int rtapi_app_main(void)
         // initialize FPGA with bitfile(bits)
         wou_init(&w_param, board, wou_id, bits);
         if (wou_connect(&w_param) == -1) {
-            rtapi_print_msg(RTAPI_MSG_ERR,
-                    "WOU: ERROR: Connection failed\n");
+            rtapi_print_msg(RTAPI_MSG_ERR, "WOU: ERROR: Connection failed\n");
             return -1;
         }
     }
@@ -2538,8 +2538,7 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->dout0) = 0;
 
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->bp_tick), comp_id,
-            "wou.bp_tick");
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->bp_tick), comp_id, "wou.bp-tick");
     if (retval != 0) {
         return retval;
     }
