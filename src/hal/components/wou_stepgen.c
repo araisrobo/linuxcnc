@@ -419,6 +419,7 @@ typedef struct {
     hal_bit_t   *update_pos_ack;
     hal_u32_t   *rcmd_seq_num_req;
     hal_u32_t   *rcmd_seq_num_ack;
+    hal_u32_t   *max_tick_time;
 
 } machine_control_t;
 
@@ -488,11 +489,11 @@ static void fetchmail(const uint8_t *buf_head)
     // BP_TICK
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
-    if (machine_control->prev_bp == bp_tick) {
-        // skip mailbox parsing because there isn't new bp_tick
-        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
-        return;
-    }
+//    if (machine_control->prev_bp == bp_tick) {
+//        // skip mailbox parsing because there isn't new bp_tick
+//        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
+//        return;
+//    }
     *machine_control->bp_tick = bp_tick;
 
     switch(mail_tag)
@@ -580,6 +581,10 @@ static void fetchmail(const uint8_t *buf_head)
             *stepgen->ferror_flag = ferror_flag & (1 << i);
             stepgen += 1;   // point to next joint
         }
+
+        p += 1;
+        *(machine_control->max_tick_time) = *p;
+
 
 #if (MBOX_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
@@ -2607,6 +2612,12 @@ static int export_machine_control(machine_control_t * machine_control)
             "wou.motion.rcmd-seq-num-ack");
     if (retval != 0) { return retval; }
     *(machine_control->rcmd_seq_num_ack) = 0;
+
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->max_tick_time), comp_id, "wou.max_tick_time");
+    *(machine_control->max_tick_time) = 0;    // pin index must not beyond index
+    if (retval != 0) {
+        return retval;
+    }
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
