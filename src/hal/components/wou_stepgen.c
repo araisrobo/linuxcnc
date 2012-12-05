@@ -489,11 +489,11 @@ static void fetchmail(const uint8_t *buf_head)
     // BP_TICK
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
-//    if (machine_control->prev_bp == bp_tick) {
-//        // skip mailbox parsing because there isn't new bp_tick
-//        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
-//        return;
-//    }
+    if (machine_control->prev_bp == bp_tick) {
+        // skip mailbox parsing because there isn't new bp_tick
+        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
+        return;
+    }
     *machine_control->bp_tick = bp_tick;
 
     switch(mail_tag)
@@ -1488,7 +1488,7 @@ static void update_freq(void *arg, long period)
     //     rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-    wou_status (&w_param); // print usb bandwidth utilization
+//    wou_status (&w_param); // print usb bandwidth utilization
     wou_update(&w_param);   // link to wou_recv()
 
     /* begin: sending debug pattern */
