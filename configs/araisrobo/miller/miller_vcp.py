@@ -125,7 +125,7 @@ class HandlerClass:
         self.ini.create_default_ini()
         self.ini.restore_state(self)
 
-    def __init__(self, halcomp,builder,useropts):
+    def __init__(self, halcomp, builder, useropts):
         '''
         Handler classes are instantiated in the following state:
         - the widget tree is created, but not yet realized (no toplevel window.show() executed yet)
@@ -137,6 +137,13 @@ class HandlerClass:
 
         The builder may be either of libglade or GtkBuilder type depending on the glade file format.
         '''
+        
+        # TODO: add a signal to check if the relay for spindle-pump is ON
+        halcomp.newpin("spindle.fwd", hal.HAL_BIT, hal.HAL_IN)
+        halcomp.newpin("spindle.rev", hal.HAL_BIT, hal.HAL_IN)
+        halcomp.newpin("spindle.jog-fwd", hal.HAL_BIT, hal.HAL_IN)
+        halcomp.newpin("spindle.jog-rev", hal.HAL_BIT, hal.HAL_IN)
+        halcomp.newpin("spindle.pump", hal.HAL_BIT, hal.HAL_OUT)
 
         self.halcomp = halcomp
         self.builder = builder
