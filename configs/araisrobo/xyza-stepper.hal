@@ -42,12 +42,6 @@ net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
 net Apos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
 
-# home_switch positions
-net J0_switch-pos wou.stepgen.0.switch-pos => joint.0.switch-pos
-net J1_switch-pos wou.stepgen.1.switch-pos => joint.1.switch-pos
-net J2_switch-pos wou.stepgen.2.switch-pos => joint.2.switch-pos
-net J3_switch-pos wou.stepgen.3.switch-pos => joint.3.switch-pos
-
 # motor_index positions
 net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
 net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
