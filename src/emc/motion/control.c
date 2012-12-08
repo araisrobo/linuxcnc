@@ -27,7 +27,7 @@
 #include "motion_debug.h"
 #include "config.h"
 #include "assert.h"
-#include <sync_cmd.h>
+#include "sync_cmd.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -684,19 +684,17 @@ static int abort_reason = NO_REASON, wait_resume = 0;
 #define PROBE_CMD_TYPE 0x0001
 static void process_probe_inputs(void)
 {
-    //obsolete: static int old_probeVal = 0;
-    // TODO: detect probe trigger if not doing probe (should be handled by risc)
     unsigned char probe_type = emcmotStatus->probe_type;
     int i;
     emcmot_joint_status_t *joint_status;
     // don't error
     char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
     // motion would stop.
-    //static int report_risc_probing_error = 0;
 
     switch ( emcmotStatus->usb_status & 0x0000000F) // probe status mask
     { 
     case USB_STATUS_PROBING:
+        DP("probe: USB_STATUS_PROBING begin\n");
         if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
             // already sent acked
             break;
@@ -722,6 +720,7 @@ static void process_probe_inputs(void)
         break;
 
     case USB_STATUS_PROBE_HIT:
+        DP("probe: USB_STATUS_PROBE_HIT begin\n");
         /* 先將當前的tp pause然後適合的時機abort他，之後呼叫resume繼續後面的tp */
         wait_resume = 1;
         tpPause(&emcmotDebug->coord_tp);
@@ -748,17 +747,16 @@ static void process_probe_inputs(void)
                             (joint->backlash_filt + joint->motor_offset);
                 }
                 /* tell USB that we've got the status */
-                fprintf(stderr,"controlc.: re-send USB_CMD_STATUS_ACK() to confirm if it is valid\n");
+                DP ("send USB_CMD_STATUS_ACK again\n");
                 emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
                 emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                 emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
                 /* record current pos as probed pos */
-                kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags,
-                        &iflags);
+                kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
                 /* sync current pos-cmd with pos-fb */
                 emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; // handle wou assertion
-                fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
-                emcmotStatus->align_pos_cmd = 1;
+//                fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
+//                emcmotStatus->align_pos_cmd = 1;
             }
         } else {
             int32_t joint_num;
@@ -771,10 +769,10 @@ static void process_probe_inputs(void)
                 joint_pos[joint_num] =  joint->probed_pos -
                         (joint->backlash_filt + joint->motor_offset);
             }
-            fprintf(stderr,"PROBE: USB_STATUS_PROBE_HIT\n");
+            DP("calling tpAbort()\n");
             tpAbort(&emcmotDebug->coord_tp);
             /* tell USB that we've got the status */
-            fprintf(stderr,"controlc.: send USB_CMD_STATUS_ACK() to confirm if it is valid\n");
+            DP("sending USB_CMD_STATUS_ACK\n");
             emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
             emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
             emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
@@ -783,12 +781,13 @@ static void process_probe_inputs(void)
                     &iflags);
             /* sync current pos-cmd with pos-fb */
             emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb; // handle wou assertion
-            fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
-            emcmotStatus->align_pos_cmd = 1;
+//            fprintf(stderr,"USB_STATUS_PROBE_HIT setting align pos cmd 1\n");
+//            emcmotStatus->align_pos_cmd = 1;
         }
         break;
 
     case USB_STATUS_PROBE_ERROR:// only one error reason from risc
+        DP("probe: USB_STATUS_PROBE_ERROR begin\n");
         SET_MOTION_ERROR_FLAG(1);
         for (i = 0; i < emcmotConfig->numJoints; i++) {
             joint_status = &(emcmotStatus->joint_status[i]);
@@ -817,18 +816,18 @@ static void process_probe_inputs(void)
         // deal with PROBE related status only
         emcmotStatus->align_pos_cmd = 0;
         if (wait_resume == 1 && emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
-            fprintf(stderr,"controlc.: call tpResume()\n");
+            DP("probe: USB_STATUS_READY, call tpResume()\n");
             tpResume(&emcmotDebug->coord_tp);
             wait_resume = 0;
         }
         if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
             if (emcmotStatus->probe_cmd == USB_CMD_PROBE_HIGH ||
                     emcmotStatus->probe_cmd == USB_CMD_PROBE_LOW) {
-
+                DP("USB_STATUS_READY, sending USB_CMD_NOOP\n");
                 emcmotStatus->probe_cmd = USB_CMD_NOOP;
                 if (probe_suppress == 0) {  // just stop motion
+                    DP ("G38.X probe move finished without tripping probe");
                     tpPause(&emcmotDebug->coord_tp);
-                    // reportError("G38.X probe move finished without tripping probe");
                     SET_MOTION_ERROR_FLAG(1);
                 }
             }
@@ -836,7 +835,9 @@ static void process_probe_inputs(void)
         break;
     default:
         if (emcmotStatus->probe_cmd == USB_CMD_PROBE_HIGH ||
-                emcmotStatus->probe_cmd == USB_CMD_PROBE_LOW) {
+            emcmotStatus->probe_cmd == USB_CMD_PROBE_LOW) {
+            assert(0);
+            DP("probe: USB_STATUS_READY begin\n");
             if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0) {
                 int32_t joint_num;
                 emcmot_joint_t *joint;
@@ -848,7 +849,6 @@ static void process_probe_inputs(void)
 
                     SET_MOTION_ERROR_FLAG(1);
                 }
-
 
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
                     /* point to joint struct */
