@@ -1423,11 +1423,6 @@ void emcmotCommandHandler(void *arg, long period)
             break;
 
 	case EMCMOT_CLEAR_PROBE_FLAGS:
-//	    rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
-//	    if (emcmotStatus->probe_cmd != USB_CMD_NOOP) {
-//	        reportError(_("initiate probe command while usb_cmd is not USB_CMD_NOOP"));
-//	        fprintf(stderr,"initiate probe command while usb_cmd is not USB_CMD_NOOP");
-//	    }
 	    break;
 
 	case EMCMOT_PROBE:
@@ -1504,7 +1499,7 @@ void emcmotCommandHandler(void *arg, long period)
                   emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                   emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
                 }
-                fprintf(stderr,"usb_cmd(0x%0x) usb_cmd_param(%f)\n",
+                fprintf(stderr,"command.c: usb_cmd(0x%0x) usb_cmd_param(%f)\n",
                     emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
 	    }
 	    break;
