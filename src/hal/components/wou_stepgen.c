@@ -208,10 +208,6 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
         "indicate test pattern type");
 
-// const char *probe_pin_type="DIGITAL_PIN"; // ANALOG_IN
-// RTAPI_MP_STRING(probe_pin_type,
-//                 "indicate probing type");
-
 const char *probe_config= "0x00010000";         // probing input channel
 RTAPI_MP_STRING(probe_config,
         "probe config for RISC");
@@ -221,12 +217,6 @@ const char *jog_config_str[MAX_CHAN] =
         "0x00000000", "0x00000000", "0x00000000", "0x00000000" };
 RTAPI_MP_ARRAY_STRING(jog_config_str, MAX_CHAN,
         "jog config for RISC");
-
-
-
-//const char *probe_decel_cmd= "0";         // deceleration command for probing in user-unit/s
-//RTAPI_MP_STRING(probe_decel_cmd,
-//                "deceleration for probing");
 
 const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
@@ -357,7 +347,6 @@ typedef struct {
     double prev_timeout;
     int num_gpio_in;
 
-    hal_u32_t   *wou_bp_tick;   /* host side bp counter */
     hal_u32_t   *bp_tick;       /* base-period tick obtained from fetchmail */
     uint32_t    prev_bp;        /* previous base-period tick */
     hal_u32_t   *dout0;         /* the DOUT value obtained from fetchmail */
@@ -377,10 +366,6 @@ typedef struct {
     hal_u32_t    *ahc_max_level;
     uint32_t      prev_ahc_min_level;
     hal_u32_t    *ahc_min_level;
-    //    hal_u32_t   *control_mode;       // for state machine in risc
-    //    hal_float_t *probe_retract_dist; // for risc probing
-    //    hal_float_t *probe_vel;          // for risc probing
-    //    hal_float_t *probe_disct;        // for risc probing
     /* motion state tracker */
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
@@ -716,7 +701,7 @@ static void write_mot_pos_cmd (uint32_t joint, int64_t mot_pos_cmd)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
-    printf("end of SYNC_MOT_POS_CMD\n");
+    DP("end of SYNC_MOT_POS_CMD\n");
 
     return;
 }
@@ -2474,8 +2459,7 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     for (i = 0; i < 4; i++) {
         retval =
-                hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id,
-                        "wou.usb.param-%02d", i);
+                hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id, "wou.usb.param-%02d", i);
         if (retval != 0) {
             return retval;
         }
@@ -2556,13 +2540,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->crc_error_counter) = 0;
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_bp_tick), comp_id,
-            "wou.wou_bp_tick");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->wou_bp_tick) = 0;
 
     /* application parameters */
     for (i=0; i<16; i++) {
