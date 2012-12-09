@@ -699,7 +699,6 @@ static void process_probe_inputs(void)
         DP("probe: USB_STATUS_PROBING begin\n");
         if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0)
         {
-            tpPause(&emcmotDebug->coord_tp);
             emcmotStatus->probeTripped = 0;
             // ack risc to stop probing
             emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
@@ -710,50 +709,59 @@ static void process_probe_inputs(void)
 
     case USB_STATUS_PROBE_HIT:
         DP("probe: USB_STATUS_PROBE_HIT begin\n");
-        tpPause(&emcmotDebug->coord_tp);
-            emcmotStatus->probeTripped = 1;
-            /* tell USB that we've got the status */
-            DP("sending USB_CMD_STATUS_ACK\n");
-            emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-            emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
-            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+        emcmotStatus->probeTripped = 1;
+        /* tell USB that we've got the status */
+        DP("sending USB_CMD_STATUS_ACK\n");
+        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+        emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
+        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
         break;
 
     case USB_STATUS_READY: // PROBE STATUS Clean
         // deal with PROBE related status only
-        if (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) {
-            DP("getting into USB_STATUS_READY, call tpResume()\n");
-            tpAbort(&emcmotDebug->coord_tp);
-            emcmotStatus->probe_cmd = USB_CMD_NOOP;
-
-            emcmotStatus->probing = 0;
+        if ((emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) /*(*emcmot_hal_data->update_pos_req)*/ && emcmotStatus->probing)
+        {
             if (emcmotStatus->probeTripped == 1)
             {
                 int32_t joint_num;
                 emcmot_joint_t *joint;
+                /* update probed pos */
                 double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
                 {
                     joint = &joints[joint_num];
                     joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset);
                 }
-                /* update probed pos */
                 kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
             } else
             {
                 /* remember the current position */
                 emcmotStatus->probedPos = emcmotStatus->carte_pos_cmd;
-                if (probe_suppress == 0) {
-                    if(probe_whenclears) {
+                if (probe_suppress == 0)
+                {
+                    if(probe_whenclears) 
+                    {
                         reportError(_("G38.4 move finished without breaking contact."));
                         SET_MOTION_ERROR_FLAG(1);
-                    } else {
+                    } else 
+                    {
                         reportError(_("G38.2 move finished without making contact."));
                         SET_MOTION_ERROR_FLAG(1);
                     }
                 }
             }
+            DP("emcmotStatus->depth(%d) paused(%d) probe_cmd(%d)\n", emcmotStatus->depth, emcmotStatus->paused, emcmotStatus->probe_cmd);
+            tpAbort(&emcmotDebug->coord_tp);
+            emcmotStatus->probing = 0;
         }
+
+        if ((*emcmot_hal_data->update_pos_req == 0) &&
+            (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK))
+        {
+            DP("to issue USB_CMD_NOOP\n");
+            emcmotStatus->probe_cmd = USB_CMD_NOOP;
+        }
+
         break;
     default:
         break;
@@ -834,7 +842,8 @@ static void handle_special_cmd(void)
         }
         /* update carte_pos_cmd for RISC-JOGGING */
         kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
-        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_cmd; // for EMCMOT_MOTION_COORD mode
+        /* preset traj planner to current position */
+        tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd); // for EMCMOT_MOTION_COORD mode
     }
 
     switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
