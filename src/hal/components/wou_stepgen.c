@@ -405,6 +405,7 @@ typedef struct {
     hal_u32_t   *rcmd_seq_num_req;
     hal_u32_t   *rcmd_seq_num_ack;
     hal_u32_t   *max_tick_time;
+    hal_bit_t   *probe_result;
 
 } machine_control_t;
 
@@ -459,7 +460,7 @@ static void fetchmail(const uint8_t *buf_head)
     uint32_t    *p, din[2], dout[1];
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
-    uint32_t    ferror_flag;
+    uint32_t    machine_status;
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -560,12 +561,13 @@ static void fetchmail(const uint8_t *buf_head)
         // otherwise, there will be 4 units of motions for every MPG click.
         *(machine_control->mpg_count) >>= 2;
         p += 1;
-        ferror_flag = *p;
+        machine_status = *p;
         stepgen = stepgen_array;
         for (i=0; i<num_joints; i++) {
-            *stepgen->ferror_flag = ferror_flag & (1 << i);
+            *stepgen->ferror_flag = machine_status & (1 << i);
             stepgen += 1;   // point to next joint
         }
+        *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -2595,6 +2597,10 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_result), comp_id, "wou.motion.probe-result");
+    if (retval != 0) { return retval; }
+    *(machine_control->probe_result) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
