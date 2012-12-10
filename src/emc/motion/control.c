@@ -846,19 +846,6 @@ static void handle_special_cmd(void)
         tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd); // for EMCMOT_MOTION_COORD mode
     }
 
-    switch ( emcmotStatus->usb_status & 0x00000F00) { // probe status mask
-    case USB_STATUS_REQ_CMD_SYNC:
-        DP("USB_STATUS_REQ_CMD_SYNC begin\n");
-        emcmotStatus->sync_risc_pos = 1;
-        update_current_pos = 1;
-        assert(0);
-        break;
-    default:
-        emcmotStatus->sync_risc_pos = 0;
-        // deal with PROBE related status only
-        break;
-    }
-
 }
 
 static void check_for_faults(void)
