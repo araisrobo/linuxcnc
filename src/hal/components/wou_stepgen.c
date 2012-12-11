@@ -341,8 +341,8 @@ typedef struct {
     hal_float_t *analog_ref_level;
     double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
-    hal_float_t *sync_in;		//
-    hal_float_t *wait_type;
+    hal_u32_t *sync_in_index;		//
+    hal_u32_t *wait_type;
     hal_float_t *timeout;
     double prev_timeout;
     int num_gpio_in;
@@ -1448,7 +1448,7 @@ static void update_freq(void *arg, long period)
             }
         }
         machine_control->usb_busy_s = 1;
-//        printf ("usb is busy\n");
+        // printf ("usb is busy\n");
         // time.tv_sec = 0;
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
@@ -1577,15 +1577,16 @@ static void update_freq(void *arg, long period)
 
     /* begin: process motion synchronized input */
     if (*(machine_control->sync_in_trigger) != 0) {
-        assert(*(machine_control->sync_in) >= 0);
-        assert(*(machine_control->sync_in) < num_gpio_in);
-        fprintf(stderr,"wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",(uint32_t)*machine_control->sync_in,
+        assert(*(machine_control->sync_in_index) >= 0);
+        assert(*(machine_control->sync_in_index) < num_gpio_in);
+        DP("wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",
+                (uint32_t)*machine_control->sync_in_index,
                 (uint32_t)*(machine_control->wait_type));
-        // begin: trigger sync in and wait timeout 
-        sync_cmd = SYNC_DIN | PACK_IO_ID((uint32_t)*(machine_control->sync_in)) |
-                PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
-        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), (uint8_t *) &sync_cmd);
+        // begin: trigger sync in and wait timeout
+        sync_cmd = SYNC_DIN |
+                   PACK_IO_ID((uint32_t)*(machine_control->sync_in_index)) |
+                   PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (uint8_t *) &sync_cmd);
         // end: trigger sync in and wait timeout
         *(machine_control->sync_in_trigger) = 0;
     }
@@ -2359,13 +2360,12 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->sync_in_trigger) = 0;	// pin index must not beyond index
 
     retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->sync_in), comp_id,
-                    "wou.sync.in.index");
-    *(machine_control->sync_in) = 0;	// pin index must not beyond index
+            hal_pin_u32_newf(HAL_IN, &(machine_control->sync_in_index), comp_id, "wou.sync.in.index");
+    *(machine_control->sync_in_index) = 0;	// pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->wait_type), comp_id,
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wait_type), comp_id,
             "wou.sync.in.wait_type");
     if (retval != 0) {
         return retval;
