@@ -726,7 +726,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
-    printf("end of SYNC_MOT_PARAM_CMD\n");
+    DP ("end of SYNC_MOT_PARAM_CMD\n");
 
     return;
 }
@@ -771,7 +771,7 @@ static void write_usb_cmd(machine_control_t *mc)
         }
 
         for (i=0; i<4; i++) {
-            fprintf(stderr, "get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
+            DP("get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
             data = (int32_t)(*mc->usb_cmd_param[i]);
             for(j=0; j<sizeof(int32_t); j++) {
                 sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -838,7 +838,7 @@ static void write_usb_cmd(machine_control_t *mc)
     }
     *mc->usb_cmd = 0;
     while(wou_flush(&w_param) == -1);
-    printf("end of write_usb_cmd\n");
+    DP("end of write_usb_cmd\n");
     return;
 }
 
@@ -860,7 +860,7 @@ static void write_machine_param (uint32_t addr, int32_t data)
             sizeof(uint16_t), buf);
 
     while(wou_flush(&w_param) == -1);
-    printf("end of write_machine_param\n");
+    DP("end of write_machine_param\n");
     return;
 }
 
