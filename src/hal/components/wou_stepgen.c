@@ -357,11 +357,11 @@ typedef struct {
     int num_gpio_out;
     uint32_t prev_out;		//ON or OFF
 
-    double     prev_ahc_state;
-    hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
-    hal_float_t *ahc_level;
-    double prev_ahc_level;
-    hal_float_t *ahc_max_offset;
+    uint32_t     prev_ahc_state;
+    hal_bit_t    *ahc_state;     // 0: disable 1:enable
+    hal_float_t  *ahc_level;
+    double      prev_ahc_level;
+    hal_float_t  *ahc_max_offset;
     uint32_t      prev_ahc_max_level;
     hal_u32_t    *ahc_max_level;
     uint32_t      prev_ahc_min_level;
@@ -1496,7 +1496,8 @@ static void update_freq(void *arg, long period)
     /**
      *  MACHINE_CTRL,   // [31:24]  RESERVED
      *                  // [23:16]  NUM_JOINTS
-     *                  // [15: 4]  RESERVED
+     *                  // [15: 8]  RESERVED
+     *                  // [ 7: 4]  ACCEL_STATE
      *                  // [ 3: 1]  MOTION_MODE:
      *                                  FREE    (0)
      *                                  TELEOP  (1)
@@ -1505,7 +1506,8 @@ static void update_freq(void *arg, long period)
      *                  // [    0]  MACHINE_ON
      **/
 
-    tmp = (*machine_control->homing << 3)
+    tmp = (*machine_control->motion_state << 4)
+                        | (*machine_control->homing << 3)
     		        | (*machine_control->coord_mode << 2)
     		        | (*machine_control->teleop_mode << 1)
     		        | (*machine_control->machine_on);
@@ -1542,12 +1544,12 @@ static void update_freq(void *arg, long period)
 
     }
 
-    if (((uint32_t)*machine_control->ahc_state) !=
-            ((uint32_t)machine_control->prev_ahc_state)) {
-        immediate_data = (uint32_t)(*(machine_control->ahc_state));
+    if ((*machine_control->ahc_state) !=
+            (machine_control->prev_ahc_state)) {
+        immediate_data = (*(machine_control->ahc_state));
         write_machine_param(AHC_STATE, immediate_data);
         fprintf(stderr,"wou_stepgen.c: ahc_state(%d)\n",
-                (uint32_t)*(machine_control->ahc_state));
+                *(machine_control->ahc_state));
         machine_control->prev_ahc_state = *machine_control->ahc_state;
     }
     /* end: handle AHC state, AHC level */
@@ -2397,8 +2399,7 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->analog_ref_level) = 0;    // pin index must not beyond index
 
     retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->ahc_state), comp_id,
-                    "wou.ahc.state");
+            hal_pin_bit_newf(HAL_IN, &(machine_control->ahc_state), comp_id, "wou.ahc.state");
     if (retval != 0) {
         return retval;
     }
@@ -2475,19 +2476,18 @@ static int export_machine_control(machine_control_t * machine_control)
         }
         *(machine_control->last_usb_cmd_param[i]) = 0;
     }
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id,
-            "wou.motion.status");
-    *(machine_control->wou_status) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
 
-    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->motion_state), comp_id,
-            "wou.motion-state");
-    *(machine_control->motion_state) = 0;    // pin index must not beyond index
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id, "wou.motion.status");
     if (retval != 0) {
         return retval;
     }
+    *(machine_control->wou_status) = 0;    // pin index must not beyond index
+
+    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->motion_state), comp_id, "wou.motion-state");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->motion_state) = 0;    // pin index must not beyond index
 
     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
             "wou.mpg_count");
