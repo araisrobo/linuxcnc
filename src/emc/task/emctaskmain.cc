@@ -435,7 +435,7 @@ static NML_INTERP_LIST mdi_execute_queue;
 
 // MDI input queue
 static NML_INTERP_LIST mdi_input_queue;
-#define  MAX_MDI_QUEUE 10
+#define  MAX_MDI_QUEUE 100
 static int max_mdi_queued_commands = MAX_MDI_QUEUE;
 
 /*
