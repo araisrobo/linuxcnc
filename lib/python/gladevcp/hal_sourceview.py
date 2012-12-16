@@ -47,9 +47,8 @@ class EMC_SourceView(gtksourceview.View, _EMC_ActionBase):
         self.set_mark_category_icon_from_icon_name('motion', 'gtk-forward')
         self.set_mark_category_background('motion', gtk.gdk.Color('#ff4'))
         self.selected_line = 0 
-        # b = self.buf
-        # print "Debug: EMC_SourceView::__init__() buf(%s)" % (b.get_text(b.get_start_iter(), b.get_end_iter()))
         self._hal_init()
+        
     def _hal_init(self):
         _EMC_ActionBase._hal_init(self)
         self.gstat.connect('file-loaded', lambda w, f: gobject.timeout_add(1, self.load_file, f))
@@ -64,7 +63,6 @@ class EMC_SourceView(gtksourceview.View, _EMC_ActionBase):
             self.buf.set_text('')
             return
         self.buf.set_text(open(fn).read())
-        # self.line_changed(self.gstat, self.gstat.stat.motion_line)
         self.line_changed(self.gstat, self.selected_line)
 
     def set_line(self, w, l):
