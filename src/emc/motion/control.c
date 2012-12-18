@@ -858,16 +858,21 @@ static void check_for_faults(void)
     /* only check enable input if running */
     if ( GET_MOTION_ENABLE_FLAG() != 0 ) {
         if ( *(emcmot_hal_data->enable) == 0 ) {
-            int n;
             reportError(_("motion stopped by enable input"));
             emcmotDebug->enabling = 0;
-
-            /* turn-off all motion-synch-dout[] */
-            for (n = 0; n < num_dio; n++) {
-                *(emcmot_hal_data->synch_do[n]) = 0;
-            }
         }
     }
+
+    if ( *(emcmot_hal_data->enable) == 0 )
+    {
+        int n;
+        /* turn-off all motion-synch-dout[] */
+        for (n = 0; n < num_dio; n++)
+        {
+            *(emcmot_hal_data->synch_do[n]) = 0;
+        }
+    }
+
     /* check for various joint fault conditions */
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint data */
