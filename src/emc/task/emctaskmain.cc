@@ -657,8 +657,9 @@ static void mdi_execute_abort(void)
     mdi_execute_level = -1;
     mdi_execute_wait = 0;
     mdi_execute_next = 0;
-
+    
     mdi_execute_queue.clear();
+    mdi_input_queue.clear();
     emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
 }
 
