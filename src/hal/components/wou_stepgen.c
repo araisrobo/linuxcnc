@@ -208,10 +208,6 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
         "indicate test pattern type");
 
-// const char *probe_pin_type="DIGITAL_PIN"; // ANALOG_IN
-// RTAPI_MP_STRING(probe_pin_type,
-//                 "indicate probing type");
-
 const char *probe_config= "0x00010000";         // probing input channel
 RTAPI_MP_STRING(probe_config,
         "probe config for RISC");
@@ -221,12 +217,6 @@ const char *jog_config_str[MAX_CHAN] =
         "0x00000000", "0x00000000", "0x00000000", "0x00000000" };
 RTAPI_MP_ARRAY_STRING(jog_config_str, MAX_CHAN,
         "jog config for RISC");
-
-
-
-//const char *probe_decel_cmd= "0";         // deceleration command for probing in user-unit/s
-//RTAPI_MP_STRING(probe_decel_cmd,
-//                "deceleration for probing");
 
 const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
@@ -351,13 +341,12 @@ typedef struct {
     hal_float_t *analog_ref_level;
     double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
-    hal_float_t *sync_in;		//
-    hal_float_t *wait_type;
+    hal_u32_t *sync_in_index;		//
+    hal_u32_t *wait_type;
     hal_float_t *timeout;
     double prev_timeout;
     int num_gpio_in;
 
-    hal_u32_t   *wou_bp_tick;   /* host side bp counter */
     hal_u32_t   *bp_tick;       /* base-period tick obtained from fetchmail */
     uint32_t    prev_bp;        /* previous base-period tick */
     hal_u32_t   *dout0;         /* the DOUT value obtained from fetchmail */
@@ -368,19 +357,15 @@ typedef struct {
     int num_gpio_out;
     uint32_t prev_out;		//ON or OFF
 
-    double     prev_ahc_state;
-    hal_float_t *ahc_state;     // 0: disable 1:enable 2: suspend
-    hal_float_t *ahc_level;
-    double prev_ahc_level;
-    hal_float_t *ahc_max_offset;
+    uint32_t     prev_ahc_state;
+    hal_bit_t    *ahc_state;     // 0: disable 1:enable
+    hal_float_t  *ahc_level;
+    double      prev_ahc_level;
+    hal_float_t  *ahc_max_offset;
     uint32_t      prev_ahc_max_level;
     hal_u32_t    *ahc_max_level;
     uint32_t      prev_ahc_min_level;
     hal_u32_t    *ahc_min_level;
-    //    hal_u32_t   *control_mode;       // for state machine in risc
-    //    hal_float_t *probe_retract_dist; // for risc probing
-    //    hal_float_t *probe_vel;          // for risc probing
-    //    hal_float_t *probe_disct;        // for risc probing
     /* motion state tracker */
     hal_s32_t *motion_state;
     int32_t prev_motion_state;
@@ -420,6 +405,7 @@ typedef struct {
     hal_u32_t   *rcmd_seq_num_req;
     hal_u32_t   *rcmd_seq_num_ack;
     hal_u32_t   *max_tick_time;
+    hal_bit_t   *probe_result;
 
 } machine_control_t;
 
@@ -474,7 +460,7 @@ static void fetchmail(const uint8_t *buf_head)
     uint32_t    *p, din[2], dout[1];
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
-    uint32_t    ferror_flag;
+    uint32_t    machine_status;
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -489,11 +475,11 @@ static void fetchmail(const uint8_t *buf_head)
     // BP_TICK
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
-//    if (machine_control->prev_bp == bp_tick) {
-//        // skip mailbox parsing because there isn't new bp_tick
-//        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
-//        return;
-//    }
+    if (machine_control->prev_bp == bp_tick) {
+        // skip mailbox parsing because there isn't new bp_tick
+        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
+        return;
+    }
     *machine_control->bp_tick = bp_tick;
 
     switch(mail_tag)
@@ -575,12 +561,13 @@ static void fetchmail(const uint8_t *buf_head)
         // otherwise, there will be 4 units of motions for every MPG click.
         *(machine_control->mpg_count) >>= 2;
         p += 1;
-        ferror_flag = *p;
+        machine_status = *p;
         stepgen = stepgen_array;
         for (i=0; i<num_joints; i++) {
-            *stepgen->ferror_flag = ferror_flag & (1 << i);
+            *stepgen->ferror_flag = machine_status & (1 << i);
             stepgen += 1;   // point to next joint
         }
+        *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -716,7 +703,7 @@ static void write_mot_pos_cmd (uint32_t joint, int64_t mot_pos_cmd)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
-    printf("end of SYNC_MOT_POS_CMD\n");
+    DP("end of SYNC_MOT_POS_CMD\n");
 
     return;
 }
@@ -739,7 +726,7 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
-    printf("end of SYNC_MOT_PARAM_CMD\n");
+    DP ("end of SYNC_MOT_PARAM_CMD\n");
 
     return;
 }
@@ -784,7 +771,7 @@ static void write_usb_cmd(machine_control_t *mc)
         }
 
         for (i=0; i<4; i++) {
-            fprintf(stderr, "get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
+            DP("get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
             data = (int32_t)(*mc->usb_cmd_param[i]);
             for(j=0; j<sizeof(int32_t); j++) {
                 sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
@@ -851,7 +838,7 @@ static void write_usb_cmd(machine_control_t *mc)
     }
     *mc->usb_cmd = 0;
     while(wou_flush(&w_param) == -1);
-    printf("end of write_usb_cmd\n");
+    DP("end of write_usb_cmd\n");
     return;
 }
 
@@ -873,7 +860,7 @@ static void write_machine_param (uint32_t addr, int32_t data)
             sizeof(uint16_t), buf);
 
     while(wou_flush(&w_param) == -1);
-    printf("end of write_machine_param\n");
+    DP("end of write_machine_param\n");
     return;
 }
 
@@ -1461,7 +1448,7 @@ static void update_freq(void *arg, long period)
             }
         }
         machine_control->usb_busy_s = 1;
-//        printf ("usb is busy\n");
+        // printf ("usb is busy\n");
         // time.tv_sec = 0;
         // time.tv_nsec = 300000;      // 0.3ms
         // nanosleep(&time, NULL);     // sleep 0.3ms to prevent busy loop
@@ -1488,7 +1475,7 @@ static void update_freq(void *arg, long period)
     //     rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-    wou_status (&w_param); // print usb bandwidth utilization
+//    wou_status (&w_param); // print usb bandwidth utilization
     wou_update(&w_param);   // link to wou_recv()
 
     /* begin: sending debug pattern */
@@ -1509,7 +1496,8 @@ static void update_freq(void *arg, long period)
     /**
      *  MACHINE_CTRL,   // [31:24]  RESERVED
      *                  // [23:16]  NUM_JOINTS
-     *                  // [15: 4]  RESERVED
+     *                  // [15: 8]  RESERVED
+     *                  // [ 7: 4]  ACCEL_STATE
      *                  // [ 3: 1]  MOTION_MODE:
      *                                  FREE    (0)
      *                                  TELEOP  (1)
@@ -1518,7 +1506,8 @@ static void update_freq(void *arg, long period)
      *                  // [    0]  MACHINE_ON
      **/
 
-    tmp = (*machine_control->homing << 3)
+    tmp = (*machine_control->motion_state << 4)
+                        | (*machine_control->homing << 3)
     		        | (*machine_control->coord_mode << 2)
     		        | (*machine_control->teleop_mode << 1)
     		        | (*machine_control->machine_on);
@@ -1555,12 +1544,12 @@ static void update_freq(void *arg, long period)
 
     }
 
-    if (((uint32_t)*machine_control->ahc_state) !=
-            ((uint32_t)machine_control->prev_ahc_state)) {
-        immediate_data = (uint32_t)(*(machine_control->ahc_state));
+    if ((*machine_control->ahc_state) !=
+            (machine_control->prev_ahc_state)) {
+        immediate_data = (*(machine_control->ahc_state));
         write_machine_param(AHC_STATE, immediate_data);
         fprintf(stderr,"wou_stepgen.c: ahc_state(%d)\n",
-                (uint32_t)*(machine_control->ahc_state));
+                *(machine_control->ahc_state));
         machine_control->prev_ahc_state = *machine_control->ahc_state;
     }
     /* end: handle AHC state, AHC level */
@@ -1590,15 +1579,16 @@ static void update_freq(void *arg, long period)
 
     /* begin: process motion synchronized input */
     if (*(machine_control->sync_in_trigger) != 0) {
-        assert(*(machine_control->sync_in) >= 0);
-        assert(*(machine_control->sync_in) < num_gpio_in);
-        fprintf(stderr,"wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",(uint32_t)*machine_control->sync_in,
+        assert(*(machine_control->sync_in_index) >= 0);
+        assert(*(machine_control->sync_in_index) < num_gpio_in);
+        DP("wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",
+                (uint32_t)*machine_control->sync_in_index,
                 (uint32_t)*(machine_control->wait_type));
-        // begin: trigger sync in and wait timeout 
-        sync_cmd = SYNC_DIN | PACK_IO_ID((uint32_t)*(machine_control->sync_in)) |
-                PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
-        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), (uint8_t *) &sync_cmd);
+        // begin: trigger sync in and wait timeout
+        sync_cmd = SYNC_DIN |
+                   PACK_IO_ID((uint32_t)*(machine_control->sync_in_index)) |
+                   PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
+        wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (uint8_t *) &sync_cmd);
         // end: trigger sync in and wait timeout
         *(machine_control->sync_in_trigger) = 0;
     }
@@ -2372,13 +2362,12 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->sync_in_trigger) = 0;	// pin index must not beyond index
 
     retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->sync_in), comp_id,
-                    "wou.sync.in.index");
-    *(machine_control->sync_in) = 0;	// pin index must not beyond index
+            hal_pin_u32_newf(HAL_IN, &(machine_control->sync_in_index), comp_id, "wou.sync.in.index");
+    *(machine_control->sync_in_index) = 0;	// pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->wait_type), comp_id,
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wait_type), comp_id,
             "wou.sync.in.wait_type");
     if (retval != 0) {
         return retval;
@@ -2410,8 +2399,7 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->analog_ref_level) = 0;    // pin index must not beyond index
 
     retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->ahc_state), comp_id,
-                    "wou.ahc.state");
+            hal_pin_bit_newf(HAL_IN, &(machine_control->ahc_state), comp_id, "wou.ahc.state");
     if (retval != 0) {
         return retval;
     }
@@ -2474,8 +2462,7 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     for (i = 0; i < 4; i++) {
         retval =
-                hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id,
-                        "wou.usb.param-%02d", i);
+                hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id, "wou.usb.param-%02d", i);
         if (retval != 0) {
             return retval;
         }
@@ -2489,19 +2476,18 @@ static int export_machine_control(machine_control_t * machine_control)
         }
         *(machine_control->last_usb_cmd_param[i]) = 0;
     }
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id,
-            "wou.motion.status");
-    *(machine_control->wou_status) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
 
-    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->motion_state), comp_id,
-            "wou.motion-state");
-    *(machine_control->motion_state) = 0;    // pin index must not beyond index
+    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id, "wou.motion.status");
     if (retval != 0) {
         return retval;
     }
+    *(machine_control->wou_status) = 0;    // pin index must not beyond index
+
+    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->motion_state), comp_id, "wou.motion-state");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->motion_state) = 0;    // pin index must not beyond index
 
     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
             "wou.mpg_count");
@@ -2557,13 +2543,6 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->crc_error_counter) = 0;
 
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_bp_tick), comp_id,
-            "wou.wou_bp_tick");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->wou_bp_tick) = 0;
-
     /* application parameters */
     for (i=0; i<16; i++) {
         retval = hal_pin_s32_newf(HAL_IN, &(machine_control->app_param[i]), comp_id,
@@ -2618,6 +2597,10 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_result), comp_id, "wou.motion.probe-result");
+    if (retval != 0) { return retval; }
+    *(machine_control->probe_result) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);

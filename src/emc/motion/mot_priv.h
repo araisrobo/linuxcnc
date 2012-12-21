@@ -97,7 +97,7 @@ typedef struct {
 /* machine data */
 
 typedef struct {
-    //obsolete: hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_bit_t *probe_input;	/* RPI: probe switch input */
     hal_bit_t *req_cmd_sync;
     hal_bit_t *align_pos_cmd;
     hal_u32_t *usb_cmd;         /* usb command output */

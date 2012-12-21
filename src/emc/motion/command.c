@@ -1423,11 +1423,9 @@ void emcmotCommandHandler(void *arg, long period)
             break;
 
 	case EMCMOT_CLEAR_PROBE_FLAGS:
-//	    rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
-//	    if (emcmotStatus->probe_cmd != USB_CMD_NOOP) {
-//	        reportError(_("initiate probe command while usb_cmd is not USB_CMD_NOOP"));
-//	        fprintf(stderr,"initiate probe command while usb_cmd is not USB_CMD_NOOP");
-//	    }
+            rtapi_print_msg(RTAPI_MSG_DBG, "CLEAR_PROBE_FLAGS");
+            emcmotStatus->probing = 0;
+            emcmotStatus->probeTripped = 0;
 	    break;
 
 	case EMCMOT_PROBE:
@@ -1451,25 +1449,31 @@ void emcmotCommandHandler(void *arg, long period)
 		tpAbort(&emcmotDebug->coord_tp);
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } /* else if (!(emcmotCommand->probe_type & 1)) {
-                // if suppress errors = off...
-
-                int probeval = !!*(emcmot_hal_data->probe_input);
+	    } else {
+                int probeval = *(emcmot_hal_data->probe_input);
                 int probe_whenclears = !!(emcmotCommand->probe_type & 2);
 
                 if (probeval != probe_whenclears) {
                     // the probe is already in the state we're seeking.
-                    if(probe_whenclears) 
-                        reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));
-                    else
-                        reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+                    if (!(emcmotCommand->probe_type & 1))
+                    {
+                        // if suppress errors = off...
+                        if(probe_whenclears)
+                            reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));
+                        else
+                            reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
 
-                    emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+                        emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+                        SET_MOTION_ERROR_FLAG(1);
+                    }
+                    emcmotStatus->probing = 0;
+                    emcmotStatus->probeTripped = 0;
+                    emcmotStatus->probeVal = probeval;
                     tpAbort(&emcmotDebug->coord_tp);
-                    SET_MOTION_ERROR_FLAG(1);
                     break;
                 }
-            } */
+	    }
+
 
 	    /* append it to the emcmotDebug->coord_tp */
 	    tpSetId(&emcmotDebug->coord_tp, emcmotCommand->id);
@@ -1485,7 +1489,7 @@ void emcmotCommandHandler(void *arg, long period)
 		SET_MOTION_ERROR_FLAG(1);
 		break;
 	    } else {
-//		emcmotStatus->probing = 1;
+		emcmotStatus->probing = 1;
                 emcmotStatus->probe_type = emcmotCommand->probe_type;
 		SET_MOTION_ERROR_FLAG(0);
 		/* set flag that indicates all joints need rehoming, if any
@@ -1493,19 +1497,31 @@ void emcmotCommandHandler(void *arg, long period)
 		   kins */
 		rehomeAll = 1;
 
-                if (emcmotCommand->probe_type & 2) {
-                  // G38.2, G38.3  
-                  emcmotStatus->probe_cmd = USB_CMD_PROBE_HIGH;
-                  emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-                  emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
-                } else {
-                  // G38.4, G38.5  
-                  emcmotStatus->probe_cmd = USB_CMD_PROBE_LOW;
-                  emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-                  emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
-                }
-                fprintf(stderr,"usb_cmd(0x%0x) usb_cmd_param(%f)\n",
-                    emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
+		// interp_convert.cc: probe_type = g_code - G_38_2;
+		// G38.2: probe_type = 0, stop on contact, signal error if failure
+                // G38.3: probe_type = 1, stop on contact
+                // G38.4: probe_type = 2, stop on loss of contact, signal error if failure
+                // G38.5: probe_type = 3, stop on loss of contact
+		if (emcmotCommand->probe_type & 2)
+		{
+                    // G38.4, G38.5
+                    emcmotStatus->probe_cmd = USB_CMD_PROBE_LOW;
+                    emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+                    emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
+                    rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_LOW");
+                    printf("USB_CMD_PROBE_LOW\n");
+
+		} else
+		{
+		    // G38.2, G38.3
+		    emcmotStatus->probe_cmd = USB_CMD_PROBE_HIGH;
+		    emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+		    emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
+		    rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_HIGH");
+		    printf("USB_CMD_PROBE_HIGH\n");
+		}
+		rtapi_print_msg(RTAPI_MSG_DBG, "usb_cmd(0x%0x) usb_cmd_param(%f)\n",
+		                emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
 	    }
 	    break;
 

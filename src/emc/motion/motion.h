@@ -684,12 +684,12 @@ typedef struct emcmot_status_t {
     double probed_joint_pos[EMCMOT_MAX_JOINTS];
     int on_soft_limit;	/* non-zero if any joint is on soft limit */
 
-    //obsolete:	int probeVal;		/* debounced value of probe input */
-    //	int probeTripped;	/* Has the probe signal changed since start
-    //				   of probe command? */
-    //	int probing;		/* Currently looking for a probe signal? */
+    int probeVal;		/* debounced value of probe input */
+    int probeTripped;	        /* Has the probe signal changed since start
+    				   of probe command? */
+    int probing;		/* Currently looking for a probe signal? */
     unsigned char probe_type;
-    EmcPose probedPos;	/* Axis positions stored as soon as possible
+    EmcPose probedPos;	        /* Axis positions stored as soon as possible
 				   after last probeTripped */
     int spindle_index_enable;  /* hooked to a canon encoder index-enable */
     int spindleSync;        /* we are doing spindle-synced motion */
