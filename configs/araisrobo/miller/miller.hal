@@ -139,12 +139,15 @@ net J2-risc-pos-cmd wou.stepgen.2.risc-pos-cmd => joint.2.risc-pos-cmd
 # for usb-homing:
 setp joint.0.home-sw-id 2
 setp joint.1.home-sw-id 5
-setp joint.2.home-sw-id 8
+# original homing switch: setp joint.2.home-sw-id 8
+# user LSP as homing switch for AXIS-Z:
+setp joint.2.home-sw-id 9
 
 # home switch status from FPGA
 net home_j0     joint.0.home-sw-in  <=  wou.gpio.in.02
 net home_j1     joint.1.home-sw-in  <=  wou.gpio.in.05
-net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.08
+# net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.08
+net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.09
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
 net j1-homing   joint.1.homing => wou.stepgen.1.homing
