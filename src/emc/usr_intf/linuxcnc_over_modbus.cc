@@ -1,17 +1,16 @@
 /********************************************************************
-* Description: emcrsh.cc
-*   Extended telnet based EMC interface
+* Description: linuxcnc_over_modbus.cc
 *
-*   Derived from a work by Fred Proctor & Will Shackleford
-*   Further derived from work by jmkasunich
+*   The modbus communication interface for LinuxCNC 
 *
-* Author: Eric H. Johnson
+*   Derived from the emcrsh by Eric H. Johnson
+*
+* Author: Yishin Li
 * License: GPL Version 2
 * System: Linux
 *
-* Copyright (c) 2006-2008 All rights reserved.
+* Copyright (c) 2012 All rights reserved.
 *
-* Last change:
 ********************************************************************/
 
 #define _REENTRANT
@@ -51,11 +50,9 @@
 #define DEBUG			0
 
 /*
-  Using emcrsh:
+  Using linuxcnc_over_modbus:
 
-  emcrsh {-- --port <port number> --name <server name> --connectpw <password>
-             --enablepw <password> --sessions <max sessions> --path <path>
-             -ini<inifile>}
+  TODO ...
 */
 
 // global vars for modbus connection:
