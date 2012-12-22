@@ -235,7 +235,11 @@ void do_homing(void)
                 if (joint->home_search_vel == 0.0) {
                     if (joint->home_latch_vel == 0.0) {
                         /* both vels == 0 means home at current position */
-                        joint->probed_pos = joint->pos_fb + joint->motor_offset;
+                        if (joint->probed_pos == 0.0)
+                        {/*for joint with (home search and latch vel = 0, and never get probed),
+                           prevent it from moving to HOME_OFFSET*/
+                            joint->probed_pos = joint->pos_fb + joint->motor_offset;
+                        }
                         joint->home_state = HOME_SET_SWITCH_POSITION;
                         immediate_state = 1;
                     } else if (joint->home_flags & HOME_USE_INDEX) {
