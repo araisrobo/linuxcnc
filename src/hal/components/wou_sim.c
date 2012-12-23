@@ -452,8 +452,8 @@ typedef struct {
     hal_float_t *analog_ref_level;
     double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
-    hal_float_t *sync_in;		//
-    hal_float_t *wait_type;
+    hal_u32_t *sync_in;		//
+    hal_u32_t *wait_type;
     hal_float_t *timeout;
     double prev_timeout;
     int num_gpio_in;
@@ -1227,8 +1227,6 @@ static void update_freq(void *arg, long period)
     if (*(machine_control->sync_in_trigger) != 0) {
         assert(*(machine_control->sync_in) >= 0);
         assert(*(machine_control->sync_in) < num_gpio_in);
-        fprintf(stderr,"wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",(uint32_t)*machine_control->sync_in,
-                       (uint32_t)*(machine_control->wait_type));
         // begin: trigger sync in and wait timeout 
         sync_cmd = SYNC_DIN | PACK_IO_ID((uint32_t)*(machine_control->sync_in)) |
                                            PACK_DI_TYPE((uint32_t)*(machine_control->wait_type));
@@ -1988,13 +1986,13 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->sync_in_trigger) = 0;	// pin index must not beyond index
 
     retval =
-	hal_pin_float_newf(HAL_IN, &(machine_control->sync_in), comp_id,
+	hal_pin_u32_newf(HAL_IN, &(machine_control->sync_in), comp_id,
 			 "wou.sync.in.index");
     *(machine_control->sync_in) = 0;	// pin index must not beyond index
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->wait_type), comp_id,
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wait_type), comp_id,
 			      "wou.sync.in.wait_type");
     if (retval != 0) {
 	return retval;
