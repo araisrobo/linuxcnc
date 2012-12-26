@@ -406,6 +406,7 @@ typedef struct {
     hal_u32_t   *rcmd_seq_num_ack;
     hal_u32_t   *max_tick_time;
     hal_bit_t   *probe_result;
+    hal_bit_t   *machine_moving;
 
 } machine_control_t;
 
@@ -568,6 +569,7 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
         *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
+        *machine_control->machine_moving = (machine_status >> MACHINE_MOVING_BIT) & 1;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -2601,6 +2603,10 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_result), comp_id, "wou.motion.probe-result");
     if (retval != 0) { return retval; }
     *(machine_control->probe_result) = 0;
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->machine_moving), comp_id, "wou.motion.machine-is-moving");
+    if (retval != 0) { return retval; }
+    *(machine_control->machine_moving) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
