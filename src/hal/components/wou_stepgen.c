@@ -1654,20 +1654,9 @@ static void update_freq(void *arg, long period)
     for (n = 0; n < num_joints; n++) {
 
         if (*stepgen->enable != stepgen->prev_enable) {
-            // delay for SON_DELAY_TICK before actually svo-on 
-            // TODO: let control.c know that if the motor is ready
-            if ((stepgen->son_delay > SON_DELAY_TICK)
-                    || (*stepgen->enable == 0)) {
-                stepgen->son_delay = 0;
-                stepgen->prev_enable = *stepgen->enable;
-                stepgen->rawcount = (int64_t) (stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale);
-                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
-                write_mot_param (n, (ENABLE), (int32_t) *stepgen->enable);
-            } else {
-                stepgen->son_delay ++;
-            }
+            stepgen->prev_enable = *stepgen->enable;
+//            write_mot_param (n, (ENABLE), (int32_t) *stepgen->enable);
         }
-
 
         *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
 
@@ -1820,6 +1809,7 @@ static void update_freq(void *arg, long period)
             }
             if (*machine_control->align_pos_cmd == 1 /* || *machine_control->ignore_host_cmd */ )
             {
+                assert(0);
                 (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
                 write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
