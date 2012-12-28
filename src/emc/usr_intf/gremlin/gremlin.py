@@ -121,8 +121,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.material_buttom_right = (0.0,0.0)
         self.material_top_left = (0.0,0.0)
         self.material_top_right = (0.0,0.0)
-	self.draw_material_state = False
-
+        self.draw_material_state = False
         self.program_alpha = False
         self.use_joints_mode = False
         self.use_commanded = True
@@ -142,20 +141,18 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.show_offsets = False
         self.use_default_controls = True
-
-	self.a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
-	self.b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
-	self.c_axis_wrapped = inifile.find("AXIS_5", "WRAPPED_ROTARY")
-
-	live_axis_count = 0
-	for i,j in enumerate("XYZABCUVW"):
-	    if self.stat.axis_mask & (1<<i) == 0: continue
-	    live_axis_count += 1
-	self.num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
-      
+        self.a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
+        self.b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
+        self.c_axis_wrapped = inifile.find("AXIS_5", "WRAPPED_ROTARY")
+        live_axis_count = 0
+        for i,j in enumerate("XYZABCUVW"):
+            if self.stat.axis_mask & (1<<i) == 0: continue
+            live_axis_count += 1
+        self.num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
         self.highlight_mode = 'line'
         self.highlight_mode = inifile.find("DISPLAY", "HIGHLIGHT_MODE")
         self.fix_tool_size = False
+        
     def get_path_tracking(self):
         return self.path_tracking
     def set_path_tracking(self, path_tracking=False):
@@ -163,7 +160,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def activate(self):
         glcontext = gtk.gtkgl.widget_get_gl_context(self)
         gldrawable = gtk.gtkgl.widget_get_gl_drawable(self)
-
         return gldrawable and glcontext and gldrawable.gl_begin(glcontext)
 
     def swapbuffers(self):
@@ -188,7 +184,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         if not self.initialised: return
         if self.perspective: self.redraw_perspective()
         else: self.redraw_ortho()
-
         return True
 
     def _redraw(self): self.expose()
@@ -309,38 +304,34 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_material_dimension(self):
         return self.material_top_right, self.material_top_left, self.material_buttom_left, self.material_buttom_right 
     def set_material_dimension(self, pos_0=None, pos_1=None, pos_2=None, pos_3=None):
-	#self.material_l = length  
-	#self.material_w = width
-	#self.offset_x = offset_x
-	#self.offset_y = offset_y
-
         self.material_buttom_left = pos_0
         self.material_buttom_right = pos_1
         self.material_top_left = pos_3
         self.material_top_right = pos_2
 
-        if self.material_buttom_left is None or\
-            self.material_buttom_right\
-            is None or self.material_top_left is None or\
-            self.material_top_right is None :
-		self.draw_material_state = False
-	else:
-		self.draw_material_state = True
+        if self.material_buttom_left is None \
+            or self.material_buttom_right is None \
+            or self.material_top_left is None \
+            or self.material_top_right is None :
+            self.draw_material_state = False
+        else:
+            self.draw_material_state = True
+            
     def draw_material(self):
-	return self.draw_material_state
-
+        return self.draw_material_state
+    
     def get_view(self):
         view_dict = {'x':0, 'y':1, 'z':2, 'p':3}
         return view_dict.get(self.current_view, 3)
-
+    
     def is_lathe(self): return self.lathe_option
     def is_foam(self): return self.foam_option
     def get_current_tool(self):
         for i in self.stat.tool_table:
             if i[0] == self.stat.tool_in_spindle:
                 return i
+            
     def get_highlight_line(self): return self.highlight_line
-
     def get_a_axis_wrapped(self): return self.a_axis_wrapped
     def get_b_axis_wrapped(self): return self.b_axis_wrapped
     def get_c_axis_wrapped(self): return self.c_axis_wrapped
