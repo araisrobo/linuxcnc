@@ -71,7 +71,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.block_feed = 0
         self.choice = None
         self.feedrate = 1
-        self.lo = (0,) * 9
+#        self.lo = (0,) * 9
+        self.lo = self.rotate_and_translate(x=0,y=0,z=0,a=0,b=0,c=0,u=0,v=0,w=0)
         self.first_move = True
         self.geometry = geometry
         self.min_extents = [9e99,9e99,9e99]
@@ -215,7 +216,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         for i in range (0, (len(l)-1)):
             length_vector.append(l[i] - self.lo[i])
         length = LA.norm(length_vector)
-
+       
         if not self.first_move:
             self.traverse_append((self.lineno, self.lo, l, [self.xo,
                                     self.yo, self.zo]))
