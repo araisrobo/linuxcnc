@@ -48,6 +48,7 @@ limiticon = array.array('B',
 class GLCanon(Translated, ArcsToSegmentsMixin):
     lineno = -1
     def __init__(self, colors, geometry, is_foam=0):
+        self.path = []
         # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
         self.traverse = []; self.traverse_append = self.traverse.append
         # all_traverse list - [line number , [start position], [end position], feedrate, length]
@@ -71,7 +72,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.block_feed = 0
         self.choice = None
         self.feedrate = 1
-#        self.lo = (0,) * 9
         self.lo = self.rotate_and_translate(x=0,y=0,z=0,a=0,b=0,c=0,u=0,v=0,w=0)
         self.first_move = True
         self.geometry = geometry
@@ -216,14 +216,15 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         for i in range (0, (len(l)-1)):
             length_vector.append(l[i] - self.lo[i])
         length = LA.norm(length_vector)
-       
+
         if not self.first_move:
-            self.traverse_append((self.lineno, self.lo, l, [self.xo,
-                                    self.yo, self.zo]))
-            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
-        else:
-            self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
+            self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+            
+        self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
+        self.path.append(('traverse', self.lineno, self.lo, l, self.feedrate, length))
+        
         self.lo = l
+        
     def rigid_tap(self, x, y, z):
         if self.suppress > 0: return
         self.first_move = False
@@ -291,6 +292,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                  [-points[2][0]**2 - points[2][1]**2]])
         d, e, f = linalg.solve(A,b)
         self.arc_info_append([lineno,[-d/2,-e/2],segs[0],segs[len(segs)-1], length, cw])
+        self.path.append(('arc', lineno, [-d/2,-e/2], segs[0], segs[len(segs)-1], length, cw))
         # print "self.arc_info", self.arc_info
 
     def straight_feed(self, x,y,z, a,b,c, u,v,w):
@@ -307,6 +309,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         length = LA.norm(length_vector)
         # print "line length is", length
         self.feed_info_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo], length))
+        self.path.append(('feed', self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo], length))
         # print "self.feed_info", self.feed_info
 
         self.lo = l
@@ -325,24 +328,35 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     
     def start_spindle_clockwise(self, arg):
         # M3
-        # DEBUG: print 'M3'
         if self.suppress > 0: return
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
         if self.block_start != None:
             self.blocks_append((self.block_start, self.lineno, self.block_pos,self.block_feed))
-            # self.blocks_append((self.block_start, self.lineno, self.lo, self.block_feed))
         self.block_start = None
         self.block_pos = []
+        self.path.append(('M3', self.lineno))
+        
     def start_spindle_counterclockwise(self, arg):
         # M4
-        # DEBUG: print 'M4'
         if self.suppress > 0: return
         color = self.colors['dwell']
         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
         self.block_start = self.lineno 
         self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
         self.block_feed = self.feedrate
+        self.path.append(('M4', self.lineno))
+
+    def clear_motion_output_bit(self, arg):
+        # M63 P-
+        print "glcanon.py: M63 P%d" % arg
+        self.path.append(('M63', self.lineno, arg))
+
+
+    def set_motion_output_bit(self, arg):
+        # M62 P-
+        print "glcanon.py: M62 P%d" % arg
+        self.path.append(('M62', self.lineno, arg))
   
     def highlight2(self, lineno, geometry):
         glLineWidth(3)
@@ -2011,6 +2025,7 @@ class GlCanonDraw:
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=""):
         self.set_canon(canon)
+        #debug:
         result, seq = gcode.parse(f, canon, unitcode, initcode, interpname)
         canon.ofeed = canon.feed
 

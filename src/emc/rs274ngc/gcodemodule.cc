@@ -623,8 +623,22 @@ void FLOOD_ON() {}
 void CLEAR_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_VALUE(int index, double value) {}
-void CLEAR_MOTION_OUTPUT_BIT(int bit) {}
-void SET_MOTION_OUTPUT_BIT(int bit) {}
+void CLEAR_MOTION_OUTPUT_BIT(int bit)
+{
+    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);
+    PyObject *result = callmethod(callback, "clear_motion_output_bit", "i", bit);
+    if(result == NULL) interp_error ++;
+    Py_XDECREF(result);
+    printf("%s: (%s:%d): end\n", __FILE__, __FUNCTION__, __LINE__);
+}
+void SET_MOTION_OUTPUT_BIT(int bit)
+{
+    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);
+    PyObject *result = callmethod(callback, "set_motion_output_bit", "i", bit);
+    if(result == NULL) interp_error ++;
+    Py_XDECREF(result);
+    printf("%s: (%s:%d): end\n", __FILE__, __FUNCTION__, __LINE__);
+}
 void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type, double timeout, unsigned char now) {}
 void SET_MOTION_OUTPUT_VALUE(int index, double value) {}
 void TURN_PROBE_ON() {}
