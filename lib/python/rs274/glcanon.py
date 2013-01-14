@@ -346,16 +346,18 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
         self.block_feed = self.feedrate
         self.path.append(('M4', self.lineno))
+        
+    def program_end(self):
+        # M2/M30
+        self.path.append(('M2', self.lineno))
 
     def clear_motion_output_bit(self, arg):
         # M63 P-
-        print "glcanon.py: M63 P%d" % arg
         self.path.append(('M63', self.lineno, arg))
 
 
     def set_motion_output_bit(self, arg):
         # M62 P-
-        print "glcanon.py: M62 P%d" % arg
         self.path.append(('M62', self.lineno, arg))
   
     def highlight2(self, lineno, geometry):
