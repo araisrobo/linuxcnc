@@ -630,7 +630,9 @@ void SET_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_VALUE(int index, double value) {}
 void CLEAR_MOTION_OUTPUT_BIT(int bit)
 {
-    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);
+//    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);
+    maybe_new_line();
+    if(interp_error) return;
     PyObject *result = callmethod(callback, "clear_motion_output_bit", "i", bit);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
@@ -638,7 +640,9 @@ void CLEAR_MOTION_OUTPUT_BIT(int bit)
 }
 void SET_MOTION_OUTPUT_BIT(int bit)
 {
-    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);
+//    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);
+    maybe_new_line();
+    if(interp_error) return;
     PyObject *result = callmethod(callback, "set_motion_output_bit", "i", bit);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
