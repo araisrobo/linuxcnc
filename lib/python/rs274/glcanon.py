@@ -579,6 +579,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         coords = []
         for line in self.traverse:
             if line[0] != lineno: continue
+            linuxcnc.line9(geometry, line[1], line[2])
             coords.append(line[1][:3])
             coords.append(line[2][:3])
         for line in self.arcfeed:
@@ -586,18 +587,13 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             linuxcnc.line9(geometry, line[1], line[2])
             coords.append(line[1][:3])
             coords.append(line[2][:3])
-        for line in self.arcfeed:                 # duplicated?     
-            if line[0] != lineno: continue        # duplicated?      
-            linuxcnc.line9(geometry, line[1], line[2]) # duplicated?        
-            coords.append(line[1][:3])            # duplicated?      
-            coords.append(line[2][:3])            # duplicated?    
         for line in self.feed:
             if line[0] != lineno: continue
             linuxcnc.line9(geometry, line[1], line[2])
             coords.append(line[1][:3])
             coords.append(line[2][:3])
         glEnd()
-        for line in self.dwells: 
+        for line in self.dwells:
             if line[0] != lineno: continue
             self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
             coords.append(line[2:5])
@@ -620,14 +616,11 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def draw(self, for_selection=0, no_traverse=True):
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
-            # print 'colored :traverse', 'for_selection:',for_selection
             self.colored_lines('traverse', self.traverse, for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
-            # print 'colored : straight_feed', 'for_selection:',for_selection
             self.colored_lines('straight_feed', self.feed, for_selection, len(self.traverse))
 
-            # print 'colored : arc_feed', 'for_selection:',for_selection
             self.colored_lines('arc_feed', self.arcfeed, for_selection, len(self.traverse) + len(self.feed))
 
             glLineWidth(2)
@@ -665,22 +658,20 @@ class GlCanonDraw:
         'backplotprobing': (0.63, 0.13, 0.94),
         'backplottraverse': (0.30, 0.50, 0.50),
         'label_ok': (1.00, 0.51, 0.53),
-        #'backplotjog_alpha': 0,
         'backplotjog_alpha': 0.75,
         'tool_diffuse': (0.60, 0.60, 0.60),
         'backplotfeed': (0.75, 0.25, 0.25),
         'back': (0.00, 0.00, 0.00),
         'lathetool_alpha': 0.10,
-        'axis_x': (0, 0, 0),
-        # 'axis_x': (0.20, 1.00, 0.20), # original
+        # 'axis_x': (0, 0, 0),
+        'axis_x': (0.20, 1.00, 0.20), # original
         'cone': (1.00, 1.00, 0.00), # yellow
-        # 'cone': (1.00, 1.00, 1.00), # green 
+        # 'cone': (1.00, 1.00, 1.00), # original
         'cone_xy': (0.00, 1.00, 0.00),
         'cone_uv': (0.00, 0.00, 1.00),
-        'axis_z': (0, 0, 0),
-        # 'axis_z': (0.20, 0.20, 1.00),
+        # 'axis_z': (0, 0, 0),
+        'axis_z': (0.20, 0.20, 1.00),
         'label_limit': (1.00, 0.21, 0.23),
-        # 'backplotjog': (0, 0, 0),
         'backplotjog': (1.00, 1.00, 0.00),
         'selected': (0.00, 1.00, 1.00),
         'lathetool': (0.80, 0.80, 0.80),
@@ -710,8 +701,8 @@ class GlCanonDraw:
         'arc_feed_alpha_xy': 1/3.,
         'arc_feed_uv': (0.20, 0.20, 1.00),
         'arc_feed_alpha_uv': 1/3.,
-        # 'axis_y': (1.00, 0.20, 0.20),
-        'axis_y': (0, 0, 0),
+        'axis_y': (1.00, 0.20, 0.20), # original color
+        # 'axis_y': (0, 0, 0),
         'grid': (0.15, 0.15, 0.15),
     }
     def __init__(self, s, lp, g=None):
@@ -1634,13 +1625,12 @@ class GlCanonDraw:
     def cache_tool(self, current_tool):
         self.cached_tool = current_tool
         glNewList(self.dlist('tool'), GL_COMPILE)
-        if self.is_lathe() and current_tool and current_tool.orientation != 0: #\
-        #and self.fix_tool_size == False:
+        if self.is_lathe() and current_tool and current_tool.orientation != 0:
             glBlendColor(0,0,0,self.colors['lathetool_alpha'])
             self.lathetool(current_tool)
         else:
             glBlendColor(0,0,0,self.colors['tool_alpha'])
-            if self.is_lathe() and self.fix_tool_size == False:
+            if self.is_lathe():
                 glRotatef(90, 0, 1, 0)
             else:
                 if self.fix_tool_size == True:
@@ -1838,6 +1828,7 @@ class GlCanonDraw:
         glEndList()
 
     def draw_axes(self, n, letters="XYZ"):
+        return  # bypass draw_axes as it might overlay on the program path
         glNewList(n, GL_COMPILE)
         x,y,z,p = 0,1,2,3
         s = self.stat
