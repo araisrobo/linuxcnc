@@ -212,12 +212,6 @@ const char *probe_config= "0x00010000";         // probing input channel
 RTAPI_MP_STRING(probe_config,
         "probe config for RISC");
 
-const char *jog_config_str[MAX_CHAN] =
-{ "0x00000000", "0x00000000", "0x00000000", "0x00000000",
-        "0x00000000", "0x00000000", "0x00000000", "0x00000000" };
-RTAPI_MP_ARRAY_STRING(jog_config_str, MAX_CHAN,
-        "jog config for RISC");
-
 const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
         "indicate probing level used by analog probing");
@@ -263,7 +257,6 @@ typedef struct {
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
-    hal_float_t *pos_scale_pin; /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
@@ -289,16 +282,12 @@ typedef struct {
     int32_t     pulse_jerk;     /* jerk in pulse */
 
     /* motion type be set */
-    int32_t motion_type;          /* motion type wrote to risc */
+    int32_t motion_type;        /* motion type wrote to risc */
 
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
-    uint32_t      jog_config;   /* for risc jogging */
-    hal_float_t   *jog_scale;   /* for risc jogging */
-    hal_float_t   *jog_vel;
 
-    hal_bit_t     *jog_enable;
-    int8_t        prev_jog_enable;
-    double       prev_jog_vel;
+    hal_float_t   *risc_jog_vel;     /* for RISC-Jogging */
+    double       prev_risc_jog_vel;
 
     hal_bit_t   *homing;
     hal_float_t *risc_probe_vel;
@@ -876,7 +865,6 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    uint32_t jog_config_value, max_pulse_tick;
     double max_vel, max_accel, pos_scale, value, max_following_error;//, probe_decel;
     double max_jerk;
     int msg;
@@ -1197,7 +1185,7 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_DBG,
                 "j[%d] max_vel(%d) = %f*%f*%f*%f\n",
                 n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
-        max_pulse_tick = immediate_data;
+//        max_pulse_tick = immediate_data;
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
         while(wou_flush(&w_param) == -1);
@@ -1251,16 +1239,9 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
         while(wou_flush(&w_param) == -1);
 
-        /* config jog setting */
-        jog_config_value = strtoul(jog_config_str[n],NULL, 16);
-        jog_config_value &= 0x000FFFFF;
-        //        jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
-        /* set jog velocity as 0.5*MAX_JOINT_VEL */
-        jog_config_value |= ((max_pulse_tick << 3) & 0xFFF00000); // ignore fraction part
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                "j[%d] JOG_CONFIG(0x%0X)\n",
-                n, jog_config_value);
-        write_mot_param (n, (JOG_CONFIG), jog_config_value);
+        /* set default jog velocity as 0*/
+        immediate_data = 0;
+        write_mot_param (n, (JOG_VEL), immediate_data);
         while(wou_flush(&w_param) == -1);
     }
 
@@ -1416,8 +1397,6 @@ static void update_freq(void *arg, long period)
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     uint32_t sync_out_data;
     uint32_t tmp;
-
-    uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
@@ -1660,38 +1639,19 @@ static void update_freq(void *arg, long period)
 
         *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
 
-        /* begin: handle jog config for RISC */
-        if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.01) {
-            double vel;
+        /* begin: RISC-Jogging */
+        if (*stepgen->risc_jog_vel != stepgen->prev_risc_jog_vel) {
             /* config jog setting */
-            vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
-            if (vel > stepgen->maxvel) {
-                fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
-                vel = stepgen->maxvel;
-                (*stepgen->jog_vel) = vel;
-            }
-            fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
-            jog_var = abs((uint32_t) (vel * (*stepgen->pos_scale_pin) * dt));
-            new_jog_config = (jog_var << 20) | (stepgen->jog_config & 0x000FFFFF);
-            new_jog_config = (new_jog_config & 0xFFF0FFFF);
-            new_jog_config |= (*stepgen->jog_enable) << 16;
-            write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
-            stepgen->jog_config = new_jog_config;
+            assert (fabs(*stepgen->risc_jog_vel) < stepgen->maxvel);
+
+            /* JOG_VEL: 16.16 format */
+            immediate_data = (int32_t)((*stepgen->risc_jog_vel) * stepgen->pos_scale * dt * FIXED_POINT_SCALE);
+            printf("debug: j[%d]->risc_jog_vel(0x%08X)\n", n, immediate_data);
+            write_mot_param (n, (JOG_VEL), immediate_data);
+            stepgen->prev_risc_jog_vel = *stepgen->risc_jog_vel;
         }
+        /* end: RISC-Jogging */
 
-
-        if (stepgen->prev_jog_enable != *stepgen->jog_enable) {
-            new_jog_config = (stepgen->jog_config & 0xFFF0FFFF);
-            new_jog_config |= (*stepgen->jog_enable) << 16;
-            write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            stepgen->prev_jog_enable = *stepgen->jog_enable;
-            stepgen->jog_config = new_jog_config;
-        }
-        /* end: handle jog config for RISC */
-
-
-        *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         *(stepgen->risc_pos_cmd) = (*stepgen->cmd_fbs) * stepgen->scale_recip;
 
@@ -2007,12 +1967,6 @@ static int export_stepgen(int num, stepgen_t * addr,
         int pos_mode)
 {
     int retval, msg;
-    uint32_t max_pulse_tick, jog_config_value;
-    double pos_scale, max_vel;
-    pos_scale   = fabs(atof(pos_scale_str[num]));
-    max_vel     = atof(max_vel_str[num]);
-
-
 
     /* This function exports a lot of stuff, which results in a lot of
        logging if msg_level is at INFO or ALL. So we save the current value
@@ -2068,18 +2022,10 @@ static int export_stepgen(int num, stepgen_t * addr,
     }
 
     /* export parameter for position scaling */
-    retval = hal_param_float_newf(HAL_RW, &(addr->pos_scale), comp_id,
-            "wou.stepgen.%d.position-scale", num);
+    retval = hal_param_float_newf(HAL_RW, &(addr->pos_scale), comp_id, "wou.stepgen.%d.position-scale", num);
     if (retval != 0) {
         return retval;
     }
-
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->pos_scale_pin), comp_id,
-            "wou.stepgen.%d.position-scale-pin", num);
-    if (retval != 0) {
-        return retval;
-    }
-
 
     /* export pin for pos/vel command */
     retval = hal_pin_float_newf(HAL_IN, &(addr->pos_cmd), comp_id,
@@ -2162,20 +2108,7 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
-    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_scale), comp_id,
-            "wou.stepgen.%d.jog-scale", num);
-    if (retval != 0) {
-        return retval;
-    }
-
-    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_vel), comp_id,
-            "wou.stepgen.%d.jog-vel", num);
-    if (retval != 0) {
-        return retval;
-    }
-
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->jog_enable), comp_id,
-            "wou.stepgen.%d.jog-enable", num);
+    retval = hal_pin_float_newf(HAL_IN, &(addr->risc_jog_vel), comp_id, "wou.stepgen.%d.risc-jog-vel", num);
     if (retval != 0) {
         return retval;
     }
@@ -2250,18 +2183,10 @@ static int export_stepgen(int num, stepgen_t * addr,
     addr->pulse_vel = 0;
     addr->pulse_accel = 0;
     addr->pulse_jerk = 0;
-    *(addr->jog_scale) = 1.0;
-    /* config jog setting */
-    max_pulse_tick = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);
-    jog_config_value = strtoul(jog_config_str[num],NULL, 16);
-    jog_config_value &= 0x000FFFFF;
-    jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
-    *(addr->jog_vel) = max_vel * 0.5; // not make default jog vel too large
-    addr->prev_jog_vel = (*addr->jog_vel) * (*addr->jog_scale);
-    addr->jog_config = jog_config_value;
 
-    *addr->jog_enable = ((addr->jog_config) & 0x000F0000) >> 16;
-    addr->prev_jog_enable = *addr->jog_enable;
+    addr->prev_risc_jog_vel = 0;
+    *addr->risc_jog_vel = 0;
+
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
