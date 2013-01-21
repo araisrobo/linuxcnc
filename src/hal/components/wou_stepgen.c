@@ -483,13 +483,13 @@ static void fetchmail(const uint8_t *buf_head)
         stepgen = stepgen_array;
         for (i=0; i<num_joints; i++) {
             p += 1;
-            *(stepgen->pulse_pos) = *p;
+            *(stepgen->pulse_pos) = (int32_t)*p;
             p += 1;
-            *(stepgen->enc_pos) = *p;
+            *(stepgen->enc_pos) = (int32_t)*p;
             p += 1;
-            *(stepgen->cmd_fbs) = *p;
+            *(stepgen->cmd_fbs) = (int32_t)*p;
             p += 1;
-            stepgen->enc_vel_p  = *p; // encoder velocity in pulses per servo-period
+            stepgen->enc_vel_p  = (int32_t)*p; // encoder velocity in pulses per servo-period
             stepgen += 1;   // point to next joint
         }
 
@@ -526,8 +526,7 @@ static void fetchmail(const uint8_t *buf_head)
         }
 
         // ADC_SPI (raw ADC value)
-        p += 1;
-        *(analog->in[0]) = *p;
+        p += 1; *(analog->in[0]) = *p;
         p += 1; *(analog->in[1]) = *p;
         p += 1; *(analog->in[2]) = *p;
         p += 1; *(analog->in[3]) = *p;
@@ -535,14 +534,14 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[5]) = *p;
         p += 1; *(analog->in[6]) = *p;
         p += 1; *(analog->in[7]) = *p;
-        p += 1; *(analog->in[8]) = *p;
-        p += 1; *(analog->in[9]) = *p;
-        p += 1; *(analog->in[10]) = *p;
-        p += 1; *(analog->in[11]) = *p;
-        p += 1; *(analog->in[12]) = *p;
-        p += 1; *(analog->in[13]) = *p;
-        p += 1; *(analog->in[14]) = *p;
-        p += 1; *(analog->in[15]) = *p;
+//        p += 1; *(analog->in[8]) = *p;
+//        p += 1; *(analog->in[9]) = *p;
+//        p += 1; *(analog->in[10]) = *p;
+//        p += 1; *(analog->in[11]) = *p;
+//        p += 1; *(analog->in[12]) = *p;
+//        p += 1; *(analog->in[13]) = *p;
+//        p += 1; *(analog->in[14]) = *p;
+//        p += 1; *(analog->in[15]) = *p;
 
         // MPG
         p += 1;
@@ -561,6 +560,8 @@ static void fetchmail(const uint8_t *buf_head)
         }
         *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
         *machine_control->machine_moving = (machine_status >> MACHINE_MOVING_BIT) & 1;
+        p += 1;
+        *machine_control->wou_status = *p;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -612,6 +613,7 @@ static void fetchmail(const uint8_t *buf_head)
         /* probe status */
         p += 1;
         *machine_control->wou_status = *p;
+//        printf("wou_status(0x%08X)\n", *machine_control->wou_status);
         break;
 
     case MT_DEBUG:
@@ -620,7 +622,7 @@ static void fetchmail(const uint8_t *buf_head)
 #if (DEBUG_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
 #endif
-        for (i=0; i<32; i++) {
+        for (i=0; i<8; i++) {
             p += 1;
             *machine_control->debug[i] = *p;
 
@@ -659,12 +661,10 @@ static void fetchmail(const uint8_t *buf_head)
     case MT_PROBED_POS:
         stepgen = stepgen_array;
         p = (uint32_t *) (buf_head + 4);
-
         for (i=0; i<num_joints; i++) {
             p += 1;
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
-
         }
         break;
 
