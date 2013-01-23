@@ -1456,7 +1456,7 @@ static void update_freq(void *arg, long period)
     //     rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-    wou_status (&w_param); // print usb bandwidth utilization
+    // wou_status (&w_param); // print usb bandwidth utilization
     wou_update(&w_param);   // link to wou_recv()
 
     /* begin: sending debug pattern */
