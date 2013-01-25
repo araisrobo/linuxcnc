@@ -43,7 +43,8 @@
 #define MAX_STEP_CUR 255
 #define PLASMA_ON_BIT 0x02
 #define FRACTION_BITS 16
-#define FIXED_POINT_SCALE   65536.0     // (double (1 << FRACTION_BITS))
+#define FIXED_POINT_SCALE   65536.0             // (double (1 << FRACTION_BITS))
+#define FP_SCALE_RECIP      0.0000152587890625  // (1.0/65536.0)
 #define FRACTION_MASK 0x0000FFFF
 #define PID_LOOP 8
 #define SON_DELAY_TICK  1500
@@ -212,12 +213,6 @@ const char *probe_config= "0x00010000";         // probing input channel
 RTAPI_MP_STRING(probe_config,
         "probe config for RISC");
 
-const char *jog_config_str[MAX_CHAN] =
-{ "0x00000000", "0x00000000", "0x00000000", "0x00000000",
-        "0x00000000", "0x00000000", "0x00000000", "0x00000000" };
-RTAPI_MP_ARRAY_STRING(jog_config_str, MAX_CHAN,
-        "jog config for RISC");
-
 const char *probe_analog_ref_level= "2048";
 RTAPI_MP_STRING(probe_analog_ref_level,
         "indicate probing level used by analog probing");
@@ -263,7 +258,6 @@ typedef struct {
     hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
-    hal_float_t *pos_scale_pin; /* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
@@ -275,7 +269,6 @@ typedef struct {
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *risc_pos_cmd;  /* pin: position command issued by RISC (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
-    double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
     hal_bit_t *ferror_flag;     /* following error flag from risc */
     hal_float_t freq;		/* param: frequency command */
     hal_float_t maxvel;		/* param: max velocity, (pos units/sec) */
@@ -289,16 +282,13 @@ typedef struct {
     int32_t     pulse_jerk;     /* jerk in pulse */
 
     /* motion type be set */
-    int32_t motion_type;          /* motion type wrote to risc */
+    int32_t motion_type;        /* motion type wrote to risc */
 
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
-    uint32_t      jog_config;   /* for risc jogging */
-    hal_float_t   *jog_scale;   /* for risc jogging */
-    hal_float_t   *jog_vel;
+    int32_t     enc_vel_p;      /* encoder velocity in pulse per servo-period */
 
-    hal_bit_t     *jog_enable;
-    int8_t        prev_jog_enable;
-    double       prev_jog_vel;
+    hal_float_t   *risc_jog_vel;     /* for RISC-Jogging */
+    double       prev_risc_jog_vel;
 
     hal_bit_t   *homing;
     hal_float_t *risc_probe_vel;
@@ -328,7 +318,6 @@ typedef struct {
     hal_float_t *feed_scale;
     hal_bit_t   *vel_sync;  /* A pin to determine when (vel * feedscale) beyond (req_vel * vel_sync_scale) */
     hal_bit_t   *rt_abort;  // realtime abort to FPGA
-    hal_bit_t   *cl_abort;  // realtime abort from CL to FPGA
     /* plasma control */
     hal_bit_t   *thc_enbable;
     //TODO: replace plasma enable with output enable for each pin.
@@ -481,6 +470,8 @@ static void fetchmail(const uint8_t *buf_head)
         // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
         return;
     }
+
+    machine_control->prev_bp = *machine_control->bp_tick;
     *machine_control->bp_tick = bp_tick;
 
     switch(mail_tag)
@@ -490,15 +481,14 @@ static void fetchmail(const uint8_t *buf_head)
         //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
         stepgen = stepgen_array;
         for (i=0; i<num_joints; i++) {
-            // PULSE_POS
             p += 1;
-            *(stepgen->pulse_pos) = *p;
-            // enc counter
+            *(stepgen->pulse_pos) = (int32_t)*p;
             p += 1;
-            *(stepgen->enc_pos) = *p;
+            *(stepgen->enc_pos) = (int32_t)*p;
             p += 1;
-            *(stepgen->cmd_fbs) = ((int32_t)*p);
+            *(stepgen->cmd_fbs) = (int32_t)*p;
             p += 1;
+            stepgen->enc_vel_p  = (int32_t)*p; // encoder velocity in pulses per servo-period
             stepgen += 1;   // point to next joint
         }
 
@@ -535,8 +525,7 @@ static void fetchmail(const uint8_t *buf_head)
         }
 
         // ADC_SPI (raw ADC value)
-        p += 1;
-        *(analog->in[0]) = *p;
+        p += 1; *(analog->in[0]) = *p;
         p += 1; *(analog->in[1]) = *p;
         p += 1; *(analog->in[2]) = *p;
         p += 1; *(analog->in[3]) = *p;
@@ -544,14 +533,14 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1; *(analog->in[5]) = *p;
         p += 1; *(analog->in[6]) = *p;
         p += 1; *(analog->in[7]) = *p;
-        p += 1; *(analog->in[8]) = *p;
-        p += 1; *(analog->in[9]) = *p;
-        p += 1; *(analog->in[10]) = *p;
-        p += 1; *(analog->in[11]) = *p;
-        p += 1; *(analog->in[12]) = *p;
-        p += 1; *(analog->in[13]) = *p;
-        p += 1; *(analog->in[14]) = *p;
-        p += 1; *(analog->in[15]) = *p;
+//        p += 1; *(analog->in[8]) = *p;
+//        p += 1; *(analog->in[9]) = *p;
+//        p += 1; *(analog->in[10]) = *p;
+//        p += 1; *(analog->in[11]) = *p;
+//        p += 1; *(analog->in[12]) = *p;
+//        p += 1; *(analog->in[13]) = *p;
+//        p += 1; *(analog->in[14]) = *p;
+//        p += 1; *(analog->in[15]) = *p;
 
         // MPG
         p += 1;
@@ -570,6 +559,8 @@ static void fetchmail(const uint8_t *buf_head)
         }
         *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
         *machine_control->machine_moving = (machine_status >> MACHINE_MOVING_BIT) & 1;
+        p += 1;
+        *machine_control->wou_status = *p;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -621,6 +612,7 @@ static void fetchmail(const uint8_t *buf_head)
         /* probe status */
         p += 1;
         *machine_control->wou_status = *p;
+//        printf("wou_status(0x%08X)\n", *machine_control->wou_status);
         break;
 
     case MT_DEBUG:
@@ -629,7 +621,7 @@ static void fetchmail(const uint8_t *buf_head)
 #if (DEBUG_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
 #endif
-        for (i=0; i<32; i++) {
+        for (i=0; i<8; i++) {
             p += 1;
             *machine_control->debug[i] = *p;
 
@@ -668,12 +660,10 @@ static void fetchmail(const uint8_t *buf_head)
     case MT_PROBED_POS:
         stepgen = stepgen_array;
         p = (uint32_t *) (buf_head + 4);
-
         for (i=0; i<num_joints; i++) {
             p += 1;
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
-
         }
         break;
 
@@ -750,7 +740,7 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
 
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&sync_cmd);
     while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
-//    printf("end of send_sync_cmd\n");
+    DP ("end of send_sync_cmd\n");
 
     return;
 }
@@ -862,7 +852,7 @@ static void write_machine_param (uint32_t addr, int32_t data)
             sizeof(uint16_t), buf);
 
     while(wou_flush(&w_param) == -1);
-    DP("end of write_machine_param\n");
+    DP ("end of write_machine_param(%u)\n", addr);     // addr(32): MACHINE_CTRL ... updated when accel_state changes
     return;
 }
 
@@ -876,7 +866,6 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    uint32_t jog_config_value, max_pulse_tick;
     double max_vel, max_accel, pos_scale, value, max_following_error;//, probe_decel;
     double max_jerk;
     int msg;
@@ -1197,7 +1186,7 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_DBG,
                 "j[%d] max_vel(%d) = %f*%f*%f*%f\n",
                 n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
-        max_pulse_tick = immediate_data;
+//        max_pulse_tick = immediate_data;
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
         while(wou_flush(&w_param) == -1);
@@ -1251,16 +1240,9 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
         while(wou_flush(&w_param) == -1);
 
-        /* config jog setting */
-        jog_config_value = strtoul(jog_config_str[n],NULL, 16);
-        jog_config_value &= 0x000FFFFF;
-        //        jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
-        /* set jog velocity as 0.5*MAX_JOINT_VEL */
-        jog_config_value |= ((max_pulse_tick << 3) & 0xFFF00000); // ignore fraction part
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                "j[%d] JOG_CONFIG(0x%0X)\n",
-                n, jog_config_value);
-        write_mot_param (n, (JOG_CONFIG), jog_config_value);
+        /* set default jog velocity as 0*/
+        immediate_data = 0;
+        write_mot_param (n, (JOG_VEL), immediate_data);
         while(wou_flush(&w_param) == -1);
     }
 
@@ -1391,8 +1373,7 @@ static void update_rt_cmd(void)
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     int32_t immediate_data = 0;
     if (machine_control) {
-        if (*machine_control->rt_abort == 1 ||
-                *machine_control->cl_abort == 1) {
+        if (*machine_control->rt_abort == 1) {
             immediate_data = RT_ABORT;
             memcpy(data, &immediate_data, sizeof(uint32_t));
             rt_wou_cmd (&w_param, 
@@ -1416,8 +1397,6 @@ static void update_freq(void *arg, long period)
     uint8_t data[MAX_DSIZE];    // data[]: for wou_cmd()
     uint32_t sync_out_data;
     uint32_t tmp;
-
-    uint32_t jog_var, new_jog_config;
     int32_t immediate_data = 0;
 #if (TRACE!=0)
     static uint32_t _dt = 0;
@@ -1477,7 +1456,7 @@ static void update_freq(void *arg, long period)
     //     rtapi_set_msg_level(RTAPI_MSG_ALL);
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
-//    wou_status (&w_param); // print usb bandwidth utilization
+    // wou_status (&w_param); // print usb bandwidth utilization
     wou_update(&w_param);   // link to wou_recv()
 
     /* begin: sending debug pattern */
@@ -1660,52 +1639,35 @@ static void update_freq(void *arg, long period)
 
         *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
 
-        /* begin: handle jog config for RISC */
-        if (abs(((*stepgen->jog_vel) * (*stepgen->jog_scale)) - stepgen->prev_jog_vel) > 0.01) {
-            double vel;
+        /* begin: RISC-Jogging */
+        if (*stepgen->risc_jog_vel != stepgen->prev_risc_jog_vel) {
             /* config jog setting */
-            vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
-            if (vel > stepgen->maxvel) {
-                fprintf(stderr,"jog vel beyond max vel (%d)\n", n);
-                vel = stepgen->maxvel;
-                (*stepgen->jog_vel) = vel;
+            // this do happens: assert (fabs(*stepgen->risc_jog_vel) < stepgen->maxvel);
+            if (fabs(*stepgen->risc_jog_vel) > stepgen->maxvel) {
+                rtapi_print_msg(RTAPI_MSG_ERR,
+                        "fabs(stepgen.%02d.risc-jog-vel(%f)) should be less than maxvel(%f)\n",
+                        n, *stepgen->risc_jog_vel, stepgen->maxvel);
+                if (*stepgen->risc_jog_vel < 0) {
+                    *stepgen->risc_jog_vel = -stepgen->maxvel;
+                } else {
+                    *stepgen->risc_jog_vel = stepgen->maxvel;
+                }
             }
-            fprintf(stderr,"pos_scale(%f)\n", *stepgen->pos_scale_pin);
-            jog_var = abs((uint32_t) (vel * (*stepgen->pos_scale_pin) * dt));
-            new_jog_config = (jog_var << 20) | (stepgen->jog_config & 0x000FFFFF);
-            new_jog_config = (new_jog_config & 0xFFF0FFFF);
-            new_jog_config |= (*stepgen->jog_enable) << 16;
-            write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            stepgen->prev_jog_vel = (*stepgen->jog_vel) * (*stepgen->jog_scale);
-            stepgen->jog_config = new_jog_config;
+
+            /* JOG_VEL: 16.16 format */
+            immediate_data = (int32_t)((*stepgen->risc_jog_vel) * stepgen->pos_scale * dt * FIXED_POINT_SCALE);
+            DP("Update j[%d]->risc_jog_vel(0x%08X)\n", n, immediate_data);
+            write_mot_param (n, (JOG_VEL), immediate_data);
+            stepgen->prev_risc_jog_vel = *stepgen->risc_jog_vel;
         }
+        /* end: RISC-Jogging */
 
-
-        if (stepgen->prev_jog_enable != *stepgen->jog_enable) {
-            new_jog_config = (stepgen->jog_config & 0xFFF0FFFF);
-            new_jog_config |= (*stepgen->jog_enable) << 16;
-            write_mot_param (n, (JOG_CONFIG), new_jog_config);
-            stepgen->prev_jog_enable = *stepgen->jog_enable;
-            stepgen->jog_config = new_jog_config;
-        }
-        /* end: handle jog config for RISC */
-
-
-        *stepgen->pos_scale_pin = stepgen->pos_scale; // export pos_scale
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         *(stepgen->risc_pos_cmd) = (*stepgen->cmd_fbs) * stepgen->scale_recip;
 
-        // update velocity-feedback only after encoder movement
-        if ((*machine_control->bp_tick - machine_control->prev_bp) > 0/* ((int32_t)VEL_UPDATE_BP) */) {
-            *(stepgen->vel_fb) = ((*stepgen->pos_fb - stepgen->prev_pos_fb) * recip_dt
-                    / (*machine_control->bp_tick - machine_control->prev_bp)
-            );
-            stepgen->prev_pos_fb = *stepgen->pos_fb;
-            if (n == (num_joints - 1)) {
-                // update bp_tick for the last joint
-                machine_control->prev_bp = *machine_control->bp_tick;
-            }
-        }
+        // update velocity-feedback based on RISC-reported encoder-velocity
+        // enc_vel_p is in 16.16 pulse per servo-period format
+        *(stepgen->vel_fb) = stepgen->enc_vel_p * stepgen->scale_recip * recip_dt * FP_SCALE_RECIP;
 
         /* test for disabled stepgen */
         if (stepgen->prev_enable == 0) {
@@ -1720,10 +1682,8 @@ static void update_freq(void *arg, long period)
             (stepgen->prev_pos_cmd) = *stepgen->pos_cmd;
 
             /* clear vel status when enable = 0 */
-            stepgen->prev_pos_fb = *stepgen->pos_fb;
             *stepgen->vel_cmd = 0;
             stepgen->prev_vel_cmd = 0;
-            *(stepgen->vel_fb) = 0;
             stepgen->pulse_vel = 0;
             stepgen->pulse_accel = 0;
             stepgen->pulse_jerk = 0;
@@ -1783,7 +1743,6 @@ static void update_freq(void *arg, long period)
         {
             // do RISC_PROBE
             uint32_t dbuf[4];
-//            printf("j[%d]: homing(%d)", n, *stepgen->homing);
             dbuf[0] = RCMD_PROBE_REQ;
             dbuf[1] = n |   // joint_num
                         (*stepgen->risc_probe_type << 8) |
@@ -1793,7 +1752,6 @@ static void update_freq(void *arg, long period)
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
             assert(*stepgen->risc_probe_pin < 64);
             assert(dbuf[2] != 0);
-//            printf(" probe_vel(0x%08X, %f)\n", dbuf[2], *stepgen->risc_probe_vel);
         }
 
         //
@@ -1842,8 +1800,7 @@ static void update_freq(void *arg, long period)
             if (abs(integer_pos_cmd) > stepgen->pulse_maxv) {
                 pulse_accel = integer_pos_cmd - stepgen->pulse_vel;
                 pulse_jerk = pulse_accel - stepgen->pulse_accel;
-                printf("j[%d], pos_fb(%f) prev_pos_fb(%f)\n",
-                        n, (*stepgen->pos_fb), (stepgen->prev_pos_fb));
+                printf("j[%d], pos_fb(%f) \n", n, (*stepgen->pos_fb));
                 printf("j[%d], vel_cmd(%f) pos_cmd(%f) prev_pos_cmd(%f)\n",
                         n, *stepgen->vel_cmd, (*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
                 printf("j[%d], pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
@@ -2007,12 +1964,6 @@ static int export_stepgen(int num, stepgen_t * addr,
         int pos_mode)
 {
     int retval, msg;
-    uint32_t max_pulse_tick, jog_config_value;
-    double pos_scale, max_vel;
-    pos_scale   = fabs(atof(pos_scale_str[num]));
-    max_vel     = atof(max_vel_str[num]);
-
-
 
     /* This function exports a lot of stuff, which results in a lot of
        logging if msg_level is at INFO or ALL. So we save the current value
@@ -2068,18 +2019,10 @@ static int export_stepgen(int num, stepgen_t * addr,
     }
 
     /* export parameter for position scaling */
-    retval = hal_param_float_newf(HAL_RW, &(addr->pos_scale), comp_id,
-            "wou.stepgen.%d.position-scale", num);
+    retval = hal_param_float_newf(HAL_RW, &(addr->pos_scale), comp_id, "wou.stepgen.%d.position-scale", num);
     if (retval != 0) {
         return retval;
     }
-
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->pos_scale_pin), comp_id,
-            "wou.stepgen.%d.position-scale-pin", num);
-    if (retval != 0) {
-        return retval;
-    }
-
 
     /* export pin for pos/vel command */
     retval = hal_pin_float_newf(HAL_IN, &(addr->pos_cmd), comp_id,
@@ -2124,8 +2067,8 @@ static int export_stepgen(int num, stepgen_t * addr,
     }
 
     /* export pin for velocity feedback (unit/sec) */
-    retval = hal_pin_float_newf(HAL_IN, &(addr->vel_fb), comp_id,
-            "wou.stepgen.%d.velocity-fb", num);
+    retval = hal_pin_float_newf(HAL_OUT, &(addr->vel_fb), comp_id,
+            "wou.stepgen.%d.vel-fb", num);
     if (retval != 0) {
         return retval;
     }
@@ -2162,20 +2105,7 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
-    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_scale), comp_id,
-            "wou.stepgen.%d.jog-scale", num);
-    if (retval != 0) {
-        return retval;
-    }
-
-    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_vel), comp_id,
-            "wou.stepgen.%d.jog-vel", num);
-    if (retval != 0) {
-        return retval;
-    }
-
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->jog_enable), comp_id,
-            "wou.stepgen.%d.jog-enable", num);
+    retval = hal_pin_float_newf(HAL_IN, &(addr->risc_jog_vel), comp_id, "wou.stepgen.%d.risc-jog-vel", num);
     if (retval != 0) {
         return retval;
     }
@@ -2231,7 +2161,6 @@ static int export_stepgen(int num, stepgen_t * addr,
        way between integer positions, not at the integer positions */
     addr->rawcount = 0;
     addr->prev_pos_cmd = 0;
-    addr->prev_pos_fb = 0;
 
     *(addr->enable) = 0;
     /* other init */
@@ -2250,18 +2179,10 @@ static int export_stepgen(int num, stepgen_t * addr,
     addr->pulse_vel = 0;
     addr->pulse_accel = 0;
     addr->pulse_jerk = 0;
-    *(addr->jog_scale) = 1.0;
-    /* config jog setting */
-    max_pulse_tick = ((uint32_t)(max_vel * pos_scale * dt * FIXED_POINT_SCALE) + 1);
-    jog_config_value = strtoul(jog_config_str[num],NULL, 16);
-    jog_config_value &= 0x000FFFFF;
-    jog_config_value |= ((max_pulse_tick << 4) & 0xFFF00000); // ignore fraction part
-    *(addr->jog_vel) = max_vel * 0.5; // not make default jog vel too large
-    addr->prev_jog_vel = (*addr->jog_vel) * (*addr->jog_scale);
-    addr->jog_config = jog_config_value;
 
-    *addr->jog_enable = ((addr->jog_config) & 0x000F0000) >> 16;
-    addr->prev_jog_enable = *addr->jog_enable;
+    addr->prev_risc_jog_vel = 0;
+    *addr->risc_jog_vel = 0;
+
     /* restore saved message level */
     rtapi_set_msg_level(msg);
     return 0;
@@ -2309,15 +2230,9 @@ static int export_machine_control(machine_control_t * machine_control)
     machine_control->num_gpio_out = num_gpio_out;
 
     // rt_abort: realtime abort command to FPGA
-    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->rt_abort), comp_id,
-            "wou.rt.abort");
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id, "wou.rt.abort");
     if (retval != 0) { return retval; }
     *(machine_control->rt_abort) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->cl_abort), comp_id,
-            "wou.cl.abort");
-    if (retval != 0) { return retval; }
-    *(machine_control->cl_abort) = 0;
 
     retval = hal_pin_bit_newf(HAL_IO, &(machine_control->align_pos_cmd), comp_id,
             "wou.align-pos-cmd");
