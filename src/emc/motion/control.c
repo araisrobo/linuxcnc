@@ -27,7 +27,7 @@
 #include "motion_debug.h"
 #include "config.h"
 #include "assert.h"
-#include "sync_cmd.h"
+#include <sync_cmd.h>
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)

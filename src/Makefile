@@ -119,12 +119,15 @@ ifneq ($(BUILD_DOCS),no)
 	SUBDIRS += ../docs/src
 endif
 
+ifneq ($(WOU_VERSION),)
+	SUBDIRS += hal/drivers/ar-usb
+endif
+
 ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c
 
 # Each item in INCLUDES is transformed into a -I directive later on
 # The top directory is always included
 INCLUDES := .
-
 USERSRCS :=
 PROGRAMS :=
 
@@ -668,7 +671,6 @@ endif
 # for libwou
 ifneq ($(WOU_VERSION),)
 EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB
-# EXTRALINK += $(WOU_LIBS)
 LDFLAGS += $(WOU_LIBS)
 endif
 
@@ -711,9 +713,9 @@ stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
 # WOU: wishbone over usb
 # wou.o is composed of (multiple) wou-objs
 obj-$(CONFIG_WOU) += wou.o
-wou-objs := hal/components/wou_stepgen.o $(MATHSTUB)
+wou-objs := hal/drivers/ar-usb/wou_stepgen.o $(MATHSTUB)
 obj-$(CONFIG_WOU_SIM) += wou_sim.o
-wou_sim-objs := hal/components/wou_sim.o $(MATHSTUB)
+wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -911,7 +913,7 @@ endif
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
 ifeq ($(BUILD_SYS),sim)
-EXTRA_CFLAGS += -fPIC
+# EXTRA_CFLAGS += -fPIC
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
@@ -933,7 +935,7 @@ $(sort $(RTDEPS)): depends/rt%.d: %.c
 $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	$(ECHO) Compiling realtime $<
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) -c $(OPT) $(DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
+	$(Q)$(CC) -c $(OPT) $(DEBUG) $(INCLUDE) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) $< -o $@
 endif
 
 ifeq ($(BUILD_SYS),normal)
@@ -951,7 +953,7 @@ $(sort $(RTDEPS)): depends/rt%.d: %.c
 $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	$(ECHO) Compiling realtime $<
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) -c -DRTAPI -nostdinc -isystem $(shell $(CC) -print-file-name=include) -I$(KERNELDIR)/include $(EXTRA_CFLAGS) $< -o $@
+	$(Q)$(CC) -c -DRTAPI -nostdinc -isystem $(shell $(CC) -print-file-name=include) -I$(KERNELDIR)/include $(INCLUDE) $(EXTRA_CFLAGS) $< -o $@
 
 ../rtlib/%.o:
 	$(ECHO) Linking $@
