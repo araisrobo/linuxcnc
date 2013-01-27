@@ -149,7 +149,7 @@ $(call ASSERT_EMPTY,$(filter-out %.c %.cc, $(USERSRCS)))
 $(call ASSERT_EMPTY,$(filter-out %.c, $(RTSRCS)))
 
 ifeq ($(BUILD_PYTHON),yes)
-$(call TOOBJSDEPS,$(PYSRCS)) : EXTRAFLAGS += -fPIC $(call cc-option,-fno-strict-aliasing)
+$(call TOOBJSDEPS,$(PYSRCS)) : EXTRAFLAGS += $(call cc-option,-fno-strict-aliasing)
 USERSRCS += $(PYSRCS)
 endif
 
@@ -190,6 +190,14 @@ DEBUG := -g -Wall
 # DEBUG := -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
+
+UNAME_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
+ifeq ($(UNAME_M),armv7l)
+# need -fPIC for arm with -O0
+CFLAGS += -fPIC
+CXXFLAGS += -fPIC
+OPT += -fPIC
+endif
 
 ifeq ($(RUN_IN_PLACE),yes)
 LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR)
@@ -913,11 +921,11 @@ endif
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
 ifeq ($(BUILD_SYS),sim)
-# EXTRA_CFLAGS += -fPIC
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
 IS_POWERPC = test `uname -m` = ppc -o `uname -m` = ppc64
+
 modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 ../rtlib/%.so:
 	$(ECHO) Linking $@
