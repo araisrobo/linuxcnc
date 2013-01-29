@@ -1,4 +1,8 @@
 # core HAL config file for simulation - 4 joint
+# load 3 differentiators for accel signals
+loadrt ddt count=3
+# load additional blocks
+loadrt hypot count=2
 
 # load RT modules
 
@@ -12,16 +16,38 @@ addf motion-controller servo-thread
 addf wou.stepgen.update-freq  servo-thread
 # create HAL signals for position commands from motion module
 # connect position commands from motion module to step generator
+addf    ddt.0           servo-thread
+addf    ddt.1           servo-thread
+addf    ddt.2           servo-thread
+addf    hypot.0         servo-thread
+addf    hypot.1         servo-thread
+# send the position commands thru differentiators to
+# generate velocity and accel signals
+net Xvel-fb     => ddt.0.in hypot.0.in0
+net Xacc        <= ddt.0.out 
+
+net Yvel-fb     => ddt.1.in hypot.0.in1
+net Yacc        <= ddt.1.out 
+
+net Zvel        => ddt.2.in hypot.1.in0
+net Zacc        <= ddt.2.out 
+
+
+# Cartesian 2- and 3-axis velocities
+net XYvel       hypot.0.out => hypot.1.in1
+net XYZvel      <= hypot.1.out
 
 # link usb command and status
 # (MUST add the following lines for USB-MOTION protocol)
-net align-cmd wou.align-pos-cmd <=> motion.align-pos-cmd
 net usb-cmd wou.usb.cmd <= motion.usb.cmd
 net usb-cmd-param0 wou.usb.param-00 <= motion.usb.param-00
 net usb-cmd-param1 wou.usb.param-01 <= motion.usb.param-01
 net usb-cmd-param2 wou.usb.param-02 <= motion.usb.param-02
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
+
+# TODO: remove align-pos-cmd
+net align-cmd wou.align-pos-cmd <=> motion.align-pos-cmd
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd # joint.0.motor-pos-fb 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd # joint.1.motor-pos-fb
@@ -31,6 +57,10 @@ net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd # joint.2.motor-po
 net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
+
+net Xvel-fb   wou.stepgen.0.vel-fb
+net Yvel-fb   wou.stepgen.1.vel-fb
+net Zvel-fb   wou.stepgen.2.vel-fb
 
 # motor_index positions
 net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
@@ -100,6 +130,11 @@ setp wou.stepgen.0.position-scale [JOINT_0]INPUT_SCALE
 setp wou.stepgen.1.position-scale [JOINT_1]INPUT_SCALE
 setp wou.stepgen.2.position-scale [JOINT_2]INPUT_SCALE
 
+# set wou module pulse_per_rev - get values from ini file
+setp wou.stepgen.0.pulse_per_rev [JOINT_0]PULSE_PER_REV
+setp wou.stepgen.1.pulse_per_rev [JOINT_1]PULSE_PER_REV
+setp wou.stepgen.2.pulse_per_rev [JOINT_2]PULSE_PER_REV
+
 # set wou module velocity limits - get values from ini file
 setp wou.stepgen.0.maxvel [JOINT_0]MAX_VELOCITY
 setp wou.stepgen.1.maxvel [JOINT_1]MAX_VELOCITY
@@ -110,10 +145,6 @@ setp wou.stepgen.0.maxaccel [JOINT_0]MAX_ACCELERATION
 setp wou.stepgen.1.maxaccel [JOINT_1]MAX_ACCELERATION
 setp wou.stepgen.2.maxaccel [JOINT_2]MAX_ACCELERATION
 
-# set wou module pulse_per_rev - get values from ini file
-setp wou.stepgen.0.pulse_per_rev [JOINT_0]PULSE_PER_REV
-setp wou.stepgen.1.pulse_per_rev [JOINT_1]PULSE_PER_REV
-setp wou.stepgen.2.pulse_per_rev [JOINT_2]PULSE_PER_REV
 
 
 
@@ -124,6 +155,7 @@ net Z_ferror_flag   wou.stepgen.2.ferror-flag => joint.2.usb-ferror-flag
 net x-probed-pos   wou.stepgen.0.probed-pos => joint.0.probed-pos
 net y-probed-pos   wou.stepgen.1.probed-pos => joint.1.probed-pos
 net z-probed-pos   wou.stepgen.2.probed-pos => joint.2.probed-pos
+net vel-sync wou.motion.vel-sync
 
 # for sync command for risc jogging
 # when program is not running or is not jogging (application should disable risc jogging as
@@ -137,16 +169,23 @@ net J1-risc-pos-cmd wou.stepgen.1.risc-pos-cmd => joint.1.risc-pos-cmd
 net J2-risc-pos-cmd wou.stepgen.2.risc-pos-cmd => joint.2.risc-pos-cmd
 
 # for usb-homing:
-setp joint.0.home-sw-id 2
-setp joint.1.home-sw-id 5
-# original homing switch: setp joint.2.home-sw-id 8
-# user LSP as homing switch for AXIS-Z:
-setp joint.2.home-sw-id 9
-
+# original homing switchs: 
+# setp joint.0.home-sw-id 2
+# setp joint.1.home-sw-id 5
+# setp joint.2.home-sw-id 8
 # home switch status from FPGA
-net home_j0     joint.0.home-sw-in  <=  wou.gpio.in.02
-net home_j1     joint.1.home-sw-in  <=  wou.gpio.in.05
+# net home_j0     joint.0.home-sw-in  <=  wou.gpio.in.02
+# net home_j1     joint.1.home-sw-in  <=  wou.gpio.in.05
 # net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.08
+
+# use LSN as homing switch for AXIS-X, AXIS-Y:
+setp joint.0.home-sw-id 4
+setp joint.1.home-sw-id 6
+# use LSP as homing switch for AXIS-Z:
+setp joint.2.home-sw-id 9
+# home switch status from FPGA
+net home_j0     joint.0.home-sw-in  <=  wou.gpio.in.04
+net home_j1     joint.1.home-sw-in  <=  wou.gpio.in.06
 net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.09
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
@@ -179,6 +218,5 @@ net machine_is_on       halui.machine.is-on => wou.machine-on wou.gpio.out.00
 net teleop_mode         wou.motion.teleop-mode <= motion.teleop-mode
 net coord_mode          wou.motion.coord-mode <= motion.coord-mode
 net homing              wou.motion.homing <= motion.homing
-
-
-
+net probe_result        wou.motion.probe-result => motion.probe-input
+net machine_is_moving   <= wou.motion.machine-is-moving
