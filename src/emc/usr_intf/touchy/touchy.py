@@ -173,6 +173,7 @@ class touchy:
 
                 self.wTree.get_object("MainWindow").window.set_cursor(None)
                 self.control_font = pango.FontDescription(self.control_font_name)
+                self.wTree.get_object("MainWindow").window.fullscreen()
 
 #                self.wTree.get_object("drofontbutton").set_font_name(self.dro_font_name)
                 # self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
