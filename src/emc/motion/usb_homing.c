@@ -64,6 +64,11 @@ static void home_start_move(emcmot_joint_t * joint, double vel, int probe_type)
     joint->risc_probe_type = probe_type;
 }
 
+static void home_stop_move(emcmot_joint_t * joint)
+{
+    joint->risc_probe_vel = 0;
+}
+
 /***********************************************************************
  *                      PUBLIC FUNCTIONS                                *
  ************************************************************************/
@@ -658,6 +663,9 @@ void do_homing(void)
                 } else {
                     joint->free_tp.max_vel = joint->vel_limit;
                 }
+
+                /* stop searching for home-switch */
+                home_stop_move(joint);
                 /* start the move */
                 joint->free_tp.enable = 1;
                 joint->home_state = HOME_FINAL_MOVE_WAIT;

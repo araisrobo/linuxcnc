@@ -337,7 +337,6 @@ typedef struct {
     int num_gpio_in;
 
     hal_u32_t   *bp_tick;       /* base-period tick obtained from fetchmail */
-    uint32_t    prev_bp;        /* previous base-period tick */
     hal_u32_t   *dout0;         /* the DOUT value obtained from fetchmail */
     hal_u32_t   *crc_error_counter;
 
@@ -466,13 +465,6 @@ static void fetchmail(const uint8_t *buf_head)
     // BP_TICK
     p = (uint32_t *) (buf_head + 4);
     bp_tick = *p;
-    if (machine_control->prev_bp == bp_tick) {
-        // skip mailbox parsing because there isn't new bp_tick
-        // rtapi_print_msg(RTAPI_MSG_WARN, "WOU: duplicate mail with bp_tick(%d), buf_head(%p)\n", bp_tick, buf_head);
-        return;
-    }
-
-    machine_control->prev_bp = *machine_control->bp_tick;
     *machine_control->bp_tick = bp_tick;
 
     switch(mail_tag)
@@ -603,38 +595,22 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         bp_tick = *p;                      
         p += 1;
-        if (ERROR_BASE_PERIOD == *p) {
-            DP("\nERROR_BASE_PERIOD occurs with code(%d) bp_tick(%d) \n", *p, bp_tick);
-        }
+        printf ("MT_ERROR_CODE: code(%d) bp_tick(%d) \n", *p, bp_tick);
         break;
 
     case MT_USB_STATUS:
-        // update wou status only if a cmd ongoing
         p = (uint32_t *) (buf_head + 4);
-        /* probe status */
         p += 1;
         *machine_control->wou_status = *p;
-//        printf("wou_status(0x%08X)\n", *machine_control->wou_status);
         break;
 
     case MT_DEBUG:
         p = (uint32_t *) (buf_head + 4);
         bp_tick = *p;
-#if (DEBUG_LOG)
-        dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
-#endif
         for (i=0; i<8; i++) {
             p += 1;
             *machine_control->debug[i] = *p;
-
-#if (DEBUG_LOG)
-            dsize += sprintf (dmsg + dsize, "%10d", *p);
-            assert (dsize < 1023);
-#endif
         }
-#if (DEBUG_LOG)
-        fprintf (debug_fp, "%s\n", dmsg);
-#endif
         break;
 
     case MT_RISC_CMD:
@@ -657,6 +633,7 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *machine_control->tick[i] = *p;
         }
+        assert (0);
         break;
 
     case MT_PROBED_POS:
@@ -671,8 +648,6 @@ static void fetchmail(const uint8_t *buf_head)
 
     default:
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
-        *(machine_control->bp_tick) = machine_control->prev_bp;  // restore bp_tick
-        //? assert(0);
         break;
     }
 }
@@ -1754,6 +1729,7 @@ static void update_freq(void *arg, long period)
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
             assert(*stepgen->risc_probe_pin < 64);
             assert(dbuf[2] != 0);
+//            printf ("j[%d]: do risc-probing\n", n);
         }
 
         //
