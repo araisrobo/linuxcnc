@@ -1099,7 +1099,6 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
 
-    // printf ("debug: RIGID_TAP: x(%f) y(%f) z(%f)\n", x, y, z);
 
     vel = getStraightVelocity(x, y, z, 
                               canon.endPoint.a, canon.endPoint.b, canon.endPoint.c, 
@@ -1122,7 +1121,9 @@ void RIGID_TAP(int line_number, double x, double y, double z)
                                                          canon.endPoint.u, canon.endPoint.v, canon.endPoint.w));
     flush_segments();
     
-    // printf ("debug: RIGID_TAP: vel(%f) acc(%f) jerk(%f) \n", vel, acc, rigidTapMsg.ini_maxjerk);
+    DP("x(%f) y(%f) z(%f)\n", x, y, z);
+    DP("vel(%f) acc(%f) jerk(%f)\n", vel, acc, rigidTapMsg.ini_maxjerk);
+    DP("spindleSpeed(%f) spindle_dir(%d)\n", canon.spindleSpeed, canon.spindle_dir);
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
@@ -1246,6 +1247,7 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
     spindlesyncMsg.velocity_mode = velocity_mode;
     interp_list.append(spindlesyncMsg);
     canon.synched = 1;
+    DP("feed_per_revolution(%f), velocity_mode(%d)\n", spindlesyncMsg.feed_per_revolution, velocity_mode);
 }
 
 void STOP_SPEED_FEED_SYNCH()
@@ -2162,7 +2164,8 @@ void SET_SPINDLE_SPEED(double r)
 	canon.css_numerator = 0;
     }
     interp_list.append(emc_spindle_speed_msg);
-    
+    DP("emc_spindle_speed_msg.speed(%f) canon.spindleSpeed(%f) canon.spindle_dir(%d)\n",
+            emc_spindle_speed_msg.speed, canon.spindleSpeed, canon.spindle_dir);
 }
 
 void STOP_SPINDLE_TURNING()
