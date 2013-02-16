@@ -595,7 +595,7 @@ static void fetchmail(const uint8_t *buf_head)
         p += 1;
         bp_tick = *p;                      
         p += 1;
-        printf ("MT_ERROR_CODE: code(%d) bp_tick(%d) \n", *p, bp_tick);
+//        printf ("MT_ERROR_CODE: code(%d) bp_tick(%d) \n", *p, bp_tick);
         break;
 
     case MT_USB_STATUS:
