@@ -12,16 +12,16 @@ author "Yishin Li";
 license "GPLv2 or greater";
 
 // Input Pins
-pin in float motor_pos_cmd_i "Motor Position Command In";
-pin io bit enable "Enable the blender, if not enabled motor-pos-cmd is passed through";
+pin in bit enable "Enable the blender if not enabled motor-pos-cmd is passed through";
 pin in u32 nu_of_cmd "Number of distance commands to blend for";
 pin in float vel_req_0 "Request velocity for dist-0";
 pin in float pos_cmd_0 "Position command 0";
 pin in float vel_req_1 "Request velocity for dist-1";
-pin in float pos_cmd_1 "Postion command 1";
+pin in float pos_cmd_1 "Position command 1";
+pin in u32 pos_cmd_id "0:up and down, 1:only down";
 
 // Output Pins
-pin out float motor_pos_cmd_o "Motor Position Command Out";
+pin out float offset_o "Motor Position Command Out";
 pin out bit blending_o "Set to 1 while blending";
 
 // Parameters
@@ -32,29 +32,32 @@ param rw float max_jerk "Max jerk";
 function _;
 
 ;;
+#include <stdio.h>
 
 #include "rtapi_math.h"
 
 FUNCTION(_) 
 {
     double max_dv, tiny_dp, pos_err, vel_req, pos_cmd, vel_limit;
-    static unsigned int pos_cmd_id;
-    static double curr_pos, curr_vel;
-
-    max_dv = max_acc;
-    tiny_dp = max_jerk;
-    if (!enable) 
+    static unsigned int _cmd_id;
+    static double curr_pos, curr_vel, p;
+    static double offset = 0;
+    p = 0.000655;
+    max_dv = max_acc * p;
+    tiny_dp = max_dv * p * 0.001;
+    if (!enable)
     {
-        pos_cmd_id = 0;
+        _cmd_id = pos_cmd_id;
+        //pos_cmd_id = 0;
         curr_pos = 0;
         curr_vel = 0;
-        motor_pos_cmd_o = motor_pos_cmd_i;
         blending_o = 0;
-    } else if (pos_cmd_id < nu_of_cmd) 
+    } else if (enable && _cmd_id < nu_of_cmd) 
     {
+        blending_o = 1;        
         /* calculate desired velocity */
         
-        if (pos_cmd_id == 0)
+        if (_cmd_id == 0)
         {
             if (vel_req_0 > max_vel)
             {   
@@ -63,7 +66,7 @@ FUNCTION(_)
             {
                 vel_limit = vel_req_0;
             }
-            pos_cmd = pos_cmd_0;
+            pos_cmd = pos_cmd_0;    // h2-dist
         } else
         {
             if (vel_req_1 > max_vel)
@@ -73,36 +76,35 @@ FUNCTION(_)
             {
                 vel_limit = vel_req_1;
             }
-            pos_cmd = pos_cmd_1;
+            pos_cmd = pos_cmd_1;    // h3-dist
         }
 
         /* planner enabled, request a velocity that tends to drive
            pos_err to zero, but allows for stopping without position
            overshoot */
         pos_err = pos_cmd - curr_pos;
-
         /* positive and negative errors require some sign flipping to
            avoid sqrt(negative) */
         if (pos_err > tiny_dp) {
             vel_req = -max_dv +
-                       sqrt(2.0 * max_dv * pos_err + max_dv * max_dv);
+                       sqrt(2.0 * max_acc * pos_err + max_dv * max_dv);
         } else if (pos_err < -tiny_dp) {
             vel_req =  max_dv -
-                       sqrt(-2.0 * max_dv * pos_err + max_dv * max_dv);
+                       sqrt(-2.0 * max_acc * pos_err + max_dv * max_dv);
         } else {
             /* within 'tiny_dp' of desired pos, no need to move */
             vel_req = pos_err;
-            enable = 0;
+            blending_o = 0;
         }
-
         /* limit velocity request */
         if (vel_req > vel_limit) {
             vel_req = vel_limit;
         } else if (vel_req < -vel_limit) {
             vel_req = -vel_limit;
         }
-
+        
         /* ramp velocity toward request at accel limit */
+
         if (vel_req > (curr_vel + max_dv)) {
             curr_vel += max_dv;
         } else if (vel_req < (curr_vel - max_dv)) {
@@ -110,19 +112,19 @@ FUNCTION(_)
         } else {
             curr_vel = vel_req;
         }
-
+    
         /* integrate velocity to get new position */
-        curr_pos += curr_vel;
-            
-        motor_pos_cmd_o = motor_pos_cmd_i + curr_vel;
-        blending_o = 1;
+        curr_pos += curr_vel*p;
+        offset += (curr_vel*p);
+        
 
-        if (!enable) {
-            pos_cmd_id += 1;
-            if (pos_cmd_id < nu_of_cmd) {
-                enable = 1;
+        if (!blending_o) {
+            _cmd_id += 1;
+            if (_cmd_id < nu_of_cmd) {
+                blending_o = 1;
             }
         }
     }
+    offset_o = offset;
 }
 

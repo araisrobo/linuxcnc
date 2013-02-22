@@ -471,6 +471,7 @@ static void process_inputs(void)
         joint->pos_fb = joint->motor_pos_fb -
                 (joint->backlash_filt + joint->motor_offset);
         joint->risc_pos_cmd = *(joint_data->risc_pos_cmd);
+        joint->blender_offset = *(joint_data->blender_offset);
 
         /* calculate following error */
         joint->ferror = joint->pos_cmd - joint->pos_fb;
@@ -730,7 +731,7 @@ static void process_probe_inputs(void)
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
                 {
                     joint = &joints[joint_num];
-                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset);
+                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
                 }
                 kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
             } else
@@ -825,7 +826,7 @@ static void handle_special_cmd(void)
             /* point to joint struct */
             joint = &joints[joint_num];
             /* copy risc_pos_cmd feedback */
-            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset;
+            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset - joint->blender_offset;
             joint->coarse_pos = joint->pos_cmd;
             joint->free_tp.curr_pos = joint->pos_cmd;
             /* to reset cubic parameters */
@@ -2095,13 +2096,13 @@ static void output_to_hal(void)
         joint = &joints[joint_num];
         /* apply backlash and motor offset to output */
         joint->motor_pos_cmd =
-                joint->pos_cmd + joint->backlash_filt + joint->motor_offset;
+                joint->pos_cmd + joint->backlash_filt + joint->motor_offset + joint->blender_offset;
         /* point to HAL data */
         joint_data = &(emcmot_hal_data->joint[joint_num]);
         /* write to HAL pins */
         *(joint_data->motor_offset) = joint->motor_offset;
         *(joint_data->motor_pos_cmd) = joint->motor_pos_cmd;
-        *(joint_data->joint_pos_cmd) = joint->pos_cmd;
+        *(joint_data->joint_pos_cmd) = joint->pos_cmd - joint->blender_offset;
         *(joint_data->joint_pos_fb) = joint->pos_fb;
         *(joint_data->amp_enable) = GET_JOINT_ENABLE_FLAG(joint);
         *(joint_data->index_enable) = joint->index_enable;

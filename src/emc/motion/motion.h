@@ -552,7 +552,8 @@ typedef struct {
     home_state_t home_state;	/* state machine for homing */
     double      index_pos;     	 	/* motor index position in absolute motor pulse counts */
     double      motor_offset;		/* diff between internal and motor pos, used
-				   	   	   	   	   to set position to zero during homing */
+				   	   to set position to zero during homing */
+    double      blender_offset;        /* offset created by realtime component, blender.comp */
     int         old_jog_counts;			/* prior value, used for deltas */
     double      probed_pos;
 
