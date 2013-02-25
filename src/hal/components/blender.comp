@@ -48,7 +48,6 @@ FUNCTION(_)
     if (!enable)
     {
         _cmd_id = pos_cmd_id;
-        //pos_cmd_id = 0;
         curr_pos = 0;
         curr_vel = 0;
         blending_o = 0;
@@ -94,6 +93,7 @@ FUNCTION(_)
         } else {
             /* within 'tiny_dp' of desired pos, no need to move */
             vel_req = pos_err;
+            curr_pos = 0;
             blending_o = 0;
         }
         /* limit velocity request */
@@ -117,7 +117,6 @@ FUNCTION(_)
         curr_pos += curr_vel*p;
         offset += (curr_vel*p);
         
-
         if (!blending_o) {
             _cmd_id += 1;
             if (_cmd_id < nu_of_cmd) {
