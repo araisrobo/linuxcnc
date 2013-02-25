@@ -2102,7 +2102,7 @@ static void output_to_hal(void)
         /* write to HAL pins */
         *(joint_data->motor_offset) = joint->motor_offset;
         *(joint_data->motor_pos_cmd) = joint->motor_pos_cmd;
-        *(joint_data->joint_pos_cmd) = joint->pos_cmd - joint->blender_offset;
+        *(joint_data->joint_pos_cmd) = joint->pos_cmd;
         *(joint_data->joint_pos_fb) = joint->pos_fb;
         *(joint_data->amp_enable) = GET_JOINT_ENABLE_FLAG(joint);
         *(joint_data->index_enable) = joint->index_enable;
