@@ -20,6 +20,7 @@ typedef struct EmcPose {
     PmCartesian tran;
     double a, b, c;
     double u, v, w;
+    double s;           /* s: spindle position */
 } EmcPose;
 
 #define ZERO_EMC_POSE(pos) do { \
@@ -31,6 +32,7 @@ pos.b = 0.0;                    \
 pos.c = 0.0;                    \
 pos.u = 0.0;                    \
 pos.v = 0.0;                    \
-pos.w = 0.0; } while(0)
+pos.w = 0.0;                    \
+pos.s = 0.0; } while(0)
 
 #endif

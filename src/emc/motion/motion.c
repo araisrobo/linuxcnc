@@ -517,11 +517,11 @@ static int init_hal_io(void)
 
     /* export axis pins and parameters */
     for (n = 0; n < EMCMOT_MAX_AXIS; n++) {
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].pos_cmd), mot_comp_id, "axis.%c.pos-cmd", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].vel_cmd), mot_comp_id, "axis.%c.vel-cmd", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_pos_cmd), mot_comp_id, "axis.%c.teleop-pos-cmd", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_vel_lim), mot_comp_id, "axis.%c.teleop-vel-lim", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_tp_enable), mot_comp_id, "axis.%c.teleop-tp-enable", "xyzabcuvw"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].pos_cmd), mot_comp_id, "axis.%c.pos-cmd", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].vel_cmd), mot_comp_id, "axis.%c.vel-cmd", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_pos_cmd), mot_comp_id, "axis.%c.teleop-pos-cmd", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_vel_lim), mot_comp_id, "axis.%c.teleop-vel-lim", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_tp_enable), mot_comp_id, "axis.%c.teleop-tp-enable", "xyzabcuvws"[n])) != 0) goto error;
     }
     /* Done! */
     rtapi_print_msg(RTAPI_MSG_INFO,

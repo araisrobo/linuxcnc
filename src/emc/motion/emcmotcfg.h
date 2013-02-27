@@ -20,9 +20,9 @@
 /* number of joints supported
    Note: this is not a global variable but a compile-time parameter
    since it sets array sizes, etc. */
-#define EMCMOT_MAX_JOINTS 9
+#define EMCMOT_MAX_JOINTS 10
 /* number of axes defined by the interp */ //FIXME: shouldn't be here..
-#define EMCMOT_MAX_AXIS 9
+#define EMCMOT_MAX_AXIS 10
 
 #define EMCMOT_MAX_DIO 64
 #define EMCMOT_MAX_AIO 64

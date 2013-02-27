@@ -1234,7 +1234,7 @@ def activate_axis(i, force=0):
         axis = getattr(widgets, "joint_%d" % i)
     else:
         if not s.axis_mask & (1<<i): return
-        axis = getattr(widgets, "axis_%s" % "xyzabcuvw"[i])
+        axis = getattr(widgets, "axis_%s" % "xyzabcuvws"[i])
     axis.focus()
     axis.invoke()
 
@@ -2289,13 +2289,13 @@ class TclCommands(nf.TclCommands):
     def jog_plus(incr=False):
         a = vars.current_axis.get()
         if isinstance(a, (str, unicode)):
-            a = "xyzabcuvw".index(a)
+            a = "xyzabcuvws".index(a)
         speed = get_jog_speed(a)
         jog_on(a, speed)
     def jog_minus(incr=False):
         a = vars.current_axis.get()
         if isinstance(a, (str, unicode)):
-            a = "xyzabcuvw".index(a)
+            a = "xyzabcuvws".index(a)
         speed = get_jog_speed(a)
         jog_on(a, -speed)
     def jog_stop(event=None):
@@ -2322,16 +2322,16 @@ class TclCommands(nf.TclCommands):
     def home_axis(event=None):
         if not manual_ok(): return
         doHoming=True
-        if s.homed["xyzabcuvw".index(vars.current_axis.get())]:
+        if s.homed["xyzabcuvws".index(vars.current_axis.get())]:
             doHoming=prompt_areyousure(_("Warning"),_("This axis is already homed, are you sure you want to re-home?"))
         if doHoming:
             ensure_mode(linuxcnc.MODE_MANUAL)
-            c.home("xyzabcuvw".index(vars.current_axis.get()))
+            c.home("xyzabcuvws".index(vars.current_axis.get()))
 
     def unhome_axis(event=None):
         if not manual_ok(): return
         ensure_mode(linuxcnc.MODE_MANUAL)
-        c.unhome("xyzabcuvw".index(vars.current_axis.get()))
+        c.unhome("xyzabcuvws".index(vars.current_axis.get()))
 
     def home_axis_number(num):
         ensure_mode(linuxcnc.MODE_MANUAL)
@@ -2361,7 +2361,7 @@ class TclCommands(nf.TclCommands):
         global system
         if not manual_ok(): return
         if joints_mode(): return
-        offset_axis = "xyzabcuvw".index(vars.current_axis.get())
+        offset_axis = "xyzabcuvws".index(vars.current_axis.get())
         if new_axis_value is None:
             new_axis_value, system = prompt_touchoff(_("Touch Off"),
                 _("Enter %s coordinate relative to %%s:")
@@ -2788,13 +2788,13 @@ def wheel_down_deferred():
 def jog_plus(incr=False):
     a = vars.current_axis.get()
     if isinstance(a, (str, unicode)):
-        a = "xyzabcuvw".index(a)
+        a = "xyzabcuvws".index(a)
     speed = get_jog_speed(a)
     jog_on(a, speed)
 def jog_minus(incr=False):
     a = vars.current_axis.get()
     if isinstance(a, (str, unicode)):
-        a = "xyzabcuvw".index(a)
+        a = "xyzabcuvws".index(a)
     speed = get_jog_speed(a)
     jog_on(a, -speed)
 def jog_stop(event=None):
@@ -2808,7 +2808,7 @@ def jog_on(a, b):
     if not manual_ok(): return
     if not manual_tab_visible(): return
     if isinstance(a, (str, unicode)):
-        a = "xyzabcuvw".index(a)
+        a = "xyzabcuvws".index(a)
     if a < 3:
         if vars.metric.get(): b = b / 25.4
         b = from_internal_linear_unit(b)
@@ -2837,7 +2837,7 @@ def jog_on(a, b):
 
 def jog_off(a):
     if isinstance(a, (str, unicode)):
-        a = "xyzabcuvw".index(a)
+        a = "xyzabcuvws".index(a)
     if jog_after[a]: return
     jog_after[a] = root_window.after_idle(lambda: jog_off_actual(a))
 
@@ -3081,7 +3081,7 @@ root_window.bind("<KeyRelease-equal>", commands.jog_stop)
 opts, args = getopt.getopt(sys.argv[1:], 'd:')
 for i in range(9):
     if s.axis_mask & (1<<i): continue
-    c = getattr(widgets, "axis_%s" % ("xyzabcuvw"[i]))
+    c = getattr(widgets, "axis_%s" % ("xyzabcuvws"[i]))
     c.grid_forget()
 for i in range(num_joints, 9):
     c = getattr(widgets, "joint_%d" % i)
