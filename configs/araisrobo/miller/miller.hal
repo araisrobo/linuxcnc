@@ -5,10 +5,9 @@ loadrt ddt count=3
 loadrt hypot count=2
 
 # load RT modules
-
 loadrt [KINS]KINEMATICS
 loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[EMCMOT]TRAJ_PERIOD num_joints=[KINS]JOINTS num_dio=64
-loadrt [WOU](WISHBONE) ctrl_type=[WOU](CTRL_TYPE) pulse_type=[WOU]PULSE_TYPE enc_type=[WOU]ENC_TYPE bits=[WOU](FPGA) bins=[WOU](RISC) servo_period_ns=[EMCMOT]SERVO_PERIOD alarm_en=[WOU]ALARM_EN max_vel_str=[JOINT_0]MAX_VELOCITY,[JOINT_1]MAX_VELOCITY,[JOINT_2]MAX_VELOCITY max_accel_str=[JOINT_0]MAX_ACCELERATION,[JOINT_1]MAX_ACCELERATION,[JOINT_2]MAX_ACCELERATION max_jerk_str=[JOINT_0]MAX_JERK,[JOINT_1]MAX_JERK,[JOINT_2]MAX_JERK pos_scale_str=[JOINT_0]INPUT_SCALE,[JOINT_1]INPUT_SCALE,[JOINT_2]INPUT_SCALE alr_output=[WOU](ALR_OUTPUT)
+loadrt [WOU](WISHBONE) ctrl_type=[WOU](CTRL_TYPE) pulse_type=[WOU]PULSE_TYPE enc_type=[WOU]ENC_TYPE bits=[WOU](FPGA) bins=[WOU](RISC) servo_period_ns=[EMCMOT]SERVO_PERIOD alarm_en=[WOU]ALARM_EN max_vel_str=[JOINT_0]MAX_VELOCITY,[JOINT_1]MAX_VELOCITY,[JOINT_2]MAX_VELOCITY,[JOINT_3]MAX_VELOCITY max_accel_str=[JOINT_0]MAX_ACCELERATION,[JOINT_1]MAX_ACCELERATION,[JOINT_2]MAX_ACCELERATION,[JOINT_3]MAX_ACCELERATION max_jerk_str=[JOINT_0]MAX_JERK,[JOINT_1]MAX_JERK,[JOINT_2]MAX_JERK,[JOINT_3]MAX_JERK pos_scale_str=[JOINT_0]INPUT_SCALE,[JOINT_1]INPUT_SCALE,[JOINT_2]INPUT_SCALE,[JOINT_3]INPUT_SCALE alr_output=[WOU](ALR_OUTPUT)
 
 # add motion controller functions to servo thread
 addf motion-command-handler servo-thread
@@ -43,130 +42,115 @@ net usb-cmd wou.usb.cmd <= motion.usb.cmd
 net usb-cmd-param0 wou.usb.param-00 <= motion.usb.param-00
 net usb-cmd-param1 wou.usb.param-01 <= motion.usb.param-01
 net usb-cmd-param2 wou.usb.param-02 <= motion.usb.param-02
+net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
+
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
 
-# TODO: remove align-pos-cmd
-net align-cmd wou.align-pos-cmd <=> motion.align-pos-cmd
+net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
+net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
+net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
+net Spos  joint.3.motor-pos-cmd => wou.stepgen.3.position-cmd 
 
-net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd # joint.0.motor-pos-fb 
-net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd # joint.1.motor-pos-fb
-net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd # joint.2.motor-pos-fb
 # loop position commands back to motion module feedback
 # for OPEN_LOOP
 net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
-
-net Xvel-fb   wou.stepgen.0.vel-fb
-net Yvel-fb   wou.stepgen.1.vel-fb
-net Zvel-fb   wou.stepgen.2.vel-fb
+net Spos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
 
 # motor_index positions
 net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
 net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
 net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
+net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
-net estop-loop  iocontrol.0.emc-enable-in <=  wou.gpio.in.00
+net din_00  => iocontrol.0.emc-enable-in
 
 # create signals for tool loading loopback
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
 net tool-change-loop iocontrol.0.tool-change iocontrol.0.tool-changed
 
-# connect sync in signal
-# net sync_in_trigger      motion.sync-in-trigger =>  wou.sync.in.trigger
-# net sync_in_index        motion.sync-in-index   =>  wou.sync.in.index
-# net sync_in_wait_type    motion.sync-in-wait-type =>  wou.sync.in.wait_type
-# net sync_in_timeout      motion.sync-in-timeout => wou.sync.in.timeout
-
-
+# digital sync I/O signals
+net sync_in_trigger     motion.sync-in-trigger =>  wou.sync.in.trigger
+net sync_in_index       motion.sync-in-index =>  wou.sync.in.index
+net sync_in_wait_type   motion.sync-in-wait-type =>  wou.sync.in.wait_type
+net sync_in_timeout     motion.sync-in-timeout =>  wou.sync.in.timeout
 
 # amp control
-net xena joint.0.amp-enable-out => wou.stepgen.0.enable
-net yena joint.1.amp-enable-out => wou.stepgen.1.enable
-net zena joint.2.amp-enable-out => wou.stepgen.2.enable
-
+net din_00                         => motion.enable
+net j0ena   joint.0.amp-enable-out => wou.stepgen.0.enable
+net j1ena   joint.1.amp-enable-out => wou.stepgen.1.enable
+net j2ena   joint.2.amp-enable-out => wou.stepgen.2.enable
+net j3ena   joint.3.amp-enable-out => wou.stepgen.3.enable
 
 setp wou.stepgen.0.steplen  [JOINT_0]STEPLEN
 setp wou.stepgen.1.steplen  [JOINT_1]STEPLEN
 setp wou.stepgen.2.steplen  [JOINT_2]STEPLEN
+setp wou.stepgen.3.steplen  [JOINT_3]STEPLEN
 
+# TODO: connect wou.rt.abort to GPIO
 setp wou.rt.abort  0
 
 # connect signals from FPGA.
 # pulse_pos: the actual pulse sent to servo drive.
-net pulse_cmd_j0  <= wou.stepgen.0.pulse_pos
-net pulse_cmd_j1  <= wou.stepgen.1.pulse_pos
-net pulse_cmd_j2  <= wou.stepgen.2.pulse_pos
-# enc_pos: the encoder position read from FPGA.
+net pulse_pos_j0  <= wou.stepgen.0.pulse_pos
+net pulse_pos_j1  <= wou.stepgen.1.pulse_pos
+net pulse_pos_j2  <= wou.stepgen.2.pulse_pos
+net pulse_pos_j3  <= wou.stepgen.3.pulse_pos
 
+# enc_pos: the encoder position read from FPGA.
 net enc_pos_j0 <=  wou.stepgen.0.enc_pos  
 net enc_pos_j1 <=  wou.stepgen.1.enc_pos  
 net enc_pos_j2 <=  wou.stepgen.2.enc_pos  
+net enc_pos_j3 <=  wou.stepgen.3.enc_pos  
 
 # pass vel status and req_status to FPGA
-
-# obsolete: net current_vel motion.current-vel => wou.current-vel
-# obsolete: net requested_vel motion.requested-vel => wou.requested-vel
-
-
-net sync_in_trigger      =>  wou.sync.in.trigger
-net sync_in_index        =>  wou.sync.in.index
-net sync_in_wait_type    =>  wou.sync.in.wait_type
-net sync_in_timeout  => wou.sync.in.timeout
-
-# to CL: net alarm         <=  wou.gpio.in.00
-# to CL: net alarm         =>  joint.0.amp-fault-in
-# to CL: net alarm         =>  joint.1.amp-fault-in
-# to CL: net alarm         =>  joint.2.amp-fault-in
-# to CL: net alarm         =>  joint.3.amp-fault-in
-# net servo_ready   <=  wou.gpio.in.01
-
 
 # set wou module scaling - get values from ini file
 setp wou.stepgen.0.position-scale [JOINT_0]INPUT_SCALE
 setp wou.stepgen.1.position-scale [JOINT_1]INPUT_SCALE
 setp wou.stepgen.2.position-scale [JOINT_2]INPUT_SCALE
+setp wou.stepgen.3.position-scale [JOINT_3]INPUT_SCALE
 
 # set wou module pulse_per_rev - get values from ini file
 setp wou.stepgen.0.pulse_per_rev [JOINT_0]PULSE_PER_REV
 setp wou.stepgen.1.pulse_per_rev [JOINT_1]PULSE_PER_REV
 setp wou.stepgen.2.pulse_per_rev [JOINT_2]PULSE_PER_REV
+setp wou.stepgen.3.pulse_per_rev [JOINT_3]PULSE_PER_REV
 
 # set wou module velocity limits - get values from ini file
 setp wou.stepgen.0.maxvel [JOINT_0]MAX_VELOCITY
 setp wou.stepgen.1.maxvel [JOINT_1]MAX_VELOCITY
 setp wou.stepgen.2.maxvel [JOINT_2]MAX_VELOCITY
+setp wou.stepgen.3.maxvel [JOINT_3]MAX_VELOCITY
 
 # set wou module accel limits - get values from ini file
 setp wou.stepgen.0.maxaccel [JOINT_0]MAX_ACCELERATION
 setp wou.stepgen.1.maxaccel [JOINT_1]MAX_ACCELERATION
 setp wou.stepgen.2.maxaccel [JOINT_2]MAX_ACCELERATION
+setp wou.stepgen.3.maxaccel [JOINT_3]MAX_ACCELERATION
 
+net j0_ferror_flag  wou.stepgen.0.ferror-flag => joint.0.usb-ferror-flag
+net j1_ferror_flag  wou.stepgen.1.ferror-flag => joint.1.usb-ferror-flag
+net j2_ferror_flag  wou.stepgen.2.ferror-flag => joint.2.usb-ferror-flag
+net j3_ferror_flag  wou.stepgen.3.ferror-flag => joint.3.usb-ferror-flag
 
+net j0-probed-pos   wou.stepgen.0.probed-pos => joint.0.probed-pos
+net j1-probed-pos   wou.stepgen.1.probed-pos => joint.1.probed-pos
+net j2-probed-pos   wou.stepgen.2.probed-pos => joint.2.probed-pos
+net j3-probed-pos   wou.stepgen.3.probed-pos => joint.3.probed-pos
 
-
-net X_ferror_flag   wou.stepgen.0.ferror-flag => joint.0.usb-ferror-flag
-net Y_ferror_flag   wou.stepgen.1.ferror-flag => joint.1.usb-ferror-flag
-net Z_ferror_flag   wou.stepgen.2.ferror-flag => joint.2.usb-ferror-flag
-
-net x-probed-pos   wou.stepgen.0.probed-pos => joint.0.probed-pos
-net y-probed-pos   wou.stepgen.1.probed-pos => joint.1.probed-pos
-net z-probed-pos   wou.stepgen.2.probed-pos => joint.2.probed-pos
 net vel-sync wou.motion.vel-sync
-
-# for sync command for risc jogging
-# when program is not running or is not jogging (application should disable risc jogging as
-# well), make wou to sync pos-cmd and prev-pos-cmd
-# net ignore-host-cmd wou.ignore-host-cmd
 net usb-busy wou.usb-busy => motion.usb-busy
 
 # loop position commands back to motion module feedback
 net J0-risc-pos-cmd wou.stepgen.0.risc-pos-cmd => joint.0.risc-pos-cmd
 net J1-risc-pos-cmd wou.stepgen.1.risc-pos-cmd => joint.1.risc-pos-cmd
 net J2-risc-pos-cmd wou.stepgen.2.risc-pos-cmd => joint.2.risc-pos-cmd
+net J3-risc-pos-cmd wou.stepgen.3.risc-pos-cmd => joint.3.risc-pos-cmd
 
 # for usb-homing:
 # original homing switchs: 
@@ -184,29 +168,34 @@ setp joint.1.home-sw-id 6
 # use LSP as homing switch for AXIS-Z:
 setp joint.2.home-sw-id 9
 # home switch status from FPGA
-net home_j0     joint.0.home-sw-in  <=  wou.gpio.in.04
-net home_j1     joint.1.home-sw-in  <=  wou.gpio.in.06
-net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.09
+net din_04      joint.0.home-sw-in
+net din_06      joint.1.home-sw-in
+net din_09      joint.2.home-sw-in
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
 net j1-homing   joint.1.homing => wou.stepgen.1.homing
 net j2-homing   joint.2.homing => wou.stepgen.2.homing
+net j3-homing   joint.3.homing => wou.stepgen.3.homing
 
 net j0-risc-probe-vel    joint.0.risc-probe-vel => wou.stepgen.0.risc-probe-vel
 net j1-risc-probe-vel    joint.1.risc-probe-vel => wou.stepgen.1.risc-probe-vel
 net j2-risc-probe-vel    joint.2.risc-probe-vel => wou.stepgen.2.risc-probe-vel
+net j3-risc-probe-vel    joint.3.risc-probe-vel => wou.stepgen.3.risc-probe-vel
 
 net j0-risc-probe-pin    joint.0.risc-probe-pin => wou.stepgen.0.risc-probe-pin
 net j1-risc-probe-pin    joint.1.risc-probe-pin => wou.stepgen.1.risc-probe-pin
 net j2-risc-probe-pin    joint.2.risc-probe-pin => wou.stepgen.2.risc-probe-pin
+net j3-risc-probe-pin    joint.3.risc-probe-pin => wou.stepgen.3.risc-probe-pin
 
 net j0-risc-probe-type   joint.0.risc-probe-type => wou.stepgen.0.risc-probe-type
 net j1-risc-probe-type   joint.1.risc-probe-type => wou.stepgen.1.risc-probe-type
 net j2-risc-probe-type   joint.2.risc-probe-type => wou.stepgen.2.risc-probe-type
+net j3-risc-probe-type   joint.3.risc-probe-type => wou.stepgen.3.risc-probe-type
 
 net j0-risc-probe-dist   joint.0.risc-probe-dist => wou.stepgen.0.risc-probe-dist
 net j1-risc-probe-dist   joint.1.risc-probe-dist => wou.stepgen.1.risc-probe-dist
 net j2-risc-probe-dist   joint.2.risc-probe-dist => wou.stepgen.2.risc-probe-dist
+net j3-risc-probe-dist   joint.3.risc-probe-dist => wou.stepgen.3.risc-probe-dist
 
 # RISC_CMD REQ and ACK
 net update-pos-req      wou.motion.update-pos-req   =>  motion.update-pos-req
@@ -220,3 +209,45 @@ net coord_mode          wou.motion.coord-mode <= motion.coord-mode
 net homing              wou.motion.homing <= motion.homing
 net probe_result        wou.motion.probe-result => motion.probe-input
 net machine_is_moving   <= wou.motion.machine-is-moving
+
+# mapping wou.gpio to motion.synch_di[]
+net din_00	wou.gpio.in.00    => motion.digital-in-00
+net din_01 	wou.gpio.in.01    => motion.digital-in-01
+net din_02 	wou.gpio.in.02    => motion.digital-in-02
+net din_03 	wou.gpio.in.03    => motion.digital-in-03
+net din_04 	wou.gpio.in.04    => motion.digital-in-04
+net din_05 	wou.gpio.in.05    => motion.digital-in-05
+net din_06 	wou.gpio.in.06    => motion.digital-in-06
+net din_07 	wou.gpio.in.07    => motion.digital-in-07
+net din_08 	wou.gpio.in.08    => motion.digital-in-08
+net din_09 	wou.gpio.in.09    => motion.digital-in-09
+net din_10 	wou.gpio.in.10    => motion.digital-in-10
+net din_11 	wou.gpio.in.11    => motion.digital-in-11
+net din_12 	wou.gpio.in.12    => motion.digital-in-12
+net din_13 	wou.gpio.in.13    => motion.digital-in-13
+net din_14 	wou.gpio.in.14    => motion.digital-in-14
+net din_15 	wou.gpio.in.15    => motion.digital-in-15
+net din_16 	wou.gpio.in.16    => motion.digital-in-16
+net din_17 	wou.gpio.in.17    => motion.digital-in-17
+net din_18 	wou.gpio.in.18    => motion.digital-in-18
+net din_19 	wou.gpio.in.19    => motion.digital-in-19
+net din_20 	wou.gpio.in.20    => motion.digital-in-20
+net din_21 	wou.gpio.in.21    => motion.digital-in-21
+net din_22 	wou.gpio.in.22    => motion.digital-in-22
+net din_23 	wou.gpio.in.23    => motion.digital-in-23
+net din_24 	wou.gpio.in.24    => motion.digital-in-24
+net din_25 	wou.gpio.in.25    => motion.digital-in-25
+net din_26 	wou.gpio.in.26    => motion.digital-in-26
+net din_27 	wou.gpio.in.27    => motion.digital-in-27
+net din_28 	wou.gpio.in.28    => motion.digital-in-28
+net din_29 	wou.gpio.in.29    => motion.digital-in-29
+net din_30 	wou.gpio.in.30    => motion.digital-in-30
+net din_31 	wou.gpio.in.31    => motion.digital-in-31
+
+net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
+net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
+net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
+net j3_index_en   joint.3.index-enable => wou.stepgen.3.index-enable
+
+# emcrsh
+# loadusr linuxcncrsh -ini xyz.ini
