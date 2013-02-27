@@ -42,7 +42,7 @@ typedef struct {
 } PmCircle9;
 
 typedef enum {
-    TAPPING, REVERSING, RETRACTION, FINAL_REVERSAL, FINAL_PLACEMENT
+    TAPPING, REVERSING
 } RIGIDTAP_STATE;
 
 typedef unsigned long long iomask_t; // 64 bits on both x86 and x86_64

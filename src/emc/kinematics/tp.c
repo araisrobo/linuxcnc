@@ -314,18 +314,20 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.cycle_time = tp->cycleTime;
     tc.coords.rigidtap.reversal_target = line_xyz.tmag;
 
-    // allow 10 turns of the spindle to stop - we don't want to just go on forever
-    tc.target = line_xyz.tmag + 10. * tp->uu_per_rev;
-    
+//    // allow 10 turns of the spindle to stop - we don't want to just go on forever
+//    tc.target = line_xyz.tmag + 10. * tp->uu_per_rev;
+    // tc.target: set as revolutions of spindle
+    tc.target = line_xyz.tmag / tp->uu_per_rev;
     DP("tpAddRigidTap(): jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
         jerk, vel, acc, ini_maxvel);
-    DP("tpAddRigidTap(): reversal_target(%f) target(%f) uu_per_rev(%f)\n", 
+    DP("tpAddRigidTap(): reversal_target(%f) target(%f) uu_per_rev(%f)\n",
         tc.coords.rigidtap.reversal_target,
         tc.target, tp->uu_per_rev);
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
     tc.distance_to_go = tc.target;
+    // TODO: should be vel/acc/jerk of spindle
     tc.reqvel = vel;
     tc.maxvel = ini_maxvel * tp->cycleTime;
     tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
@@ -356,7 +358,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
         return -1;
     }
     tc.synchronized = tp->synchronized;
-    
     tc.uu_per_rev = tp->uu_per_rev;
     tc.css_progress_cmd = 0;
     tc.velocity_mode = tp->velocity_mode;
@@ -371,11 +372,21 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
+    // TAPPING
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
 	return -1;
     }
     
+    // REVERSING
+    pmLineInit(&line_xyz, end_xyz, start_xyz);  // reverse the line direction
+    tc.coords.rigidtap.xyz = line_xyz;
+    tc.motion_type = TC_RIGIDTAP;
+    if (tcqPut(&tp->queue, tc) == -1) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
+        return -1;
+    }
+
     // do not change tp->goalPos here,
     // since this move will end just where it started
 
@@ -1330,7 +1341,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     static double spindleoffset;
     static int waiting_for_index = MOTION_INVALID_ID;
     static int waiting_for_atspeed = MOTION_INVALID_ID;
-    static double revs;
+//    static double revs;
     EmcPose target;
 
     emcmotStatus->tcqlen = tcqLen(&tp->queue);
@@ -1515,69 +1526,69 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             emcmotStatus->spindleSync = 1;
             waiting_for_index = MOTION_INVALID_ID;
             tc->sync_accel=1;
-            revs=0;
+//            revs=0;
         }
     }
 
-    if (tc->motion_type == TC_RIGIDTAP) {
-        static double old_spindlepos;
-        double new_spindlepos = emcmotStatus->spindleRevs;
-        if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
-
-        switch (tc->coords.rigidtap.state) {
-        case TAPPING:
-            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
-                // command reversal
-                emcmotStatus->spindle.speed *= -1;
-                tc->coords.rigidtap.state = REVERSING;
-            }
-            break;
-        case REVERSING:
-            if (new_spindlepos < old_spindlepos) {
-                PmPose start, end;
-                PmLine *aux = &tc->coords.rigidtap.aux_xyz;
-                // we've stopped, so set a new target at the original position
-                tc->coords.rigidtap.spindlerevs_at_reversal = new_spindlepos + spindleoffset;
-                
-                pmLinePoint(&tc->coords.rigidtap.xyz, tc->progress, &start);
-                end = tc->coords.rigidtap.xyz.start;
-                pmLineInit(aux, start, end);
-                tc->coords.rigidtap.reversal_target = aux->tmag;
-                tc->target = aux->tmag + 10. * tc->uu_per_rev;
-                tc->progress = 0.0;
-                tc->css_progress_cmd = 0;
-
-                tc->coords.rigidtap.state = RETRACTION;
-            }
-            break;
-        case RETRACTION:
-            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
-                emcmotStatus->spindle.speed *= -1;
-                tc->coords.rigidtap.state = FINAL_REVERSAL;
-            }
-            break;
-        case FINAL_REVERSAL:
-            if (new_spindlepos > old_spindlepos) {
-                PmPose start, end;
-                PmLine *aux = &tc->coords.rigidtap.aux_xyz;
-                pmLinePoint(aux, tc->progress, &start);
-                end = tc->coords.rigidtap.xyz.start;
-                pmLineInit(aux, start, end);
-                tc->target = aux->tmag;
-                tc->progress = 0.0;
-                tc->synchronized = 0;
-                tc->reqvel = tc->maxvel;
-                tc->css_progress_cmd = 0;
-
-                tc->coords.rigidtap.state = FINAL_PLACEMENT;
-            }
-            break;
-        case FINAL_PLACEMENT:
-            // this is a regular move now, it'll stop at target above.
-            break;
-        }
-        old_spindlepos = new_spindlepos;
-    }
+//    if (tc->motion_type == TC_RIGIDTAP) {
+//        static double old_spindlepos;
+//        double new_spindlepos = emcmotStatus->spindleRevs;
+//        if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
+//
+//        switch (tc->coords.rigidtap.state) {
+//        case TAPPING:
+//            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
+//                // command reversal
+//                emcmotStatus->spindle.speed *= -1;
+//                tc->coords.rigidtap.state = REVERSING;
+//            }
+//            break;
+//        case REVERSING:
+//            if (new_spindlepos < old_spindlepos) {
+//                PmPose start, end;
+//                PmLine *aux = &tc->coords.rigidtap.aux_xyz;
+//                // we've stopped, so set a new target at the original position
+//                tc->coords.rigidtap.spindlerevs_at_reversal = new_spindlepos + spindleoffset;
+//
+//                pmLinePoint(&tc->coords.rigidtap.xyz, tc->progress, &start);
+//                end = tc->coords.rigidtap.xyz.start;
+//                pmLineInit(aux, start, end);
+//                tc->coords.rigidtap.reversal_target = aux->tmag;
+//                tc->target = aux->tmag + 10. * tc->uu_per_rev;
+//                tc->progress = 0.0;
+//                tc->css_progress_cmd = 0;
+//
+//                tc->coords.rigidtap.state = RETRACTION;
+//            }
+//            break;
+//        case RETRACTION:
+//            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
+//                emcmotStatus->spindle.speed *= -1;
+//                tc->coords.rigidtap.state = FINAL_REVERSAL;
+//            }
+//            break;
+//        case FINAL_REVERSAL:
+//            if (new_spindlepos > old_spindlepos) {
+//                PmPose start, end;
+//                PmLine *aux = &tc->coords.rigidtap.aux_xyz;
+//                pmLinePoint(aux, tc->progress, &start);
+//                end = tc->coords.rigidtap.xyz.start;
+//                pmLineInit(aux, start, end);
+//                tc->target = aux->tmag;
+//                tc->progress = 0.0;
+//                tc->synchronized = 0;
+//                tc->reqvel = tc->maxvel;
+//                tc->css_progress_cmd = 0;
+//
+//                tc->coords.rigidtap.state = FINAL_PLACEMENT;
+//            }
+//            break;
+//        case FINAL_PLACEMENT:
+//            // this is a regular move now, it'll stop at target above.
+//            break;
+//        }
+//        old_spindlepos = new_spindlepos;
+//    }
 
 
     if(!tc->synchronized) emcmotStatus->spindleSync = 0;
@@ -1595,56 +1606,61 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     }
 
 
-    if(tc->synchronized) {
-        // for CSS and TC_RIGIDTAP
-        double css_progress_cmd;
-        double pos_error;
-        double new_spindlepos = emcmotStatus->spindleRevs;
+//    if(tc->synchronized) {
+//        // for CSS and TC_RIGIDTAP
+//        double css_progress_cmd;
+//        double pos_error;
+//        double new_spindlepos = emcmotStatus->spindleRevs;
+//
+//        tc->feed_override = 1.0;
+//
+//        if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
+//        revs = new_spindlepos;
+//
+//        if(tc->motion_type == TC_RIGIDTAP &&
+//           (tc->coords.rigidtap.state == RETRACTION ||
+//            tc->coords.rigidtap.state == FINAL_REVERSAL))
+//            revs = tc->coords.rigidtap.spindlerevs_at_reversal - new_spindlepos;
+//        else
+//            revs = new_spindlepos;
+//
+//        // feed-forward reqvel calculation for CSS motion
+//        css_progress_cmd = (revs - spindleoffset) * tc->uu_per_rev;
+//
+//        pos_error = tc->css_progress_cmd - tc->progress;
+//        if (pos_error > tc->jerk) {
+//            pos_error = tc->jerk;
+//        } else if (pos_error < -tc->jerk) {
+//            pos_error = -tc->jerk;
+//        }
+//
+//        tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
+//        tc->css_progress_cmd = css_progress_cmd;
+//
+//        if (nexttc) {
+//            if (nexttc->synchronized) {
+//                // nexttc->reqvel = tc->reqvel;
+//                // nexttc->feed_override = 1.0;
+//                // if (nexttc->reqvel < 0.0)
+//                //     nexttc->reqvel = 0.0;
+//
+//                // disable velocity blending for CSS motion
+//                nexttc->reqvel = 0;
+//                nexttc->feed_override = 0;
+//            } else {
+//                nexttc->feed_override = emcmotStatus->net_feed_scale;
+//            }
+//        }
+//    } else {
+//        tc->feed_override = emcmotStatus->net_feed_scale;
+//        if(nexttc) {
+//	    nexttc->feed_override = emcmotStatus->net_feed_scale;
+//	}
+//    }
 
-        tc->feed_override = 1.0;
-
-        if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
-        revs = new_spindlepos;
-
-        if(tc->motion_type == TC_RIGIDTAP && 
-           (tc->coords.rigidtap.state == RETRACTION || 
-            tc->coords.rigidtap.state == FINAL_REVERSAL))
-            revs = tc->coords.rigidtap.spindlerevs_at_reversal - new_spindlepos;
-        else
-            revs = new_spindlepos;
-
-        // feed-forward reqvel calculation for CSS motion
-        css_progress_cmd = (revs - spindleoffset) * tc->uu_per_rev;
-        
-        pos_error = tc->css_progress_cmd - tc->progress;
-        if (pos_error > tc->jerk) {
-            pos_error = tc->jerk;
-        } else if (pos_error < -tc->jerk) {
-            pos_error = -tc->jerk;
-        }
-
-        tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
-        tc->css_progress_cmd = css_progress_cmd;
-        
-        if (nexttc) {
-            if (nexttc->synchronized) {
-                // nexttc->reqvel = tc->reqvel;
-                // nexttc->feed_override = 1.0;
-                // if (nexttc->reqvel < 0.0)
-                //     nexttc->reqvel = 0.0;
-                
-                // disable velocity blending for CSS motion
-                nexttc->reqvel = 0;
-                nexttc->feed_override = 0;
-            } else {
-                nexttc->feed_override = emcmotStatus->net_feed_scale;
-            }
-        }
-    } else {
-        tc->feed_override = emcmotStatus->net_feed_scale;
-        if(nexttc) {
-	    nexttc->feed_override = emcmotStatus->net_feed_scale;
-	}
+    tc->feed_override = emcmotStatus->net_feed_scale;
+    if(nexttc) {
+        nexttc->feed_override = emcmotStatus->net_feed_scale;
     }
 
     /* handle pausing */
