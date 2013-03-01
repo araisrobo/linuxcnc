@@ -814,6 +814,7 @@ static void handle_special_cmd(void)
         *emcmot_hal_data->update_pos_ack = 0;
     }
 
+    emcmotStatus->update_current_pos_flag = 0;  // prevent emcTaskPlanSynch() at emcTask.cc
     if (*emcmot_hal_data->update_pos_ack != 0)
     {
         int joint_num;
@@ -841,10 +842,12 @@ static void handle_special_cmd(void)
             positions[joint_num] = 0.0;
             joint_num++;
         }
+
         /* update carte_pos_cmd for RISC-JOGGING */
         kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
         /* preset traj planner to current position */
         tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd); // for EMCMOT_MOTION_COORD mode
+        emcmotStatus->update_current_pos_flag = 1; // force emcTaskPlanSynch() at emcTask.cc
     }
 
 }
@@ -1977,6 +1980,7 @@ static void output_to_hal(void)
                 emcmotStatus->sync_risc_pos);
         *(emcmot_hal_data->align_pos_cmd) = 1;
         emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+        assert(0);
     } else {
         *(emcmot_hal_data->align_pos_cmd) = 0;
     }
