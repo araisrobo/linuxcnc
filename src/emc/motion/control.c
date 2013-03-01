@@ -471,6 +471,7 @@ static void process_inputs(void)
         joint->pos_fb = joint->motor_pos_fb -
                 (joint->backlash_filt + joint->motor_offset);
         joint->risc_pos_cmd = *(joint_data->risc_pos_cmd);
+        joint->blender_offset = *(joint_data->blender_offset);
 
         /* calculate following error */
         joint->ferror = joint->pos_cmd - joint->pos_fb;
@@ -730,7 +731,7 @@ static void process_probe_inputs(void)
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
                 {
                     joint = &joints[joint_num];
-                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset);
+                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
                 }
                 kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
             } else
@@ -813,6 +814,7 @@ static void handle_special_cmd(void)
         *emcmot_hal_data->update_pos_ack = 0;
     }
 
+    emcmotStatus->update_current_pos_flag = 0;  // prevent emcTaskPlanSynch() at emcTask.cc
     if (*emcmot_hal_data->update_pos_ack != 0)
     {
         int joint_num;
@@ -825,7 +827,7 @@ static void handle_special_cmd(void)
             /* point to joint struct */
             joint = &joints[joint_num];
             /* copy risc_pos_cmd feedback */
-            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset;
+            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset - joint->blender_offset;
             joint->coarse_pos = joint->pos_cmd;
             joint->free_tp.curr_pos = joint->pos_cmd;
             /* to reset cubic parameters */
@@ -840,10 +842,12 @@ static void handle_special_cmd(void)
             positions[joint_num] = 0.0;
             joint_num++;
         }
+
         /* update carte_pos_cmd for RISC-JOGGING */
         kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
         /* preset traj planner to current position */
         tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd); // for EMCMOT_MOTION_COORD mode
+        emcmotStatus->update_current_pos_flag = 1; // force emcTaskPlanSynch() at emcTask.cc
     }
 
 }
@@ -1976,6 +1980,7 @@ static void output_to_hal(void)
                 emcmotStatus->sync_risc_pos);
         *(emcmot_hal_data->align_pos_cmd) = 1;
         emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+        assert(0);
     } else {
         *(emcmot_hal_data->align_pos_cmd) = 0;
     }
@@ -2095,7 +2100,7 @@ static void output_to_hal(void)
         joint = &joints[joint_num];
         /* apply backlash and motor offset to output */
         joint->motor_pos_cmd =
-                joint->pos_cmd + joint->backlash_filt + joint->motor_offset;
+                joint->pos_cmd + joint->backlash_filt + joint->motor_offset + joint->blender_offset;
         /* point to HAL data */
         joint_data = &(emcmot_hal_data->joint[joint_num]);
         /* write to HAL pins */

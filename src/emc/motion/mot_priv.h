@@ -83,6 +83,7 @@ typedef struct {
     hal_s32_t   *risc_probe_pin;	/* OUT */
     hal_s32_t   *risc_probe_type;	/* OUT */
     hal_s32_t   *home_sw_id;		/* IN */
+    hal_float_t *blender_offset;
 
 } joint_hal_t;
 
