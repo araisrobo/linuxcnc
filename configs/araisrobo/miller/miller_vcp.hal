@@ -18,7 +18,7 @@ net estop-inactive estop-not.out => gladevcp.settings
 net machine_is_on => gladevcp.commands
 
 # show the current spindle speed in the top hoizontal bar
-net spindle-speed motion.spindle-speed-out => gladevcp.spindle-rpm-hbar
+net spindle-speed-rpm spindle.0.speed-rpm => gladevcp.spindle-rpm-hbar
 
 # net laser_distance  => gladevcp.laser-dist-meter
 # net laser_distance  => gladevcp.laser-dist-label

@@ -1344,6 +1344,11 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 //    static double revs;
     EmcPose target;
 
+    if (tp->synchronized == 0) {
+        // prepare spindle speed command
+
+    }
+
     emcmotStatus->tcqlen = tcqLen(&tp->queue);
     emcmotStatus->requested_vel = 0.0;
     tc = tcqItem(&tp->queue, 0, period);

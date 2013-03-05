@@ -1,8 +1,8 @@
 # core HAL config file for simulation - 4 joint
 # load 3 differentiators for accel signals
 loadrt ddt count=3
-# load additional blocks
 loadrt hypot count=2
+loadrt spindle
 
 # load RT modules
 loadrt [KINS]KINEMATICS
@@ -20,6 +20,17 @@ addf    ddt.1           servo-thread
 addf    ddt.2           servo-thread
 addf    hypot.0         servo-thread
 addf    hypot.1         servo-thread
+addf    spindle.0       servo-thread
+
+# spindle
+setp spindle.0.max-vel  [JOINT_3]MAX_VELOCITY
+setp spindle.0.max-acc  [JOINT_3]MAX_ACCELERATION
+setp spindle.0.max-jerk [JOINT_3]MAX_JERK
+# TODO: velocity-mode
+setp spindle.0.velocity-mode    1
+net  spindle-on             spindle.0.on               <= motion.spindle-on
+net  spindle-speed-cmd-rps  spindle.0.velocity-cmd     <= motion.spindle-speed-cmd-rps
+
 # send the position commands thru differentiators to
 # generate velocity and accel signals
 net Xvel-fb     => ddt.0.in hypot.0.in0
@@ -30,7 +41,6 @@ net Yacc        <= ddt.1.out
 
 net Zvel        => ddt.2.in hypot.1.in0
 net Zacc        <= ddt.2.out 
-
 
 # Cartesian 2- and 3-axis velocities
 net XYvel       hypot.0.out => hypot.1.in1
@@ -50,20 +60,20 @@ net motionState motion.motion-state => wou.motion-state
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
 net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
-net Spos  joint.3.motor-pos-cmd => wou.stepgen.3.position-cmd 
+net Spos  spindle.0.curr-pos    => wou.stepgen.3.position-cmd
 
 # loop position commands back to motion module feedback
 # for OPEN_LOOP
 net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
-net Spos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
+net Spos-fb   wou.stepgen.3.position-fb => motion.spindle-revs
 
 # motor_index positions
 net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
 net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
 net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
-net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
+# net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
@@ -151,6 +161,7 @@ net J0-risc-pos-cmd wou.stepgen.0.risc-pos-cmd => joint.0.risc-pos-cmd
 net J1-risc-pos-cmd wou.stepgen.1.risc-pos-cmd => joint.1.risc-pos-cmd
 net J2-risc-pos-cmd wou.stepgen.2.risc-pos-cmd => joint.2.risc-pos-cmd
 net J3-risc-pos-cmd wou.stepgen.3.risc-pos-cmd => joint.3.risc-pos-cmd
+# TODO: forward risc-pos-cmd to spindle.0
 
 # for usb-homing:
 # original homing switchs: 
