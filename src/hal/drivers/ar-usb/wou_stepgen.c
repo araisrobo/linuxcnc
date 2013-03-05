@@ -223,6 +223,9 @@ const char *alr_output= "0";
 RTAPI_MP_STRING(alr_output,
         "Digital Output when E-Stop presents");
 
+int gantry_polarity = 0;
+RTAPI_MP_INT(gantry_polarity, "gantry polarity");
+
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
 static const char *board = "7i43u";
@@ -937,6 +940,12 @@ int rtapi_app_main(void)
         return -1;
     }
 
+    if (abs(gantry_polarity) == 1) {
+        // set risc positive
+        write_machine_param(GANTRY_POLARITY, gantry_polarity);
+    }
+    while(wou_flush(&w_param) == -1);
+
     // "pulse type (AB-PHASE(a) or STEP-DIR(s)) for up to 8 channels")
     data[0] = 0;
     for (n = 0; n < MAX_CHAN && (pulse_type[n][0] != ' ') ; n++) {
@@ -1042,6 +1051,8 @@ int rtapi_app_main(void)
         assert(0);
     }
     while(wou_flush(&w_param) == -1);
+
+
     // config debug pattern
     if (strcmp(pattern_type_str, "NO_TEST") == 0) {
         write_machine_param(TEST_PATTERN_TYPE, NO_TEST);
