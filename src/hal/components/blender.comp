@@ -40,11 +40,10 @@ FUNCTION(_)
 {
     double max_dv, tiny_dp, pos_err, vel_req, pos_cmd, vel_limit;
     static unsigned int _cmd_id;
-    static double curr_pos, curr_vel, p;
+    static double curr_pos, curr_vel;
     static double offset = 0;
-    p = 0.000655;
-    max_dv = max_acc * p;
-    tiny_dp = max_dv * p * 0.001;
+    max_dv = max_acc * fperiod;
+    tiny_dp = max_dv * fperiod * 0.001;
     if (!enable)
     {
         _cmd_id = pos_cmd_id;
@@ -114,8 +113,8 @@ FUNCTION(_)
         }
     
         /* integrate velocity to get new position */
-        curr_pos += curr_vel*p;
-        offset += (curr_vel*p);
+        curr_pos += curr_vel * fperiod;
+        offset += (curr_vel * fperiod);
         
         if (!blending_o) {
             _cmd_id += 1;

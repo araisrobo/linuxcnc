@@ -176,6 +176,7 @@ typedef enum {
 enum machine_parameter_addr {
     AHC_JNT,
     AHC_POLARITY,
+    GANTRY_POLARITY,
     TEST_PATTERN_TYPE,
     TEST_PATTERN,
     ANALOG_REF_LEVEL,   // wait analog signal: M110
