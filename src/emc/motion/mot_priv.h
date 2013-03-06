@@ -160,6 +160,9 @@ typedef struct {
     // simplest way of spindle control (output start/stop)
     hal_bit_t *spindle_on;	/* spindle spin output */
 
+    // spindle_velocity_mode: velocity(1) or position(0) mode
+    hal_bit_t *spindle_velocity_mode;      /* spindle velocity_mode output */
+
     // same thing for 2 directions
     hal_bit_t *spindle_forward;	/* spindle spin-forward output */
     hal_bit_t *spindle_reverse;	/* spindle spin-reverse output */

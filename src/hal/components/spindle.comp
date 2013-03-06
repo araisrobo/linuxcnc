@@ -121,6 +121,7 @@ FUNCTION(_) {
     //         new_position = new_position - floor(new_position);
     // }
     // position_fb = new_position;
+    double tmp;
     static spindle_state_t cur_state = S_IDLE;
     
     if ((!on) && (curr_vel == 0))
@@ -163,6 +164,11 @@ FUNCTION(_) {
 
         case S_POS_MODE:
             // TODO
+            in_position = 1;
+            tmp = curr_vel;
+            curr_vel = (position_cmd - curr_pos) / fperiod;
+            curr_acc = curr_vel - tmp;
+            curr_pos = position_cmd;
             break;
 
         default:

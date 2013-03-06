@@ -27,7 +27,7 @@ setp spindle.0.max-vel  [JOINT_3]MAX_VELOCITY
 setp spindle.0.max-acc  [JOINT_3]MAX_ACCELERATION
 setp spindle.0.max-jerk [JOINT_3]MAX_JERK
 # TODO: velocity-mode
-setp spindle.0.velocity-mode    1
+net  spindle-velocity-mode  spindle.0.velocity-mode    <= motion.spindle-velocity-mode
 net  spindle-on             spindle.0.on               <= motion.spindle-on
 net  spindle-speed-cmd-rps  spindle.0.velocity-cmd     <= motion.spindle-speed-cmd-rps
 

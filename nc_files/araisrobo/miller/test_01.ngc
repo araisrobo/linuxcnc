@@ -1,12 +1,14 @@
 G21 G64 P0.1 G40
 F12.5
 G91
+M3S200
 G1 Z -0.25
 #<dist>=5
 G1  X[#<dist>]
     Y[#<dist>]
     X[-#<dist>]
     Y[-#<dist>]
-G1 Z 50
+G1 Z 0.25
+M5
 M2
 %

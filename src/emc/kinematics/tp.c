@@ -29,7 +29,7 @@
 #define SMLBLND         // to evaluate seamless blending
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
@@ -363,6 +363,7 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.velocity_mode = tp->velocity_mode;
     tc.enables = enables;
     tc.indexrotary = -1;
+    tc.motion_type = TC_RIGIDTAP;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
 	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
@@ -377,11 +378,9 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
 	return -1;
     }
-    
     // REVERSING
     pmLineInit(&line_xyz, end_xyz, start_xyz);  // reverse the line direction
     tc.coords.rigidtap.xyz = line_xyz;
-    tc.motion_type = TC_RIGIDTAP;
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -1509,32 +1508,35 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // honor accel constraint in case we happen to make an acute angle
         // with the next segment.
 
-        if(tc->synchronized) {
-            if(!tc->velocity_mode && !emcmotStatus->spindleSync) {
-                // if we aren't already synced, wait
-                waiting_for_index = tc->id;
-                // ask for an index reset
-                emcmotStatus->spindle_index_enable = 1;
-                spindleoffset = 0.0;
-                // don't move: wait
-                return 0;
-            }
-        }
+//USB-RIGID-TAP:
+//        if(tc->synchronized) {
+//            if(!tc->velocity_mode && !emcmotStatus->spindleSync) {
+//                // if we aren't already synced, wait
+//                waiting_for_index = tc->id;
+//                // ask for an index reset
+//                emcmotStatus->spindle_index_enable = 1;
+//                spindleoffset = 0.0;
+//                // don't move: wait
+//                return 0;
+//            }
+//        }
     }
 
-    if (MOTION_ID_VALID(waiting_for_index)) {
-        if(emcmotStatus->spindle_index_enable) {
-            /* haven't passed index yet */
-            return 0;
-        } else {
-            /* passed index, start the move */
-            emcmotStatus->spindleSync = 1;
-            waiting_for_index = MOTION_INVALID_ID;
-            tc->sync_accel=1;
-//            revs=0;
-        }
-    }
+//USB-RIGID-TAP:
+//    if (MOTION_ID_VALID(waiting_for_index)) {
+//        if(emcmotStatus->spindle_index_enable) {
+//            /* haven't passed index yet */
+//            return 0;
+//        } else {
+//            /* passed index, start the move */
+//            emcmotStatus->spindleSync = 1;
+//            waiting_for_index = MOTION_INVALID_ID;
+//            tc->sync_accel=1;
+////            revs=0;
+//        }
+//    }
 
+//USB-RIGID-TAP:
 //    if (tc->motion_type == TC_RIGIDTAP) {
 //        static double old_spindlepos;
 //        double new_spindlepos = emcmotStatus->spindleRevs;
@@ -1596,7 +1598,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 //    }
 
 
-    if(!tc->synchronized) emcmotStatus->spindleSync = 0;
+//USB-RIGID-TAP:
+//    if(!tc->synchronized) emcmotStatus->spindleSync = 0;
+    emcmotStatus->spindleSync = tc->synchronized;
 
 
     if(nexttc && nexttc->active == 0) {
