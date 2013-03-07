@@ -68,6 +68,9 @@ typedef struct {
     double reversal_target;
     double spindlerevs_at_reversal;
     RIGIDTAP_STATE state;
+    double spindle_start_pos;
+    int spindle_start_pos_latch;
+    double spindle_dir;
 } PmRigidTap;
 
 enum state_type {

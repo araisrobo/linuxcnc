@@ -117,6 +117,8 @@ typedef struct {
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;
+    hal_bit_t *spindle_in_position;
+    hal_float_t *spindle_curr_pos_cmd;
     hal_float_t *spindle_revs;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
@@ -162,6 +164,8 @@ typedef struct {
 
     // spindle_velocity_mode: velocity(1) or position(0) mode
     hal_bit_t *spindle_velocity_mode;      /* spindle velocity_mode output */
+
+    hal_float_t *spindle_position_cmd;
 
     // same thing for 2 directions
     hal_bit_t *spindle_forward;	/* spindle spin-forward output */

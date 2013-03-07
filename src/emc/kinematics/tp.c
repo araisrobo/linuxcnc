@@ -364,6 +364,8 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.enables = enables;
     tc.indexrotary = -1;
     tc.motion_type = TC_RIGIDTAP;
+    tc.coords.rigidtap.spindle_start_pos_latch = 0;
+    tc.coords.rigidtap.spindle_start_pos = 0;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
 	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
@@ -374,6 +376,13 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     }
 
     // TAPPING
+    if (vel > 0)        // vel is requested spindle velocity
+    {
+        tc.coords.rigidtap.spindle_dir = 1.0;
+    } else
+    {
+        tc.coords.rigidtap.spindle_dir = -1.0;
+    }
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
 	return -1;
@@ -381,6 +390,13 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     // REVERSING
     pmLineInit(&line_xyz, end_xyz, start_xyz);  // reverse the line direction
     tc.coords.rigidtap.xyz = line_xyz;
+    if (vel > 0)
+    {
+        tc.coords.rigidtap.spindle_dir = -1.0;
+    } else
+    {
+        tc.coords.rigidtap.spindle_dir = 1.0;
+    }
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -1467,7 +1483,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
     // check for at-speed before marking the tc active
     if (MOTION_ID_VALID(waiting_for_atspeed)) {
-        if(!emcmotStatus->spindle_is_atspeed) {
+        if(!emcmotStatus->spindle.at_speed) {
             /* spindle is still not at the right speed: wait */
             return 0;
         } else {
@@ -1482,7 +1498,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // atspeed check for the start of all spindle synchronized
         // moves.
         if((tc->atspeed || (tc->synchronized && !tc->velocity_mode && !emcmotStatus->spindleSync)) && 
-           !emcmotStatus->spindle_is_atspeed) {
+           !emcmotStatus->spindle.at_speed) {
             waiting_for_atspeed = tc->id;
             return 0;
         }
@@ -1601,7 +1617,18 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 //USB-RIGID-TAP:
 //    if(!tc->synchronized) emcmotStatus->spindleSync = 0;
     emcmotStatus->spindleSync = tc->synchronized;
-
+    emcmotStatus->spindle_position_cmd = emcmotStatus->spindle.curr_pos_cmd;
+    if(emcmotStatus->spindleSync) {
+        if(!emcmotStatus->spindle.in_position) {
+            // don't move: wait
+            return 0;
+        }
+        if (!tc->coords.rigidtap.spindle_start_pos_latch)
+        {
+            tc->coords.rigidtap.spindle_start_pos_latch = 1;
+            tc->coords.rigidtap.spindle_start_pos = emcmotStatus->spindle.curr_pos_cmd;
+        }
+    }
 
     if(nexttc && nexttc->active == 0) {
         // this means this tc is being read for the first time.

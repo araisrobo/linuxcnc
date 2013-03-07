@@ -24,6 +24,10 @@
 #include "emcpos.h"
 #include "tc.h"
 #include "nurbs.h"
+#include "../motion/motion.h"
+//#include "hal.h"
+//#include "../motion/mot_priv.h"
+//#include "motion_debug.h"
 
 #define TRACE 0
 #include "dptrace.h"
@@ -32,6 +36,10 @@
     static FILE *dptrace = NULL;
     static uint32_t _dt = 0;
 #endif
+
+extern emcmot_status_t *emcmotStatus;
+
+
 int nurbs_findspan (int n, int p, double u, double *U)
 {
   // FIXME : this implementation has linear, rather than log complexity
@@ -170,14 +178,19 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 #endif
 
     if (tc->motion_type == TC_RIGIDTAP) {
-        if(tc->coords.rigidtap.state > REVERSING) {
-            pmLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
-        } else {
-            pmLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
-        }
+//        if(tc->coords.rigidtap.state > REVERSING) {
+//            pmLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
+//        } else {
+//            pmLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
+//        }
+        pmLinePoint(&tc->coords.rigidtap.xyz, tc->coords.rigidtap.xyz.tmag * (progress / tc->target) , &xyz);
         // no rotary move allowed while tapping
         abc.tran = tc->coords.rigidtap.abc;
         uvw.tran = tc->coords.rigidtap.uvw;
+        if (!of_endpoint)
+        {
+            emcmotStatus->spindle_position_cmd = tc->coords.rigidtap.spindle_start_pos + tc->coords.rigidtap.spindle_dir * progress;
+        }
     } else if (tc->motion_type == TC_LINEAR) {
 
         if (tc->coords.line.xyz.tmag > 0.) {
@@ -342,7 +355,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 }
             }
 
-#if (TRACE != 0)
+#if 0
                 if(l == 0 && _dt == 0) {
                     last_l = 0;
                     last_u = 0;

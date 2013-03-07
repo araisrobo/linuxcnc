@@ -26,10 +26,13 @@ addf    spindle.0       servo-thread
 setp spindle.0.max-vel  [JOINT_3]MAX_VELOCITY
 setp spindle.0.max-acc  [JOINT_3]MAX_ACCELERATION
 setp spindle.0.max-jerk [JOINT_3]MAX_JERK
-# TODO: velocity-mode
 net  spindle-velocity-mode  spindle.0.velocity-mode    <= motion.spindle-velocity-mode
 net  spindle-on             spindle.0.on               <= motion.spindle-on
 net  spindle-speed-cmd-rps  spindle.0.velocity-cmd     <= motion.spindle-speed-cmd-rps
+net  spindle-position-cmd   spindle.0.position-cmd     <= motion.spindle-position-cmd
+net  spindle-curr-pos-cmd   spindle.0.curr-pos         => motion.spindle-curr-pos-cmd
+net  spindle-in-position    spindle.0.in-position      => motion.spindle-in-position
+net  spindle-at-speed       spindle.0.at-speed         => motion.spindle-at-speed
 
 # send the position commands thru differentiators to
 # generate velocity and accel signals
@@ -60,7 +63,7 @@ net motionState motion.motion-state => wou.motion-state
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
 net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
-net Spos  spindle.0.curr-pos    => wou.stepgen.3.position-cmd
+net spindle-curr-pos-cmd        => wou.stepgen.3.position-cmd
 
 # loop position commands back to motion module feedback
 # for OPEN_LOOP

@@ -1092,33 +1092,47 @@ void STRAIGHT_FEED(int line_number,
 
 void RIGID_TAP(int line_number, double x, double y, double z)
 {
-    double ini_maxvel, vel, acc;
+//    double ini_maxvel, vel, acc;
+    double vel, acc;
     EMC_TRAJ_RIGID_TAP rigidTapMsg;
     double unused=0;
     
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
 
-
-    vel = getStraightVelocity(x, y, z, 
-                              canon.endPoint.a, canon.endPoint.b, canon.endPoint.c, 
-                              canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
-    ini_maxvel = vel;
+//USB-RIGID-TAP:
+//    vel = getStraightVelocity(x, y, z,
+//                              canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+//                              canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+//    ini_maxvel = vel;
+//
+//    acc = getStraightAcceleration(x, y, z,
+//                                  canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+//                                  canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+//
+//    rigidTapMsg.pos = to_ext_pose(x,y,z,
+//                                 canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+//                                 canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+//
+//    rigidTapMsg.vel = toExtVel(vel);
+//    rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
+//    rigidTapMsg.acc = toExtAcc(acc);
+//    rigidTapMsg.ini_maxjerk = TO_EXT_LEN(getStraightJerk(x, y, z,
+//                                                         canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+//                                                         canon.endPoint.u, canon.endPoint.v, canon.endPoint.w));
     
-    acc = getStraightAcceleration(x, y, z, 
-                                  canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
-                                  canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
-    
+    vel = canon.spindle_dir * canon.spindleSpeed / 60; // unit: rps
+    acc = emcAxisGetMaxAcceleration(9);     // AXIS_S: 9
     rigidTapMsg.pos = to_ext_pose(x,y,z,
                                  canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
                                  canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
 
-    rigidTapMsg.vel = toExtVel(vel);
-    rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
-    rigidTapMsg.acc = toExtAcc(acc);
-    rigidTapMsg.ini_maxjerk = TO_EXT_LEN(getStraightJerk(x, y, z, 
-                                                         canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
-                                                         canon.endPoint.u, canon.endPoint.v, canon.endPoint.w));
+    // spindle velocity unit: rps
+    rigidTapMsg.vel = (vel);
+    rigidTapMsg.ini_maxvel = emcAxisGetMaxVelocity(9);  // AXIS_S: 9
+    rigidTapMsg.acc = acc;
+    rigidTapMsg.ini_maxjerk = emcAxisGetMaxJerk(9);     // AXIS_S: 9
+
     flush_segments();
     
     DP("x(%f) y(%f) z(%f)\n", x, y, z);

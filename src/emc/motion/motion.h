@@ -608,6 +608,9 @@ typedef struct {
     int locked;             // spindle lock engaged after orient
     int orient_fault;       // fault code from motion.spindle-orient-fault
     int orient_state;       // orient_state_t
+    int in_position;
+    int at_speed;
+    double curr_pos_cmd;
 } spindle_status;
 
 typedef struct {
@@ -696,6 +699,7 @@ typedef struct emcmot_status_t {
     int spindleSync;        /* we are doing spindle-synced motion */
     double spindleRevs;     /* position of spindle in revolutions */
     double spindleSpeedIn;  /* velocity of spindle in revolutions per minute */
+    double spindle_position_cmd;
 
     spindle_status spindle;	/* data types for spindle status */
 
@@ -733,7 +737,7 @@ typedef struct emcmot_status_t {
     unsigned int tcqlen;
     EmcPose tool_offset;
     int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
-    int spindle_is_atspeed; /* hal input */
+// moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
 
 } emcmot_status_t;

@@ -129,14 +129,17 @@ FUNCTION(_) {
         cur_state = S_IDLE;
     }
             
-    at_speed = 0;
-    in_position = 0;
+
+    //printf("cur_state(%d)\n", cur_state);
     switch (cur_state)
     {
         case S_IDLE:
+            at_speed = 1;
+            in_position = 0;
             if (on) {
                 if (velocity_mode) {
                     cur_state = S_VEL_MODE;
+                    at_speed = 0;
                 } else {
                     cur_state = S_POS_MODE;
                 }
@@ -154,6 +157,8 @@ FUNCTION(_) {
 
         case S_VEL_DECEL:
             // decel to vel == 0
+            at_speed = 0;
+            in_position = 0;
             vel_ctrl (0, fperiod);
             if (curr_vel == 0) {
                 cur_state = S_IDLE;
@@ -164,11 +169,16 @@ FUNCTION(_) {
 
         case S_POS_MODE:
             // TODO
+            at_speed = 1;
             in_position = 1;
             tmp = curr_vel;
             curr_vel = (position_cmd - curr_pos) / fperiod;
             curr_acc = curr_vel - tmp;
             curr_pos = position_cmd;
+            if ((!on) || (velocity_mode)) 
+            {
+                cur_state = S_VEL_DECEL;
+            }
             break;
 
         default:

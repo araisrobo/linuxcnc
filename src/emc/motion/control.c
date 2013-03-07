@@ -413,7 +413,9 @@ static void process_inputs(void)
     /* read spindle angle (for threading, etc) */
     emcmotStatus->spindleRevs = *emcmot_hal_data->spindle_revs;
     emcmotStatus->spindleSpeedIn = *emcmot_hal_data->spindle_speed_in;
-    emcmotStatus->spindle_is_atspeed = *emcmot_hal_data->spindle_is_atspeed;
+    emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
+    emcmotStatus->spindle.in_position = *emcmot_hal_data->spindle_in_position;
+    emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
         /* use the enables that were queued with the current move */
@@ -2021,7 +2023,8 @@ static void output_to_hal(void)
     }
     *(emcmot_hal_data->spindle_speed_cmd_rps) = emcmotStatus->spindle.speed / 60.;
     *(emcmot_hal_data->spindle_on) = ((emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale) != 0) ? 1 : 0;
-    *(emcmot_hal_data->spindle_velocity_mode) = (emcmotStatus->spindleSync);
+    *(emcmot_hal_data->spindle_velocity_mode) = (!emcmotStatus->spindleSync);
+    *(emcmot_hal_data->spindle_position_cmd) = (emcmotStatus->spindle_position_cmd);
     *(emcmot_hal_data->spindle_forward) = (*emcmot_hal_data->spindle_speed_out > 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_reverse) = (*emcmot_hal_data->spindle_speed_out < 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle.brake != 0) ? 1 : 0;
