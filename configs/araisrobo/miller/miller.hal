@@ -178,12 +178,12 @@ net J3-risc-pos-cmd wou.stepgen.3.risc-pos-cmd => joint.3.risc-pos-cmd
 
 # use LSN as homing switch for AXIS-X, AXIS-Y:
 setp joint.0.home-sw-id 4
-setp joint.1.home-sw-id 6
+setp joint.1.home-sw-id 7
 # use LSP as homing switch for AXIS-Z:
 setp joint.2.home-sw-id 9
 # home switch status from FPGA
 net din_04      joint.0.home-sw-in
-net din_06      joint.1.home-sw-in
+net din_07      joint.1.home-sw-in
 net din_09      joint.2.home-sw-in
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing

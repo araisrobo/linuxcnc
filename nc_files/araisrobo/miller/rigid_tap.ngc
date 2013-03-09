@@ -1,5 +1,5 @@
 G21 G91
 g0z0
 s60m3 ; 1rps
-g33.1 z5 k1 ; 1 thread per second, k - distance per revolution
+g33.1 z-5 k1 ; 1 thread per second, k - distance per revolution
 m2
