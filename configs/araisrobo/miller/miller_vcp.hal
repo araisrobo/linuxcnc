@@ -38,7 +38,8 @@ net dout4       gladevcp.do4    => gladevcp.led4  wou.gpio.out.04
 net dout5       gladevcp.do5    => gladevcp.led5  wou.gpio.out.05
 net dout6       gladevcp.do6    => gladevcp.led6  wou.gpio.out.06
 # net machine_is_on               => gladevcp.led7  wou.gpio.out.07
-#TODO: dout7 is for tool chang: net dout7       gladevcp.do7    => gladevcp.led7  wou.gpio.out.07
+#dout7 is for tool chang
+net dout7       gladevcp.do7    => gladevcp.led7  wou.gpio.out.07
 
 # the MDI Toggle action is called with the values of some of the HAL pins
 # as parameters like so:
