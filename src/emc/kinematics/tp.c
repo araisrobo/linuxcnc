@@ -1356,13 +1356,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     static double spindleoffset;
     static int waiting_for_index = MOTION_INVALID_ID;
     static int waiting_for_atspeed = MOTION_INVALID_ID;
-//    static double revs;
     EmcPose target;
-
-    if (tp->synchronized == 0) {
-        // prepare spindle speed command
-
-    }
 
     emcmotStatus->tcqlen = tcqLen(&tp->queue);
     emcmotStatus->requested_vel = 0.0;
@@ -1381,6 +1375,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         tpResume(tp);
 	// when not executing a move, use the current enable flags
 	emcmotStatus->enables_queued = emcmotStatus->enables_new;
+        // spindleSync maps to motion.spindle-velocity-mode
+        emcmotStatus->spindleSync = tp->synchronized;
         return 0;
     }
 
@@ -1912,9 +1908,9 @@ int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode) {
         tp->synchronized = 1;
         tp->uu_per_rev = sync;
         tp->velocity_mode = mode;
-    } else
+    } else {
         tp->synchronized = 0;
-
+    }
     return 0;
 }
 
