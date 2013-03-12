@@ -185,6 +185,11 @@ const char *pos_scale_str[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(pos_scale_str, MAX_CHAN,
         "pos scale value for up to 8 channels");
 
+const char *enc_scale_str[MAX_CHAN] =
+{ "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0", "1.0" };
+RTAPI_MP_ARRAY_STRING(enc_scale_str, MAX_CHAN,
+        "enc scale value for up to 8 channels");
+
 const char *ferror_str[MAX_CHAN] =
 { "0", "0", "0", "0", "0", "0", "0", "0" };
 RTAPI_MP_ARRAY_STRING(ferror_str, MAX_CHAN,
@@ -767,43 +772,6 @@ static void write_usb_cmd(machine_control_t *mc)
 
     case HOME_CMD_TYPE:
         assert(0);
-        *mc->last_usb_cmd = *mc->usb_cmd;
-        for (i=0; i<4; i++) {
-            *mc->last_usb_cmd_param[i] =
-                    *mc->usb_cmd_param[i];
-        }
-        n = ((int32_t)(*mc->usb_cmd_param[0]) & 0xFFFFFFF0) >> 4;
-        fprintf(stderr,"get home command for (%d) joint\n", n);
-        pos_scale   = fabs(atof(pos_scale_str[n]));
-        data = (int32_t)(*mc->usb_cmd_param[0]);
-        fprintf(stderr,"get home command param0 (0x%0X) joint\n", data);
-        for(j=0; j<sizeof(int32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-            memcpy(buf, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), buf);
-        }
-        data = (int32_t)(*mc->usb_cmd_param[1] * pos_scale * dt * FIXED_POINT_SCALE);
-        fprintf(stderr,"get home command param1 (0x%0d) joint\n", data);
-        for(j=0; j<sizeof(int32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-            memcpy(buf, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), buf);
-        }
-        data = (int32_t)(*mc->usb_cmd_param[2] * pos_scale * dt * FIXED_POINT_SCALE);
-        fprintf(stderr,"get home command param2 (0x%0d) joint\n", data);
-        for(j=0; j<sizeof(int32_t); j++) {
-            sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-            memcpy(buf, &sync_cmd, sizeof(uint16_t));
-            wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                    sizeof(uint16_t), buf);
-        }
-        /* write command */
-        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
-        memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), buf);
         break;
 
     case SPECIAL_CMD_TYPE:
@@ -851,7 +819,8 @@ int rtapi_app_main(void)
 
     uint8_t data[MAX_DSIZE];
     int32_t immediate_data;
-    double max_vel, max_accel, pos_scale, value, max_following_error;//, probe_decel;
+    double max_vel, max_accel, pos_scale, value, max_following_error;
+    double enc_scale;
     double max_jerk;
     int msg;
     msg = rtapi_get_msg_level();
@@ -1192,6 +1161,13 @@ int rtapi_app_main(void)
         assert (max_accel > 0);
         assert (max_jerk > 0);
 
+        /* config encoder scale parameter */
+        enc_scale   = atof(enc_scale_str[n]);
+        assert (enc_scale > 0);
+        immediate_data = (uint32_t)(enc_scale * FIXED_POINT_SCALE);
+        write_mot_param (n, (ENC_SCALE), immediate_data);
+        while(wou_flush(&w_param) == -1);
+
         /* config MAX velocity */
         // * 1.05 : add 5% head room
         immediate_data = (uint32_t)((max_vel * pos_scale * dt * FIXED_POINT_SCALE) * 1.05);    
@@ -1225,7 +1201,8 @@ int rtapi_app_main(void)
         while(wou_flush(&w_param) == -1);
 
         /* config max jerk */
-        /* in tp.c, the tc->jerk is ~2.17x of ini-jerk */
+        /* TODO: confirm the "2.17x" of jerk:
+         *        in tp.c, the tc->jerk is ~2.17x of ini-jerk */
         immediate_data = (uint32_t)(3.0 * (max_jerk * pos_scale * FIXED_POINT_SCALE * dt * dt * dt));
         rtapi_print_msg(RTAPI_MSG_DBG,
                 "j[%d] max_jerk(%d) = (%f * %f * %f * %f^3)))\n",
@@ -1234,15 +1211,6 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_JERK), immediate_data);
         while(wou_flush(&w_param) == -1);
         stepgen_array[n].pulse_maxj = immediate_data;
-
-        /* config max jerk recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(3.0 * max_jerk * pos_scale * dt * dt * dt));
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                "j[%d] max_jerk_recip(%d) = %f/(%f * %f * %f^3)))\n",
-                n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
-        assert(immediate_data != 0);
-        write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
-        while(wou_flush(&w_param) == -1);
 
         /* config max following error */
         // following error send with unit pulse

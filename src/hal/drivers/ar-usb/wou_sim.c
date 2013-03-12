@@ -948,14 +948,6 @@ int rtapi_app_main(void)
         write_mot_param (n, (MAX_JERK), immediate_data);
         stepgen_array[n].pulse_maxj = immediate_data;
 
-        /* config max jerk recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE/(3.0 * max_jerk * pos_scale * dt * dt * dt));
-        rtapi_print_msg(RTAPI_MSG_DBG,
-                        "j[%d] max_jerk_recip(%d) = %f/(%f * %f * %f^3)))\n",
-                        n, immediate_data, FIXED_POINT_SCALE, max_jerk, pos_scale, dt);
-        assert(immediate_data != 0);
-        write_mot_param (n, (MAX_JERK_RECIP), immediate_data);
-
         /* config max following error */
         // following error send with unit pulse
         max_following_error = atof(ferror_str[n]);

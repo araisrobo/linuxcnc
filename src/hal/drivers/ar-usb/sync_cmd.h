@@ -265,11 +265,11 @@ enum motion_parameter_addr {
     MAXERROR_D        ,
     MAXCMD_D          ,
     MAXCMD_DD         ,
-    MAXOUTPUT         ,     
-                            // PID section: end
+    MAXOUTPUT         ,     // PID section: end
+
     ENABLE            ,     // set to 1 to enable joint motion
     MAX_JERK	      ,
-    MAX_JERK_RECIP    ,
+    ENC_SCALE         ,     // encoder scale: 16.16 format
     JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
 
     MAX_PARAM_ITEM
