@@ -90,6 +90,11 @@ const char *enc_type[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(enc_type, MAX_CHAN,
         "encoder type (REAL(r) or LOOP-BACK(l)) for up to 8 channels");
 
+// enc_pol: encoder polarity, default to POSITIVE(p)
+const char *enc_pol[MAX_CHAN] =
+{ "p", "p", "p", "p", "p", "p", "p", "p" };
+RTAPI_MP_ARRAY_STRING(enc_pol, MAX_CHAN,
+        "encoder polarity (POSITIVE(p) or NEGATIVE(n)) for up to 8 channels");
 
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
@@ -999,6 +1004,25 @@ int rtapi_app_main(void)
                 "WOU: ERROR: no enc_type defined\n");
         return -1;
     }
+
+    // "encoder polarity (POSITIVE(p) or NEGATIVE(n)) for up to 8 channels"
+    data[0] = 0;
+    for (n = 0; n < MAX_CHAN; n++) {
+        if ((enc_pol[n][0] == 'p') || (enc_pol[n][0] == 'P')) {
+            // ENC_POL(0): POSITIVE ENCODER POLARITY (default)
+        } else if ((enc_pol[n][0] == 'n') || (enc_pol[n][0] == 'N')) {
+            // ENC_POL(1): NEGATIVE ENCODER POLARITY
+            data[0] |= (1 << n);
+        } else {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                    "STEPGEN: ERROR: bad enc_pol '%s' for joint %i (must be 'p' or 'n')\n",
+                    enc_pol[n], n);
+            return -1;
+        }
+    }
+    wou_cmd (&w_param, WB_WR_CMD,
+            (uint16_t) (SSIF_BASE | SSIF_ENC_POL),
+            (uint8_t) 1, data);
 
     // configure alarm output (for E-Stop)
     write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
