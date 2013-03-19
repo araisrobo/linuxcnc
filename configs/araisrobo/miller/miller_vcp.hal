@@ -25,21 +25,24 @@ net spindle-speed-rpm spindle.0.speed-rpm => gladevcp.spindle-rpm-hbar
 # net adc_7s          => gladevcp.laser-volt-label
 
 # the first and second labels show prepared and current tool
-unlinkp iocontrol.0.tool-prep-number
-unlinkp hal_manualtoolchange.number
+# unlinkp iocontrol.0.tool-prep-number
+# unlinkp hal_manualtoolchange.number
 
-net tool-prepared iocontrol.0.tool-prep-number => gladevcp.prepared-tool hal_manualtoolchange.number
+# net tool-prepared iocontrol.0.tool-prep-number => gladevcp.prepared-tool hal_manualtoolchange.number
+net tool-prepared iocontrol.0.tool-prep-number => gladevcp.prepared-tool
 net tool-number iocontrol.0.tool-number => gladevcp.current-tool
 
 net dout1       gladevcp.do1    => gladevcp.led1  wou.gpio.out.01
 net dout2       gladevcp.do2    => gladevcp.led2  wou.gpio.out.02
-net dout3       gladevcp.do3    => gladevcp.led3  wou.gpio.out.03
-net dout4       gladevcp.do4    => gladevcp.led4  wou.gpio.out.04
-net dout5       gladevcp.do5    => gladevcp.led5  wou.gpio.out.05
-net dout6       gladevcp.do6    => gladevcp.led6  wou.gpio.out.06
+# net dout3       gladevcp.do3    => gladevcp.led3  wou.gpio.out.03
+# net dout4       gladevcp.do4    => gladevcp.led4  wou.gpio.out.04
+# net dout5       gladevcp.do5    => gladevcp.led5  wou.gpio.out.05
+# net dout6       gladevcp.do6    => gladevcp.led6  wou.gpio.out.06
 # net machine_is_on               => gladevcp.led7  wou.gpio.out.07
 #dout7 is for tool chang
-net dout7       gladevcp.do7    => gladevcp.led7  wou.gpio.out.07
+net dout7                       => gladevcp.led7                 
+net din_08                      => gladevcp.led8
+net din_15                      => gladevcp.led9
 
 # the MDI Toggle action is called with the values of some of the HAL pins
 # as parameters like so:

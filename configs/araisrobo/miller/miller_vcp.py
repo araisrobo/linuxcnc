@@ -31,7 +31,7 @@ class EmcInterface(object):
         return self.s.interp_state == linuxcnc.INTERP_IDLE
 
 
-    def ensure_mode(self,m, *p):
+    def ensure_mode(self, m, *p):
         '''
         If emc is not already in one of the modes given, switch it to the first mode
         example:
@@ -59,7 +59,7 @@ class EmcInterface(object):
 
 
     def mdi_command(self,command, wait=True):
-        #ensure_mode(emself.c.MODE_MDI)
+        self.ensure_mode(linuxcnc.MODE_MDI)
         self.c.mdi(command)
         if wait: self.c.wait_complete()
 
@@ -117,6 +117,40 @@ class HandlerClass:
     def on_destroy(self,obj,data=None):
         self.ini.save_state(self)
     
+    
+    def on_do7_toggled(self, widget, data=None):
+        label = gtk.Label("Click OK to TOOL-RELEASE")
+        dialog = gtk.Dialog("TOOL-RELEASE",
+                           None,
+                           gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                           (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                            gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+        dialog.vbox.pack_start(label)
+        label.show()
+        
+        response = dialog.run()
+        if response == gtk.RESPONSE_ACCEPT:
+            print 'on_do7_toggled'
+            dialog.destroy()
+            if widget.get_active() == True:
+                self.e.mdi_command('M64 P7', True)
+            else:
+                self.e.mdi_command('M65 P7', True)
+                
+#            gtk.main_quit() 
+        else:
+            dialog.destroy()
+    
+    def on_do1_toggled(self, widget, data=None):
+        if widget.get_active() == True:
+            self.e.mdi_command('M3', True)
+        else:
+            self.e.mdi_command('M5', True)
+    def on_do2_toggled(self, widget, data=None):
+        if widget.get_active() == True:
+            self.e.mdi_command('M4', True)
+        else:
+            self.e.mdi_command('M5', True)
     def on_restore_defaults(self,button,data=None):
         '''
         example callback for 'Reset to defaults' button
@@ -124,6 +158,7 @@ class HandlerClass:
         '''
         self.ini.create_default_ini()
         self.ini.restore_state(self)
+
 
     def __init__(self, halcomp, builder, useropts):
         '''

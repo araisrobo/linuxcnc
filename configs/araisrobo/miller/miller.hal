@@ -258,6 +258,8 @@ net din_29 	wou.gpio.in.29    => motion.digital-in-29
 net din_30 	wou.gpio.in.30    => motion.digital-in-30
 net din_31 	wou.gpio.in.31    => motion.digital-in-31
 
+net dout7 	wou.gpio.out.07    => motion.digital-out-07
+
 net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
 net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
 net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable

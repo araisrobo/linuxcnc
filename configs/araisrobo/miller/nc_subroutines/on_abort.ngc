@@ -2,7 +2,7 @@
 
 o<on_abort> sub
 
-(print, on_abort executing)
+; (print, on_abort executing)
 M65 P #<_ini[pins]lock> ; drop lock pin
 M65 P #<_ini[pins]flush> ; drop flush pin
 
