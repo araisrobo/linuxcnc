@@ -48,7 +48,11 @@ class EmcInterface(object):
     def active_codes(self):
         self.s.poll()
         return self.s.gcodes
-
+    
+    def spindle_speed(self):
+        self.s.poll()
+        return self.s.spindle_speed
+    
     def get_current_system(self):
         for i in self.active_codes():
                 if i >= 540 and i <= 590:
@@ -93,6 +97,18 @@ class HandlerClass:
         self.builder.get_object('task_state').set_label("Task state: " + task_state)
         self.builder.get_object('exec_state').set_label("Exec state: " + exec_state)
         self.builder.get_object('interp_state').set_label("Interp state: " + interp_state)
+        # 為了左右邊的 mdi command 訊號可以同步
+        if(self.e.spindle_speed() > 1):
+            self.builder.get_object('do2').set_active(False)
+            self.builder.get_object('do1').set_active(True)
+        elif(self.e.spindle_speed() < -1):
+            self.builder.get_object('do1').set_active(False)
+            self.builder.get_object('do2').set_active(True)
+        else:
+            self.builder.get_object('do1').set_active(False)
+            self.builder.get_object('do2').set_active(False)
+
+#        print self.e.active_modes()
         # looping: if (task_mode == "MANUAL") and (task_state == "ON") and (exec_state == "DONE") and (interp_state == "IDLE"):
         # looping:     # print ("task_mode: manual...")
         # looping:     # print ("about to cycle-start...")
@@ -143,14 +159,17 @@ class HandlerClass:
     
     def on_do1_toggled(self, widget, data=None):
         if widget.get_active() == True:
+            print 'on_do1_toggled'
             self.e.mdi_command('M3', True)
         else:
             self.e.mdi_command('M5', True)
+            
     def on_do2_toggled(self, widget, data=None):
         if widget.get_active() == True:
             self.e.mdi_command('M4', True)
         else:
             self.e.mdi_command('M5', True)
+            
     def on_restore_defaults(self,button,data=None):
         '''
         example callback for 'Reset to defaults' button
