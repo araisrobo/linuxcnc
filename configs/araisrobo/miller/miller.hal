@@ -109,16 +109,30 @@ setp wou.rt.abort  0
 
 # connect signals from FPGA.
 # pulse_pos: the actual pulse sent to servo drive.
-net pulse_pos_j0  <= wou.stepgen.0.pulse_pos
-net pulse_pos_j1  <= wou.stepgen.1.pulse_pos
-net pulse_pos_j2  <= wou.stepgen.2.pulse_pos
-net pulse_pos_j3  <= wou.stepgen.3.pulse_pos
+net pulse-pos-j0  <= wou.stepgen.0.pulse_pos
+net pulse-pos-j1  <= wou.stepgen.1.pulse_pos
+net pulse-pos-j2  <= wou.stepgen.2.pulse_pos
+net pulse-pos-j3  <= wou.stepgen.3.pulse_pos
 
 # enc_pos: the encoder position read from FPGA.
-net enc_pos_j0 <=  wou.stepgen.0.enc_pos  
-net enc_pos_j1 <=  wou.stepgen.1.enc_pos  
-net enc_pos_j2 <=  wou.stepgen.2.enc_pos  
-net enc_pos_j3 <=  wou.stepgen.3.enc_pos  
+net enc-pos-j0 <=  wou.stepgen.0.enc_pos  
+net enc-pos-j1 <=  wou.stepgen.1.enc_pos  
+net enc-pos-j2 <=  wou.stepgen.2.enc_pos  
+net enc-pos-j3 <=  wou.stepgen.3.enc_pos  
+
+# cmd_fbs: the commanded position read from FPGA.
+net cmd-pos-j0 <=  wou.stepgen.0.cmd-fbs
+net cmd-pos-j1 <=  wou.stepgen.1.cmd-fbs
+net cmd-pos-j2 <=  wou.stepgen.2.cmd-fbs
+net cmd-pos-j3 <=  wou.stepgen.3.cmd-fbs
+
+# vel-fb: the scaled velocity based on encoder from FPGA.
+net vel-fb-j0 <=  wou.stepgen.0.vel-fb
+net vel-fb-j1 <=  wou.stepgen.1.vel-fb
+net vel-fb-j2 <=  wou.stepgen.2.vel-fb
+net vel-fb-j3 <=  wou.stepgen.3.vel-fb
+
+net bp-tick     <= wou.bp-tick
 
 # pass vel status and req_status to FPGA
 
