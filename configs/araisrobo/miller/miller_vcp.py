@@ -1,3 +1,6 @@
+#/usr/bin/env python
+# -*- coding: UTF-8 -*
+# vim: sts=4 sw=4 et
 import os,sys
 from gladevcp.persistence import IniFile,widget_defaults,set_debug,select_widgets
 import hal
