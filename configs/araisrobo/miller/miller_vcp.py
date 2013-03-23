@@ -33,7 +33,6 @@ class EmcInterface(object):
         if self.s.task_state != linuxcnc.STATE_ON: return False
         return self.s.interp_state == linuxcnc.INTERP_IDLE
 
-
     def ensure_mode(self, m, *p):
         '''
         If emc is not already in one of the modes given, switch it to the first mode
@@ -64,9 +63,10 @@ class EmcInterface(object):
                         return i - 584
         return 1
 
-
-    def mdi_command(self,command, wait=True):
-        self.ensure_mode(linuxcnc.MODE_MDI)
+    def mdi_command(self, command, wait=True):
+        if (not self.ensure_mode(linuxcnc.MODE_MDI)):
+            print "cannot switch to MODE_MDI"
+            return
         self.c.mdi(command)
         if wait: self.c.wait_complete()
 
@@ -101,12 +101,12 @@ class HandlerClass:
         self.builder.get_object('exec_state').set_label("Exec state: " + exec_state)
         self.builder.get_object('interp_state').set_label("Interp state: " + interp_state)
         # 為了左右邊的 mdi command 訊號可以同步
-        if(self.e.spindle_speed() > 1):
-            self.builder.get_object('do2').set_active(False)
-            self.builder.get_object('do1').set_active(True)
-        elif(self.e.spindle_speed() < -1):
-            self.builder.get_object('do1').set_active(False)
-            self.builder.get_object('do2').set_active(True)
+        if(self.e.spindle_speed() > 0):
+            self.builder.get_object('do1').set_active(True)     # M3, SPINDLE.FWD
+            self.builder.get_object('do2').set_active(False)    # M4, SPINDLE.REV
+        elif(self.e.spindle_speed() < 0):
+            self.builder.get_object('do1').set_active(False)    # M3, SPINDLE.FWD
+            self.builder.get_object('do2').set_active(True)     # M4, SPINDLE.REV
         else:
             self.builder.get_object('do1').set_active(False)
             self.builder.get_object('do2').set_active(False)
@@ -136,8 +136,10 @@ class HandlerClass:
     def on_destroy(self,obj,data=None):
         self.ini.save_state(self)
     
-    
     def on_do7_toggled(self, widget, data=None):
+        if (not self.e.manual_ok(do_poll=True)):
+            # bypass issuing MDI when program is running
+            return        
         label = gtk.Label("Click OK to TOOL-RELEASE")
         dialog = gtk.Dialog("TOOL-RELEASE",
                            None,
@@ -161,13 +163,20 @@ class HandlerClass:
             dialog.destroy()
     
     def on_do1_toggled(self, widget, data=None):
+        print 'debug: on_do1_toggled'
+        if (not self.e.manual_ok(do_poll=True)):
+            # bypass issuing MDI when program is running
+            return
         if widget.get_active() == True:
-            print 'on_do1_toggled'
             self.e.mdi_command('M3', True)
         else:
             self.e.mdi_command('M5', True)
             
     def on_do2_toggled(self, widget, data=None):
+        print 'debug: on_do2_toggled'
+        if (not self.e.manual_ok(do_poll=True)):
+            # bypass issuing MDI when program is running
+            return
         if widget.get_active() == True:
             self.e.mdi_command('M4', True)
         else:
