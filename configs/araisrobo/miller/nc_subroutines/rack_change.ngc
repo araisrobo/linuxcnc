@@ -18,7 +18,7 @@ o300 endif
 
 ; go to new tool
 o<tool_getput_move> call [#<_selected_pocket>]  
-M63 P #<_ini[pins]release> ; clear release pin, M62: reset-motion-sync-out
+M65 P #<_ini[pins]release> ; clear release pin, M62: reset-motion-sync-out
 M66 P #<_ini[pins]clamped> L3 Q3 ; wait on clamped pin, L3: wait HIGH Q3: timeout 3sec
 
 ; the purpose of this move is unclear to me
