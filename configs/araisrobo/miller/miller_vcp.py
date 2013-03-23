@@ -154,33 +154,33 @@ class HandlerClass:
             print 'on_do7_toggled'
             dialog.destroy()
             if widget.get_active() == True:
-                self.e.mdi_command('M64 P7', True)
+                self.e.mdi_command('M64 P7', True)  # release tool
             else:
-                self.e.mdi_command('M65 P7', True)
-                
-#            gtk.main_quit() 
+                self.e.mdi_command('M65 P7', True)  # clamp tool
         else:
             dialog.destroy()
     
     def on_do1_toggled(self, widget, data=None):
-        print 'debug: on_do1_toggled'
+        # print 'debug: on_do1_toggled'
         if (not self.e.manual_ok(do_poll=True)):
             # bypass issuing MDI when program is running
             return
         if widget.get_active() == True:
             self.e.mdi_command('M3', True)
         else:
-            self.e.mdi_command('M5', True)
+            if(self.e.spindle_speed() != 0):
+                self.e.mdi_command('M5', True)
             
     def on_do2_toggled(self, widget, data=None):
-        print 'debug: on_do2_toggled'
+        # print 'debug: on_do2_toggled'
         if (not self.e.manual_ok(do_poll=True)):
             # bypass issuing MDI when program is running
             return
         if widget.get_active() == True:
             self.e.mdi_command('M4', True)
         else:
-            self.e.mdi_command('M5', True)
+            if(self.e.spindle_speed() != 0):
+                self.e.mdi_command('M5', True)
             
     def on_restore_defaults(self,button,data=None):
         '''
