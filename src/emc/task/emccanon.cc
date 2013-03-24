@@ -1085,6 +1085,11 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     /* convert cartesian_move velocity to spindle velocity in rps */
     vel = canon.spindle_dir * vel / canon.feed_per_spindle_revolution; // unit: rps
     
+    if (tap_vel > max_xyz_vel)
+    {
+        printf("WARN: constrain spindle speed to %f RPM\n", vel * 60.0);
+    }
+
     acc = emcAxisGetMaxAcceleration(9);     // AXIS_S: 9
     rigidTapMsg.pos = to_ext_pose(x,y,z,
                                  canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
