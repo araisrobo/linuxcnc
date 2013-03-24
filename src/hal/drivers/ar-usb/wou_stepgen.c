@@ -369,7 +369,6 @@ typedef struct {
     hal_u32_t    *ahc_min_level;
     /* motion state tracker */
     hal_s32_t *motion_state;
-    int32_t prev_motion_state;
     /* command channel for emc2 */
     hal_u32_t *wou_cmd;
     uint32_t prev_wou_cmd;
@@ -738,10 +737,9 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
 static void write_usb_cmd(machine_control_t *mc)
 {
     /* write parameters */
-    int32_t i,j,data, n;
-    uint8_t     buf[MAX_DSIZE];
+    int32_t i, j, data;
+    uint8_t buf[MAX_DSIZE];
     uint16_t sync_cmd;
-    double pos_scale;
 
     switch(*mc->usb_cmd) {
     case PROBE_CMD_TYPE:
@@ -1869,29 +1867,6 @@ static void update_freq(void *arg, long period)
         /* move on to next channel */
         stepgen++;
     }
-
-// TODO: move SYNC_VEL to part of MACHINE_CTRL
-//    sync_cmd = SYNC_VEL;
-//    // send velocity status to RISC
-//    if ( (*machine_control->vel_sync_scale) *
-//            (*machine_control->feed_scale) *
-//            (*(machine_control->requested_vel)) <
-//            *machine_control->current_vel) {
-//        sync_cmd = SYNC_VEL | 0x0001;
-//        *machine_control->vel_sync = 1;
-//    } else {
-//        sync_cmd = SYNC_VEL;
-//        *machine_control->vel_sync = 0;
-//    }
-//    if (sync_cmd != machine_control->prev_vel_sync) {
-//        memcpy(data, &sync_cmd, sizeof(uint16_t));
-//        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-//                sizeof(uint16_t), data);
-//        // debug: fprintf(stderr, "sent new vel sync cmd (0x%x)\n", sync_cmd);
-//    }
-//    machine_control->prev_vel_sync = sync_cmd;
-
-    machine_control->prev_motion_state = *machine_control->motion_state;
 
     sync_cmd = SYNC_EOF;
     memcpy(data, &sync_cmd, sizeof(uint16_t));
