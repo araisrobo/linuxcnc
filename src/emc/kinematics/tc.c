@@ -178,11 +178,6 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 #endif
 
     if (tc->motion_type == TC_RIGIDTAP) {
-//        if(tc->coords.rigidtap.state > REVERSING) {
-//            pmLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
-//        } else {
-//            pmLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
-//        }
         pmLinePoint(&tc->coords.rigidtap.xyz, tc->coords.rigidtap.xyz.tmag * (progress / tc->target) , &xyz);
         // no rotary move allowed while tapping
         abc.tran = tc->coords.rigidtap.abc;
