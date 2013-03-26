@@ -406,6 +406,10 @@ static int init_hal_io(void)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->feed_scale), mot_comp_id, "motion.feed-scale")) != 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->program_line), mot_comp_id, "motion.program-line")) != 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->motion_state), mot_comp_id, "motion.motion-state")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->rigid_tapping), mot_comp_id, "motion.rigid-tapping")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->xuu_per_rev), mot_comp_id, "motion.xuu-per-rev")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->yuu_per_rev), mot_comp_id, "motion.yuu-per-rev")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->zuu_per_rev), mot_comp_id, "motion.zuu-per-rev")) != 0) goto error;
 
     /* export debug parameters */
     /* these can be used to view any internal variable, simply change a line
@@ -455,8 +459,11 @@ static int init_hal_io(void)
     *emcmot_hal_data->spindle_in_position = 0;
     *(emcmot_hal_data->adaptive_feed) = 1.0;
     *(emcmot_hal_data->feed_hold) = 0;
+    *emcmot_hal_data->rigid_tapping = 0;
+    *emcmot_hal_data->xuu_per_rev = 0;
+    *emcmot_hal_data->yuu_per_rev = 0;
+    *emcmot_hal_data->zuu_per_rev = 0;
 
-    //obsolete on arais-emc2-usb: *(emcmot_hal_data->probe_input) = 0;
     *(emcmot_hal_data->usb_cmd) = USB_CMD_NOOP;
     *(emcmot_hal_data->usb_status) = USB_STATUS_READY;
 

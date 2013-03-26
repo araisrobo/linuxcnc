@@ -7,6 +7,7 @@ component spindle "Spindle with pulse command interface";
 
 pin in  float velocity-cmd = 0   "Commanded speed (rps)";
 pin in  float position-cmd = 0   "Commanded position";
+pin in  float feedback-vel = 0   "Feedback velocity based on spindle encoder";
 pin in  bit   velocity-mode = 0  "Velocity(1) or position(0) mode";
 pin in  bit   on = 0             "Spindle on";
 
@@ -19,13 +20,16 @@ pin out float speed-rpm      "Current speed in RPM";
 param   rw  float   max-vel  "Max velocity";
 param   rw  float   max-acc  "Max acceleration";
 param   rw  float   max-jerk "Max jerk";
+param   rw  float   at-speed-range = 0 "At speed range (0.0(0%) ~ 1.0(100%)); the less the more accurate";
 
+/*
 param   rw  float   scale = 1.0
 """factor applied to \\fBvelocity-cmd\\fP.
 
 The result of '\\fBvelocity-cmd\\fP * \\fBscale\\fP' be in revolutions per second.
 For example, if \\fBvelocity-cmd\\fP is in revolutions/minute, \\fBscale\\fP should be set to 1/60 or 0.016666667.
 """;
+*/
 
 license "GPL";
 
@@ -83,9 +87,9 @@ void vel_ctrl (double vel_cmd, double period)
         /* within 'tiny_dv' of desired vel, no need to accel */
         acc_req = 0;
         curr_vel = vel_cmd;
-        if (curr_vel != 0) {
-            at_speed = 1;
-        }
+//        if (curr_vel != 0) {
+//            at_speed = 1;
+//        }
     }
 
     /* limit acceleration request */
@@ -134,12 +138,13 @@ FUNCTION(_) {
     switch (cur_state)
     {
         case S_IDLE:
-            at_speed = 1;
+//            at_speed = 1;
+            curr_vel = 0;
             in_position = 0;
             if (on) {
                 if (velocity_mode) {
                     cur_state = S_VEL_MODE;
-                    at_speed = 0;
+//                    at_speed = 0;
                 } else {
                     cur_state = S_POS_MODE;
                 }
@@ -157,7 +162,7 @@ FUNCTION(_) {
 
         case S_VEL_DECEL:
             // decel to vel == 0
-            at_speed = 0;
+//            at_speed = 0;
             in_position = 0;
             vel_ctrl (0, fperiod);
             if (curr_vel == 0) {
@@ -169,7 +174,7 @@ FUNCTION(_) {
 
         case S_POS_MODE:
             // TODO
-            at_speed = 1;
+//            at_speed = 1;
             in_position = 1;
             tmp = curr_vel;
             curr_vel = (position_cmd - curr_pos) / fperiod;
@@ -184,6 +189,21 @@ FUNCTION(_) {
         default:
             assert(0);
             break;
+    }
+
+    if (curr_vel == 0)
+    {
+        if (fabs(feedback_vel) < at_speed_range) {
+            at_speed = 1;
+        } else {
+            at_speed = 0;
+        }
+    } else {
+        if ((fabs(1 - feedback_vel/curr_vel)) < at_speed_range) {
+            at_speed = 1;
+        } else {
+            at_speed = 0;
+        }
     }
 
     speed_rpm = curr_vel * 60.0;

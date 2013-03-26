@@ -132,7 +132,10 @@
 /**
  *  MACHINE_CTRL,   // [31:24]  RESERVED
  *                  // [23:16]  NUM_JOINTS
- *                  // [15: 8]  RESERVED
+ *                  // [15: 8]  RIGID_TAPPING - bitmap for TAPPING AXES
+ *                                  [8] -> X
+ *                                  [9] -> Y
+ *                                 [10] -> Z
  *                  // [ 7: 4]  ACCEL_STATE
  *                  // [ 3: 1]  MOTION_MODE: 
  *                                  FREE    (0) 
@@ -145,6 +148,7 @@
 #define MCTRL_MOTION_TYPE_MASK          0x0000000E  // MOTION_TYPE mask for MACHINE_CTRL
 #define MCTRL_HOMING_MASK               0x00000008  // HOMING_MASK for MACHINE_CTRL
 #define MCTRL_ACCEL_STATE_MASK          0x000000F0  // ACCEL_STATE mask for MACHINE_CTRL
+#define MCTRL_TAPPING_MASK              0x0000FF00  // TAPPING mask for MACHINE_CTRL
 #define MCTRL_NUM_JOINTS_MASK           0x00FF0000  // NUM_JOINTS mask for MACHINE_CTRL
 
 typedef enum {
@@ -270,6 +274,7 @@ enum motion_parameter_addr {
     ENABLE            ,     // set to 1 to enable joint motion
     MAX_JERK	      ,
     ENC_SCALE         ,     // encoder scale: 16.16 format
+    TAP_SCALE         ,     // rigid tapping compensation scale: 16.16 format
     JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
 
     MAX_PARAM_ITEM
