@@ -869,7 +869,8 @@ static void check_for_faults(void)
         }
     }
 
-    if ( *(emcmot_hal_data->enable) == 0 )
+    if (( *(emcmot_hal_data->enable) == 0 ) ||
+            (emcmotDebug->enabling == 0))
     {
         int n;
         /* turn-off all motion-synch-dout[] */
