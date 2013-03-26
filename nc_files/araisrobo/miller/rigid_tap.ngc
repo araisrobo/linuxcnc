@@ -1,5 +1,37 @@
-G21 G91
-g0z0
-s60m3 ; 1rps
-g33.1 z-5 k1 ; 1 thread per second, k - distance per revolution
-m2
+G21
+
+G90
+G53 G0 X22.662 Y30.116
+; G53 G0 Z -64.95 (5.0mm plate)
+G53 G0 Z -60.7  (5.0mm plate)
+; G53 G0 Z -27.7
+
+M1
+
+G91
+
+; G0 X22.662 Y30.116
+; (Z -57.7)
+
+; G0 Z-10
+
+; M3: pitch 0.5
+; M4: pitch 0.7
+; M3 S2200
+; F119.5 G1 z-10
+; G1 z10
+; M5
+; 
+; G0 Z10
+; M1
+
+M103    (start sampler for AXIS_Z)
+M3S600  
+g33.1 z-15 k0.7 ; 1 thread per second, k - distance per revolution
+M5
+M104    (stop  sampler for AXIS_Z)
+
+G90
+G53 G0 Z0
+M2
+%
