@@ -26,6 +26,9 @@ addf    spindle.0       servo-thread
 setp spindle.0.max-vel  [JOINT_3]MAX_VELOCITY
 setp spindle.0.max-acc  [JOINT_3]MAX_ACCELERATION
 setp spindle.0.max-jerk [JOINT_3]MAX_JERK
+# at-speed-range: 0.05 means 5% of spindle velocity tolerance
+# at-speed-range: 0.01 means 1% of spindle velocity tolerance
+setp spindle.0.at-speed-range 0.01
 net  spindle-velocity-mode  spindle.0.velocity-mode    <= motion.spindle-velocity-mode
 net  spindle-on             spindle.0.on               <= motion.spindle-on
 net  spindle-speed-cmd-rps  spindle.0.velocity-cmd     <= motion.spindle-speed-cmd-rps
@@ -33,6 +36,7 @@ net  spindle-position-cmd   spindle.0.position-cmd     <= motion.spindle-positio
 net  spindle-curr-pos-cmd   spindle.0.curr-pos         => motion.spindle-curr-pos-cmd
 net  spindle-in-position    spindle.0.in-position      => motion.spindle-in-position
 net  spindle-at-speed       spindle.0.at-speed         => motion.spindle-at-speed
+net  vel-fb-j3              spindle.0.feedback-vel
 
 # send the position commands thru differentiators to
 # generate velocity and accel signals
@@ -59,6 +63,10 @@ net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
 
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
+net rigid-tapping motion.rigid-tapping => wou.motion.rigid-tapping
+net xuu-per-rev motion.xuu-per-rev => wou.motion.xuu-per-rev
+net yuu-per-rev motion.yuu-per-rev => wou.motion.yuu-per-rev
+net zuu-per-rev motion.zuu-per-rev => wou.motion.zuu-per-rev
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 

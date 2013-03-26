@@ -2,7 +2,6 @@
 
 # the status table and children: always on
 # the settings table to be active as soon as we are out of estop
-# the commands table to be active when the machine is on
 
 setp gladevcp.status 1
 
@@ -13,9 +12,6 @@ net estop halui.estop.is-activated => estop-not.in
 
 # and activate the settings box when estop is off
 net estop-inactive estop-not.out => gladevcp.settings
-
-# activate the commands HAL table and all its children when the machine is on
-net machine_is_on => gladevcp.commands
 
 # show the current spindle speed in the top hoizontal bar
 net spindle-speed-rpm spindle.0.speed-rpm => gladevcp.spindle-rpm-hbar
