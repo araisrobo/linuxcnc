@@ -53,14 +53,14 @@ net j0-rpm          wou.stepgen.0.rpm          => gladevcp.j0-rpm-meter
 net j1-rpm          wou.stepgen.1.rpm          => gladevcp.j1-rpm-meter
 net j2-rpm          wou.stepgen.2.rpm          => gladevcp.j2-rpm-meter
 
-net j0-rawcount32   wou.stepgen.0.rawcount32   => gladevcp.j0-rawcount32-label
-net j1-rawcount32   wou.stepgen.1.rawcount32   => gladevcp.j1-rawcount32-label
-net j2-rawcount32   wou.stepgen.2.rawcount32   => gladevcp.j2-rawcount32-label
+net cmd-pos-j0                                 => gladevcp.j0-rawcount32-label
+net cmd-pos-j1                                 => gladevcp.j1-rawcount32-label
+net cmd-pos-j2                                 => gladevcp.j2-rawcount32-label
 
-net pulse_pos_j0                               => gladevcp.j0-pulse_pos-label
-net pulse_pos_j1                               => gladevcp.j1-pulse_pos-label
-net pulse_pos_j2                               => gladevcp.j2-pulse_pos-label
+net pulse-pos-j0                               => gladevcp.j0-pulse_pos-label
+net pulse-pos-j1                               => gladevcp.j1-pulse_pos-label
+net pulse-pos-j2                               => gladevcp.j2-pulse_pos-label
 
-net enc_pos_j0                                 => gladevcp.j0-enc_pos-label
-net enc_pos_j1                                 => gladevcp.j1-enc_pos-label
-net enc_pos_j2                                 => gladevcp.j2-enc_pos-label
+net enc-pos-j0                                 => gladevcp.j0-enc_pos-label
+net enc-pos-j1                                 => gladevcp.j1-enc_pos-label
+net enc-pos-j2                                 => gladevcp.j2-enc_pos-label
