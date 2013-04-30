@@ -14,9 +14,8 @@
 # GNU General Public License for more details.
 
 
-import gladevcp.makepins
-from gladevcp.gladebuilder import GladeBuilder
-import sys, os, time
+
+import sys, os
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 libdir = os.path.join(BASE, "lib", "python")
 datadir = os.path.join(BASE, "share", "linuxcnc")
@@ -71,50 +70,28 @@ from touchy import filechooser
 from touchy import listing
 from touchy import preferences
 
+pix_data = '''/* XPM */
+static char * invisible_xpm[] = {
+"1 1 1 1",
+"	c None",
+" "};'''
+
+
 color = gtk.gdk.Color()
+pix = gtk.gdk.pixmap_create_from_data(None, pix_data, 1, 1, 1, color, color)
+invisible = gtk.gdk.Cursor(pix, pix, color, color, 0, 0)
 
 class touchy:
         def __init__(self, inifile):
-                # begin: read glade file name from ini file
-                if inifile:
-                    ini = linuxcnc.ini(inifile)
-                    self.ini = ini
-                else:
-                    self.ini = None
+		#Set the Glade file
+		self.gladefile = os.path.join(datadir, "touchy.glade")
+	        self.wTree = gtk.glade.XML(self.gladefile) 
+                
+		for widget in self.wTree.get_widget_prefix(''):
+			widget.unset_flags(gtk.CAN_FOCUS)
+		self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
+		self.wTree.get_widget('MainWindow').grab_focus()
 
-		# Set the gettext application domain
-		o = ini.find("DISPLAY", "APP_DOMAIN")
-                if o == None:
-                    # default application domain to emc2.mo
-		    o = "emc2"
-                LOCALEDIR = os.path.join(BASE, "share", "locale")
-                gettext.install(o, localedir=LOCALEDIR, unicode=True)
-                gtk.glade.bindtextdomain(o, LOCALEDIR)
-                gtk.glade.textdomain(o)
-               
-                # check for for jog flag
-                self.foce_jog = "FALSE"
-                self.force_jog = ini.find("DISPLAY", "JOG_ALWAYS")
-		# Set the Glade file
-		o = ini.find("DISPLAY", "GLADE_FILE")
-                if o == None:
-                    # default 
-		    self.gladefile = os.path.join(datadir, "touchy.glade")
-                else:
-                    self.gladefile = os.path.join(datadir,o)
-                self.wTree = gtk.Builder()
-                self.wTree.add_from_file(self.gladefile)
-
-	        #for libglade: self.wTree = gtk.glade.XML(self.gladefile) 
-	# 	for widget in self.wTree.get_widget_prefix(''):
-	# 		widget.unset_flags(gtk.CAN_FOCUS)
-		# self.wTree.get_widget('MainWindow').set_flags(gtk.CAN_FOCUS)
-                # self.wTree.get_widget('MainWindow').grab_focus()
-	  	for obj in self.wTree.get_objects():
-                    if (type(obj) == gtk.Object):
-	  		 obj.unset_flags(gtk.CAN_FOCUS)
-		self.wTree.get_object('MainWindow').set_flags(gtk.CAN_FOCUS)
-                self.wTree.get_object('MainWindow').grab_focus()
                 self.num_mdi_labels = 11
                 self.num_filechooser_labels = 11
                 self.num_listing_labels = 20
@@ -146,44 +123,41 @@ class touchy:
                 self.window_max = self.prefs.getpref('window_force_max', 'False', bool)
 
                 # initial screen setup
-#                if os.path.exists(themedir):
-                    # model = self.wTree.get_object("theme_choice").get_model()
-                    #model = self.wTree.get_widget("theme_choice").get_model()
-                    # model.clear()
-                    # model.append(("Follow System Theme",))
-#                    temp = 0
-#                    names = os.listdir(themedir)
-#                    names.sort()
-#                    for search,dirs in enumerate(names):
-#                        model.append((dirs,))
-#                        if dirs  == self.theme_name:
-#                            temp = search+1
-#                    self.wTree.get_object("theme_choice").set_active(temp)
-                    # self.wTree.get_widget("theme_choice").set_active(temp)
+                if os.path.exists(themedir):
+                    model = self.wTree.get_widget("theme_choice").get_model()
+                    model.clear()
+                    model.append(("Follow System Theme",))
+                    temp = 0
+                    names = os.listdir(themedir)
+                    names.sort()
+                    for search,dirs in enumerate(names):
+                        model.append((dirs,))
+                        if dirs  == self.theme_name:
+                            temp = search+1
+                    self.wTree.get_widget("theme_choice").set_active(temp)
 
                 if self.window_geometry == "default":
-		            self.wTree.get_object("MainWindow").window.maximize()
-		            # self.wTree.get_widget("MainWindow").window.maximize()
+		            self.wTree.get_widget("MainWindow").window.maximize()
                 else:
-                    self.wTree.get_object("MainWindow").parse_geometry(self.window_geometry)
-                    # self.wTree.get_widget("MainWindow").parse_geometry(self.window_geometry)
+                    self.wTree.get_widget("MainWindow").parse_geometry(self.window_geometry)
                     if self.window_max:
-                        self.wTree.get_object("MainWindow").window.maximize()
-                        # self.wTree.get_widget("MainWindow").window.maximize()
+                        self.wTree.get_widget("MainWindow").window.maximize()
 
-                self.wTree.get_object("MainWindow").window.set_cursor(None)
+                self.invisible_cursor = self.prefs.getpref('invisible_cursor', 0)
+                if self.invisible_cursor:
+                        self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
+                else:
+                        self.wTree.get_widget("MainWindow").window.set_cursor(None)
+                self.wTree.get_widget("controlfontbutton").set_font_name(self.control_font_name)
                 self.control_font = pango.FontDescription(self.control_font_name)
 
-#                self.wTree.get_object("drofontbutton").set_font_name(self.dro_font_name)
-                # self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
+                self.wTree.get_widget("drofontbutton").set_font_name(self.dro_font_name)
                 self.dro_font = pango.FontDescription(self.dro_font_name)
 
-#                self.wTree.get_object("errorfontbutton").set_font_name(self.error_font_name)
-                # self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
+                self.wTree.get_widget("errorfontbutton").set_font_name(self.error_font_name)
                 self.error_font = pango.FontDescription(self.error_font_name)
 
-#                self.wTree.get_object("listingfontbutton").set_font_name(self.listing_font_name)
-                # self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
+                self.wTree.get_widget("listingfontbutton").set_font_name(self.listing_font_name)
                 self.listing_font = pango.FontDescription(self.listing_font_name)
 
                 settings = gtk.settings_get_default()
@@ -191,106 +165,75 @@ class touchy:
                 if not self.theme_name == "Follow System Theme":
                     settings.set_string_property("gtk-theme-name", self.theme_name, "")
 
-#                # interactive mdi command builder and issuer
-#                mdi_labels = []
-#                mdi_eventboxes = []
-#                for i in range(self.num_mdi_labels):
-#                        mdi_labels.append(self.wTree.get_object("mdi%d" % i))
-#                        mdi_eventboxes.append(self.wTree.get_object("eventbox_mdi%d" % i))
-#                self.mdi_control = mdi.mdi_control(gtk, linuxcnc, mdi_labels, mdi_eventboxes)
+                # interactive mdi command builder and issuer
+                mdi_labels = []
+                mdi_eventboxes = []
+                for i in range(self.num_mdi_labels):
+                        mdi_labels.append(self.wTree.get_widget("mdi%d" % i))
+                        mdi_eventboxes.append(self.wTree.get_widget("eventbox_mdi%d" % i))
+                self.mdi_control = mdi.mdi_control(gtk, linuxcnc, mdi_labels, mdi_eventboxes)
 
                 if inifile:
                     ini = linuxcnc.ini(inifile)
-#                    self.mdi_control.mdi.add_macros(
-#                        ini.findall("TOUCHY", "MACRO"))
+                    self.mdi_control.mdi.add_macros(
+                        ini.findall("TOUCHY", "MACRO"))
                     self.ini = ini
                 else:
                     self.ini = None
 
-#                listing_labels = []
-#                listing_eventboxes = []
-#                for i in range(self.num_listing_labels):
-#                        listing_labels.append(self.wTree.get_object("listing%d" % i))
-#                        listing_eventboxes.append(self.wTree.get_object("eventbox_listing%d" % i))
-#                self.listing = listing.listing(gtk, linuxcnc, listing_labels, listing_eventboxes)
+                listing_labels = []
+                listing_eventboxes = []
+                for i in range(self.num_listing_labels):
+                        listing_labels.append(self.wTree.get_widget("listing%d" % i))
+                        listing_eventboxes.append(self.wTree.get_widget("eventbox_listing%d" % i))
+                self.listing = listing.listing(gtk, linuxcnc, listing_labels, listing_eventboxes)
 
                 # emc interface
-                # self.linuxcnc = emc_interface.emc_control(linuxcnc, self.listing, self.wTree.get_object("error"))
-                self.linuxcnc = emc_interface.emc_control(linuxcnc, None, None)
+                self.linuxcnc = emc_interface.emc_control(linuxcnc, self.listing, self.wTree.get_widget("error"))
                 self.linuxcnc.continuous_jog_velocity(self.mv_val)
+                self.hal = hal_interface.hal_interface(self, self.linuxcnc, self.mdi_control, linuxcnc)
 
-                # set injector to 1 if use_injection is set
-                # don't instance injector before halcomp is initialized
-                self.injector = None
-                o = ini.find("DISPLAY", "USE_INJECTION")
-                if o is not None:
-                  o = o.lower()
-                  if o == 'yes':
-                    from injector import InjectorClass
-                    self.injector = 1
-  
-                #self.hal = hal_interface.hal_interface(self, self.linuxcnc, self.mdi_control, linuxcnc)
-                self.hal = hal_interface.hal_interface(self, self.linuxcnc, None, linuxcnc)
-                if self.injector == 1:
-                    # instance injector after halcomp initialized
-                    # make hal pin depends description from the xml file
-                    panel = gladevcp.makepins.GladePanel( self.hal.c,
-                            self.gladefile, self.wTree, None)
-                    self.injector = InjectorClass(self,self.hal.c, self.wTree) #
-
-#                # silly file chooser
-#                filechooser_labels = []
-#                filechooser_eventboxes = []
-#                for i in range(self.num_filechooser_labels):
-#                        filechooser_labels.append(self.wTree.get_object("filechooser%d" % i))
-#                        filechooser_eventboxes.append(self.wTree.get_object("eventbox_filechooser%d" % i))
-#                self.filechooser = filechooser.filechooser(gtk, linuxcnc, filechooser_labels, filechooser_eventboxes, self.listing)
+                # silly file chooser
+                filechooser_labels = []
+                filechooser_eventboxes = []
+                for i in range(self.num_filechooser_labels):
+                        filechooser_labels.append(self.wTree.get_widget("filechooser%d" % i))
+                        filechooser_eventboxes.append(self.wTree.get_widget("eventbox_filechooser%d" % i))
+                self.filechooser = filechooser.filechooser(gtk, linuxcnc, filechooser_labels, filechooser_eventboxes, self.listing)
 
                 relative = ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr']
                 absolute = ['xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa']
                 distance = ['xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']
-                # relative = [self.wTree.get_widget(i) for i in relative]
-                # absolute = [self.wTree.get_widget(i) for i in absolute]
-                # distance = [self.wTree.get_widget(i) for i in distance]
-                relative = [self.wTree.get_object(i) for i in relative]
-                absolute = [self.wTree.get_object(i) for i in absolute]
-                distance = [self.wTree.get_object(i) for i in distance]
+                relative = [self.wTree.get_widget(i) for i in relative]
+                absolute = [self.wTree.get_widget(i) for i in absolute]
+                distance = [self.wTree.get_widget(i) for i in distance]
                 
                 estops = ['estop_reset', 'estop']
-                estops = dict((i, self.wTree.get_object(i)) for i in estops)
-                # estops = dict((i, self.wTree.get_widget(i)) for i in estops)
+                estops = dict((i, self.wTree.get_widget(i)) for i in estops)
                 machines = ['on', 'off']
-                machines = dict((i, self.wTree.get_object("machine_" + i)) for i in machines)
-                # machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
+                machines = dict((i, self.wTree.get_widget("machine_" + i)) for i in machines)
                 floods = ['on', 'off']
-                floods = dict((i, self.wTree.get_object("flood_" + i)) for i in floods)
-                # floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
+                floods = dict((i, self.wTree.get_widget("flood_" + i)) for i in floods)
                 mists = ['on', 'off']
-                mists = dict((i, self.wTree.get_object("mist_" + i)) for i in mists)
-                # mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
+                mists = dict((i, self.wTree.get_widget("mist_" + i)) for i in mists)
                 spindles = ['forward', 'off', 'reverse']
-                spindles = dict((i, self.wTree.get_object("spindle_" + i)) for i in spindles)
-                # spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
+                spindles = dict((i, self.wTree.get_widget("spindle_" + i)) for i in spindles)
                 stats = ['file', 'file_lines', 'line', 'id', 'dtg', 'velocity', 'delay', 'onlimit',
                          'spindledir', 'spindlespeed', 'loadedtool', 'preppedtool',
                          'xyrotation', 'tlo', 'activecodes', 'spindlespeed2',
                          'label_g5xoffset', 'g5xoffset', 'g92offset', 'tooltable']
-                stats = dict((i, self.wTree.get_object("status_" + i)) for i in stats)
-                # stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
+                stats = dict((i, self.wTree.get_widget("status_" + i)) for i in stats)
                 prefs = ['actual', 'commanded', 'inch', 'mm']
-                prefs = dict((i, self.wTree.get_object("dro_" + i)) for i in prefs)
-                # prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
+                prefs = dict((i, self.wTree.get_widget("dro_" + i)) for i in prefs)
                 opstop = ['on', 'off']
-                opstop = dict((i, self.wTree.get_object("opstop_" + i)) for i in opstop)
-                # opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
+                opstop = dict((i, self.wTree.get_widget("opstop_" + i)) for i in opstop)
                 blockdel = ['on', 'off']
-                blockdel = dict((i, self.wTree.get_object("blockdel_" + i)) for i in blockdel)
-                self.status = emc_interface.emc_status(gtk, linuxcnc, None, relative, absolute, distance,
-                                                       self.wTree.get_object("dro_table"),
-                                                       self.wTree.get_object("error"),
+                blockdel = dict((i, self.wTree.get_widget("blockdel_" + i)) for i in blockdel)
+                self.status = emc_interface.emc_status(gtk, linuxcnc, self.listing, relative, absolute, distance,
+                                                       self.wTree.get_widget("dro_table"),
+                                                       self.wTree.get_widget("error"),
                                                        estops, machines,
-                                                       self.wTree.get_object("override_limits"),
-                                                       # self.wTree.get_widget("override_limits"),
+                                                       self.wTree.get_widget("override_limits"),
                                                        stats,
                                                        floods, mists, spindles, prefs,
                                                        opstop, blockdel)
@@ -337,16 +280,18 @@ class touchy:
                 else:
                         self.linuxcnc.opstop_off(0)                        
 
-# TODO:		self.linuxcnc.emccommand.program_open(empty_program.name)
+		self.linuxcnc.emccommand.program_open(empty_program.name)
 
                 self.linuxcnc.max_velocity(self.mv_val)
                                 
                 gobject.timeout_add(50, self.periodic_status)
                 gobject.timeout_add(100, self.periodic_radiobuttons)
-                
+
                 # event bindings
                 dic = {
                         "quit" : self.quit,
+                        "on_pointer_show_clicked" : self.pointer_show,
+                        "on_pointer_hide_clicked" : self.pointer_hide,
                         "on_opstop_on_clicked" : self.opstop_on,
                         "on_opstop_off_clicked" : self.opstop_off,
                         "on_blockdel_on_clicked" : self.blockdel_on,
@@ -365,28 +310,28 @@ class touchy:
                         "on_estop_reset_clicked" : self.linuxcnc.estop_reset,
                         "on_machine_off_clicked" : self.linuxcnc.machine_off,
                         "on_machine_on_clicked" : self.linuxcnc.machine_on,
-#                        "on_mdi_clear_clicked" : self.mdi_control.clear,
-#                        "on_mdi_back_clicked" : self.mdi_control.back,
-#                        "on_mdi_next_clicked" : self.mdi_control.next,
-#                        "on_mdi_decimal_clicked" : self.mdi_control.decimal,
-#                        "on_mdi_minus_clicked" : self.mdi_control.minus,
-#                        "on_mdi_keypad_clicked" : self.mdi_control.keypad,
-#                        "on_mdi_g_clicked" : self.mdi_control.g,
-#                        "on_mdi_gp_clicked" : self.mdi_control.gp,
-#                        "on_mdi_m_clicked" : self.mdi_control.m,
-#                        "on_mdi_t_clicked" : self.mdi_control.t,
-#                        "on_mdi_select" : self.mdi_control.select,
-#                        "on_mdi_set_tool_clicked" : self.mdi_set_tool,
-#                        "on_mdi_set_origin_clicked" : self.mdi_set_origin,
-#                        "on_mdi_macro_clicked" : self.mdi_macro,
-#                        "on_filechooser_select" : self.fileselect,
-#                        "on_filechooser_up_clicked" : self.filechooser.up,
-#                        "on_filechooser_down_clicked" : self.filechooser.down,
-#                        "on_filechooser_reload_clicked" : self.filechooser.reload,
-#                        "on_listing_up_clicked" : self.listing.up,
-#                        "on_listing_down_clicked" : self.listing.down,
-#                        "on_listing_previous_clicked" : self.listing.previous,
-#                        "on_listing_next_clicked" : self.listing.next,
+                        "on_mdi_clear_clicked" : self.mdi_control.clear,
+                        "on_mdi_back_clicked" : self.mdi_control.back,
+                        "on_mdi_next_clicked" : self.mdi_control.next,
+                        "on_mdi_decimal_clicked" : self.mdi_control.decimal,
+                        "on_mdi_minus_clicked" : self.mdi_control.minus,
+                        "on_mdi_keypad_clicked" : self.mdi_control.keypad,
+                        "on_mdi_g_clicked" : self.mdi_control.g,
+                        "on_mdi_gp_clicked" : self.mdi_control.gp,
+                        "on_mdi_m_clicked" : self.mdi_control.m,
+                        "on_mdi_t_clicked" : self.mdi_control.t,
+                        "on_mdi_select" : self.mdi_control.select,
+                        "on_mdi_set_tool_clicked" : self.mdi_set_tool,
+                        "on_mdi_set_origin_clicked" : self.mdi_set_origin,
+                        "on_mdi_macro_clicked" : self.mdi_macro,
+                        "on_filechooser_select" : self.fileselect,
+                        "on_filechooser_up_clicked" : self.filechooser.up,
+                        "on_filechooser_down_clicked" : self.filechooser.down,
+                        "on_filechooser_reload_clicked" : self.filechooser.reload,
+                        "on_listing_up_clicked" : self.listing.up,
+                        "on_listing_down_clicked" : self.listing.down,
+                        "on_listing_previous_clicked" : self.listing.previous,
+                        "on_listing_next_clicked" : self.listing.next,
                         "on_mist_on_clicked" : self.linuxcnc.mist_on,
                         "on_mist_off_clicked" : self.linuxcnc.mist_off,
                         "on_flood_on_clicked" : self.linuxcnc.flood_on,
@@ -421,49 +366,37 @@ class touchy:
                         "on_toolset_workpiece_clicked" : self.toolset_workpiece,
                         "on_changetheme_clicked" : self.change_theme,
                         }
-                # also connect singal to injector
-                if self.injector is not None:
-                  dic.update(self.injector.dic)
-                self.wTree.connect_signals(dic)
-                if self.injector is not None:
-                  self.wTree.connect_signals(self.injector)
-                # self.wTree.signal_autoconnect(dic)
+                self.wTree.signal_autoconnect(dic)
 
-		#necessary? for widget in self.wTree.get_objects():
-		#necessary? # for widget in self.wTree.get_widget_prefix(''):
-		#necessary? 	if isinstance(widget, gtk.Button):
-		#necessary? 		widget.connect_after('released',self.hack_leave)
+		for widget in self.wTree.get_widget_prefix(''):
+			if isinstance(widget, gtk.Button):
+				widget.connect_after('released',self.hack_leave)
 
                 self._dynamic_childs = {}
                 atexit.register(self.kill_dynamic_childs)
                 self.set_dynamic_tabs()
-                 
+
                 atexit.register(self.save_maxvel_pref)
 
                 self.setfont()
-                try:
-                  self.wGladevcp = GladeBuilder(self.wTree)
-                except:
-                  pass
+
         def quit(self, unused):
                 gtk.main_quit()
 
         def tabselect(self, notebook, b, tab):
                 self.tab = tab
 
-        #always display cursor: def pointer_hide(self, b):
-        #always display cursor:         if self.radiobutton_mask: return
-        #always display cursor:         self.prefs.putpref('invisible_cursor', 1)
-        #always display cursor:         self.invisible_cursor = 1
-        #always display cursor:         self.wTree.get_object("MainWindow").window.set_cursor(invisible)
-        #always display cursor:         # self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
+        def pointer_hide(self, b):
+                if self.radiobutton_mask: return
+                self.prefs.putpref('invisible_cursor', 1)
+                self.invisible_cursor = 1
+                self.wTree.get_widget("MainWindow").window.set_cursor(invisible)
 
-        #always display cursor: def pointer_show(self, b):
-        #always display cursor:         if self.radiobutton_mask: return
-        #always display cursor:         self.prefs.putpref('invisible_cursor', 0)
-        #always display cursor:         self.invisible_cursor = 0
-        #always display cursor:         self.wTree.get_object("MainWindow").window.set_cursor(None)
-        #always display cursor:         # self.wTree.get_widget("MainWindow").window.set_cursor(None)
+        def pointer_show(self, b):
+                if self.radiobutton_mask: return
+                self.prefs.putpref('invisible_cursor', 0)
+                self.invisible_cursor = 0
+                self.wTree.get_widget("MainWindow").window.set_cursor(None)
 
         def dro_commanded(self, b):
                 if self.radiobutton_mask: return
@@ -507,39 +440,39 @@ class touchy:
 
         def wheelx(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-x']
+                self.wheelxyz = 0
 
         def wheely(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-y']
+                self.wheelxyz = 1
 
         def wheelz(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-z']
+                self.wheelxyz = 2
 
         def wheela(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-a']
+                self.wheelxyz = 3
 
         def wheelb(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-b']
+                self.wheelxyz = 4
 
         def wheelc(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-c']
+                self.wheelxyz = 5
 
         def wheelu(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-u']
+                self.wheelxyz = 6
 
         def wheelv(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-v']
+                self.wheelxyz = 7
 
         def wheelw(self, b):
                 if self.radiobutton_mask: return
-                self.wheelxyz = self.hal.c['joint-for-w']
+                self.wheelxyz = 8
 
         def wheelinc1(self, b):
                 if self.radiobutton_mask: return
@@ -592,8 +525,7 @@ class touchy:
 
         def jogsettings_activate(self, active):
                 for i in ["wheelinc1", "wheelinc2", "wheelinc3"]:
-                        w = self.wTree.get_object(i)
-                        # w = self.wTree.get_widget(i)
+                        w = self.wTree.get_widget(i)
                         w.set_sensitive(active)
                 self.hal.jogactive(active)
         
@@ -622,8 +554,7 @@ class touchy:
                 self.setfont()
 
         def change_theme(self,b):
-            theme = self.wTree.get_object("theme_choice").get_active_text()
-            # theme = self.wTree.get_widget("theme_choice").get_active_text()
+            theme = self.wTree.get_widget("theme_choice").get_active_text()
             self.prefs.putpref('gtk_theme', theme, str)
             if theme == "Follow System Theme":
                 theme = self.system_theme
@@ -636,7 +567,7 @@ class touchy:
                           "8", "9", "0", "minus", "decimal",
                           "flood_on", "flood_off", "mist_on", "mist_off",
                           "g", "gp", "m", "t", "set_tool", "set_origin", "macro",
-                          "estop", "estop_reset", "machine_off", "machine_on","power_off",
+                          "estop", "estop_reset", "machine_off", "machine_on",
                           "home_all", "unhome_all", "home_selected", "unhome_selected",
                           "fo", "so", "mv", "jogging", "wheelinc1", "wheelinc2", "wheelinc3",
                           "wheelx", "wheely", "wheelz",
@@ -647,76 +578,68 @@ class touchy:
                           "spindle_faster", "spindle_slower",
                           "dro_commanded", "dro_actual", "dro_inch", "dro_mm",
                           "reload_tooltable", "opstop_on", "opstop_off",
-                          "blockdel_on", "blockdel_off",
+                          "blockdel_on", "blockdel_off", "pointer_hide", "pointer_show",
                           "toolset_workpiece", "toolset_fixture","change_theme"]:
-                        w = self.wTree.get_object(i)
-                        # w = self.wTree.get_widget(i)
+                        w = self.wTree.get_widget(i)
                         if w:
                                 w = w.child
                                 w.modify_font(self.control_font)
 
-		notebook = self.wTree.get_object('notebook1')
-		# notebook = self.wTree.get_widget('notebook1')
-#		for i in range(notebook.get_n_pages()):
-#			w = notebook.get_nth_page(i)
-#			notebook.get_tab_label(w).modify_font(self.control_font)
-#
-#                # labels
-#                for i in range(self.num_mdi_labels):
-#                        w = self.wTree.get_object("mdi%d" % i)
-#                        # w = self.wTree.get_widget("mdi%d" % i)
-#                        w.modify_font(self.control_font)
-#                for i in range(self.num_filechooser_labels):
-#                        w = self.wTree.get_object("filechooser%d" % i)
-#                        # w = self.wTree.get_widget("filechooser%d" % i)
-#                        w.modify_font(self.control_font)
-#                for i in range(self.num_listing_labels):
-#                        w = self.wTree.get_object("listing%d" % i)
-#                        # w = self.wTree.get_widget("listing%d" % i)
-#                        w.modify_font(self.listing_font)
-#                for i in ["mdi", "startup", "manual", "auto", "preferences", "status",
-#                          "relative", "absolute", "dtg", "ss2label", "status_spindlespeed2"]:
-#                        w = self.wTree.get_object(i)
-#                        # w = self.wTree.get_widget(i)
-#                        w.modify_font(self.control_font)
-#
-#                # dro
-#                for i in ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr',
-#                          'xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa',
-#                          'xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']:
-#                        w = self.wTree.get_object(i)
-#                        # w = self.wTree.get_widget(i)
-#                        if w:
-#                            w.modify_font(self.dro_font)
-#                            if "r" in i and not self.rel_textcolor == "default":
-#                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.rel_textcolor))
-#                            elif "a" in i and not self.abs_textcolor == "default":
-#                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.abs_textcolor))
-#                            elif "d" in i and not self.dtg_textcolor == "default":
-#                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.dtg_textcolor))
-#
-#                # status bar
-#                for i in ["error"]:
-#                        w = self.wTree.get_object(i)
-#                        # w = self.wTree.get_widget(i)
-#                        w.modify_font(self.error_font)
-#                        if not self.err_textcolor == "default":
-#                            w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.err_textcolor))
+		notebook = self.wTree.get_widget('notebook1')
+		for i in range(notebook.get_n_pages()):
+			w = notebook.get_nth_page(i)
+			notebook.get_tab_label(w).modify_font(self.control_font)
 
-#        def mdi_set_tool(self, b):
-#                self.mdi_control.set_tool(self.status.get_current_tool(), self.g10l11)
-#
-#        def mdi_set_origin(self, b):
-#                self.mdi_control.set_origin(self.status.get_current_system())
-#
-#        def mdi_macro(self, b):
-#                self.mdi_control.o(b)
-#
-#        def fileselect(self, eb, e):
-#                if self.wheel == "jogging": self.wheel = "mv"
-#                self.jogsettings_activate(0)
-#                self.filechooser.select(eb, e)
-#                self.listing.clear_startline()
+                # labels
+                for i in range(self.num_mdi_labels):
+                        w = self.wTree.get_widget("mdi%d" % i)
+                        w.modify_font(self.control_font)
+                for i in range(self.num_filechooser_labels):
+                        w = self.wTree.get_widget("filechooser%d" % i)
+                        w.modify_font(self.control_font)
+                for i in range(self.num_listing_labels):
+                        w = self.wTree.get_widget("listing%d" % i)
+                        w.modify_font(self.listing_font)
+                for i in ["mdi", "startup", "manual", "auto", "preferences", "status",
+                          "relative", "absolute", "dtg", "ss2label", "status_spindlespeed2"]:
+                        w = self.wTree.get_widget(i)
+                        w.modify_font(self.control_font)
+
+                # dro
+                for i in ['xr', 'yr', 'zr', 'ar', 'br', 'cr', 'ur', 'vr', 'wr',
+                          'xa', 'ya', 'za', 'aa', 'ba', 'ca', 'ua', 'va', 'wa',
+                          'xd', 'yd', 'zd', 'ad', 'bd', 'cd', 'ud', 'vd', 'wd']:
+                        w = self.wTree.get_widget(i)
+                        if w:
+                            w.modify_font(self.dro_font)
+                            if "r" in i and not self.rel_textcolor == "default":
+                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.rel_textcolor))
+                            elif "a" in i and not self.abs_textcolor == "default":
+                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.abs_textcolor))
+                            elif "d" in i and not self.dtg_textcolor == "default":
+                                w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.dtg_textcolor))
+
+                # status bar
+                for i in ["error"]:
+                        w = self.wTree.get_widget(i)
+                        w.modify_font(self.error_font)
+                        if not self.err_textcolor == "default":
+                            w.modify_fg(gtk.STATE_NORMAL,gtk.gdk.color_parse(self.err_textcolor))
+
+        def mdi_set_tool(self, b):
+                self.mdi_control.set_tool(self.status.get_current_tool(), self.g10l11)
+
+        def mdi_set_origin(self, b):
+                self.mdi_control.set_origin(self.status.get_current_system())
+
+        def mdi_macro(self, b):
+                self.mdi_control.o(b)
+
+        def fileselect(self, eb, e):
+                if self.wheel == "jogging": self.wheel = "mv"
+                self.jogsettings_activate(0)
+                self.filechooser.select(eb, e)
+                self.listing.clear_startline()
 
         def periodic_status(self):
                 self.linuxcnc.mask()
@@ -732,63 +655,42 @@ class touchy:
                 s = linuxcnc.stat()
                 s.poll()
                 am = s.axis_mask
-#                if not self.resized_wheelbuttons:
-#                        at = self.wTree.get_object("axis_table")
-#                        # at = self.wTree.get_widget("axis_table")
-#                        for i in range(9):
-#                                b = ["wheelx", "wheely", "wheelz",
-#                                     "wheela", "wheelb", "wheelc",
-#                                     "wheelu", "wheelv", "wheelw"][i]
-#                                w = self.wTree.get_object(b)
-#                                # w = self.wTree.get_widget(b)
-#                                if not (am & (1<<i)):
-#                                        at.remove(w)
-#                        if (am & 0700) == 0:
-#                                at.resize(3, 2)
-#                                if (am & 070) == 0:
-#                                        at.resize(3, 1)
-#                                        self.wTree.get_object("wheel_hbox").set_homogeneous(1)
-#                                        # self.wTree.get_widget("wheel_hbox").set_homogeneous(1)
-#                        self.resized_wheelbuttons = 1
+                if not self.resized_wheelbuttons:
+                        at = self.wTree.get_widget("axis_table")
+                        for i in range(9):
+                                b = ["wheelx", "wheely", "wheelz",
+                                     "wheela", "wheelb", "wheelc",
+                                     "wheelu", "wheelv", "wheelw"][i]
+                                w = self.wTree.get_widget(b)
+                                if not (am & (1<<i)):
+                                        at.remove(w)
+                        if (am & 0700) == 0:
+                                at.resize(3, 2)
+                                if (am & 070) == 0:
+                                        at.resize(3, 1)
+                                        self.wTree.get_widget("wheel_hbox").set_homogeneous(1)
+                        self.resized_wheelbuttons = 1
                 
-                # set_active(self.wTree.get_widget("wheelx"), self.wheelxyz == 0)
-                # set_active(self.wTree.get_widget("wheely"), self.wheelxyz == 1)
-                # set_active(self.wTree.get_widget("wheelz"), self.wheelxyz == 2)
-                # set_active(self.wTree.get_widget("wheela"), self.wheelxyz == 3)
-                # set_active(self.wTree.get_widget("wheelb"), self.wheelxyz == 4)
-                # set_active(self.wTree.get_widget("wheelc"), self.wheelxyz == 5)
-                # set_active(self.wTree.get_widget("wheelu"), self.wheelxyz == 6)
-                # set_active(self.wTree.get_widget("wheelv"), self.wheelxyz == 7)
-                # set_active(self.wTree.get_widget("wheelw"), self.wheelxyz == 8)
-                # set_active(self.wTree.get_widget("wheelinc1"), self.wheelinc == 0)
-                # set_active(self.wTree.get_widget("wheelinc2"), self.wheelinc == 1)
-                # set_active(self.wTree.get_widget("wheelinc3"), self.wheelinc == 2)
-                # set_active(self.wTree.get_widget("fo"), self.wheel == "fo")
-                # set_active(self.wTree.get_widget("so"), self.wheel == "so")
-                # set_active(self.wTree.get_widget("mv"), self.wheel == "mv")
-                # set_active(self.wTree.get_widget("jogging"), self.wheel == "jogging")
-                # set_active(self.wTree.get_widget("pointer_show"), not self.invisible_cursor)
-                # set_active(self.wTree.get_widget("pointer_hide"), self.invisible_cursor)
-                # set_active(self.wTree.get_widget("toolset_workpiece"), not self.g10l11)
-                # set_active(self.wTree.get_widget("toolset_fixture"), self.g10l11)
-#                set_active(self.wTree.get_object("wheelx"), self.wheelxyz == 0)
-#                set_active(self.wTree.get_object("wheely"), self.wheelxyz == 1)
-#                set_active(self.wTree.get_object("wheelz"), self.wheelxyz == 2)
-#                set_active(self.wTree.get_object("wheela"), self.wheelxyz == 3)
-#                set_active(self.wTree.get_object("wheelb"), self.wheelxyz == 4)
-#                set_active(self.wTree.get_object("wheelc"), self.wheelxyz == 5)
-#                set_active(self.wTree.get_object("wheelu"), self.wheelxyz == 6)
-#                set_active(self.wTree.get_object("wheelv"), self.wheelxyz == 7)
-#                set_active(self.wTree.get_object("wheelw"), self.wheelxyz == 8)
-                set_active(self.wTree.get_object("wheelinc1"), self.wheelinc == 0)
-                set_active(self.wTree.get_object("wheelinc2"), self.wheelinc == 1)
-                set_active(self.wTree.get_object("wheelinc3"), self.wheelinc == 2)
-                set_active(self.wTree.get_object("fo"), self.wheel == "fo")
-                set_active(self.wTree.get_object("so"), self.wheel == "so")
-                set_active(self.wTree.get_object("mv"), self.wheel == "mv")
-                set_active(self.wTree.get_object("jogging"), self.wheel == "jogging")
-                set_active(self.wTree.get_object("toolset_workpiece"), not self.g10l11)
-                set_active(self.wTree.get_object("toolset_fixture"), self.g10l11)
+                set_active(self.wTree.get_widget("wheelx"), self.wheelxyz == 0)
+                set_active(self.wTree.get_widget("wheely"), self.wheelxyz == 1)
+                set_active(self.wTree.get_widget("wheelz"), self.wheelxyz == 2)
+                set_active(self.wTree.get_widget("wheela"), self.wheelxyz == 3)
+                set_active(self.wTree.get_widget("wheelb"), self.wheelxyz == 4)
+                set_active(self.wTree.get_widget("wheelc"), self.wheelxyz == 5)
+                set_active(self.wTree.get_widget("wheelu"), self.wheelxyz == 6)
+                set_active(self.wTree.get_widget("wheelv"), self.wheelxyz == 7)
+                set_active(self.wTree.get_widget("wheelw"), self.wheelxyz == 8)
+                set_active(self.wTree.get_widget("wheelinc1"), self.wheelinc == 0)
+                set_active(self.wTree.get_widget("wheelinc2"), self.wheelinc == 1)
+                set_active(self.wTree.get_widget("wheelinc3"), self.wheelinc == 2)
+                set_active(self.wTree.get_widget("fo"), self.wheel == "fo")
+                set_active(self.wTree.get_widget("so"), self.wheel == "so")
+                set_active(self.wTree.get_widget("mv"), self.wheel == "mv")
+                set_active(self.wTree.get_widget("jogging"), self.wheel == "jogging")
+                set_active(self.wTree.get_widget("pointer_show"), not self.invisible_cursor)
+                set_active(self.wTree.get_widget("pointer_hide"), self.invisible_cursor)
+                set_active(self.wTree.get_widget("toolset_workpiece"), not self.g10l11)
+                set_active(self.wTree.get_widget("toolset_fixture"), self.g10l11)
                 self.radiobutton_mask = 0
 
                 if self.wheel == "jogging":
@@ -804,12 +706,9 @@ class touchy:
                 else:
                         incs = ["0.01", "0.001", "0.0001"]
 
-                # set_label(self.wTree.get_widget("wheelinc1").child, incs[0])
-                # set_label(self.wTree.get_widget("wheelinc2").child, incs[1])
-                # set_label(self.wTree.get_widget("wheelinc3").child, incs[2])
-                set_label(self.wTree.get_object("wheelinc1").child, incs[0])
-                set_label(self.wTree.get_object("wheelinc2").child, incs[1])
-                set_label(self.wTree.get_object("wheelinc3").child, incs[2])
+                set_label(self.wTree.get_widget("wheelinc1").child, incs[0])
+                set_label(self.wTree.get_widget("wheelinc2").child, incs[1])
+                set_label(self.wTree.get_widget("wheelinc3").child, incs[2])
 
                 self.hal.jogincrement(self.wheelinc, map(float,incs))
 
@@ -835,27 +734,23 @@ class touchy:
                                 self.linuxcnc.continuous_jog_velocity(self.mv_val)
                         
 
-                # set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
-                # set_label(self.wTree.get_widget("so").child, "SO: %d%%" % self.so_val)
-                # set_label(self.wTree.get_widget("mv").child, "MV: %d" % self.mv_val)
-#                set_label(self.wTree.get_object("fo").child, "FO: %d%%" % self.fo_val)
-#                set_label(self.wTree.get_object("so").child, "SO: %d%%" % self.so_val)
-#                set_label(self.wTree.get_object("mv").child, "MV: %d" % self.mv_val)
+                set_label(self.wTree.get_widget("fo").child, "FO: %d%%" % self.fo_val)
+                set_label(self.wTree.get_widget("so").child, "SO: %d%%" % self.so_val)
+                set_label(self.wTree.get_widget("mv").child, "MV: %d" % self.mv_val)
 
                         
                 return True
 
-	#necessary? def hack_leave(self,w):
-        #necessary?         return
-	#necessary? 	#for invisible cursor:  w = self.wTree.get_object("MainWindow").window
-	#necessary? 	#for invisible cursor:  d = w.get_display()
-	#necessary? 	#for invisible cursor:  s = w.get_screen()
-	#necessary? 	#for invisible cursor:  x, y = w.get_origin()
-	#necessary? 	#for invisible cursor:  d.warp_pointer(s, x, y)
+	def hack_leave(self,w):
+		if not self.invisible_cursor: return
+		w = self.wTree.get_widget("MainWindow").window
+		d = w.get_display()
+		s = w.get_screen()
+		x, y = w.get_origin()
+		d.warp_pointer(s, x, y)
 
 	def _dynamic_tab(self, notebook, text):
 		s = gtk.Socket()
-
 		notebook.append_page(s, gtk.Label(" " + text + " "))
 		return s.get_id()
 
@@ -871,31 +766,14 @@ class touchy:
 		if len(tab_names) != len(tab_cmd):
 			print "Invalid tab configuration" # Complain somehow
 
-		# nb = self.wTree.get_widget('notebook1')
-                # nb2 = self.wTree.get_widget('notebook2')
-		nb = self.wTree.get_object('notebook1')
-                nb2 = self.wTree.get_object('notebook2')
-                print 'notebooks',nb, nb2
+		nb = self.wTree.get_widget('notebook1')
 		for t,c in zip(tab_names, tab_cmd):
-                        if '{XID}' in c:
-		  	  xid = self._dynamic_tab(nb, t)
-                        if '{XID2}' in c:
-                          if nb2 != None:
-                            xid2 = self._dynamic_tab(nb2, t)
-			if not xid and not xid2: continue
-                        if '{XID}' in c:
-  			  cmd = c.replace('{XID}', str(xid))
-                          child = Popen(cmd.split())
-                          self._dynamic_childs[xid] = child
-                        if '{XID2}' in c :
-                          if nb2 != None:
-                            cmd = c.replace('{XID2}', str(xid2))
-                            child = Popen(cmd.split())
-                            self._dynamic_childs[xid2] = child
+			xid = self._dynamic_tab(nb, t)
+			if not xid: continue
+			cmd = c.replace('{XID}', str(xid))
+			child = Popen(cmd.split())
+			self._dynamic_childs[xid] = child
 		nb.show_all()
-                if nb2:
-                  print 'show nb2'
-                  nb2.show_all()
 
 	def kill_dynamic_childs(self):
 		for c in self._dynamic_childs.values():
@@ -908,38 +786,10 @@ class touchy:
 		inifile=self.linuxcnc.emc.ini(sys.argv[2])
 		postgui_halfile = inifile.find("HAL", "POSTGUI_HALFILE")
 		return postgui_halfile,sys.argv[2]
-#         def power_off(self, w):
-#             # quit()
-#             label = gtk.Label("Click OK to Power off machine \nand quit program \nIt may take 5 seconds.")
-#             dialog = gtk.Dialog("POWER OFF MACHINE",
-#                                None,
-#                                gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-#                                (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-#                                 gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
-#             dialog.vbox.pack_start(label)
-#             label.show()
-#             response = dialog.run()
-#             if response == gtk.RESPONSE_ACCEPT:
-#                 count = 5 
-#                 self.emc.machine_off(w)
-#                 s = emc.stat()
-#                 s.poll()
-#                 while emc.stat.task_state == emc.STATE_ON:
-#                     s.poll()
-#                 while count > 0:
-#                     time.sleep(1.0) # to make sure power off command sent
-#                     count = count - 1
-# 
-#                 dialog.destroy()
-#                 w = self.wTree.get_object("MainWindow").window
-#                 #w = self.wTree.get_widget("MainWindow").window
-# #                w.destroy()
-#                 gtk.main_quit() 
-#             else:
-#                 dialog.destroy()
 
 if __name__ == "__main__":
         if len(sys.argv) > 2 and sys.argv[1] == '-ini':
+            print "ini", sys.argv[2]
             hwg = touchy(sys.argv[2])
         else:
             hwg = touchy()
@@ -947,6 +797,7 @@ if __name__ == "__main__":
 	if res: raise SystemExit, res
 	# load a postgui file if one is present in the INI file
 	postgui_halfile,inifile = touchy.postgui(hwg)
+	print "TOUCHY postgui filename:",postgui_halfile
 	if postgui_halfile:
 		res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i",inifile,"-f", postgui_halfile])
 		if res: raise SystemExit, res
