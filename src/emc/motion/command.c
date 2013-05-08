@@ -1525,23 +1525,23 @@ void emcmotCommandHandler(void *arg, long period)
 	    }
 	    break;
 
-	case EMCMOT_RIGID_TAP:
+	case EMCMOT_SPINDLE_SYNC_MOTION:
 	    /* most of this is taken from EMCMOT_SET_LINE */
 	    /* emcmotDebug->coord_tp up a linear move */
 	    /* requires coordinated mode, enable off, not on limits */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "RIGID_TAP");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_SYNC_MOTION");
 	    if (!GET_MOTION_COORD_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
-		reportError(_("need to be enabled, in coord mode for rigid tap move"));
+		reportError(_("need to be enabled, in coord mode for spindle sync move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Rigid tap")) {
+	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Spindle Sync Motion")) {
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		tpAbort(&emcmotDebug->coord_tp);
 		SET_MOTION_ERROR_FLAG(1);
 		break;
 	    } else if (!limits_ok()) {
-		reportError(_("can't do rigid tap move with limits exceeded"));
+		reportError(_("can't do spindle sync move with limits exceeded"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		tpAbort(&emcmotDebug->coord_tp);
 		SET_MOTION_ERROR_FLAG(1);
@@ -1550,19 +1550,24 @@ void emcmotCommandHandler(void *arg, long period)
 
 	    /* append it to the emcmotDebug->coord_tp */
 	    tpSetId(&emcmotDebug->coord_tp, emcmotCommand->id);
-            if (-1 == tpAddRigidTap(&emcmotDebug->coord_tp, 
-                                    emcmotCommand->pos, emcmotCommand->vel,
+            if (-1 == tpAddSpindleSyncMotion(&emcmotDebug->coord_tp,
+                                    emcmotCommand->pos,
+                                    emcmotCommand->vel,
                                     emcmotCommand->ini_maxvel,
                                     emcmotCommand->acc,
                                     emcmotCommand->ini_maxjerk,
-                                    emcmotStatus->enables_new)) {
-                emcmotStatus->atspeed_next_feed = 0; /* rigid tap always waits for spindle to be at-speed */
+                                    emcmotCommand->ssm_mode,
+                                    emcmotStatus->enables_new))
+            {
+              emcmotStatus->atspeed_next_feed = 0; /* rigid tap always waits for spindle to be at-speed */
 		reportError(_("can't add rigid tap move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->coord_tp);
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else {
+	    }
+            else
+            {
 		SET_MOTION_ERROR_FLAG(0);
 	    }
 	    break;

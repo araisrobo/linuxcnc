@@ -140,7 +140,7 @@ class PM_CARTESIAN;
 #define EMC_TRAJ_SET_FO_ENABLE_TYPE                  ((NMLTYPE) 234)
 #define EMC_TRAJ_SET_SO_ENABLE_TYPE                  ((NMLTYPE) 235)
 #define EMC_TRAJ_SET_FH_ENABLE_TYPE                  ((NMLTYPE) 236)
-#define EMC_TRAJ_RIGID_TAP_TYPE                      ((NMLTYPE) 237)
+#define EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE            ((NMLTYPE) 237)
 #define EMC_TRAJ_NURBS_MOVE_TYPE                     ((NMLTYPE) 238)
 
 
@@ -503,7 +503,7 @@ extern int emcTrajClearProbeTrippedFlag();
 extern int emcTrajProbe(EmcPose pos, int type, double vel,
                         double ini_maxvel, double acc, double ini_maxjerk, unsigned char probe_type);
 extern int emcAuxInputWait(int index, int input_type, int wait_type, int timeout);
-extern int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk);
+extern int emcTrajSpindleSyncMotion(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk, int ssm_mode);
 
 extern int emcTrajUpdate(EMC_TRAJ_STAT * stat);
 

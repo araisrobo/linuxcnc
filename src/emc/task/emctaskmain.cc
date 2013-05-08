@@ -813,7 +813,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
-	    case EMC_TRAJ_RIGID_TAP_TYPE:
+	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
@@ -931,7 +931,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
-	    case EMC_TRAJ_RIGID_TAP_TYPE:
+	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
@@ -1033,7 +1033,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
-		case EMC_TRAJ_RIGID_TAP_TYPE:
+		case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 		case EMC_SET_DEBUG_TYPE:
 		    // Issue auto
 		    retval = emcTaskIssueCommand(emcCommand);
@@ -1114,7 +1114,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
-		case EMC_TRAJ_RIGID_TAP_TYPE:
+		case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 		case EMC_SET_DEBUG_TYPE:
 		    retval = emcTaskIssueCommand(emcCommand);
 		    return retval;
@@ -1191,7 +1191,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
-		case EMC_TRAJ_RIGID_TAP_TYPE:
+		case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 		case EMC_SET_DEBUG_TYPE:
 		    retval = emcTaskIssueCommand(emcCommand);
 		    break;
@@ -1261,7 +1261,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
-	        case EMC_TRAJ_RIGID_TAP_TYPE:
+	        case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 		case EMC_SET_DEBUG_TYPE:
 		    retval = emcTaskIssueCommand(emcCommand);
 		    break;
@@ -1371,7 +1371,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
-	    case EMC_TRAJ_RIGID_TAP_TYPE:
+	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
@@ -1459,7 +1459,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_OPERATOR_DISPLAY_TYPE:
     case EMC_SYSTEM_CMD_TYPE:
     case EMC_TRAJ_PROBE_TYPE:	// prevent blending of this
-    case EMC_TRAJ_RIGID_TAP_TYPE: //and this
+    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE: //and this
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:	// and this
     case EMC_AUX_INPUT_WAIT_TYPE:
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
@@ -1898,12 +1898,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	taskExecDelayTimeout = etime() + wait_spindle_orient_complete_msg->timeout;
 	break;
 
-    case EMC_TRAJ_RIGID_TAP_TYPE:
-	retval = emcTrajRigidTap(((EMC_TRAJ_RIGID_TAP *) cmd)->pos,
-	        ((EMC_TRAJ_RIGID_TAP *) cmd)->vel,
-        	((EMC_TRAJ_RIGID_TAP *) cmd)->ini_maxvel,  
-		((EMC_TRAJ_RIGID_TAP *) cmd)->acc,
-		((EMC_TRAJ_RIGID_TAP *) cmd)->ini_maxjerk);
+    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
+        retval = emcTrajSpindleSyncMotion(((EMC_TRAJ_SPINDLE_SYNC_MOTION *) cmd)->pos,
+                ((EMC_TRAJ_SPINDLE_SYNC_MOTION *) cmd)->vel,
+                ((EMC_TRAJ_SPINDLE_SYNC_MOTION *) cmd)->ini_maxvel,
+                ((EMC_TRAJ_SPINDLE_SYNC_MOTION *) cmd)->acc,
+                ((EMC_TRAJ_SPINDLE_SYNC_MOTION *) cmd)->ini_maxjerk,
+                ((EMC_TRAJ_SPINDLE_SYNC_MOTION *) cmd)->ssm_mode);
 	break;
 
     case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
@@ -2391,7 +2392,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
     case EMC_TRAJ_PROBE_TYPE:
-    case EMC_TRAJ_RIGID_TAP_TYPE:
+    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
     case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
     case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:

@@ -135,8 +135,7 @@ typedef enum {
     EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
     EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
-    EMCMOT_RIGID_TAP,	/* go to pos, with sync to spindle speed,
-				   then return to initial pos */
+    EMCMOT_SPINDLE_SYNC_MOTION,	/* for G33 and G33.1, motion with sync to spindle speed*/
 
     EMCMOT_SET_POSITION_LIMITS,	/* set the joint position +/- limits */
     EMCMOT_SET_BACKLASH,	/* set the joint backlash */
@@ -269,6 +268,7 @@ typedef struct emcmot_command_t {
     double  timeout;        /* of wait for spindle orient to complete or sync_in to timeout */
     unsigned char tail;	/* flag count for mutex detect */
     int wait_type;          /* wait type for sync_in command */
+    int ssm_mode;           /* spindle sync motion mode: G33(0) /rigid_tap G33.1(1) */
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars

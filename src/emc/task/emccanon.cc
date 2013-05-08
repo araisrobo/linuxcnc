@@ -1065,41 +1065,41 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-void RIGID_TAP(int line_number, double x, double y, double z)
+void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_mode)
 {
-//    double ini_maxvel, vel, acc;
     double vel, acc;
-    EMC_TRAJ_RIGID_TAP rigidTapMsg;
+    EMC_TRAJ_SPINDLE_SYNC_MOTION spindleSyncMotionMsg;
     double unused=0;
     double max_xyz_vel;
-    double tap_vel;
+    double xyz_vel;
     
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
     max_xyz_vel = getStraightVelocity(x, y, z, unused, unused, unused, unused, unused, unused);
 
     /* the unit for canon.spindleSpeed is RPM; need to convert to RPS */
-    tap_vel = canon.feed_per_spindle_revolution * canon.spindleSpeed / 60.0;
+    xyz_vel = canon.feed_per_spindle_revolution * canon.spindleSpeed / 60.0;
     /* obtain the velocity for cartesian_move */
-    vel = MIN(tap_vel, max_xyz_vel);
+    vel = MIN(xyz_vel, max_xyz_vel);
     /* convert cartesian_move velocity to spindle velocity in rps */
     vel = canon.spindle_dir * vel / canon.feed_per_spindle_revolution; // unit: rps
     
-    if (tap_vel > max_xyz_vel)
+    if (xyz_vel > max_xyz_vel)
     {
         printf("WARN: constrain spindle speed to %f RPM\n", vel * 60.0);
     }
 
     acc = emcAxisGetMaxAcceleration(9);     // AXIS_S: 9
-    rigidTapMsg.pos = to_ext_pose(x,y,z,
+    spindleSyncMotionMsg.pos = to_ext_pose(x,y,z,
                                  canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
                                  canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
 
     // spindle velocity unit: rps
-    rigidTapMsg.vel = (vel);
-    rigidTapMsg.ini_maxvel = emcAxisGetMaxVelocity(9);  // AXIS_S: 9
-    rigidTapMsg.acc = acc;
-    rigidTapMsg.ini_maxjerk = emcAxisGetMaxJerk(9);     // AXIS_S: 9
+    spindleSyncMotionMsg.vel = (vel); //spindle velocity (rps)
+    spindleSyncMotionMsg.ini_maxvel = emcAxisGetMaxVelocity(9);  // AXIS_S: 9
+    spindleSyncMotionMsg.acc = acc;
+    spindleSyncMotionMsg.ini_maxjerk = emcAxisGetMaxJerk(9);     // AXIS_S: 9
+    spindleSyncMotionMsg.ssm_mode = ssm_mode;
 
     flush_segments();
     
@@ -1112,7 +1112,7 @@ void RIGID_TAP(int line_number, double x, double y, double z)
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-        interp_list.append(rigidTapMsg);
+        interp_list.append(spindleSyncMotionMsg);
     }
 
     // don't move the endpoint because after this move, we are back where we started

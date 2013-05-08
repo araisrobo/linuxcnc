@@ -574,13 +574,13 @@ void STRAIGHT_PROBE(int line_number,
 }
 
 
-void RIGID_TAP(int line_number, double x, double y, double z)
+void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_mode)
 {
 
 
     fprintf(_outfile, "%5d ", _line_number++);
     print_nc_line_number();
-    fprintf(_outfile, "RIGID_TAP(%.4f, %.4f, %.4f)\n", x, y, z);
+    fprintf(_outfile, "SPINDLE_SYNC_MOTION(%.4f, %.4f, %.4f, ssm_mode(%d))\n", x, y, z, ssm_mode);
 
 }
 

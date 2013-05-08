@@ -274,9 +274,9 @@ int tpSetPos(TP_STRUCT * tp, EmcPose pos)
     return 0;
 }
 
-int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, 
-                  double ini_maxvel, double acc, 
-                  double jerk, unsigned char enables) 
+int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
+                  double ini_maxvel, double acc, double jerk,
+                  int ssm_mode, unsigned char enables)
 {
     TC_STRUCT tc;
     PmLine line_xyz;
@@ -316,9 +316,9 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
 
     // tc.target: set as revolutions of spindle
     tc.target = line_xyz.tmag / tp->uu_per_rev;
-    DP("tpAddRigidTap(): jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+    DP("jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
         jerk, vel, acc, ini_maxvel);
-    DP("tpAddRigidTap(): reversal_target(%f) target(%f) uu_per_rev(%f)\n",
+    DP("reversal_target(%f) target(%f) uu_per_rev(%f)\n",
         tc.coords.rigidtap.reversal_target,
         tc.target, tp->uu_per_rev);
 
@@ -338,11 +338,18 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.cur_vel = 0.0;
     tc.blending = 0;
 
-    tc.coords.rigidtap.xyz = line_xyz;
-    tc.coords.rigidtap.abc = abc;
-    tc.coords.rigidtap.uvw = uvw;
-    tc.coords.rigidtap.state = TAPPING;
-    tc.motion_type = TC_RIGIDTAP;
+    if (ssm_mode == 1)  // for G33.1
+    {
+        tc.coords.rigidtap.xyz = line_xyz;
+        tc.coords.rigidtap.abc = abc;
+        tc.coords.rigidtap.uvw = uvw;
+        tc.coords.rigidtap.state = TAPPING;
+        tc.motion_type = TC_RIGIDTAP;
+    }
+    else
+    {    // for G33
+        tc.motion_type = TC_SPINDLE_SYNC_MOTION;
+    }
 
     tc.canon_motion_type = 0;
     tc.blend_with_next = 0;
@@ -360,7 +367,6 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.velocity_mode = tp->velocity_mode;
     tc.enables = enables;
     tc.indexrotary = -1;
-    tc.motion_type = TC_RIGIDTAP;
     tc.coords.rigidtap.spindle_start_pos_latch = 0;
     tc.coords.rigidtap.spindle_start_pos = 0;
 
@@ -382,25 +388,32 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     }
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
-	return -1;
-    }
-    // REVERSING
-    pmLineInit(&line_xyz, end_xyz, start_xyz);  // reverse the line direction
-    tc.coords.rigidtap.xyz = line_xyz;
-    if (vel > 0)
-    {
-        tc.coords.rigidtap.spindle_dir = -1.0;
-    } else
-    {
-        tc.coords.rigidtap.spindle_dir = 1.0;
-    }
-    if (tcqPut(&tp->queue, tc) == -1) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
     }
+    if (ssm_mode == 1)  // for G33.1
+    {   // REVERSING
+        pmLineInit(&line_xyz, end_xyz, start_xyz);  // reverse the line direction
+        tc.coords.rigidtap.xyz = line_xyz;
+        if (vel > 0)
+        {
+            tc.coords.rigidtap.spindle_dir = -1.0;
+        } else
+        {
+            tc.coords.rigidtap.spindle_dir = 1.0;
+        }
+        if (tcqPut(&tp->queue, tc) == -1) {
+            rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
+            return -1;
+        }
+        // do not change tp->goalPos here,
+        // since this move will end just where it started
+    }
+    else
+    {   // for G33
+        tp->goalPos = end;      // remember the end of this move, as it's
+                                // the start of the next one.
+    }
 
-    // do not change tp->goalPos here,
-    // since this move will end just where it started
 
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
@@ -408,6 +421,126 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
 
     return 0;
 }
+
+//int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
+//                  double ini_maxvel, double acc,
+//                  double jerk, unsigned char enables)
+//{
+//
+//    TC_STRUCT tc;
+//    PmLine line_xyz;
+//    PmPose start_xyz, end_xyz;
+//    PmCartesian abc, uvw;
+//    PmQuaternion identity_quat = { 1.0, 0.0, 0.0, 0.0 };/* s , x , y , z */
+//
+//    if (!tp) {
+//        rtapi_print_msg(RTAPI_MSG_ERR, "TP is null\n");
+//        return -1;
+//    }
+//    if (tp->aborting) {
+//        rtapi_print_msg(RTAPI_MSG_ERR, "TP is aborting\n");
+//        return -1;
+//    }
+//
+//    start_xyz.tran = tp->goalPos.tran;
+//    end_xyz.tran = end.tran;
+//
+//    start_xyz.rot = identity_quat;
+//    end_xyz.rot = identity_quat;
+//
+//    // abc cannot move
+//    abc.x = tp->goalPos.a;
+//    abc.y = tp->goalPos.b;
+//    abc.z = tp->goalPos.c;
+//
+//    uvw.x = tp->goalPos.u;
+//    uvw.y = tp->goalPos.v;
+//    uvw.z = tp->goalPos.w;
+//
+//    pmLineInit(&line_xyz, start_xyz, end_xyz);
+//
+//    tc.sync_accel = 0;
+//    tc.cycle_time = tp->cycleTime;
+//
+//    // tc.target: set as revolutions of spindle
+//    tc.target = line_xyz.tmag / tp->uu_per_rev;
+//    DP("tpAddRigidTap(): jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+//        jerk, vel, acc, ini_maxvel);
+//    DP("tpAddRigidTap(): reversal_target(%f) target(%f) uu_per_rev(%f)\n",
+//        tc.coords.rigidtap.reversal_target,
+//        tc.target, tp->uu_per_rev);
+//
+//    tc.progress = 0.0;
+//    tc.accel_state = ACCEL_S3;
+//    tc.distance_to_go = tc.target;
+//    tc.reqvel = vel;
+//    tc.maxvel = ini_maxvel * tp->cycleTime;
+//    tc.maxaccel = acc * tp->cycleTime * tp->cycleTime;
+//    tc.jerk = jerk * tp->cycleTime * tp->cycleTime * tp->cycleTime;
+//    tc.feed_override = 0.0;
+//    tc.id = tp->nextId;
+//    tc.active = 0;
+//    tc.atspeed = 1;
+//
+//    tc.cur_accel = 0.0;
+//    tc.cur_vel = 0.0;
+//    tc.blending = 0;
+//
+////    tc.coords.rigidtap.xyz = line_xyz;
+////    tc.coords.rigidtap.abc = abc;
+////    tc.coords.rigidtap.uvw = uvw;
+////    tc.coords.rigidtap.state = TAPPING;
+//    tc.motion_type = TC_SPINDLE_SYNC_MOTION;
+//
+//    tc.canon_motion_type = 0;
+//    tc.blend_with_next = 0;
+//    tc.tolerance = tp->tolerance;
+//    tc.seamless_blend_mode = SMLBLND_DISABLE;
+//    tc.nexttc_target = 0;
+//
+//    if(!tp->synchronized) {
+//        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot add unsynchronized rigid tap move.\n");
+//        return -1;
+//    }
+//    tc.synchronized = tp->synchronized;
+//    tc.uu_per_rev = tp->uu_per_rev;
+//    tc.css_progress_cmd = 0;
+//    tc.velocity_mode = tp->velocity_mode;  /* set spindle mode: velocity or position mode */
+//    tc.enables = enables;
+//    tc.indexrotary = -1;
+//    tc.coords.rigidtap.spindle_start_pos_latch = 0;
+//    tc.coords.rigidtap.spindle_start_pos = 0;
+//
+//    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
+//        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+//        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+//    } else {
+//        tc.syncdio.anychanged = 0;
+//        tc.syncdio.sync_input_triggered = 0;
+//    }
+//
+//    // TAPPING
+//    if (vel > 0)        // vel is requested spindle velocity
+//    {
+//        tc.coords.rigidtap.spindle_dir = 1.0;
+//    } else
+//    {
+//        tc.coords.rigidtap.spindle_dir = -1.0;
+//    }
+//    if (tcqPut(&tp->queue, tc) == -1) {
+//        rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
+//        return -1;
+//    }
+//
+//    tp->goalPos = end;      // remember the end of this move, as it's
+//                            // the start of the next one.
+//    tp->done = 0;
+//    tp->depth = tcqLen(&tp->queue);
+//    tp->nextId++;
+//
+//    return 0;
+//
+//}
 
 // Add a straight line to the tc queue.  This is a coordinated
 // move in any or all of the six axes.  it goes from the end

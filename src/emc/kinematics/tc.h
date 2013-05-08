@@ -26,6 +26,7 @@
 #define TC_CIRCULAR 2
 #define TC_RIGIDTAP 3
 #define TC_NURBS 4
+#define TC_SPINDLE_SYNC_MOTION 5
 
 /* structure for individual trajectory elements */
 
@@ -138,7 +139,7 @@ typedef struct {
                             // stay within this distance from the path.
     
     int synchronized;       // spindle sync required for this move
-    int velocity_mode;	    // TRUE if spindle sync is in velocity mode, FALSE if in position mode
+    int velocity_mode;	// TRUE if spindle sync is in velocity mode, FALSE if in position mode
     double uu_per_rev;      // for sync, user units per rev (e.g. 0.0625 for 16tpi)
     double css_progress_cmd;// feed-forward progress command for CSS motion
     int sync_accel;         // we're accelerating up to sync with the spindle

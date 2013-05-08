@@ -1447,17 +1447,18 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk)
+int emcTrajSpindleSyncMotion(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk, int ssm_mode)
 {
     CATCH_NAN(isnan(pos.tran.x) || isnan(pos.tran.y) || isnan(pos.tran.z));
 
-    emcmotCommand.command = EMCMOT_RIGID_TAP;
+    emcmotCommand.command = EMCMOT_SPINDLE_SYNC_MOTION;
     emcmotCommand.pos.tran = pos.tran;
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.ini_maxjerk = ini_maxjerk;
+    emcmotCommand.ssm_mode = ssm_mode;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
