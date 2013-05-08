@@ -116,9 +116,10 @@
     information, go to www.linuxcnc.org.
 */
 
-#ifndef RTAPI
-#error This is a realtime component only!
-#endif
+#ifdef RTAPI
+#warning "this for user space only"
+#else
+// SIM
 
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
@@ -2139,6 +2140,8 @@ static int export_machine_control(machine_control_t * machine_control)
     rtapi_set_msg_level(msg);
     return 0;
 }
+
+#endif	// else-RTAPI
 
 
 // vim:sw=4:sts=4:et:

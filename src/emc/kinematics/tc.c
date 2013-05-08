@@ -16,9 +16,16 @@
   FIXME-- should include <stdlib.h> for sizeof(), but conflicts with
   a bunch of <linux> headers
   */
+
+#ifdef RTAPI
+#define assert(args...)		do {} while(0)
+#else
+// SIM
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#endif
+
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "posemath.h"
 #include "emcpos.h"
@@ -62,8 +69,14 @@ void nurbs_basisfun(int i, double u, int p,
   int j,r;
   double saved, temp;
 
+#ifndef RTAPI
   double *left = (double*)malloc(sizeof(double)*(p+1));
   double *right = (double*)malloc(sizeof(double)*(p+1));
+#else
+  #warning "to implement rtai_kmalloc() or static memory chunk for left[] and right[]"
+  double left[4096];
+  double right[4096];
+#endif
 
   N[0] = 1.0;
   for (j = 1; j <= p; j++)
@@ -82,8 +95,12 @@ void nurbs_basisfun(int i, double u, int p,
       N[j] = saved;
 
     }
+#ifndef RTAPI
   free(left);
   free(right);
+#else
+  #warning "to implement rtai_kmalloc() or static memory chunk for left[] and right[]"
+#endif
 
 }
 
@@ -584,9 +601,10 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 	(n > tcq->_len)) {	/* too many requested */
 	    return -1;
     }
-    /* if NURBS ?*/
-    for(i=tcq->start;i<(tcq->start+n);i++){
 
+#ifndef RTAPI
+    /* for NURBS only */
+    for(i=tcq->start;i<(tcq->start+n);i++){
         if(tcq->queue[i].motion_type == TC_NURBS) {
             //fprintf(stderr,"Remove TCNURBS PARAM\n");
             free(tcq->queue[i].nurbs_block.knots_ptr);
@@ -595,6 +613,8 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 
         }
     }
+#endif //RTAPI
+
     /* update start ptr and reset allFull flag and len */
     tcq->start = (tcq->start + n) % tcq->size;
     tcq->allFull = 0;
