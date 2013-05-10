@@ -2134,16 +2134,12 @@ void SET_SPINDLE_SPEED(double r)
 
     if(canon.css_maximum)
     {
+        // css_maximum: D of G_96
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
-// <<<<<<< HEAD
-	    // fix: numerator was wrong	    
-	    //      factor = cs * 60 / 2pi
-	    //      factor = css / 2pi
-	    canon.css_numerator = 1 / (2 * M_PI) * canon.spindleSpeed;
-// =======
-//	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
-// >>>>>>> lcnc-ja3
+	    // convert from ft/min to inch/min
+	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4); // spindleSpeed: S(CSS)
 	else
+	    // convert from m/min to mm/min
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
 	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.css_maximum; // set MAX spindle speed for CSS motion
 	emc_spindle_speed_msg.factor = canon.spindle_dir * canon.css_numerator;

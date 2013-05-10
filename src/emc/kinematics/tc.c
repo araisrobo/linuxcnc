@@ -186,6 +186,15 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
         {
             emcmotStatus->spindle_position_cmd = tc->coords.rigidtap.spindle_start_pos + tc->coords.rigidtap.spindle_dir * progress;
         }
+    } else if (tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
+        pmLinePoint(&tc->coords.rigidtap.xyz, tc->coords.rigidtap.xyz.tmag * (progress / tc->target) , &xyz);
+        // no rotary move allowed while tapping
+        abc.tran = tc->coords.rigidtap.abc;
+        uvw.tran = tc->coords.rigidtap.uvw;
+        if (!of_endpoint)
+        {
+            emcmotStatus->spindle_position_cmd = tc->coords.rigidtap.spindle_start_pos + tc->coords.rigidtap.spindle_dir * progress;
+        }
     } else if (tc->motion_type == TC_LINEAR) {
 
         if (tc->coords.line.xyz.tmag > 0.) {

@@ -338,12 +338,12 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.cur_vel = 0.0;
     tc.blending = 0;
 
+    tc.coords.rigidtap.xyz = line_xyz;
+    tc.coords.rigidtap.abc = abc;
+    tc.coords.rigidtap.uvw = uvw;
+//    tc.coords.rigidtap.state = TAPPING;
     if (ssm_mode == 1)  // for G33.1
     {
-        tc.coords.rigidtap.xyz = line_xyz;
-        tc.coords.rigidtap.abc = abc;
-        tc.coords.rigidtap.uvw = uvw;
-        tc.coords.rigidtap.state = TAPPING;
         tc.motion_type = TC_RIGIDTAP;
     }
     else
@@ -1684,6 +1684,40 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.rigidtap.xyz.uVec.z;
             }
         }
+
+        if(emcmotStatus->spindle.css_factor)
+        {
+            double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
+            double speed;
+            double maxpositive;
+            if(denom > 0)
+            {
+                speed = emcmotStatus->spindle.css_factor / denom;
+            } else
+            {
+                speed = emcmotStatus->spindle.speed;
+            }
+            speed = speed * emcmotStatus->net_spindle_scale;
+            maxpositive = fabs(emcmotStatus->spindle.speed);
+            if(speed < -maxpositive)
+                speed = -maxpositive;
+            if(speed > maxpositive)
+                speed = maxpositive;
+            tc->reqvel = speed * 1/60.0; // covert from RPM to RPS
+            printf ("debug: G33 spindel reqvel(%f)\n", tc->reqvel);
+            printf ("debug: denom(%f)\n", denom);
+            printf ("debug: css_factor(%f)\n", emcmotStatus->spindle.css_factor);
+            printf ("debug: css(%f)\n", denom * tc->reqvel * 2 * M_PI * 60/1000);
+            printf ("debug: req_css(%f)\n", (emcmotStatus->spindle.css_factor)* 2 * M_PI/1000.0 );
+
+        } else
+        {
+            // G33 w/ G97 or G33.1
+            // change
+            tc->reqvel = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
+        }
+        printf ("debug: tc->target(%f) tc->progress(%f)\n", tc->target, tc->progress);
+
     } else
     {
         emcmotStatus->rigidTapping = 0;
@@ -1693,7 +1727,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // this means this tc is being read for the first time.
 
         nexttc->cur_vel = 0;
-        //orig: tp->depth = tp->activeDepth = 1;
         tp->activeDepth = 1;
         nexttc->active = 1;
         nexttc->blending = 0;

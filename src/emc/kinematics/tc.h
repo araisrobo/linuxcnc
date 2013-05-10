@@ -42,9 +42,9 @@ typedef struct {
     PmLine uvw;
 } PmCircle9;
 
-typedef enum {
-    TAPPING, REVERSING
-} RIGIDTAP_STATE;
+//typedef enum {
+//    TAPPING, REVERSING
+//} RIGIDTAP_STATE;
 
 typedef unsigned long long iomask_t; // 64 bits on both x86 and x86_64
 
@@ -68,7 +68,7 @@ typedef struct {
     PmCartesian uvw;
     double reversal_target;
     double spindlerevs_at_reversal;
-    RIGIDTAP_STATE state;
+//    RIGIDTAP_STATE state;
     double spindle_start_pos;
     int spindle_start_pos_latch;
     double spindle_dir;
