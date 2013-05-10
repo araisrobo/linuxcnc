@@ -1534,20 +1534,15 @@ static void get_pos_cmds(long period)
             /* based on curent position, current vel and period,
                    the next position is computed */
             emcmotStatus->carte_pos_cmd.tran.x +=
-                    emcmotDebug->teleop_data.currentVel.tran.x *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.tran.x * servo_period;
             emcmotStatus->carte_pos_cmd.tran.y +=
-                    emcmotDebug->teleop_data.currentVel.tran.y *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.tran.y * servo_period;
             emcmotStatus->carte_pos_cmd.tran.z +=
-                    emcmotDebug->teleop_data.currentVel.tran.z *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.tran.z * servo_period;
             emcmotStatus->carte_pos_cmd.a +=
-                    emcmotDebug->teleop_data.currentVel.a *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.a * servo_period;
             emcmotStatus->carte_pos_cmd.b +=
-                    emcmotDebug->teleop_data.currentVel.b *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.b * servo_period;
             emcmotStatus->carte_pos_cmd.c +=
                     emcmotDebug->teleop_data.currentVel.c *
                     servo_period;
@@ -1997,7 +1992,8 @@ static void output_to_hal(void)
     *(emcmot_hal_data->homing) = emcmotStatus->homing_active;
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
-    if(emcmotStatus->spindle.css_factor) {
+    if(emcmotStatus->spindle.css_factor)
+    {
         double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
         double speed;
         double maxpositive;
@@ -2018,7 +2014,9 @@ static void output_to_hal(void)
         /* calculate css and exprot to hal pin */
         // TODO: confirm rad or diam mode??
         *(emcmot_hal_data->spindle_css) = *(emcmot_hal_data->spindle_speed_out_rps) * denom * 2 * PI;
-    } else {
+    }
+    else
+    {
         *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
         *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;
     }

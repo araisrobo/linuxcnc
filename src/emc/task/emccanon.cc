@@ -2075,7 +2075,8 @@ void SPINDLE_RETRACT_TRAVERSE()
 }
 
 void SET_SPINDLE_MODE(double css_max) {
-    canon.css_maximum = fabs(css_max);
+    canon.css_maximum = fabs(css_max);  // css_maximum: the Max spindle speed(rpm) under CSS(G96) mode
+                                        //              set to 0 under G97
 }
 
 void START_SPINDLE_CLOCKWISE(int l)
@@ -2131,7 +2132,8 @@ void SET_SPINDLE_SPEED(double r)
 
     flush_segments();
 
-    if(canon.css_maximum) {
+    if(canon.css_maximum)
+    {
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
 // <<<<<<< HEAD
 	    // fix: numerator was wrong	    
@@ -2143,10 +2145,12 @@ void SET_SPINDLE_SPEED(double r)
 // >>>>>>> lcnc-ja3
 	else
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
-	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.css_maximum;
+	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.css_maximum; // set MAX spindle speed for CSS motion
 	emc_spindle_speed_msg.factor = canon.spindle_dir * canon.css_numerator;
 	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
-    } else {
+    }
+    else
+    {
 	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.spindleSpeed;
 	canon.css_numerator = 0;
     }
