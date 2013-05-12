@@ -1934,12 +1934,14 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 				  ((EMC_MOTION_SET_DOUT *) cmd)->end,
 				  ((EMC_MOTION_SET_DOUT *) cmd)->now);
 	break;
+
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:
        retval = emcMotionSetSyncInput(((EMC_MOTION_SET_SYNC_INPUT *) cmd)->index,
                                  ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->now,
                                  ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->wait_type,
                                  ((EMC_MOTION_SET_SYNC_INPUT *) cmd)->timeout);
            break;
+
     case EMC_MOTION_ADAPTIVE_TYPE:
 	retval = emcTrajSetAFEnable(((EMC_MOTION_ADAPTIVE *) cmd)->status);
 	break;

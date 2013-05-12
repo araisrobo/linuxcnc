@@ -304,7 +304,6 @@ void emcmotDioWrite(int index, char value)
 
 void emcmotSyncInputWrite(int index, double timeout, int wait_type)
 {
-
     if ((index >= emcmotConfig->numSyncIn) || (index < 0)) {
         rtapi_print_msg(RTAPI_MSG_ERR, "ERROR: index out of range, %d not in [0..%d] (increase num_dio/EMCMOT_MAX_DIO=%d)\n", index, emcmotConfig->numDIO, EMCMOT_MAX_DIO);
     } else {
@@ -1638,14 +1637,15 @@ void emcmotCommandHandler(void *arg, long period)
 		    emcmotCommand->start, emcmotCommand->end);
 	    }
 	    break;
+
+	// ARTEK M-CODE: M200
 	case EMCMOT_SET_SYNC_INPUT:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_DOUT");
+	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_SYNC_INPUT(M200)");
             if (emcmotCommand->now) { //we set it right away
-                emcmotSyncInputWrite(emcmotCommand->out,emcmotCommand->timeout,
-                        emcmotCommand->wait_type);
+                emcmotSyncInputWrite(emcmotCommand->out, emcmotCommand->timeout, emcmotCommand->wait_type);
             } else { // we put it on the TP queue, warning: only room for one in there, any new ones will overwrite
-                tpSetSyncInput(&emcmotDebug->coord_tp, emcmotCommand->out,
-                    emcmotCommand->timeout, emcmotCommand->wait_type);
+                // ysli: TODO: implement this with syncdio on tp.c to support multiple synchronized input with motion
+                tpSetSyncInput(&emcmotDebug->coord_tp, emcmotCommand->out, emcmotCommand->timeout, emcmotCommand->wait_type);
             }
 	    break;
 
