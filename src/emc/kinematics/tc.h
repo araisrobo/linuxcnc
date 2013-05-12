@@ -24,9 +24,8 @@
 
 #define TC_LINEAR 1
 #define TC_CIRCULAR 2
-#define TC_RIGIDTAP 3
+#define TC_SPINDLE_SYNC_MOTION 3
 #define TC_NURBS 4
-#define TC_SPINDLE_SYNC_MOTION 5
 
 /* structure for individual trajectory elements */
 
@@ -61,18 +60,14 @@ typedef struct {
 } syncdio_t;
 
 typedef struct {
+    // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
     PmLine xyz;             // original, but elongated, move down
-    PmLine aux_xyz;         // this will be generated on the fly, for the other
-                            // two moves: retraction, final placement
     PmCartesian abc;
     PmCartesian uvw;
-    double reversal_target;
-    double spindlerevs_at_reversal;
-//    RIGIDTAP_STATE state;
     double spindle_start_pos;
     int spindle_start_pos_latch;
     double spindle_dir;
-} PmRigidTap;
+} PmSpindleSyncMotion;
 
 enum state_type {
   ACCEL_S0 = 0, // 0
@@ -124,12 +119,12 @@ typedef struct {
     union {                 // describes the segment's start and end positions
         PmLine9 line;
         PmCircle9 circle;
-        PmRigidTap rigidtap;
+        PmSpindleSyncMotion spindle_sync;
     } coords;
 
     char motion_type;       // TC_LINEAR (coords.line) or 
                             // TC_CIRCULAR (coords.circle) or
-                            // TC_RIGIDTAP (coords.rigidtap)
+                            // TC_SPINDLE_SYNC_MOTION (coords.spindle_sync_motion)
     char active;            // this motion is being executed
     int canon_motion_type;  // this motion is due to which canon function?
     int blend_with_next;    // gcode requests continuous feed at the end of 
