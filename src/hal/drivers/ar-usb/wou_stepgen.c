@@ -1561,6 +1561,8 @@ static void update_freq(void *arg, long period)
     /* end: setup sync wait timeout */
 
     /* begin: process motion synchronized input */
+    /* for M200, ARTEK's SYNC_INPUT */
+    /* for G33 and G33.1, to synchronize spindle index */
     if (*(machine_control->sync_in_trigger) != 0) {
         assert(*(machine_control->sync_in_index) >= 0);
         assert(*(machine_control->sync_in_index) < num_gpio_in);
@@ -1690,6 +1692,7 @@ static void update_freq(void *arg, long period)
             stepgen->pulse_accel = 0;
             stepgen->pulse_jerk = 0;
 
+            /* in HAL, 若任何一軸的 *stepgen->enable 訊號忘了接，就會造成這個 assertion */
             assert (i == n); // confirm the JCMD_SYNC_CMD is packed with all joints
             i += 1;
             wou_flush(&w_param);
