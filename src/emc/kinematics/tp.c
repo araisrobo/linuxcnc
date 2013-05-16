@@ -344,6 +344,9 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.coords.spindle_sync.xyz = line_xyz;
     tc.coords.spindle_sync.abc = abc;
     tc.coords.spindle_sync.uvw = uvw;
+    // updated spindle speed constrain based on spindleSyncMotionMsg.vel of emccanon.cc
+    tc.coords.spindle_sync.spindle_reqvel = vel;
+
     tc.motion_type = TC_SPINDLE_SYNC_MOTION;
 
     tc.canon_motion_type = 0;
@@ -1558,6 +1561,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 emcmotStatus->rigidTapping |= 4;
                 emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.z;
             }
+
         }
 
         if(emcmotStatus->spindle.css_factor)
@@ -1565,34 +1569,33 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
             double speed;
             double maxpositive;
+            // css_factor: unit(mm or inch)/min
             if(denom > 0)
             {
-                speed = emcmotStatus->spindle.css_factor / denom;
+                speed = emcmotStatus->spindle.css_factor / (denom * 60.0); // rps
             } else
             {
-                speed = emcmotStatus->spindle.speed;
+                speed = tc->coords.spindle_sync.spindle_reqvel;
             }
-            speed = speed * emcmotStatus->net_spindle_scale;
-            maxpositive = fabs(emcmotStatus->spindle.speed);
+            maxpositive = fabs(tc->coords.spindle_sync.spindle_reqvel);
             if(speed < -maxpositive)
                 speed = -maxpositive;
             if(speed > maxpositive)
                 speed = maxpositive;
-            tc->reqvel = speed * 1/60.0; // covert from RPM to RPS
-            printf ("debug: G33 spindel reqvel(%f)\n", tc->reqvel);
-            printf ("debug: denom(%f)\n", denom);
-            printf ("debug: css_factor(%f)\n", emcmotStatus->spindle.css_factor);
-            printf ("debug: css(%f)\n", denom * tc->reqvel * 2 * M_PI * 60/1000);
-            printf ("debug: req_css(%f)\n", (emcmotStatus->spindle.css_factor)* 2 * M_PI/1000.0 );
-
+            tc->reqvel = speed * emcmotStatus->net_spindle_scale;
+            emcmotStatus->spindle.css_error = (emcmotStatus->spindle.css_factor / 60.0
+                                               - denom * tc->cur_vel / tc->cycle_time);
+            DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
+            DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
+            DP ("css_error(%f)(unit/(2*PI*sec))\n",
+                    (emcmotStatus->spindle.css_factor * 1/60.0 - denom * tc->cur_vel / tc->cycle_time));
+            DP ("synched-joint-vel(%f)(unit/sec)\n",tc->cur_vel / tc->cycle_time * tp->uu_per_rev);
         } else
         {
             // G33 w/ G97 or G33.1
             // change
-            tc->reqvel = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
+            tc->reqvel = tc->coords.spindle_sync.spindle_reqvel * emcmotStatus->net_spindle_scale;
         }
-        printf ("debug: tc->target(%f) tc->progress(%f)\n", tc->target, tc->progress);
-
     } else
     {
         emcmotStatus->rigidTapping = 0;

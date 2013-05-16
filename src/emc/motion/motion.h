@@ -603,6 +603,7 @@ typedef struct {
     double speed;		// spindle speed in RPMs
     double css_factor;
     double xoffset;
+    double css_error;          //
     int direction;		// 0 stopped, 1 forward, -1 reverse
     int brake;		// 0 released, 1 engaged
     int locked;             // spindle lock engaged after orient

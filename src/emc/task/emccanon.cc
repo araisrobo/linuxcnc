@@ -67,7 +67,7 @@ static FILE *dptrace = fopen("emccanon.log","w");
 
 static CanonConfig_t canon;
 
-static int debug_velacc = 0;
+static int debug_velacc = 1;
 static const double tiny = 1e-7;
 static const double huge = 1e9;
 
@@ -1072,13 +1072,24 @@ void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_
     double unused=0;
     double max_xyz_vel;
     double xyz_vel;
+    double spindle_speed;
     
+    if(canon.css_maximum) {
+        // for CSS(G96)
+        spindle_speed = canon.css_maximum;
+    } else {
+        // for (G97)
+        spindle_speed = canon.spindleSpeed;
+    }
+
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
     max_xyz_vel = getStraightVelocity(x, y, z, unused, unused, unused, unused, unused, unused);
+//    printf("max_xyz_vel(%f) \n", max_xyz_vel);
 
     /* the unit for canon.spindleSpeed is RPM; need to convert to RPS */
-    xyz_vel = canon.feed_per_spindle_revolution * canon.spindleSpeed / 60.0;
+    xyz_vel = canon.feed_per_spindle_revolution * spindle_speed / 60.0;
+//    xyz_vel = canon.feed_per_spindle_revolution * canon.spindleSpeed / 60.0;
     /* obtain the velocity for cartesian_move */
     vel = MIN(xyz_vel, max_xyz_vel);
     /* convert cartesian_move velocity to spindle velocity in rps */
@@ -2075,8 +2086,8 @@ void SPINDLE_RETRACT_TRAVERSE()
 }
 
 void SET_SPINDLE_MODE(double css_max) {
-    canon.css_maximum = fabs(css_max);  // css_maximum: the Max spindle speed(rpm) under CSS(G96) mode
-                                        //              set to 0 under G97
+    canon.css_maximum = fabs(css_max);  // css_maximum is the Max spindle speed(rpm) for CSS(G96) mode
+                                        //                 set to 0 under G97
 }
 
 void START_SPINDLE_CLOCKWISE(int l)

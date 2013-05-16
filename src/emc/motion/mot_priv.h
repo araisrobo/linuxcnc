@@ -188,7 +188,7 @@ typedef struct {
     hal_float_t *spindle_speed_out_rps;	/* spindle speed output */
     hal_float_t *spindle_speed_cmd_rps;	/* spindle speed command without SO applied */
     hal_float_t *spindle_speed_in;	/* spindle speed measured */
-    hal_float_t *spindle_css;           /* output surface when CSS mode */
+    hal_float_t *spindle_css_error;     /* error of Constant Surface Speed(CSS) motion, (unit/(2*PI*sec) */
     
     // spindle orient
     hal_float_t *spindle_orient_angle;	/* out: desired spindle angle, degrees */

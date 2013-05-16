@@ -67,6 +67,7 @@ typedef struct {
     double spindle_start_pos;
     int spindle_start_pos_latch;
     double spindle_dir;
+    double spindle_reqvel;
 } PmSpindleSyncMotion;
 
 enum state_type {
