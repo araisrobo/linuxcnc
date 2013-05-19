@@ -36,6 +36,17 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
+
+#define CSS_TRACE 1
+#if (CSS_TRACE!=0)
+#if (TRACE==0)
+static FILE* csstrace = 0;
+static uint32_t _dt = 0;
+#else
+#undef CSS_TRACE // disable CSS_TRACE when TRACE is enabled
+#endif
+#endif
+
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
@@ -71,6 +82,12 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
     }
 #endif
 
+#if (CSS_TRACE!=0)
+    if (!csstrace) {
+        csstrace = fopen("tp_css.log", "w");
+        _dt = 0;
+    }
+#endif
     /* init the rest of our data */
     return tpInit(tp);
 }
@@ -1584,12 +1601,19 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 speed = maxpositive;
             tc->reqvel = speed * emcmotStatus->net_spindle_scale;
             emcmotStatus->spindle.css_error = (emcmotStatus->spindle.css_factor / 60.0
-                                               - denom * tc->cur_vel / tc->cycle_time);
+                                               - denom * tc->cur_vel / tc->cycle_time); // (unit/(2*PI*sec)
             DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
             DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
-            DP ("css_error(%f)(unit/(2*PI*sec))\n",
-                    (emcmotStatus->spindle.css_factor * 1/60.0 - denom * tc->cur_vel / tc->cycle_time));
+            DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
             DP ("synched-joint-vel(%f)(unit/sec)\n",tc->cur_vel / tc->cycle_time * tp->uu_per_rev);
+
+#if (CSS_TRACE!=0)
+            /* prepare data for gnuplot */
+            fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
+                    , _dt, denom, tc->progress,emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI,denom * tc->cur_vel / tc->cycle_time * 2 * M_PI,
+                    (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * tc->cur_vel / tc->cycle_time * 2 * M_PI));
+            _dt += 1;
+#endif
         } else
         {
             // G33 w/ G97 or G33.1
