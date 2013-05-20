@@ -729,7 +729,6 @@ typedef struct emcmot_status_t {
     double acc;		/* accel for traj */
     double jerk;		/* jerk for traj */
     int32_t motionState;        /* s-curve motion state */
-    int32_t rigidTapping;       /* bit-wise mapping for rigid-tapping AXES */
     double xuu_per_rev;        /* user-unit per rev for AXIS_X */
     double yuu_per_rev;        /* user-unit per rev for AXIS_Y */
     double zuu_per_rev;        /* user-unit per rev for AXIS_Z */
