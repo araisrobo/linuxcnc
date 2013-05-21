@@ -1,0 +1,1 @@
+halcmd unloadusr spindle-vfd
