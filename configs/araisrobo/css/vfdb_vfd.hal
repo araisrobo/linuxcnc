@@ -3,7 +3,8 @@
 #
 # $Id: vfdb_vfd.hal,v 1.1 2009-09-19 23:00:27 mah Exp $
 #
-loadusr -Wn spindle-vfd vfdb_vfd -n spindle-vfd -d -I css.ini -S VFDB
+# loadusr -Wn spindle-vfd vfdb_vfd -n spindle-vfd -d -I css.ini -S VFDB
+loadusr -Wn spindle-vfd vfdb_vfd -n spindle-vfd -I css.ini -S VFDB
 
 # connect the spindle direction pins to the VFD
 net vfdb-fwd spindle-vfd.spindle-fwd <= motion.spindle-forward

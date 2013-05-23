@@ -44,7 +44,7 @@ net  spindle-position-cmd   spindle_s.position-cmd     <= motion.spindle-positio
 net  spindle-curr-pos-cmd   spindle_s.curr-pos         => motion.spindle-curr-pos-cmd
 net  spindle-in-position    spindle_s.in-position      => motion.spindle-in-position
 net  spindle-at-speed       spindle_s.at-speed         => motion.spindle-at-speed
-net  vel-fb-j3              spindle_s.feedback-vel
+net  vel-fb-j4              spindle_s.feedback-vel
 
 setp spindle_t.velocity-mode 1 
 #net  spindle-velocity-mode  spindle_t.velocity-mode    
@@ -53,10 +53,12 @@ net  spindle-t-speed-cmd    spindle_t.css-error-velocity-cmd   <= motion.spindle
 #net  spindle-t-aux-radius   spindle_t.aux-radius               <= by unknow sensor 
 setp spindle_t.aux-radius 50.0
 net  spindle-position-cmd   spindle_t.position-cmd     
-net  spindle-t-curr-pos-cmd   spindle_t.curr-pos         
+# TODO: forward VEL-CMD of SPINDLE-T to VFD-B 
+# net  spindle-t-curr-pos-cmd   spindle_t.curr-pos         
 net  spindle-t-in-position    spindle_t.in-position      
 net  spindle-t-at-speed       spindle_t.at-speed         
-net  vel-fb-j4              spindle_t.feedback-vel
+# TODO: get vel feedback of SPINDLE-T from VFD-B
+# net  vel-fb-j4              spindle_t.feedback-vel
 
 # send the position commands thru differentiators to
 # generate velocity and accel signals
@@ -93,22 +95,23 @@ setp wou.motion.spindle-joint-id [KINS]SPINDLE_JOINT_ID
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
-net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
-net spindle-curr-pos-cmd        => wou.stepgen.3.position-cmd
-net spindle-t-curr-pos-cmd      => wou.stepgen.4.position-cmd
+net Ypos                        => wou.stepgen.2.position-cmd 
+net Zpos  joint.3.motor-pos-cmd => wou.stepgen.3.position-cmd
+net spindle-curr-pos-cmd        => wou.stepgen.4.position-cmd
+# net spindle-t-curr-pos-cmd      => wou.stepgen.4.position-cmd
 
 # loop position commands back to motion module feedback
 # for OPEN_LOOP
 net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
-net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
-net Spos-fb   wou.stepgen.3.position-fb => motion.spindle-revs
+net YYpos-fb  wou.stepgen.2.position-fb => joint.2.motor-pos-fb
+net Zpos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
+net Spos-fb   wou.stepgen.4.position-fb => motion.spindle-revs
 
 # motor_index positions
 net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
 net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
-net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
-# net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
+net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
@@ -128,7 +131,7 @@ net sync_in_timeout     motion.sync-in-timeout =>  wou.sync.in.timeout
 net din_00                         => motion.enable
 net j0ena   joint.0.amp-enable-out => wou.stepgen.0.enable
 net j1ena   joint.1.amp-enable-out => wou.stepgen.1.enable
-net j2ena   joint.2.amp-enable-out => wou.stepgen.2.enable
+net j1ena                          => wou.stepgen.2.enable
 net j3ena   joint.3.amp-enable-out => wou.stepgen.3.enable
 net j4ena   joint.4.amp-enable-out => wou.stepgen.4.enable
 
@@ -247,31 +250,31 @@ net din_09      joint.2.home-sw-in
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
 net j1-homing   joint.1.homing => wou.stepgen.1.homing
-net j2-homing   joint.2.homing => wou.stepgen.2.homing
+net j1-homing                  => wou.stepgen.2.homing
 net j3-homing   joint.3.homing => wou.stepgen.3.homing
 net j4-homing   joint.4.homing => wou.stepgen.4.homing
 
 net j0-risc-probe-vel    joint.0.risc-probe-vel => wou.stepgen.0.risc-probe-vel
 net j1-risc-probe-vel    joint.1.risc-probe-vel => wou.stepgen.1.risc-probe-vel
-net j2-risc-probe-vel    joint.2.risc-probe-vel => wou.stepgen.2.risc-probe-vel
+net j1-risc-probe-vel                           => wou.stepgen.2.risc-probe-vel
 net j3-risc-probe-vel    joint.3.risc-probe-vel => wou.stepgen.3.risc-probe-vel
 net j4-risc-probe-vel    joint.4.risc-probe-vel => wou.stepgen.4.risc-probe-vel
 
 net j0-risc-probe-pin    joint.0.risc-probe-pin => wou.stepgen.0.risc-probe-pin
 net j1-risc-probe-pin    joint.1.risc-probe-pin => wou.stepgen.1.risc-probe-pin
-net j2-risc-probe-pin    joint.2.risc-probe-pin => wou.stepgen.2.risc-probe-pin
+net j1-risc-probe-pin                           => wou.stepgen.2.risc-probe-pin
 net j3-risc-probe-pin    joint.3.risc-probe-pin => wou.stepgen.3.risc-probe-pin
 net j4-risc-probe-pin    joint.4.risc-probe-pin => wou.stepgen.4.risc-probe-pin
 
 net j0-risc-probe-type   joint.0.risc-probe-type => wou.stepgen.0.risc-probe-type
 net j1-risc-probe-type   joint.1.risc-probe-type => wou.stepgen.1.risc-probe-type
-net j2-risc-probe-type   joint.2.risc-probe-type => wou.stepgen.2.risc-probe-type
+net j1-risc-probe-type                           => wou.stepgen.2.risc-probe-type
 net j3-risc-probe-type   joint.3.risc-probe-type => wou.stepgen.3.risc-probe-type
 net j4-risc-probe-type   joint.4.risc-probe-type => wou.stepgen.4.risc-probe-type
 
 net j0-risc-probe-dist   joint.0.risc-probe-dist => wou.stepgen.0.risc-probe-dist
 net j1-risc-probe-dist   joint.1.risc-probe-dist => wou.stepgen.1.risc-probe-dist
-net j2-risc-probe-dist   joint.2.risc-probe-dist => wou.stepgen.2.risc-probe-dist
+net j1-risc-probe-dist                           => wou.stepgen.2.risc-probe-dist
 net j3-risc-probe-dist   joint.3.risc-probe-dist => wou.stepgen.3.risc-probe-dist
 net j4-risc-probe-dist   joint.4.risc-probe-dist => wou.stepgen.4.risc-probe-dist
 
