@@ -1660,9 +1660,10 @@ static void update_freq(void *arg, long period)
                                       * FIXED_POINT_SCALE
                                       * (stepgen->pos_scale)
                                       / stepgen_array[(*machine_control->spindle_joint_id)].pos_scale);
-            write_mot_param (2, (SSYNC_SCALE), immediate_data); // format: 16.16
+            write_mot_param (n, (SSYNC_SCALE), immediate_data); // format: 16.16
             stepgen->prev_uu_per_rev = *stepgen->uu_per_rev;
-            //printf ("z-tap-scale: 0x%08X\n", immediate_data);
+            DP("j[%d].SSYNC_SCALE: 0x%08X\n", n, immediate_data);
+            DP("spindle_joint_id(%d) uu_per_rev(%f) prev_uu_per_rev(%f)\n", *machine_control->spindle_joint_id, *stepgen->uu_per_rev, stepgen->prev_uu_per_rev);
         }
 
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
