@@ -14,7 +14,7 @@ net estop halui.estop.is-activated => estop-not.in
 net estop-inactive estop-not.out => gladevcp.settings
 
 # show the current spindle speed in the top hoizontal bar
-net spindle-speed-rpm spindle.0.speed-rpm => gladevcp.spindle-rpm-hbar
+net spindle-speed-rpm spindle_s.speed-rpm => gladevcp.spindle-rpm-hbar
 
 # net laser_distance  => gladevcp.laser-dist-meter
 # net laser_distance  => gladevcp.laser-dist-label
@@ -37,11 +37,11 @@ net dout2       gladevcp.do2    => gladevcp.led2
 # net dout5       gladevcp.do5    => gladevcp.led5  wou.gpio.out.05
 # net dout6       gladevcp.do6    => gladevcp.led6  wou.gpio.out.06
 # net machine_is_on               => gladevcp.led7  wou.gpio.out.07
-#dout7 is for tool chang
-net dout7                       => gladevcp.led7                 
-net din_08                      => gladevcp.led8
-net din_15                      => gladevcp.led9
 
+net tool_change                 => gladevcp.led7    #dout8 is for tool chang
+net din_32                      => gladevcp.led8    # tool cylinder upper limit
+net din_33                      => gladevcp.led9    # tool cylinder lower limit
+net vcp_spindle_brake   gladevcp.spindle.brake => gladevcp.led10
 # the MDI Toggle action is called with the values of some of the HAL pins
 # as parameters like so:
 

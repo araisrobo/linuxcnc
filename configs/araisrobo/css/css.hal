@@ -115,7 +115,10 @@ net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
-net din_00  => iocontrol.0.emc-enable-in
+# let ESTOP switch control ESTOP behavior
+# net din_00  => iocontrol.0.emc-enable-in
+# let CL control ESTOP behavior
+net estop-all-ok iocontrol.0.emc-enable-in 
 
 # create signals for tool loading loopback
 net tool-prep-loop iocontrol.0.tool-prepare iocontrol.0.tool-prepared
@@ -239,14 +242,14 @@ net J4-risc-pos-cmd wou.stepgen.4.risc-pos-cmd => joint.4.risc-pos-cmd
 # net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.08
 
 # use LSN as homing switch for AXIS-X, AXIS-Y:
-setp joint.0.home-sw-id 4
-setp joint.1.home-sw-id 7
+setp joint.0.home-sw-id 8
+setp joint.1.home-sw-id 10
 # use LSP as homing switch for AXIS-Z:
-setp joint.2.home-sw-id 9
+setp joint.3.home-sw-id 13
 # home switch status from FPGA
-net din_04      joint.0.home-sw-in
-net din_07      joint.1.home-sw-in
-net din_09      joint.2.home-sw-in
+net din_08      joint.0.home-sw-in
+net din_10      joint.1.home-sw-in
+net din_13      joint.3.home-sw-in
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
 net j1-homing   joint.1.homing => wou.stepgen.1.homing
@@ -324,8 +327,42 @@ net din_28 	wou.gpio.in.28    => motion.digital-in-28
 net din_29 	wou.gpio.in.29    => motion.digital-in-29
 net din_30 	wou.gpio.in.30    => motion.digital-in-30
 net din_31 	wou.gpio.in.31    => motion.digital-in-31
+net din_32 	wou.gpio.in.32    => motion.digital-in-32
+net din_33 	wou.gpio.in.33    => motion.digital-in-33
+net din_34 	wou.gpio.in.34    => motion.digital-in-34
+net din_35 	wou.gpio.in.35    => motion.digital-in-35
+net din_36 	wou.gpio.in.36    => motion.digital-in-36
+net din_37 	wou.gpio.in.37    => motion.digital-in-37
+net din_38 	wou.gpio.in.38    => motion.digital-in-38
+net din_39 	wou.gpio.in.39    => motion.digital-in-39
+net din_40 	wou.gpio.in.40    => motion.digital-in-40
+net din_41 	wou.gpio.in.41    => motion.digital-in-41
+net din_42 	wou.gpio.in.42    => motion.digital-in-42
+net din_43 	wou.gpio.in.43    => motion.digital-in-43
+net din_44 	wou.gpio.in.44    => motion.digital-in-44
+net din_45 	wou.gpio.in.45    => motion.digital-in-45
+net din_46 	wou.gpio.in.46    => motion.digital-in-46
+net din_47 	wou.gpio.in.47    => motion.digital-in-47
+net din_48 	wou.gpio.in.48    => motion.digital-in-48
+net din_49 	wou.gpio.in.49    => motion.digital-in-49
+net din_50 	wou.gpio.in.50    => motion.digital-in-50
+net din_51 	wou.gpio.in.51    => motion.digital-in-51
+net din_52 	wou.gpio.in.52    => motion.digital-in-52
+net din_53 	wou.gpio.in.53    => motion.digital-in-53
+net din_54 	wou.gpio.in.54    => motion.digital-in-54
+net din_55 	wou.gpio.in.55    => motion.digital-in-55
+net din_56 	wou.gpio.in.56    => motion.digital-in-56
+net din_57 	wou.gpio.in.57    => motion.digital-in-57
+net din_58 	wou.gpio.in.58    => motion.digital-in-58
+net din_59 	wou.gpio.in.59    => motion.digital-in-59
+net din_60 	wou.gpio.in.60    => motion.digital-in-60
+net din_61 	wou.gpio.in.61    => motion.digital-in-61
+net din_62 	wou.gpio.in.62    => motion.digital-in-62
+net din_63 	wou.gpio.in.63    => motion.digital-in-63
 
-net dout7 	wou.gpio.out.07    => motion.digital-out-07
+net tool_change	wou.gpio.out.08     => motion.digital-out-08
+# net s_brake     wou.gpio.out.09     => motion.digital-out-09
+net dout_09     wou.gpio.out.09
 
 net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
 net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
