@@ -7,9 +7,10 @@ for line in open('tp_css.log'):
     line.strip()
     a_r = 50
     a = re.split('\s+', line)
-    if (len(a) != 8):
+    if (len(a) != 9):
         print "in-complete input list, a[]: ", a
         continue
+    # a[0], a[8] are '' if re.split() exec successfully.
     dt = int(a[1])
     c_r = float(a[2])
     c_rev = float(a[3])

@@ -29,9 +29,9 @@ setp spindle_s.max-vel  [JOINT_4]MAX_VELOCITY
 setp spindle_s.max-acc  [JOINT_4]MAX_ACCELERATION
 setp spindle_s.max-jerk [JOINT_4]MAX_JERK
 # TODO: set parameters for spindle_t at INI file
-setp spindle_t.max-vel  [JOINT_4]MAX_VELOCITY
-setp spindle_t.max-acc  [JOINT_4]MAX_ACCELERATION
-setp spindle_t.max-jerk [JOINT_4]MAX_JERK
+setp spindle_t.max-vel  [SPINDLE_T]MAX_VELOCITY
+setp spindle_t.max-acc  [SPINDLE_T]MAX_ACCELERATION
+setp spindle_t.max-jerk [SPINDLE_T]MAX_JERK
 # at-speed-range: 0.05 means 5% of spindle velocity tolerance
 # at-speed-range: 0.01 means 1% of spindle velocity tolerance
 setp spindle_s.at-speed-range 0.01
