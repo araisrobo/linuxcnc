@@ -67,7 +67,7 @@ static FILE *dptrace = fopen("emccanon.log","w");
 
 static CanonConfig_t canon;
 
-static int debug_velacc = 1;
+static int debug_velacc = 0;
 static const double tiny = 1e-7;
 static const double huge = 1e9;
 

@@ -2036,10 +2036,6 @@ class GlCanonDraw:
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=""):
         self.set_canon(canon)
-        #debug:
-        print "interpname", interpname
-        print "initcode", initcode
-        print "unitcode", unitcode
         result, seq = gcode.parse(f, canon, unitcode, initcode, interpname)
         canon.ofeed = canon.feed
 
