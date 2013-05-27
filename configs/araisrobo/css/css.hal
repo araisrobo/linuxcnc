@@ -25,10 +25,10 @@ addf    spindle_s       servo-thread
 addf    spindle_t       servo-thread
 
 # spindle
-setp spindle_s.max-vel  [JOINT_3]MAX_VELOCITY
-setp spindle_s.max-acc  [JOINT_3]MAX_ACCELERATION
-setp spindle_s.max-jerk [JOINT_3]MAX_JERK
-
+setp spindle_s.max-vel  [JOINT_4]MAX_VELOCITY
+setp spindle_s.max-acc  [JOINT_4]MAX_ACCELERATION
+setp spindle_s.max-jerk [JOINT_4]MAX_JERK
+# TODO: set parameters for spindle_t at INI file
 setp spindle_t.max-vel  [JOINT_4]MAX_VELOCITY
 setp spindle_t.max-acc  [JOINT_4]MAX_ACCELERATION
 setp spindle_t.max-jerk [JOINT_4]MAX_JERK
@@ -49,16 +49,17 @@ net  vel-fb-j4              spindle_s.feedback-vel
 setp spindle_t.velocity-mode 1 
 #net  spindle-velocity-mode  spindle_t.velocity-mode    
 net  spindle-on             spindle_t.on               
-net  spindle-t-speed-cmd    spindle_t.css-error-velocity-cmd   <= motion.spindle-css-error     
-#net  spindle-t-aux-radius   spindle_t.aux-radius               <= by unknow sensor 
-setp spindle_t.aux-radius 50.0
-net  spindle-position-cmd   spindle_t.position-cmd     
+# TODO: do auto compensation for spindle_t.aux-radius 
+#net  spindle-t-aux-radius   spindle_t.aux-radius              <= by unknow sensor 
+setp spindle_t.aux-radius   50.0
+net  spindle-t-css-error-cmd    spindle_t.css-error-velocity-cmd   <= motion.spindle-css-error     
 # TODO: forward VEL-CMD of SPINDLE-T to VFD-B 
 # net  spindle-t-curr-pos-cmd   spindle_t.curr-pos         
+net  spindle-t-speed-out   spindle_t.speed-rpm
 net  spindle-t-in-position    spindle_t.in-position      
 net  spindle-t-at-speed       spindle_t.at-speed         
-# TODO: get vel feedback of SPINDLE-T from VFD-B
-# net  vel-fb-j4              spindle_t.feedback-vel
+# get vel feedback of SPINDLE-T from VFD-B
+net  spindle-t-speed-feedback spindle_t.feedback-vel
 
 # send the position commands thru differentiators to
 # generate velocity and accel signals

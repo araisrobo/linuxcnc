@@ -19,8 +19,9 @@ net spindle-on => spindle-vfd.spindle-on
 net vfdb-at-speed <= spindle-vfd.at-speed
 
 # connect the spindle RPM to the VF-S11
-# net vfdb-RPM spindle-vfd.speed-command <= motion.spindle-speed-out
-setp spindle-vfd.speed-command 300
+net spindle-t-speed-out         spindle-vfd.speed-command
+net spindle-t-speed-feedback    spindle-vfd.motor-RPM
+# setp spindle-vfd.speed-command 300
 
 # connect the VF-S11 DC brake
 # used by default if spindle is stopped - uncomment to use
