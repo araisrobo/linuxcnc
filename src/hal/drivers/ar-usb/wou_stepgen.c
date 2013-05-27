@@ -308,6 +308,9 @@ typedef struct {
     hal_float_t *risc_probe_dist;
     hal_s32_t   *risc_probe_pin;
     hal_s32_t   *risc_probe_type;
+
+    hal_float_t *uu_per_rev;
+    hal_float_t prev_uu_per_rev;
 } stepgen_t;
 // #pragma pack(pop)   /* restore original alignment from stack */
 
@@ -369,11 +372,6 @@ typedef struct {
     hal_u32_t    *ahc_min_level;
     /* motion state tracker */
     hal_s32_t *motion_state;
-    /* bitwise mapping for rigid-tapping AXES */
-    hal_s32_t *rigid_tapping;
-    hal_float_t *xuu_per_rev;
-    hal_float_t *yuu_per_rev;
-    hal_float_t *zuu_per_rev;
     /* command channel for emc2 */
     hal_u32_t *wou_cmd;
     uint32_t prev_wou_cmd;
@@ -413,6 +411,8 @@ typedef struct {
     hal_bit_t   *probe_result;
     hal_bit_t   *machine_moving;
     hal_bit_t   *ahc_doing;
+
+    hal_u32_t   *spindle_joint_id;
 
 } machine_control_t;
 
@@ -1458,12 +1458,9 @@ static void update_freq(void *arg, long period)
 
     /* begin motion_mode */
     /**
-     *  MACHINE_CTRL,   // [31:24]  RESERVED
+     *  MACHINE_CTRL,   // [31:28]  RESERVED
+     *                  // [27:24]  SPINDLE_JOINT_ID
      *                  // [23:16]  NUM_JOINTS
-     *                  // [15: 8]  RIGID_TAPPING - bitmap for AXES
-     *                                  [8] -> X
-     *                                  [9] -> Y
-     *                                 [10] -> Z
      *                  // [15: 8]  RESERVED
      *                  // [ 7: 4]  ACCEL_STATE
      *                  // [ 3: 1]  MOTION_MODE:
@@ -1474,8 +1471,7 @@ static void update_freq(void *arg, long period)
      *                  // [    0]  MACHINE_ON
      **/
 
-    tmp =   (*machine_control->rigid_tapping << 8)
-          | (*machine_control->motion_state << 4)
+    tmp = (*machine_control->motion_state << 4)
           | (*machine_control->homing << 3)
           | (*machine_control->coord_mode << 2)
           | (*machine_control->teleop_mode << 1)
@@ -1483,22 +1479,13 @@ static void update_freq(void *arg, long period)
     if (tmp != machine_control->prev_machine_ctrl) {
         machine_control->prev_machine_ctrl = tmp;
         immediate_data = (num_joints << 16) | tmp;
+        immediate_data = ((*machine_control->spindle_joint_id) << 24) | immediate_data ;
         write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
 
-        if (*machine_control->rigid_tapping & 1)
-        {   // pass compensation scale for AXIS_X
 
-        }
-
-        if (*machine_control->rigid_tapping & 4)
-        {   // pass compensation scale for AXIS_Z
-            /* set rigid tapping scale parameter */
-            /* FIXME: use a better way to access spindle scale */
-            immediate_data = (int32_t)(*machine_control->zuu_per_rev * FIXED_POINT_SCALE * stepgen_array[2].pos_scale / stepgen_array[3].pos_scale);
-            write_mot_param (2, (TAP_SCALE), immediate_data); // format: 16.16
-            printf ("z-tap-scale: 0x%08X\n", immediate_data);
-        }
     }
+
+
     /* end: */
 
     /* begin: handle usb cmd */
@@ -1665,6 +1652,18 @@ static void update_freq(void *arg, long period)
             stepgen->prev_risc_jog_vel = *stepgen->risc_jog_vel;
         }
         /* end: RISC-Jogging */
+
+        if (*stepgen->uu_per_rev != stepgen->prev_uu_per_rev)
+        {   // pass compensation scale
+            /* set spindle_sync_motion scale parameter */
+            immediate_data = (int32_t)(*stepgen->uu_per_rev
+                                      * FIXED_POINT_SCALE
+                                      * (stepgen->pos_scale)
+                                      / stepgen_array[(*machine_control->spindle_joint_id)].pos_scale);
+            write_mot_param (2, (SSYNC_SCALE), immediate_data); // format: 16.16
+            stepgen->prev_uu_per_rev = *stepgen->uu_per_rev;
+            //printf ("z-tap-scale: 0x%08X\n", immediate_data);
+        }
 
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         *(stepgen->risc_pos_cmd) = (*stepgen->cmd_fbs) * stepgen->scale_recip;
@@ -2126,6 +2125,13 @@ static int export_stepgen(int num, stepgen_t * addr,
     if (retval != 0) { return retval; }
     *addr->risc_probe_type = -1;
 
+    retval = hal_pin_float_newf(HAL_IN, &(addr->uu_per_rev), comp_id, "wou.stepgen.%d.uu-per-rev", num);
+    if (retval != 0) {
+        return retval;
+    }
+    *(addr->uu_per_rev) = 0;
+    (addr->prev_uu_per_rev) = 0;
+
     /* set default values */
     addr->pulse_per_rev = 1.0;
     *addr->rpm           = 0.0;
@@ -2379,30 +2385,6 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->motion_state) = 0;
 
-    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->rigid_tapping), comp_id, "wou.motion.rigid-tapping");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->rigid_tapping) = 0;
-
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->xuu_per_rev), comp_id, "wou.motion.xuu-per-rev");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->xuu_per_rev) = 0;
-
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->yuu_per_rev), comp_id, "wou.motion.yuu-per-rev");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->yuu_per_rev) = 0;
-
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->zuu_per_rev), comp_id, "wou.motion.zuu-per-rev");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->zuu_per_rev) = 0;
-
     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
             "wou.mpg_count");
     if (retval != 0) {
@@ -2523,6 +2505,10 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->ahc_doing), comp_id, "wou.ahc.doing");
     if (retval != 0) { return retval; }
     *(machine_control->ahc_doing) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->spindle_joint_id), comp_id, "wou.motion.spindle-joint-id");
+    if (retval != 0) { return retval; }
+    *(machine_control->spindle_joint_id) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);

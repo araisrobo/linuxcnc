@@ -130,12 +130,10 @@
 #define AHC_DOING_BIT                   18
 
 /**
- *  MACHINE_CTRL,   // [31:24]  RESERVED
+ *  MACHINE_CTRL,   // [31:28]  RESERVED
+ *                  // [27:24]  SPINDLE_JOINT_ID
  *                  // [23:16]  NUM_JOINTS
- *                  // [15: 8]  RIGID_TAPPING - bitmap for TAPPING AXES
- *                                  [8] -> X
- *                                  [9] -> Y
- *                                 [10] -> Z
+ *                  // [15: 8]  RESERVED
  *                  // [ 7: 4]  ACCEL_STATE
  *                  // [ 3: 1]  MOTION_MODE: 
  *                                  FREE    (0) 
@@ -212,7 +210,8 @@ enum machine_parameter_addr {
     PARAM14,
     PARAM15,
     ALR_OUTPUT, 
-    MACHINE_CTRL,   // [31:24]  RESERVED
+    MACHINE_CTRL,   // [31:28]  RESERVED
+                    // [27:24]  SPINDLE_JOINT_ID
                     // [23:16]  NUM_JOINTS
                     // [15: 8]  RESERVED
                     // [ 7: 4]  ACCEL_STATE
@@ -274,7 +273,7 @@ enum motion_parameter_addr {
     ENABLE            ,     // set to 1 to enable joint motion
     MAX_JERK	      ,
     ENC_SCALE         ,     // encoder scale: 16.16 format
-    TAP_SCALE         ,     // rigid tapping compensation scale: 16.16 format
+    SSYNC_SCALE       ,     // spindle sync compensation scale: 16.16 format
     JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
 
     MAX_PARAM_ITEM

@@ -36,10 +36,23 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
+
+#define CSS_TRACE 1
+#if (CSS_TRACE!=0)
+#if (TRACE==0)
+static FILE* csstrace = 0;
+static uint32_t _dt = 0;
+#else
+#undef CSS_TRACE // disable CSS_TRACE when TRACE is enabled
+#endif
+#endif
+
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
+
+static const double tiny = 1e-7;
 
 int output_chan = 0;
 syncdio_t syncdio; //record tpSetDout's here
@@ -71,6 +84,12 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
     }
 #endif
 
+#if (CSS_TRACE!=0)
+    if (!csstrace) {
+        csstrace = fopen("tp_css.log", "w");
+        _dt = 0;
+    }
+#endif
     /* init the rest of our data */
     return tpInit(tp);
 }
@@ -1385,7 +1404,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 	emcmotStatus->enables_queued = emcmotStatus->enables_new;
         // spindleSync maps to motion.spindle-velocity-mode
         emcmotStatus->spindleSync = tp->synchronized;
-        emcmotStatus->rigidTapping = 0;
+        emcmotStatus->xuu_per_rev = 0;
+        emcmotStatus->yuu_per_rev = 0;
+        emcmotStatus->zuu_per_rev = 0;
         return 0;
     }
 
@@ -1398,7 +1419,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         else
             spindleoffset = 0.0;
 
-        emcmotStatus->rigidTapping = 0;
+        emcmotStatus->xuu_per_rev = 0;
+        emcmotStatus->yuu_per_rev = 0;
+        emcmotStatus->zuu_per_rev = 0;
 
         if(tc->indexrotary != -1) {
             // this was an indexing move, so before we remove it we must
@@ -1463,7 +1486,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             waiting_for_index = MOTION_INVALID_ID;
             waiting_for_atspeed = MOTION_INVALID_ID;
             emcmotStatus->spindleSync = 0;
-            emcmotStatus->rigidTapping = 0;
+            emcmotStatus->xuu_per_rev = 0;
+            emcmotStatus->yuu_per_rev = 0;
+            emcmotStatus->zuu_per_rev = 0;
             tpResume(tp);
             return 0;
         } else {
@@ -1508,7 +1533,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         if((tc->atspeed || (tc->synchronized && !tc->velocity_mode && !emcmotStatus->spindleSync)) && 
            !emcmotStatus->spindle.at_speed) {
             waiting_for_atspeed = tc->id;
-            emcmotStatus->rigidTapping = 0;
+            emcmotStatus->xuu_per_rev = 0;
+            emcmotStatus->yuu_per_rev = 0;
+            emcmotStatus->zuu_per_rev = 0;
             return 0;
         }
 
@@ -1544,21 +1571,19 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->spindle.curr_pos_cmd;
 
             /* bitmap for rigid-tapping-AXIS_X */
-            if (tc->coords.spindle_sync.xyz.uVec.x != 0)
+            if (tc->coords.spindle_sync.xyz.uVec.x > tiny)
             {
-                emcmotStatus->rigidTapping = 1;
                 emcmotStatus->xuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.x;
             }
             /* bitmap for rigid-tapping-AXIS_Y */
-            if (tc->coords.spindle_sync.xyz.uVec.y != 0)
+            if (tc->coords.spindle_sync.xyz.uVec.y > tiny)
             {
-                emcmotStatus->rigidTapping |= 2;
                 emcmotStatus->yuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.y;
+                printf("emcmotStatus->yuu_per_rev(%f)\n",emcmotStatus->yuu_per_rev);
             }
             /* bitmap for rigid-tapping-AXIS_Z */
-            if (tc->coords.spindle_sync.xyz.uVec.z != 0)
+            if (tc->coords.spindle_sync.xyz.uVec.z > tiny)
             {
-                emcmotStatus->rigidTapping |= 4;
                 emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.z;
             }
 
@@ -1584,12 +1609,19 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 speed = maxpositive;
             tc->reqvel = speed * emcmotStatus->net_spindle_scale;
             emcmotStatus->spindle.css_error = (emcmotStatus->spindle.css_factor / 60.0
-                                               - denom * tc->cur_vel / tc->cycle_time);
+                                               - denom * tc->cur_vel / tc->cycle_time); // (unit/(2*PI*sec)
             DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
             DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
-            DP ("css_error(%f)(unit/(2*PI*sec))\n",
-                    (emcmotStatus->spindle.css_factor * 1/60.0 - denom * tc->cur_vel / tc->cycle_time));
+            DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
             DP ("synched-joint-vel(%f)(unit/sec)\n",tc->cur_vel / tc->cycle_time * tp->uu_per_rev);
+
+#if (CSS_TRACE!=0)
+            /* prepare data for gnuplot */
+            fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
+                    , _dt, denom, tc->progress,emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI,denom * tc->cur_vel / tc->cycle_time * 2 * M_PI,
+                    (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * tc->cur_vel / tc->cycle_time * 2 * M_PI));
+            _dt += 1;
+#endif
         } else
         {
             // G33 w/ G97 or G33.1
@@ -1597,8 +1629,10 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             tc->reqvel = tc->coords.spindle_sync.spindle_reqvel * emcmotStatus->net_spindle_scale;
         }
     } else
-    {
-        emcmotStatus->rigidTapping = 0;
+    {   // non spindle sync motion
+        emcmotStatus->xuu_per_rev = 0;
+        emcmotStatus->yuu_per_rev = 0;
+        emcmotStatus->zuu_per_rev = 0;
     }
 
     if(nexttc && nexttc->active == 0) {
