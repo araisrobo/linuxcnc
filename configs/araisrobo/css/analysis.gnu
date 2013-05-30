@@ -4,10 +4,10 @@ plot "css.gnuplot" using 2:3 title "(X, Y)"
 set size square
 
 # to plot 
-plot "css.gnuplot" using 1:4 title "css_cmd", \
-     "css.gnuplot" using 1:5 title "css_c", \
-     "css.gnuplot" using 1:6 title "css_a"
+plot "css.gnuplot" using 1:4 title "Requested Constant Surface Speed", \
+     "css.gnuplot" using 1:5 title "Surface Speed of Spindle-C", \
+     "css.gnuplot" using 1:6 title "Surface Speed of Spindle-A"
 
 # to plot 
-plot "css.gnuplot" using 1:7 title "c_rps", \
-     "css.gnuplot" using 1:8 title "a_rps"
+plot "css.gnuplot" using 1:7 title "Rotation speed of Spindle-C", \
+     "css.gnuplot" using 1:8 title "Rotation speed of Spindle-A"
