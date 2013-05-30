@@ -2819,8 +2819,12 @@ def jog_on(a, b):
     b = b*vars.feedrate.get()/100.0
     jogincr = widgets.jogincr.get()
     if s.motion_mode == linuxcnc.TRAJ_MODE_TELEOP:
-        jogging[a] = b
-        jog_cont[a] = False
+        if jogincr != _("Continuous"):
+            jogging[a] = 0
+            print "WARNING: do not allow incremental jogging in TELEOP mode"
+        else:
+            jogging[a] = b
+        jog_cont[a] = True
         cartesian_only=jogging[:6]
         c.teleop_vector(*cartesian_only)
     else:
