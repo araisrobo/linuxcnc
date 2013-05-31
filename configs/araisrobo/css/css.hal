@@ -25,9 +25,9 @@ addf    spindle_s       servo-thread
 addf    spindle_t       servo-thread
 
 # spindle
-setp spindle_s.max-vel  [JOINT_4]MAX_VELOCITY
-setp spindle_s.max-acc  [JOINT_4]MAX_ACCELERATION
-setp spindle_s.max-jerk [JOINT_4]MAX_JERK
+setp spindle_s.max-vel  [AXIS_S]MAX_VELOCITY
+setp spindle_s.max-acc  [AXIS_S]MAX_ACCELERATION
+setp spindle_s.max-jerk [AXIS_S]MAX_JERK
 # TODO: set parameters for spindle_t at INI file
 setp spindle_t.max-vel  [SPINDLE_T]MAX_VELOCITY
 setp spindle_t.max-acc  [SPINDLE_T]MAX_ACCELERATION
