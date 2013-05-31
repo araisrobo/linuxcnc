@@ -187,25 +187,7 @@ class HandlerClass:
         if (not self.e.manual_ok(do_poll=True)):
             # bypass issuing MDI when program is running
             return        
-#        label = gtk.Label("Click OK to TOOL-RELEASE")
-#        dialog = gtk.Dialog("TOOL-RELEASE",
-#                           None,
-#                           gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-#                           (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-#                            gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
-#        dialog.vbox.pack_start(label)
-#        label.show()
-#        
-#        response = dialog.run()
-#        if response == gtk.RESPONSE_ACCEPT:
-#            print 'spindle_brake_button_toggled'
-#            dialog.destroy()
-#            if widget.get_active() == True:
-#                self.e.mdi_command('M64 P9', True)  
-#            else:
-#                self.e.mdi_command('M65 P9', True)  
-#        else:
-#            dialog.destroy()
+
         if (self.halcomp['spindle.brake'] == 0):
             self.halcomp['spindle.brake'] = 1
 #            self.e.mdi_command('M64 P9', True)  

@@ -10,17 +10,28 @@ M73 (auto-restore modal settings on return)
 
 
 ; unload previous tool
-o300 if [#<_current_pocket> GT 0]
+;o300 if [#<_current_pocket> GT 0]
      o<tool_getput_move> call [#<_current_pocket>]  
+     ; 等待使用者輸入一個 in 的訊號，然後才可以放刀
+     (MSG, press key-1 to release)
+     M66 P #<_ini[pins]confirmed> L3 Q10000 ; 
      M64 P #<_ini[pins]release> ; set release pin, M62: set-motion-sync-out
-     M66 P #<_ini[pins]released> L3 Q3 ; wait on released pin, L3: wait HIGH Q3: timeout 3sec
-o300 endif
+     M66 P #<_ini[pins]released> L3 Q3; wait on released pin, L3: wait HIGH Q3: timeout 3sec
+     G4P1 ; 為了避免誤認成同一個訊號
+     (MSG, press key-1 move to each tool)
+     M66 P #<_ini[pins]confirmed> L3 Q10000 ; 
+;o300 endif
 
 ; go to new tool
 o<tool_getput_move> call [#<_selected_pocket>]  
+; 等待使用者輸入一個 in 的訊號，然後才可以夾刀
+(MSG, press key-1 to clamped)
+M66 P #<_ini[pins]confirmed> L3 Q10000 ;
 M65 P #<_ini[pins]release> ; clear release pin, M62: reset-motion-sync-out
-M66 P #<_ini[pins]clamped> L3 Q3 ; wait on clamped pin, L3: wait HIGH Q3: timeout 3sec
-
+M66 P #<_ini[pins]clamped> L3 Q3; wait on clamped pin, L3: wait HIGH Q3: timeout 3sec
+G4P1 ; 為了避免誤認成同一個訊號
+(MSG, press key-1 to finished tool change)
+M66 P #<_ini[pins]confirmed> L3 Q10000 ;
 ; the purpose of this move is unclear to me
 ; micges - please explain!
 ; o400 if [#<_absolute>]
