@@ -3,8 +3,9 @@ G90
 G64 P0.3
 G40
 F500
-G0 X0 Y0 Z0
-M3 S200
+;move to the center of X/Y/Z
+G0 X187.5 Y222.5 Z89.5
+;M3 S200
 (G33 Z-1 K0.0625)
 G91
 G1 Z-7
@@ -33,7 +34,7 @@ G0 X8.4 Y32
 G1 Z-7
 G0 Z7
 G90
-G1 X0 Y0
-M5
+;G0 X0 Y0
+;M5
 M2
 %
