@@ -1,0 +1,18 @@
+component newmux2f "Select from one of two input values";
+pin out float out "Follows the value of in0 if sel is FALSE, or in1 if sel is TRUE";
+pin out bit sel;
+pin in float in1;
+pin in float in2;
+function _;
+license "GPL";
+;;
+FUNCTION(_) {
+    if(in1) 
+    {
+        out = in1;
+        sel = 1;
+    }else{
+        out = in2;
+        sel = 0;
+    }
+}

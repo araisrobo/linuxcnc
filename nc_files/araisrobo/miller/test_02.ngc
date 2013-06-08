@@ -1,0 +1,17 @@
+#<safe_height> = 0.5
+#<xoffset> = 10
+#<loop> = 0
+o100 while [#<loop> LT 11]
+	G90
+	F119.53125
+	G0X[79.707+#<xoffset>*#<loop>]
+	G91
+	M3 s2250
+	M66 P38 L3 Q10000
+	G1 z-#<safe_height>
+	G1 z#<safe_height>
+	m5
+	#<loop> = [#<loop>+1]
+o100 endwhile
+M2
+%
