@@ -549,23 +549,6 @@ static void fetchmail(const uint8_t *buf_head)
             *(analog->in[i*2]) = *(((uint16_t*)buf)+i*2+1);
             *(analog->in[i*2+1]) = *(((uint16_t*)buf)+i*2);
         }
-//        p += 1; *(analog->in[0]) = *p;
-//        p += 1; *(analog->in[1]) = *p;
-//        p += 1; *(analog->in[2]) = *p;
-//        p += 1; *(analog->in[3]) = *p;
-//        p += 1; *(analog->in[4]) = *p;
-//        p += 1; *(analog->in[5]) = *p;
-//        p += 1; *(analog->in[6]) = *p;
-//        p += 1; *(analog->in[7]) = *p;
-//        p -= 7;
-//        p += 1; *(analog->in[8]) = *p;
-//        p += 1; *(analog->in[9]) = *p;
-//        p += 1; *(analog->in[10]) = *p;
-//        p += 1; *(analog->in[11]) = *p;
-//        p += 1; *(analog->in[12]) = *p;
-//        p += 1; *(analog->in[13]) = *p;
-//        p += 1; *(analog->in[14]) = *p;
-//        p += 1; *(analog->in[15]) = *p;
 
         // MPG
         p += 8; // skip 16ch of 16-bit ADC value
