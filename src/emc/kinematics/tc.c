@@ -24,6 +24,10 @@
 #include "emcpos.h"
 #include "tc.h"
 #include "nurbs.h"
+#include "../motion/motion.h"
+//#include "hal.h"
+//#include "../motion/mot_priv.h"
+//#include "motion_debug.h"
 
 #define TRACE 0
 #include "dptrace.h"
@@ -32,6 +36,10 @@
     static FILE *dptrace = NULL;
     static uint32_t _dt = 0;
 #endif
+
+extern emcmot_status_t *emcmotStatus;
+
+
 int nurbs_findspan (int n, int p, double u, double *U)
 {
   // FIXME : this implementation has linear, rather than log complexity
@@ -87,10 +95,12 @@ void nurbs_basisfun(int i, double u, int p,
 
 }
 
+#if 0
+// was used for blending; need to review for S-curve velocity blending
 PmCartesian tcGetStartingUnitVector(TC_STRUCT *tc) {
     PmCartesian v;
 
-    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_RIGIDTAP) {
+    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
         pmCartCartSub(tc->coords.line.xyz.end.tran, tc->coords.line.xyz.start.tran, &v);
     } else {
         PmPose startpoint;
@@ -113,14 +123,12 @@ PmCartesian tcGetStartingUnitVector(TC_STRUCT *tc) {
     return v;
 }
 
+// was used for blending; need to review for S-curve velocity blending
 PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
     PmCartesian v;
 
-    if(tc->motion_type == TC_LINEAR) {
+    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
         pmCartCartSub(tc->coords.line.xyz.end.tran, tc->coords.line.xyz.start.tran, &v);
-    } else if(tc->motion_type == TC_RIGIDTAP) {
-        // comes out the other way
-        pmCartCartSub(tc->coords.line.xyz.start.tran, tc->coords.line.xyz.end.tran, &v);
     } else {
         PmPose endpoint;
         PmCartesian radius;
@@ -132,6 +140,7 @@ PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
     pmCartUnit(v, &v);
     return v;
 }
+#endif
 
 /*! tcGetPos() function
  *
@@ -169,15 +178,16 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
 #endif
 
-    if (tc->motion_type == TC_RIGIDTAP) {
-        if(tc->coords.rigidtap.state > REVERSING) {
-            pmLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
-        } else {
-            pmLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
-        }
+    if (tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
+        // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
+        pmLinePoint(&tc->coords.spindle_sync.xyz, tc->coords.spindle_sync.xyz.tmag * (progress / tc->target) , &xyz);
         // no rotary move allowed while tapping
-        abc.tran = tc->coords.rigidtap.abc;
-        uvw.tran = tc->coords.rigidtap.uvw;
+        abc.tran = tc->coords.spindle_sync.abc;
+        uvw.tran = tc->coords.spindle_sync.uvw;
+        if (!of_endpoint)
+        {
+            emcmotStatus->spindle_position_cmd = tc->coords.spindle_sync.spindle_start_pos + tc->coords.spindle_sync.spindle_dir * progress;
+        }
     } else if (tc->motion_type == TC_LINEAR) {
 
         if (tc->coords.line.xyz.tmag > 0.) {
@@ -342,7 +352,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                 }
             }
 
-#if (TRACE != 0)
+#if 0
                 if(l == 0 && _dt == 0) {
                     last_l = 0;
                     last_u = 0;

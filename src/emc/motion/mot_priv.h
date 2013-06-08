@@ -117,6 +117,8 @@ typedef struct {
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;
+    hal_bit_t *spindle_in_position;
+    hal_float_t *spindle_curr_pos_cmd;
     hal_float_t *spindle_revs;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
@@ -133,6 +135,10 @@ typedef struct {
     hal_float_t *requested_vel; /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_s32_t *motion_state;    /* indicate s-curve state */
+    hal_s32_t *rigid_tapping;   /* bit-wise mapping to indicate which AXIS is rigid-tapping */
+    hal_float_t *xuu_per_rev;   /* user unit per revolution for AXIS_X */
+    hal_float_t *yuu_per_rev;   /* user unit per revolution for AXIS_Y */
+    hal_float_t *zuu_per_rev;   /* user unit per revolution for AXIS_Z */
     hal_float_t *feed_scale;
 
     hal_bit_t debug_bit_0;	/* RPA: generic param, for debugging */
@@ -160,6 +166,11 @@ typedef struct {
     // simplest way of spindle control (output start/stop)
     hal_bit_t *spindle_on;	/* spindle spin output */
 
+    // spindle_velocity_mode: velocity(1) or position(0) mode
+    hal_bit_t *spindle_velocity_mode;      /* spindle velocity_mode output */
+
+    hal_float_t *spindle_position_cmd;
+
     // same thing for 2 directions
     hal_bit_t *spindle_forward;	/* spindle spin-forward output */
     hal_bit_t *spindle_reverse;	/* spindle spin-reverse output */
@@ -177,7 +188,7 @@ typedef struct {
     hal_float_t *spindle_speed_out_rps;	/* spindle speed output */
     hal_float_t *spindle_speed_cmd_rps;	/* spindle speed command without SO applied */
     hal_float_t *spindle_speed_in;	/* spindle speed measured */
-    hal_float_t *spindle_css;           /* output surface when CSS mode */
+    hal_float_t *spindle_css_error;     /* error of Constant Surface Speed(CSS) motion, (unit/(2*PI*sec) */
     
     // spindle orient
     hal_float_t *spindle_orient_angle;	/* out: desired spindle angle, degrees */

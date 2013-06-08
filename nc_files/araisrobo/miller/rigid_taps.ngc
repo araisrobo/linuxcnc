@@ -1,0 +1,61 @@
+G21
+#1 = 1		; loop 
+#2 = 10         ; y offset
+#3 = -30	; z origin 
+#4 = -40.00     ; drill_height 
+#5  = 10        ; drill_deep
+#6 = 1          ; loop
+
+o99 while [#6 LT 199]
+    o100 while [#1 LT  8]
+    	G90
+    	G53 G0 X18.00 Y[60.80-#1*#2]
+    	; G53 G0 X67.70 Y[60.80-#1*#2]
+    	; G53 G0 Z -64.95 (5.0mm plate)
+    	; G53 G0 Z -60.7  (5.0mm plate)
+    	; G53 G0 Z -27.7
+        G53 G0 Z#4
+    
+    	; M0
+    
+    	G91
+    
+    	; G0 X22.662 Y30.116
+    	; (Z -57.7)
+    
+    	; G0 Z-10
+    
+    	; M3: pitch 0.5
+    	; M4: pitch 0.7
+    	; M3 S2200
+    	; F119.5 G1 z-10
+    	; G1 z10
+    	; M5
+    	; 
+    	; G0 Z10
+    	; M1
+    
+    	M3S600  
+    	g33.1 z-#5 k0.7 ; 1 thread per second, k - distance per revolution
+    	M5
+    
+    	G90
+    	G53 G0 Z#3
+
+    	G53 G0 X67.70 Y[60.80-#1*#2]
+        G53 G0 Z#4
+    	G91
+    	M3S600  
+    	g33.1 z-#5 k0.7 ; 1 thread per second, k - distance per revolution
+    	M5
+    	G90
+    	G53 G0 Z#3
+
+    	#1 = [#1+1]
+    o100 endwhile
+    #6 = [#6+1]
+    #1 = 1
+    G53 G0 Z0
+o99 endwhile
+M2
+%

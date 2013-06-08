@@ -24,7 +24,7 @@
 
 #define TC_LINEAR 1
 #define TC_CIRCULAR 2
-#define TC_RIGIDTAP 3
+#define TC_SPINDLE_SYNC_MOTION 3
 #define TC_NURBS 4
 
 /* structure for individual trajectory elements */
@@ -41,9 +41,9 @@ typedef struct {
     PmLine uvw;
 } PmCircle9;
 
-typedef enum {
-    TAPPING, REVERSING
-} RIGIDTAP_STATE;
+//typedef enum {
+//    TAPPING, REVERSING
+//} RIGIDTAP_STATE;
 
 typedef unsigned long long iomask_t; // 64 bits on both x86 and x86_64
 
@@ -60,15 +60,15 @@ typedef struct {
 } syncdio_t;
 
 typedef struct {
+    // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
     PmLine xyz;             // original, but elongated, move down
-    PmLine aux_xyz;         // this will be generated on the fly, for the other
-                            // two moves: retraction, final placement
     PmCartesian abc;
     PmCartesian uvw;
-    double reversal_target;
-    double spindlerevs_at_reversal;
-    RIGIDTAP_STATE state;
-} PmRigidTap;
+    double spindle_start_pos;
+    int spindle_start_pos_latch;
+    double spindle_dir;
+    double spindle_reqvel;
+} PmSpindleSyncMotion;
 
 enum state_type {
   ACCEL_S0 = 0, // 0
@@ -120,12 +120,12 @@ typedef struct {
     union {                 // describes the segment's start and end positions
         PmLine9 line;
         PmCircle9 circle;
-        PmRigidTap rigidtap;
+        PmSpindleSyncMotion spindle_sync;
     } coords;
 
     char motion_type;       // TC_LINEAR (coords.line) or 
                             // TC_CIRCULAR (coords.circle) or
-                            // TC_RIGIDTAP (coords.rigidtap)
+                            // TC_SPINDLE_SYNC_MOTION (coords.spindle_sync_motion)
     char active;            // this motion is being executed
     int canon_motion_type;  // this motion is due to which canon function?
     int blend_with_next;    // gcode requests continuous feed at the end of 
@@ -135,7 +135,7 @@ typedef struct {
                             // stay within this distance from the path.
     
     int synchronized;       // spindle sync required for this move
-    int velocity_mode;	    // TRUE if spindle sync is in velocity mode, FALSE if in position mode
+    int velocity_mode;	// TRUE if spindle sync is in velocity mode, FALSE if in position mode
     double uu_per_rev;      // for sync, user units per rev (e.g. 0.0625 for 16tpi)
     double css_progress_cmd;// feed-forward progress command for CSS motion
     int sync_accel;         // we're accelerating up to sync with the spindle

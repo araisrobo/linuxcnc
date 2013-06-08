@@ -3,69 +3,6 @@
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-requires gladevcp 0.0 -->
   <!-- interface-naming-policy project-wide -->
-  <object class="GtkAdjustment" id="adjustment1">
-    <property name="upper">100</property>
-    <property name="step_increment">1</property>
-  </object>
-  <object class="GtkAdjustment" id="adjustment2">
-    <property name="upper">100</property>
-    <property name="step_increment">10</property>
-  </object>
-  <object class="EMC_Action_MDI" id="hal_action_mdi1">
-    <property name="command">G53 G0  X0 Y0 Z0</property>
-  </object>
-  <object class="EMC_Action_MDI" id="hal_action_mdi2">
-    <property name="command">g0 X0 Y0 Z0</property>
-  </object>
-  <object class="EMC_ToggleAction_MDI" id="hal_toggleaction_mdi1">
-    <property name="command"> O&lt;oword&gt; call [${spin-f}] [${check}] [${toggle}] [${scale}] [${spin-f}]  [${combo-s}]</property>
-  </object>
-  <object class="GtkListStore" id="offset-list">
-    <columns>
-      <!-- column-name System -->
-      <column type="gchararray"/>
-      <!-- column-name Number -->
-      <column type="gint"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">G54</col>
-        <col id="1">0</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G55</col>
-        <col id="1">1</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G56</col>
-        <col id="1">2</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G57</col>
-        <col id="1">3</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G58</col>
-        <col id="1">4</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G59</col>
-        <col id="1">5</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G59.1</col>
-        <col id="1">6</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G59.2</col>
-        <col id="1">7</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">G59.3</col>
-        <col id="1">8</col>
-      </row>
-    </data>
-  </object>
   <object class="GtkWindow" id="window1">
     <property name="can_focus">False</property>
     <property name="default_width">800</property>
@@ -455,9 +392,9 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="bg_color">#bebebebebebe</property>
-                        <property name="max">450</property>
+                        <property name="max">3050</property>
+                        <property name="min">-3050</property>
                         <property name="target_color">#a0a02020f0f0</property>
-                        <property name="z0_border">0.69999998807907104</property>
                         <property name="z0_color">#0000ffff0000</property>
                         <property name="z1_border">0.89999997615814209</property>
                         <property name="z1_color">#ffffffff0000</property>
@@ -496,7 +433,7 @@
                       <object class="HAL_Table" id="status">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="n_rows">7</property>
+                        <property name="n_rows">9</property>
                         <property name="n_columns">2</property>
                         <child>
                           <object class="HAL_LED" id="led1">
@@ -507,8 +444,8 @@
                             <property name="pick_color_on">#ffffb7b90b5c</property>
                           </object>
                           <packing>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
+                            <property name="top_attach">3</property>
+                            <property name="bottom_attach">4</property>
                           </packing>
                         </child>
                         <child>
@@ -520,56 +457,8 @@
                             <property name="pick_color_on">#1d56ab6dfd26</property>
                           </object>
                           <packing>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_LED" id="led3">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="led_shape">2</property>
-                            <property name="pick_color_off">#000000000000</property>
-                            <property name="pick_color_on">#ffff327ff2b6</property>
-                          </object>
-                          <packing>
-                            <property name="top_attach">3</property>
-                            <property name="bottom_attach">4</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_LED" id="led4">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="led_shape">2</property>
-                          </object>
-                          <packing>
                             <property name="top_attach">4</property>
                             <property name="bottom_attach">5</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_LED" id="led5">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="led_shape">2</property>
-                            <property name="on_color">yellow</property>
-                          </object>
-                          <packing>
-                            <property name="top_attach">5</property>
-                            <property name="bottom_attach">6</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_LED" id="led6">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="led_shape">2</property>
-                            <property name="on_color">green</property>
-                          </object>
-                          <packing>
-                            <property name="top_attach">6</property>
-                            <property name="bottom_attach">7</property>
                           </packing>
                         </child>
                         <child>
@@ -579,36 +468,7 @@
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
                             <property name="use_action_appearance">False</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_ToggleButton" id="do2">
-                            <property name="label" translatable="yes">REV</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_action_appearance">False</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_ToggleButton" id="do3">
-                            <property name="label" translatable="yes">JOG-FWD</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_action_appearance">False</property>
+                            <signal name="toggled" handler="on_do1_toggled" swapped="no"/>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -618,12 +478,13 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="HAL_ToggleButton" id="do4">
-                            <property name="label" translatable="yes">JOG-REV</property>
+                          <object class="HAL_ToggleButton" id="do2">
+                            <property name="label" translatable="yes">REV</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
                             <property name="use_action_appearance">False</property>
+                            <signal name="toggled" handler="on_do2_toggled" swapped="no"/>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
@@ -633,46 +494,19 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="HAL_ToggleButton" id="do5">
-                            <property name="label" translatable="yes">SPEED-1</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_action_appearance">False</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">5</property>
-                            <property name="bottom_attach">6</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="HAL_ToggleButton" id="do6">
-                            <property name="label" translatable="yes">SPEED-2</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_action_appearance">False</property>
-                          </object>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">6</property>
-                            <property name="bottom_attach">7</property>
-                          </packing>
-                        </child>
-                        <child>
                           <object class="HAL_ToggleButton" id="do7">
-                            <property name="label" translatable="yes">PUMP</property>
+                            <property name="label" translatable="yes">TOOL-RELEASE</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
                             <property name="use_action_appearance">False</property>
+                            <signal name="toggled" handler="on_do7_toggled" swapped="no"/>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>
                             <property name="right_attach">2</property>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
                           </packing>
                         </child>
                         <child>
@@ -681,6 +515,76 @@
                             <property name="can_focus">False</property>
                             <property name="led_shape">2</property>
                           </object>
+                          <packing>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="HAL_LED" id="led8">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="led_shape">2</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="HAL_LED" id="led9">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="led_shape">2</property>
+                          </object>
+                          <packing>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="do9">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">TOOL-RELEASED</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="do8">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">TOOL-CLAMPED</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
                         </child>
                       </object>
                     </child>
@@ -828,80 +732,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkFrame" id="frame4">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label_xalign">0</property>
-                <property name="shadow_type">none</property>
-                <child>
-                  <object class="GtkAlignment" id="alignment4">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="left_padding">12</property>
-                    <child>
-                      <object class="HAL_HBox" id="commands">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <child>
-                          <object class="GtkButton" id="button1">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="related_action">hal_action_mdi1</property>
-                            <property name="use_underline">True</property>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">0</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkButton" id="button2">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="related_action">hal_action_mdi2</property>
-                            <property name="use_underline">True</property>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">1</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkToggleButton" id="togglebutton1">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="related_action">hal_toggleaction_mdi1</property>
-                            <property name="use_underline">True</property>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">2</property>
-                          </packing>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child type="label">
-                  <object class="GtkLabel" id="label4text">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Commands&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">4</property>
-              </packing>
+              <placeholder/>
             </child>
           </object>
           <packing>

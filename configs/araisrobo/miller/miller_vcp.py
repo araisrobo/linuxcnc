@@ -1,3 +1,6 @@
+#/usr/bin/env python
+# -*- coding: UTF-8 -*
+# vim: sts=4 sw=4 et
 import os,sys
 from gladevcp.persistence import IniFile,widget_defaults,set_debug,select_widgets
 import hal
@@ -30,8 +33,7 @@ class EmcInterface(object):
         if self.s.task_state != linuxcnc.STATE_ON: return False
         return self.s.interp_state == linuxcnc.INTERP_IDLE
 
-
-    def ensure_mode(self,m, *p):
+    def ensure_mode(self, m, *p):
         '''
         If emc is not already in one of the modes given, switch it to the first mode
         example:
@@ -48,7 +50,11 @@ class EmcInterface(object):
     def active_codes(self):
         self.s.poll()
         return self.s.gcodes
-
+    
+    def spindle_speed(self):
+        self.s.poll()
+        return self.s.spindle_speed
+    
     def get_current_system(self):
         for i in self.active_codes():
                 if i >= 540 and i <= 590:
@@ -57,9 +63,10 @@ class EmcInterface(object):
                         return i - 584
         return 1
 
-
-    def mdi_command(self,command, wait=True):
-        #ensure_mode(emself.c.MODE_MDI)
+    def mdi_command(self, command, wait=True):
+        if (not self.ensure_mode(linuxcnc.MODE_MDI)):
+            print "cannot switch to MODE_MDI"
+            return
         self.c.mdi(command)
         if wait: self.c.wait_complete()
 
@@ -93,6 +100,18 @@ class HandlerClass:
         self.builder.get_object('task_state').set_label("Task state: " + task_state)
         self.builder.get_object('exec_state').set_label("Exec state: " + exec_state)
         self.builder.get_object('interp_state').set_label("Interp state: " + interp_state)
+        # 為了左右邊的 mdi command 訊號可以同步
+        if(self.e.spindle_speed() > 0):
+            self.builder.get_object('do1').set_active(True)     # M3, SPINDLE.FWD
+            self.builder.get_object('do2').set_active(False)    # M4, SPINDLE.REV
+        elif(self.e.spindle_speed() < 0):
+            self.builder.get_object('do1').set_active(False)    # M3, SPINDLE.FWD
+            self.builder.get_object('do2').set_active(True)     # M4, SPINDLE.REV
+        else:
+            self.builder.get_object('do1').set_active(False)
+            self.builder.get_object('do2').set_active(False)
+
+#        print self.e.active_modes()
         # looping: if (task_mode == "MANUAL") and (task_state == "ON") and (exec_state == "DONE") and (interp_state == "IDLE"):
         # looping:     # print ("task_mode: manual...")
         # looping:     # print ("about to cycle-start...")
@@ -117,6 +136,52 @@ class HandlerClass:
     def on_destroy(self,obj,data=None):
         self.ini.save_state(self)
     
+    def on_do7_toggled(self, widget, data=None):
+        if (not self.e.manual_ok(do_poll=True)):
+            # bypass issuing MDI when program is running
+            return        
+        label = gtk.Label("Click OK to TOOL-RELEASE")
+        dialog = gtk.Dialog("TOOL-RELEASE",
+                           None,
+                           gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                           (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                            gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+        dialog.vbox.pack_start(label)
+        label.show()
+        
+        response = dialog.run()
+        if response == gtk.RESPONSE_ACCEPT:
+            print 'on_do7_toggled'
+            dialog.destroy()
+            if widget.get_active() == True:
+                self.e.mdi_command('M64 P7', True)  # release tool
+            else:
+                self.e.mdi_command('M65 P7', True)  # clamp tool
+        else:
+            dialog.destroy()
+    
+    def on_do1_toggled(self, widget, data=None):
+        # print 'debug: on_do1_toggled'
+        if (not self.e.manual_ok(do_poll=True)):
+            # bypass issuing MDI when program is running
+            return
+        if widget.get_active() == True:
+            self.e.mdi_command('M3', True)
+        else:
+            if(self.e.spindle_speed() != 0):
+                self.e.mdi_command('M5', True)
+            
+    def on_do2_toggled(self, widget, data=None):
+        # print 'debug: on_do2_toggled'
+        if (not self.e.manual_ok(do_poll=True)):
+            # bypass issuing MDI when program is running
+            return
+        if widget.get_active() == True:
+            self.e.mdi_command('M4', True)
+        else:
+            if(self.e.spindle_speed() != 0):
+                self.e.mdi_command('M5', True)
+            
     def on_restore_defaults(self,button,data=None):
         '''
         example callback for 'Reset to defaults' button
@@ -124,6 +189,7 @@ class HandlerClass:
         '''
         self.ini.create_default_ini()
         self.ini.restore_state(self)
+
 
     def __init__(self, halcomp, builder, useropts):
         '''

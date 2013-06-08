@@ -51,9 +51,10 @@
 
 
 // MOTION INTERFACE
-
-/*! \todo FIXME - this decl was originally much later in the file, moved
-here temporarily for debugging */
+/**
+ * emcmotStatus:
+ *      copied by usrmotReadEmcmotStatus() from emcMotionUpdate()
+ **/
 static emcmot_status_t emcmotStatus;
 
 /*
@@ -559,22 +560,14 @@ int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
     return 0;
 }
 
-static int issue_sync_count = 0;
-#define SYNC_FREQ 50
 void checkPlanSyncReq(void) {
-  // TODO: check sync req flag from emcmotStatus and issue
-//         emcTaskPlanSynch?
-    if (emcmotStatus.update_current_pos_flag == 1 || issue_sync_count > 0) {
-    	issue_sync_count ++;
-    	if (issue_sync_count > SYNC_FREQ) {
-    		issue_sync_count = 0;
-			emcmotStatus.update_current_pos_flag = 0;
-			EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
-			emcTaskQueueCommand(&taskPlanSynchCmd);
-    	}
+    if (emcmotStatus.update_current_pos_flag == 1) {
+        // force to update current position for interp_convert.cc
+        emcTaskPlanSynch();
     }
-  return;
+    return;
 }
+
 /* This function checks to see if any joint or the traj has
    been inited already.  At startup, if none have been inited,
    usrmotIniLoad and usrmotInit must be called first.  At
@@ -1454,17 +1447,18 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk)
+int emcTrajSpindleSyncMotion(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk, int ssm_mode)
 {
     CATCH_NAN(isnan(pos.tran.x) || isnan(pos.tran.y) || isnan(pos.tran.z));
 
-    emcmotCommand.command = EMCMOT_RIGID_TAP;
+    emcmotCommand.command = EMCMOT_SPINDLE_SYNC_MOTION;
     emcmotCommand.pos.tran = pos.tran;
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.ini_maxjerk = ini_maxjerk;
+    emcmotCommand.ssm_mode = ssm_mode;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

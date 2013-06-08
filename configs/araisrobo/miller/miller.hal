@@ -1,13 +1,13 @@
 # core HAL config file for simulation - 4 joint
 # load 3 differentiators for accel signals
 loadrt ddt count=3
-# load additional blocks
 loadrt hypot count=2
+loadrt spindle
 
 # load RT modules
 loadrt [KINS]KINEMATICS
 loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD traj_period_nsec=[EMCMOT]TRAJ_PERIOD num_joints=[KINS]JOINTS num_dio=64
-loadrt [WOU](WISHBONE) ctrl_type=[WOU](CTRL_TYPE) pulse_type=[WOU]PULSE_TYPE enc_type=[WOU]ENC_TYPE bits=[WOU](FPGA) bins=[WOU](RISC) servo_period_ns=[EMCMOT]SERVO_PERIOD alarm_en=[WOU]ALARM_EN max_vel_str=[JOINT_0]MAX_VELOCITY,[JOINT_1]MAX_VELOCITY,[JOINT_2]MAX_VELOCITY,[JOINT_3]MAX_VELOCITY max_accel_str=[JOINT_0]MAX_ACCELERATION,[JOINT_1]MAX_ACCELERATION,[JOINT_2]MAX_ACCELERATION,[JOINT_3]MAX_ACCELERATION max_jerk_str=[JOINT_0]MAX_JERK,[JOINT_1]MAX_JERK,[JOINT_2]MAX_JERK,[JOINT_3]MAX_JERK pos_scale_str=[JOINT_0]INPUT_SCALE,[JOINT_1]INPUT_SCALE,[JOINT_2]INPUT_SCALE,[JOINT_3]INPUT_SCALE alr_output=[WOU](ALR_OUTPUT)
+loadrt [WOU](WISHBONE) ctrl_type=[WOU](CTRL_TYPE) pulse_type=[WOU]PULSE_TYPE enc_type=[WOU]ENC_TYPE enc_pol=[WOU]ENC_POL bits=[WOU](FPGA) bins=[WOU](RISC) servo_period_ns=[EMCMOT]SERVO_PERIOD alarm_en=[WOU]ALARM_EN max_vel_str=[JOINT_0]MAX_VELOCITY,[JOINT_1]MAX_VELOCITY,[JOINT_2]MAX_VELOCITY,[JOINT_3]MAX_VELOCITY max_accel_str=[JOINT_0]MAX_ACCELERATION,[JOINT_1]MAX_ACCELERATION,[JOINT_2]MAX_ACCELERATION,[JOINT_3]MAX_ACCELERATION max_jerk_str=[JOINT_0]MAX_JERK,[JOINT_1]MAX_JERK,[JOINT_2]MAX_JERK,[JOINT_3]MAX_JERK pos_scale_str=[JOINT_0]INPUT_SCALE,[JOINT_1]INPUT_SCALE,[JOINT_2]INPUT_SCALE,[JOINT_3]INPUT_SCALE enc_scale_str=[JOINT_0]ENC_SCALE,[JOINT_1]ENC_SCALE,[JOINT_2]ENC_SCALE,[JOINT_3]ENC_SCALE ferror_str=[JOINT_0]FERROR,[JOINT_1]FERROR,[JOINT_2]FERROR,[JOINT_3]FERROR j0_pid_str=[WOU](J0_PID) j1_pid_str=[WOU](J1_PID) j2_pid_str=[WOU](J2_PID) j3_pid_str=[WOU](J3_PID) alr_output=[WOU](ALR_OUTPUT)
 
 # add motion controller functions to servo thread
 addf motion-command-handler servo-thread
@@ -20,6 +20,24 @@ addf    ddt.1           servo-thread
 addf    ddt.2           servo-thread
 addf    hypot.0         servo-thread
 addf    hypot.1         servo-thread
+addf    spindle.0       servo-thread
+
+# spindle
+setp spindle.0.max-vel  [JOINT_3]MAX_VELOCITY
+setp spindle.0.max-acc  [JOINT_3]MAX_ACCELERATION
+setp spindle.0.max-jerk [JOINT_3]MAX_JERK
+# at-speed-range: 0.05 means 5% of spindle velocity tolerance
+# at-speed-range: 0.01 means 1% of spindle velocity tolerance
+setp spindle.0.at-speed-range 0.01
+net  spindle-velocity-mode  spindle.0.velocity-mode    <= motion.spindle-velocity-mode
+net  spindle-on             spindle.0.on               <= motion.spindle-on
+net  spindle-speed-cmd-rps  spindle.0.velocity-cmd     <= motion.spindle-speed-cmd-rps
+net  spindle-position-cmd   spindle.0.position-cmd     <= motion.spindle-position-cmd
+net  spindle-curr-pos-cmd   spindle.0.curr-pos         => motion.spindle-curr-pos-cmd
+net  spindle-in-position    spindle.0.in-position      => motion.spindle-in-position
+net  spindle-at-speed       spindle.0.at-speed         => motion.spindle-at-speed
+net  vel-fb-j3              spindle.0.feedback-vel
+
 # send the position commands thru differentiators to
 # generate velocity and accel signals
 net Xvel-fb     => ddt.0.in hypot.0.in0
@@ -30,7 +48,6 @@ net Yacc        <= ddt.1.out
 
 net Zvel        => ddt.2.in hypot.1.in0
 net Zacc        <= ddt.2.out 
-
 
 # Cartesian 2- and 3-axis velocities
 net XYvel       hypot.0.out => hypot.1.in1
@@ -46,24 +63,28 @@ net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
 
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
+net rigid-tapping motion.rigid-tapping => wou.motion.rigid-tapping
+net xuu-per-rev motion.xuu-per-rev => wou.motion.xuu-per-rev
+net yuu-per-rev motion.yuu-per-rev => wou.motion.yuu-per-rev
+net zuu-per-rev motion.zuu-per-rev => wou.motion.zuu-per-rev
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
 net Zpos  joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
-net Spos  joint.3.motor-pos-cmd => wou.stepgen.3.position-cmd 
+net spindle-curr-pos-cmd        => wou.stepgen.3.position-cmd
 
 # loop position commands back to motion module feedback
 # for OPEN_LOOP
 net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net Zpos-fb   wou.stepgen.2.position-fb => joint.2.motor-pos-fb
-net Spos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
+net Spos-fb   wou.stepgen.3.position-fb => motion.spindle-revs
 
 # motor_index positions
 net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
 net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
 net J2_index-pos wou.stepgen.2.index-pos => joint.2.index-pos
-net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
+# net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
@@ -96,16 +117,30 @@ setp wou.rt.abort  0
 
 # connect signals from FPGA.
 # pulse_pos: the actual pulse sent to servo drive.
-net pulse_pos_j0  <= wou.stepgen.0.pulse_pos
-net pulse_pos_j1  <= wou.stepgen.1.pulse_pos
-net pulse_pos_j2  <= wou.stepgen.2.pulse_pos
-net pulse_pos_j3  <= wou.stepgen.3.pulse_pos
+net pulse-pos-j0  <= wou.stepgen.0.pulse_pos
+net pulse-pos-j1  <= wou.stepgen.1.pulse_pos
+net pulse-pos-j2  <= wou.stepgen.2.pulse_pos
+net pulse-pos-j3  <= wou.stepgen.3.pulse_pos
 
 # enc_pos: the encoder position read from FPGA.
-net enc_pos_j0 <=  wou.stepgen.0.enc_pos  
-net enc_pos_j1 <=  wou.stepgen.1.enc_pos  
-net enc_pos_j2 <=  wou.stepgen.2.enc_pos  
-net enc_pos_j3 <=  wou.stepgen.3.enc_pos  
+net enc-pos-j0 <=  wou.stepgen.0.enc_pos  
+net enc-pos-j1 <=  wou.stepgen.1.enc_pos  
+net enc-pos-j2 <=  wou.stepgen.2.enc_pos  
+net enc-pos-j3 <=  wou.stepgen.3.enc_pos  
+
+# cmd_fbs: the commanded position read from FPGA.
+net cmd-pos-j0 <=  wou.stepgen.0.cmd-fbs
+net cmd-pos-j1 <=  wou.stepgen.1.cmd-fbs
+net cmd-pos-j2 <=  wou.stepgen.2.cmd-fbs
+net cmd-pos-j3 <=  wou.stepgen.3.cmd-fbs
+
+# vel-fb: the scaled velocity based on encoder from FPGA.
+net vel-fb-j0 <=  wou.stepgen.0.vel-fb
+net vel-fb-j1 <=  wou.stepgen.1.vel-fb
+net vel-fb-j2 <=  wou.stepgen.2.vel-fb
+net vel-fb-j3 <=  wou.stepgen.3.vel-fb
+
+net bp-tick     <= wou.bp-tick
 
 # pass vel status and req_status to FPGA
 
@@ -151,6 +186,7 @@ net J0-risc-pos-cmd wou.stepgen.0.risc-pos-cmd => joint.0.risc-pos-cmd
 net J1-risc-pos-cmd wou.stepgen.1.risc-pos-cmd => joint.1.risc-pos-cmd
 net J2-risc-pos-cmd wou.stepgen.2.risc-pos-cmd => joint.2.risc-pos-cmd
 net J3-risc-pos-cmd wou.stepgen.3.risc-pos-cmd => joint.3.risc-pos-cmd
+# TODO: forward risc-pos-cmd to spindle.0
 
 # for usb-homing:
 # original homing switchs: 
@@ -164,12 +200,12 @@ net J3-risc-pos-cmd wou.stepgen.3.risc-pos-cmd => joint.3.risc-pos-cmd
 
 # use LSN as homing switch for AXIS-X, AXIS-Y:
 setp joint.0.home-sw-id 4
-setp joint.1.home-sw-id 6
+setp joint.1.home-sw-id 7
 # use LSP as homing switch for AXIS-Z:
 setp joint.2.home-sw-id 9
 # home switch status from FPGA
 net din_04      joint.0.home-sw-in
-net din_06      joint.1.home-sw-in
+net din_07      joint.1.home-sw-in
 net din_09      joint.2.home-sw-in
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
@@ -243,6 +279,8 @@ net din_28 	wou.gpio.in.28    => motion.digital-in-28
 net din_29 	wou.gpio.in.29    => motion.digital-in-29
 net din_30 	wou.gpio.in.30    => motion.digital-in-30
 net din_31 	wou.gpio.in.31    => motion.digital-in-31
+
+net dout7 	wou.gpio.out.07    => motion.digital-out-07
 
 net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
 net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable

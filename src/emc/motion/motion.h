@@ -135,8 +135,7 @@ typedef enum {
     EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
     EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
-    EMCMOT_RIGID_TAP,	/* go to pos, with sync to spindle speed,
-				   then return to initial pos */
+    EMCMOT_SPINDLE_SYNC_MOTION,	/* for G33 and G33.1, motion with sync to spindle speed*/
 
     EMCMOT_SET_POSITION_LIMITS,	/* set the joint position +/- limits */
     EMCMOT_SET_BACKLASH,	/* set the joint backlash */
@@ -269,6 +268,7 @@ typedef struct emcmot_command_t {
     double  timeout;        /* of wait for spindle orient to complete or sync_in to timeout */
     unsigned char tail;	/* flag count for mutex detect */
     int wait_type;          /* wait type for sync_in command */
+    int ssm_mode;           /* spindle sync motion mode: G33(0) /rigid_tap G33.1(1) */
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -603,11 +603,15 @@ typedef struct {
     double speed;		// spindle speed in RPMs
     double css_factor;
     double xoffset;
+    double css_error;          //
     int direction;		// 0 stopped, 1 forward, -1 reverse
     int brake;		// 0 released, 1 engaged
     int locked;             // spindle lock engaged after orient
     int orient_fault;       // fault code from motion.spindle-orient-fault
     int orient_state;       // orient_state_t
+    int in_position;
+    int at_speed;
+    double curr_pos_cmd;
 } spindle_status;
 
 typedef struct {
@@ -696,6 +700,7 @@ typedef struct emcmot_status_t {
     int spindleSync;        /* we are doing spindle-synced motion */
     double spindleRevs;     /* position of spindle in revolutions */
     double spindleSpeedIn;  /* velocity of spindle in revolutions per minute */
+    double spindle_position_cmd;
 
     spindle_status spindle;	/* data types for spindle status */
 
@@ -723,7 +728,10 @@ typedef struct emcmot_status_t {
     double vel;		/* vel for traj */
     double acc;		/* accel for traj */
     double jerk;		/* jerk for traj */
-    int32_t motionState;    /* s-curve motion state */
+    int32_t motionState;        /* s-curve motion state */
+    double xuu_per_rev;        /* user-unit per rev for AXIS_X */
+    double yuu_per_rev;        /* user-unit per rev for AXIS_Y */
+    double zuu_per_rev;        /* user-unit per rev for AXIS_Z */
     int motionType;
     double distance_to_go;  /* in this move */
     EmcPose dtg;
@@ -733,7 +741,7 @@ typedef struct emcmot_status_t {
     unsigned int tcqlen;
     EmcPose tool_offset;
     int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
-    int spindle_is_atspeed; /* hal input */
+// moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
 
 } emcmot_status_t;
