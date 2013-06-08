@@ -114,13 +114,8 @@ RTAPI_MP_INT(alarm_en, "hardware alarm dection mode");
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
 
-int num_gpio_in = 64;
-RTAPI_MP_INT(num_gpio_in, "Number of WOU HAL PINs for gpio input");
-int num_gpio_out = 32;
-RTAPI_MP_INT(num_gpio_out, "Number of WOU HAL PINs for gpio output");
-
-//const char *thc_velocity = "1.0"; // 1mm/s
-//RTAPI_MP_STRING(thc_velocity, "Torch Height Control velocity");
+# define GPIO_IN_NUM    80
+# define GPIO_OUT_NUM   32
 
 #define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
@@ -298,7 +293,7 @@ typedef struct {
     int32_t motion_type;        /* motion type wrote to risc */
 
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
-    int32_t     enc_vel_p;      /* encoder velocity in pulse per servo-period */
+    hal_s32_t     *enc_vel_p;   /* encoder velocity in pulse per servo-period */
 
     hal_float_t   *risc_jog_vel;     /* for RISC-Jogging */
     double       prev_risc_jog_vel;
@@ -339,10 +334,11 @@ typedef struct {
     //TODO: replace plasma enable with output enable for each pin.
     hal_bit_t   *plasma_enable;
     /* sync input pins (input to motmod) */
-    hal_bit_t   *in[64];
-    hal_bit_t   *in_n[64];
+    hal_bit_t   *in[80];
+    hal_bit_t   *in_n[80];
     uint32_t    prev_in0;
     uint32_t    prev_in1;
+    uint32_t    prev_in2;
     hal_float_t *analog_ref_level;
     double prev_analog_ref_level;
     hal_bit_t *sync_in_trigger;
@@ -350,7 +346,6 @@ typedef struct {
     hal_u32_t *wait_type;
     hal_float_t *timeout;
     double prev_timeout;
-    int num_gpio_in;
 
     hal_u32_t   *bp_tick;       /* base-period tick obtained from fetchmail */
     hal_u32_t   *dout0;         /* the DOUT value obtained from fetchmail */
@@ -358,7 +353,6 @@ typedef struct {
 
     /* sync output pins (output from motmod) */
     hal_bit_t *out[32];
-    int num_gpio_out;
     uint32_t prev_out;		//ON or OFF
 
     uint32_t     prev_ahc_state;
@@ -464,7 +458,8 @@ static void fetchmail(const uint8_t *buf_head)
     // char        *buf_head;
     int         i;
     uint16_t    mail_tag;
-    uint32_t    *p, din[2], dout[1];
+    uint32_t    *p, din[3], dout[1];
+    uint8_t     *buf;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
     uint32_t    machine_status;
@@ -498,7 +493,7 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *(stepgen->cmd_fbs) = (int32_t)*p;
             p += 1;
-            stepgen->enc_vel_p  = (int32_t)*p; // encoder velocity in pulses per servo-period
+            *(stepgen->enc_vel_p)  = (int32_t)*p; // encoder velocity in pulses per servo-period
             stepgen += 1;   // point to next joint
         }
 
@@ -507,6 +502,8 @@ static void fetchmail(const uint8_t *buf_head)
         din[0] = *p;
         p += 1;
         din[1] = *p;
+        p += 1;
+        din[2] = *p;
         // digital output
         p += 1;
         dout[0] = *p;
@@ -534,26 +531,27 @@ static void fetchmail(const uint8_t *buf_head)
             }
         }
 
-        // ADC_SPI (raw ADC value)
-        p += 1; *(analog->in[0]) = *p;
-        p += 1; *(analog->in[1]) = *p;
-        p += 1; *(analog->in[2]) = *p;
-        p += 1; *(analog->in[3]) = *p;
-        p += 1; *(analog->in[4]) = *p;
-        p += 1; *(analog->in[5]) = *p;
-        p += 1; *(analog->in[6]) = *p;
-        p += 1; *(analog->in[7]) = *p;
-//        p += 1; *(analog->in[8]) = *p;
-//        p += 1; *(analog->in[9]) = *p;
-//        p += 1; *(analog->in[10]) = *p;
-//        p += 1; *(analog->in[11]) = *p;
-//        p += 1; *(analog->in[12]) = *p;
-//        p += 1; *(analog->in[13]) = *p;
-//        p += 1; *(analog->in[14]) = *p;
-//        p += 1; *(analog->in[15]) = *p;
+        // update gpio_in[79:64]
+        // compare if there's any GPIO.DIN bit got toggled
+        if (machine_control->prev_in2 != din[2]) {
+            // avoid for-loop to save CPU cycles
+            machine_control->prev_in2 = din[2];
+            for (i = 64; i < 79; i++) {
+                *(machine_control->in[i]) = ((machine_control->prev_in2) >> (i-64)) & 0x01;
+                *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
+            }
+        }
+
+        // copy 16 channel of 16-bit ADC value
+        p += 1;
+        buf = (uint8_t*)p;
+        for (i=0; i<8; i++) {
+            *(analog->in[i*2]) = *(((uint16_t*)buf)+i*2+1);
+            *(analog->in[i*2+1]) = *(((uint16_t*)buf)+i*2);
+        }
 
         // MPG
-        p += 1;
+        p += 8; // skip 16ch of 16-bit ADC value
         *(machine_control->mpg_count) = *p;
         // the MPG on my hand is 1-click for a full-AB-phase-wave.
         // therefore the mpg_count will increase by 4.
@@ -1552,7 +1550,7 @@ static void update_freq(void *arg, long period)
     /* for G33 and G33.1, to synchronize spindle index */
     if (*(machine_control->sync_in_trigger) != 0) {
         assert(*(machine_control->sync_in_index) >= 0);
-        assert(*(machine_control->sync_in_index) < num_gpio_in);
+        assert(*(machine_control->sync_in_index) < GPIO_IN_NUM);
         DP("wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",
                 (uint32_t)*machine_control->sync_in_index,
                 (uint32_t)*(machine_control->wait_type));
@@ -1568,7 +1566,7 @@ static void update_freq(void *arg, long period)
 
     /* begin: process motion synchronized output */
     sync_out_data = 0;
-    for (i = 0; i < machine_control->num_gpio_out; i++) {
+    for (i = 0; i < GPIO_OUT_NUM; i++) {
         if(((machine_control->prev_out >> i) & 0x01) !=
                 (*(machine_control->out[i]))) {
             {
@@ -1582,7 +1580,6 @@ static void update_freq(void *arg, long period)
                 wou_cmd(&w_param, WB_WR_CMD, (JCMD_BASE | JCMD_SYNC_CMD),sizeof(uint16_t), data);
             }
         }
-
         sync_out_data |= ((*(machine_control->out[i])) << i);
     }
     machine_control->prev_out = sync_out_data;
@@ -1671,7 +1668,7 @@ static void update_freq(void *arg, long period)
 
         // update velocity-feedback based on RISC-reported encoder-velocity
         // enc_vel_p is in 16.16 pulse per servo-period format
-        *(stepgen->vel_fb) = stepgen->enc_vel_p * stepgen->scale_recip * recip_dt * FP_SCALE_RECIP;
+        *(stepgen->vel_fb) = *(stepgen->enc_vel_p) * stepgen->scale_recip * recip_dt * FP_SCALE_RECIP;
 
         /* test for disabled stepgen */
         if (stepgen->prev_enable == 0) {
@@ -2056,6 +2053,12 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
+    /* export pin for velocity feedback (pulse) */
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_vel_p), comp_id,
+            "wou.stepgen.%d.enc-vel", num);
+    if (retval != 0) {
+        return retval;
+    }
     /* export param for scaled velocity (frequency in Hz) */
     retval = hal_param_float_newf(HAL_RO, &(addr->freq), comp_id,
             "wou.stepgen.%d.frequency", num);
@@ -2215,10 +2218,6 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->machine_on) = 0;
 
-    // rtapi_set_msg_level(RTAPI_MSG_ALL);
-    machine_control->num_gpio_in = num_gpio_in;
-    machine_control->num_gpio_out = num_gpio_out;
-
     // rt_abort: realtime abort command to FPGA
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id, "wou.rt.abort");
     if (retval != 0) { return retval; }
@@ -2237,7 +2236,7 @@ static int export_machine_control(machine_control_t * machine_control)
     //    }
     //    *machine_control->ignore_host_cmd = 0;
     // export input status pin
-    for (i = 0; i < machine_control->num_gpio_in; i++) {
+    for (i = 0; i < GPIO_IN_NUM; i++) {
         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,
                 "wou.gpio.in.%02d", i);
         if (retval != 0) {
@@ -2277,7 +2276,7 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->timeout) = 0.0;
 
-    for (i = 0; i < num_gpio_out; i++) {
+    for (i = 0; i < GPIO_OUT_NUM; i++) {
         retval =
                 hal_pin_bit_newf(HAL_IN, &(machine_control->out[i]), comp_id,
                         "wou.gpio.out.%02d", i);
