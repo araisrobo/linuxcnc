@@ -293,7 +293,7 @@ typedef struct {
     int32_t motion_type;        /* motion type wrote to risc */
 
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
-    int32_t     enc_vel_p;      /* encoder velocity in pulse per servo-period */
+    hal_s32_t     *enc_vel_p;   /* encoder velocity in pulse per servo-period */
 
     hal_float_t   *risc_jog_vel;     /* for RISC-Jogging */
     double       prev_risc_jog_vel;
@@ -493,7 +493,7 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *(stepgen->cmd_fbs) = (int32_t)*p;
             p += 1;
-            stepgen->enc_vel_p  = (int32_t)*p; // encoder velocity in pulses per servo-period
+            *(stepgen->enc_vel_p)  = (int32_t)*p; // encoder velocity in pulses per servo-period
             stepgen += 1;   // point to next joint
         }
 
@@ -1685,7 +1685,7 @@ static void update_freq(void *arg, long period)
 
         // update velocity-feedback based on RISC-reported encoder-velocity
         // enc_vel_p is in 16.16 pulse per servo-period format
-        *(stepgen->vel_fb) = stepgen->enc_vel_p * stepgen->scale_recip * recip_dt * FP_SCALE_RECIP;
+        *(stepgen->vel_fb) = *(stepgen->enc_vel_p) * stepgen->scale_recip * recip_dt * FP_SCALE_RECIP;
 
         /* test for disabled stepgen */
         if (stepgen->prev_enable == 0) {
@@ -2070,6 +2070,12 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
+    /* export pin for velocity feedback (pulse) */
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->enc_vel_p), comp_id,
+            "wou.stepgen.%d.enc-vel", num);
+    if (retval != 0) {
+        return retval;
+    }
     /* export param for scaled velocity (frequency in Hz) */
     retval = hal_param_float_newf(HAL_RO, &(addr->freq), comp_id,
             "wou.stepgen.%d.frequency", num);
