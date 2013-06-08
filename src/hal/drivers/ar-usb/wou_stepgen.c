@@ -459,6 +459,7 @@ static void fetchmail(const uint8_t *buf_head)
     int         i;
     uint16_t    mail_tag;
     uint32_t    *p, din[3], dout[1];
+    uint8_t     *buf;
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
     uint32_t    machine_status;
@@ -541,15 +542,22 @@ static void fetchmail(const uint8_t *buf_head)
             }
         }
 
-        // ADC_SPI (raw ADC value)
-        p += 1; *(analog->in[0]) = *p;
-        p += 1; *(analog->in[1]) = *p;
-        p += 1; *(analog->in[2]) = *p;
-        p += 1; *(analog->in[3]) = *p;
-        p += 1; *(analog->in[4]) = *p;
-        p += 1; *(analog->in[5]) = *p;
-        p += 1; *(analog->in[6]) = *p;
-        p += 1; *(analog->in[7]) = *p;
+        // copy 16 channel of 16-bit ADC value
+        p += 1;
+        buf = (uint8_t*)p;
+        for (i=0; i<8; i++) {
+            *(analog->in[i*2]) = *(((uint16_t*)buf)+i*2+1);
+            *(analog->in[i*2+1]) = *(((uint16_t*)buf)+i*2);
+        }
+//        p += 1; *(analog->in[0]) = *p;
+//        p += 1; *(analog->in[1]) = *p;
+//        p += 1; *(analog->in[2]) = *p;
+//        p += 1; *(analog->in[3]) = *p;
+//        p += 1; *(analog->in[4]) = *p;
+//        p += 1; *(analog->in[5]) = *p;
+//        p += 1; *(analog->in[6]) = *p;
+//        p += 1; *(analog->in[7]) = *p;
+//        p -= 7;
 //        p += 1; *(analog->in[8]) = *p;
 //        p += 1; *(analog->in[9]) = *p;
 //        p += 1; *(analog->in[10]) = *p;
@@ -560,7 +568,7 @@ static void fetchmail(const uint8_t *buf_head)
 //        p += 1; *(analog->in[15]) = *p;
 
         // MPG
-        p += 1;
+        p += 8; // skip 16ch of 16-bit ADC value
         *(machine_control->mpg_count) = *p;
         // the MPG on my hand is 1-click for a full-AB-phase-wave.
         // therefore the mpg_count will increase by 4.
