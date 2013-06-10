@@ -193,13 +193,13 @@ FUNCTION(_) {
 
     if (curr_vel == 0)
     {
-        if (fabs(feedback_vel) < at_speed_range) {
+        if (fabs(feedback_vel) <= at_speed_range) {
             at_speed = 1;
         } else {
             at_speed = 0;
         }
     } else {
-        if ((fabs(1 - feedback_vel/curr_vel)) < at_speed_range) {
+        if ((fabs(1 - feedback_vel/curr_vel)) <= at_speed_range) {
             at_speed = 1;
         } else {
             at_speed = 0;

@@ -102,8 +102,8 @@ setp wou.motion.spindle-joint-id [KINS]SPINDLE_JOINT_ID
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
-net YYpos joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
-#net Ypos                        => wou.stepgen.2.position-cmd 
+# net YYpos joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
+net Ypos                        => wou.stepgen.2.position-cmd 
 net Zpos  joint.3.motor-pos-cmd => wou.stepgen.3.position-cmd
 net spindle-curr-pos-cmd        => wou.stepgen.4.position-cmd
 # net spindle-t-curr-pos-cmd      => wou.stepgen.4.position-cmd
@@ -251,16 +251,16 @@ net J4-risc-pos-cmd wou.stepgen.4.risc-pos-cmd => joint.4.risc-pos-cmd
 # net home_j2     joint.2.home-sw-in  <=  wou.gpio.in.08
 
 # use LSN as homing switch for AXIS-X, AXIS-Y:
-setp joint.0.home-sw-id 6
-setp joint.1.home-sw-id 7 
-setp joint.2.home-sw-id 8 
+setp joint.0.home-sw-id 8
+setp joint.1.home-sw-id 10
+#setp joint.2.home-sw-id 13
 # use LSP as homing switch for AXIS-Z:
-setp joint.3.home-sw-id 5 
+setp joint.3.home-sw-id 13
 # home switch status from FPGA
-net din_06      joint.0.home-sw-in
-net din_07      joint.1.home-sw-in
-net din_08      joint.2.home-sw-in
-net din_05      joint.3.home-sw-in
+net din_08      joint.0.home-sw-in
+net din_10      joint.1.home-sw-in
+# net din_08      joint.2.home-sw-in
+net din_13      joint.3.home-sw-in
 
 net j1-homing   joint.1.homing => or2.0.in0
 net j2-homing   joint.2.homing => or2.0.in1
