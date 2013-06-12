@@ -425,32 +425,32 @@ typedef enum {
 /* states for homing */
 typedef enum {
     HOME_IDLE = 0,
-    HOME_START,			// 1
-    HOME_UNLOCK,			// 2
-    HOME_UNLOCK_WAIT,		// 3
-    HOME_INITIAL_BACKOFF_START,	// 4
-    HOME_INITIAL_BACKOFF_WAIT,	// 5
-    HOME_INITIAL_SEARCH_START,	// 6
-    HOME_INITIAL_SEARCH_WAIT,	// 7
-    HOME_SET_COARSE_POSITION,	// 8
-    HOME_FINAL_BACKOFF_START,	// 9
-    HOME_FINAL_BACKOFF_WAIT,	// 10
-    HOME_RISE_SEARCH_START,		// 11
-    HOME_RISE_SEARCH_WAIT,		// 12
-    HOME_FALL_SEARCH_START,		// 13
-    HOME_FALL_SEARCH_WAIT,		// 14
-    HOME_SET_SWITCH_POSITION,	// 15
-    HOME_INDEX_ONLY_START,		// 16
-    HOME_INDEX_SEARCH_START,	// 17
-    HOME_INDEX_SEARCH_WAIT,		// 18
-    HOME_SET_INDEX_POSITION,	// 19
-    HOME_FINAL_MOVE_START,		// 20
-    HOME_FINAL_MOVE_WAIT,		// 21
-    HOME_LOCK,			// 22
-    HOME_LOCK_WAIT,			// 23
-    HOME_WAIT,                      // 24
-    HOME_FINISHED,			// 25
-    HOME_ABORT			// 26
+    HOME_START,                         // 1
+    HOME_UNLOCK,                        // 2
+    HOME_UNLOCK_WAIT,                   // 3
+    HOME_INITIAL_BACKOFF_START,         // 4
+    HOME_INITIAL_BACKOFF_WAIT,          // 5
+    HOME_INITIAL_SEARCH_START,          // 6
+    HOME_INITIAL_SEARCH_WAIT,           // 7
+    HOME_SET_COARSE_POSITION,           // 8
+    HOME_FINAL_BACKOFF_START,           // 9
+    HOME_FINAL_BACKOFF_WAIT,            // 10
+    HOME_RISE_SEARCH_START,             // 11
+    HOME_RISE_SEARCH_WAIT,              // 12
+    HOME_FALL_SEARCH_START,             // 13
+    HOME_FALL_SEARCH_WAIT,              // 14
+    HOME_SET_SWITCH_POSITION,           // 15
+    HOME_INDEX_ONLY_START,              // 16
+    HOME_INDEX_SEARCH_START,            // 17
+    HOME_INDEX_SEARCH_WAIT,             // 18
+    HOME_SET_INDEX_POSITION,            // 19
+    HOME_FINAL_MOVE_START,              // 20
+    HOME_FINAL_MOVE_WAIT,               // 21
+    HOME_LOCK,                          // 22
+    HOME_LOCK_WAIT,                     // 23
+    HOME_WAIT,                          // 24
+    HOME_FINISHED,                      // 25
+    HOME_ABORT,                         // 26
 } home_state_t;
 
 typedef enum {
