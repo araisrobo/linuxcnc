@@ -4,6 +4,9 @@ loadrt ddt count=3
 loadrt hypot count=2
 loadrt spindle names=spindle_s 
 loadrt spindle_aux names=spindle_t 
+loadrt newmux2f   count=1
+loadrt newmux2s   count=2
+loadrt or2        count=1
 
 # load RT modules
 loadrt [KINS]KINEMATICS
@@ -23,7 +26,10 @@ addf    hypot.0         servo-thread
 addf    hypot.1         servo-thread
 addf    spindle_s       servo-thread
 addf    spindle_t       servo-thread
-
+addf    newmux2f.0      servo-thread
+addf    newmux2s.0      servo-thread
+addf    newmux2s.1      servo-thread
+addf    or2.0           servo-thread
 # spindle
 setp spindle_s.max-vel  [AXIS_S]MAX_VELOCITY
 setp spindle_s.max-acc  [AXIS_S]MAX_ACCELERATION
@@ -96,6 +102,7 @@ setp wou.motion.spindle-joint-id [KINS]SPINDLE_JOINT_ID
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
+# net YYpos joint.2.motor-pos-cmd => wou.stepgen.2.position-cmd 
 net Ypos                        => wou.stepgen.2.position-cmd 
 net Zpos  joint.3.motor-pos-cmd => wou.stepgen.3.position-cmd
 net spindle-curr-pos-cmd        => wou.stepgen.4.position-cmd
@@ -135,7 +142,8 @@ net sync_in_timeout     motion.sync-in-timeout =>  wou.sync.in.timeout
 net din_00                         => motion.enable
 net j0ena   joint.0.amp-enable-out => wou.stepgen.0.enable
 net j1ena   joint.1.amp-enable-out => wou.stepgen.1.enable
-net j1ena                          => wou.stepgen.2.enable
+net j2ena   joint.2.amp-enable-out => wou.stepgen.2.enable
+#net j1ena                          => wou.stepgen.2.enable
 net j3ena   joint.3.amp-enable-out => wou.stepgen.3.enable
 net j4ena   joint.4.amp-enable-out => wou.stepgen.4.enable
 
@@ -245,40 +253,71 @@ net J4-risc-pos-cmd wou.stepgen.4.risc-pos-cmd => joint.4.risc-pos-cmd
 # use LSN as homing switch for AXIS-X, AXIS-Y:
 setp joint.0.home-sw-id 8
 setp joint.1.home-sw-id 10
+setp joint.2.home-sw-id 12
 # use LSP as homing switch for AXIS-Z:
 setp joint.3.home-sw-id 13
 # home switch status from FPGA
 net din_08      joint.0.home-sw-in
 net din_10      joint.1.home-sw-in
+net din_12      joint.2.home-sw-in
 net din_13      joint.3.home-sw-in
 
+net j1-homing   joint.1.homing => or2.0.in0
+net j2-homing   joint.2.homing => or2.0.in1
+net j1-2-homing                 <= or2.0.out
+
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
-net j1-homing   joint.1.homing => wou.stepgen.1.homing
-net j1-homing                  => wou.stepgen.2.homing
+#net j1-homing   joint.1.homing => wou.stepgen.1.homing
+#net j2-homing   joint.2.homing => wou.stepgen.2.homing
+net j1-2-homing                  => wou.stepgen.1.homing
+net j1-2-homing                  => wou.stepgen.2.homing
+#net j1-homing                  => wou.stepgen.2.homing
 net j3-homing   joint.3.homing => wou.stepgen.3.homing
 net j4-homing   joint.4.homing => wou.stepgen.4.homing
 
+net j1-risc-probe-vel       joint.1.risc-probe-vel => newmux2f.0.in1
+net j2-risc-probe-vel       joint.2.risc-probe-vel => newmux2f.0.in2
+net j1-2-risc-probe-vel                            <= newmux2f.0.out
+net j1-2-risc-probe-sel                            <= newmux2f.0.sel
+
 net j0-risc-probe-vel    joint.0.risc-probe-vel => wou.stepgen.0.risc-probe-vel
-net j1-risc-probe-vel    joint.1.risc-probe-vel => wou.stepgen.1.risc-probe-vel
-net j1-risc-probe-vel                           => wou.stepgen.2.risc-probe-vel
+#net j1-risc-probe-vel    joint.1.risc-probe-vel => wou.stepgen.1.risc-probe-vel
+#net j1-risc-probe-vel                           => wou.stepgen.2.risc-probe-vel
+net j1-2-risc-probe-vel                         => wou.stepgen.1.risc-probe-vel
+net j1-2-risc-probe-vel                         => wou.stepgen.2.risc-probe-vel
 net j3-risc-probe-vel    joint.3.risc-probe-vel => wou.stepgen.3.risc-probe-vel
 net j4-risc-probe-vel    joint.4.risc-probe-vel => wou.stepgen.4.risc-probe-vel
 
+net j1-2-risc-probe-sel     newmux2s.0.sel          
+net j1-risc-probe-pin       joint.1.risc-probe-pin => newmux2s.0.in1
+net j2-risc-probe-pin       joint.2.risc-probe-pin => newmux2s.0.in2
+net j1-2-risc-probe-pin                            <= newmux2s.0.out
+
 net j0-risc-probe-pin    joint.0.risc-probe-pin => wou.stepgen.0.risc-probe-pin
-net j1-risc-probe-pin    joint.1.risc-probe-pin => wou.stepgen.1.risc-probe-pin
-net j1-risc-probe-pin                           => wou.stepgen.2.risc-probe-pin
+#net j1-risc-probe-pin    joint.1.risc-probe-pin => wou.stepgen.1.risc-probe-pin
+# net j1-risc-probe-pin                           => wou.stepgen.2.risc-probe-pin
+net j1-2-risc-probe-pin                           => wou.stepgen.1.risc-probe-pin
+net j1-2-risc-probe-pin                           => wou.stepgen.2.risc-probe-pin
 net j3-risc-probe-pin    joint.3.risc-probe-pin => wou.stepgen.3.risc-probe-pin
 net j4-risc-probe-pin    joint.4.risc-probe-pin => wou.stepgen.4.risc-probe-pin
 
+net j1-2-risc-probe-sel      newmux2s.1.sel          
+net j1-risc-probe-type       joint.1.risc-probe-type => newmux2s.1.in1
+net j2-risc-probe-type       joint.2.risc-probe-type => newmux2s.1.in2
+net j1-2-risc-probe-type                             <= newmux2s.1.out
+
 net j0-risc-probe-type   joint.0.risc-probe-type => wou.stepgen.0.risc-probe-type
-net j1-risc-probe-type   joint.1.risc-probe-type => wou.stepgen.1.risc-probe-type
-net j1-risc-probe-type                           => wou.stepgen.2.risc-probe-type
+# net j1-risc-probe-type   joint.1.risc-probe-type => wou.stepgen.1.risc-probe-type
+# net j1-risc-probe-type                           => wou.stepgen.2.risc-probe-type
+net j1-2-risc-probe-type                           => wou.stepgen.1.risc-probe-type
+net j1-2-risc-probe-type                           => wou.stepgen.2.risc-probe-type
 net j3-risc-probe-type   joint.3.risc-probe-type => wou.stepgen.3.risc-probe-type
 net j4-risc-probe-type   joint.4.risc-probe-type => wou.stepgen.4.risc-probe-type
 
 net j0-risc-probe-dist   joint.0.risc-probe-dist => wou.stepgen.0.risc-probe-dist
 net j1-risc-probe-dist   joint.1.risc-probe-dist => wou.stepgen.1.risc-probe-dist
-net j1-risc-probe-dist                           => wou.stepgen.2.risc-probe-dist
+net j2-risc-probe-dist   joint.2.risc-probe-dist => wou.stepgen.2.risc-probe-dist
+#net j1-risc-probe-dist                           => wou.stepgen.2.risc-probe-dist
 net j3-risc-probe-dist   joint.3.risc-probe-dist => wou.stepgen.3.risc-probe-dist
 net j4-risc-probe-dist   joint.4.risc-probe-dist => wou.stepgen.4.risc-probe-dist
 
