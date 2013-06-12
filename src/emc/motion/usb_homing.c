@@ -46,6 +46,10 @@
    'home_do_moving_checks()' can access it */
 static int immediate_state;
 
+static emcmot_joint_t *master_gantry_joint;
+static emcmot_joint_t *slave_gantry_joint;
+static emcmot_joint_t *sync_gantry_joint;       // synchronized gantry joint
+
 /***********************************************************************
  *                      LOCAL FUNCTIONS                                 *
  ************************************************************************/
@@ -62,11 +66,19 @@ static void home_start_move(emcmot_joint_t * joint, double vel, int probe_type)
     joint->risc_probe_vel = vel;
     joint->risc_probe_pin = joint->home_sw_id;
     joint->risc_probe_type = probe_type;
+    if (joint->home_flags & HOME_GANTRY_JOINT) {
+        sync_gantry_joint->risc_probe_vel = vel;
+        sync_gantry_joint->risc_probe_pin = joint->home_sw_id;
+        sync_gantry_joint->risc_probe_type = probe_type;
+    }
 }
 
 static void home_stop_move(emcmot_joint_t * joint)
 {
     joint->risc_probe_vel = 0;
+    if (joint->home_flags & HOME_GANTRY_JOINT) {
+        sync_gantry_joint->risc_probe_vel = 0;
+    }
 }
 
 /***********************************************************************
@@ -102,6 +114,9 @@ void do_homing_sequence(void)
         }
         /* ok to start the sequence, start at zero */
         home_sequence = 0;
+        /* reset gantry joint pointers */
+        master_gantry_joint = 0;
+        slave_gantry_joint = 0;
         /* tell the world we're on the job */
         emcmotStatus->homing_active = 1;
         /* and drop into next state */
@@ -214,14 +229,32 @@ void do_homing(void)
                 SET_JOINT_AT_HOME_FLAG(joint, 0);
                 /* stop any existing motion */
                 joint->free_tp.enable = 0;
-                /* reset delay counter */
-                /* figure out exactly what homing sequence is needed */
+
+                if (joint->home_flags & HOME_GANTRY_JOINT) {
+                    if (joint->home_flags & HOME_GANTRY_MASTER) {
+                        master_gantry_joint = joint;
+                        sync_gantry_joint = joint;
+                        // printf (" HOME_GANTRY_MASTER is waiting for GANTRY_SLAVE to search home switch\n");
+                        if (!slave_gantry_joint) {
+                            break;
+                        }
+                        if (slave_gantry_joint->home_state != HOME_FINAL_MOVE_START) {
+                            break;
+                        }
+                        // ("Begin HOME_GANTRY_MASTER\n");
+                    } else {
+                        slave_gantry_joint = joint;
+                        // ("Begin HOME_GANTRY_SLAVE\n");
+                    }
+                }
+
                 if (joint->home_flags & HOME_UNLOCK_FIRST) {
                     joint->home_state = HOME_UNLOCK;
                 } else {
                     joint->home_state = HOME_UNLOCK_WAIT;
                     immediate_state = 1;
                 }
+
                 break;
 
             case HOME_UNLOCK:
@@ -637,6 +670,17 @@ void do_homing(void)
 		   set properly.  It moves to the actual 'home' position,
 		   which is not neccessarily the position of the home switch
 		   or index pulse. */
+
+                if (joint->home_flags & HOME_GANTRY_JOINT) {
+                    if (joint == slave_gantry_joint) {
+                        sync_gantry_joint = joint;      // set synchronized gantry joint as slave joint
+                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT) {
+                            // wait until master_gantry_joint found its home switch
+                            break;
+                        }
+                    }
+                }
+
                 /* is the joint already moving? */
                 if (joint->free_tp.active) {
                     /* yes, reset delay, wait until joint stops */
