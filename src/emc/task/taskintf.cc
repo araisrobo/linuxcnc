@@ -266,7 +266,8 @@ int emcJointSetMinFerror(int joint, double ferror)
 int emcJointSetHomingParams(int joint, double home, double offset, double home_final_vel,
 			   double search_vel, double latch_vel,
 			   int use_index, int ignore_limits, int is_shared,
-			   int sequence,int volatile_home, int locking_indexer)
+			   int sequence,int volatile_home, int locking_indexer,
+			   int gantry_master, int gantry_slave)
 {
     CATCH_NAN(isnan(home) || isnan(offset) || isnan(home_final_vel) || isnan(search_vel) || isnan(latch_vel));
 
@@ -295,6 +296,13 @@ int emcJointSetHomingParams(int joint, double home, double offset, double home_f
     }
     if (locking_indexer) {
         emcmotCommand.flags |= HOME_UNLOCK_FIRST;
+    }
+    if (gantry_master) {
+        emcmotCommand.flags |= HOME_GANTRY_MASTER;
+        emcmotCommand.flags |= HOME_GANTRY_JOINT;
+    }
+    if (gantry_slave) {
+        emcmotCommand.flags |= HOME_GANTRY_JOINT;
     }
 
     int retval = usrmotWriteEmcmotCommand(&emcmotCommand);
