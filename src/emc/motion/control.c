@@ -1211,12 +1211,10 @@ static void handle_jogwheels(void)
         joint->free_tp.pos_cmd = pos;
         joint->free_tp.max_vel = joint->vel_limit;
         joint->free_tp.max_acc = joint->acc_limit;
-        joint->free_tp.max_jerk = joint->jerk_limit;
         /* lock out other jog sources */
         joint->wheel_jog_active = 1;
         /* and let it go */
         joint->free_tp.enable = 1;
-        joint->free_tp.position_mode = 1; // wheel jog: accurate positioning
         SET_JOINT_ERROR_FLAG(joint, 0);
         /* clear joint homed flag(s) if we don't have forward kins.
            Otherwise, a transition into coordinated mode will incorrectly
@@ -1334,7 +1332,6 @@ static void get_pos_cmds(long period)
 
             /* set acc limit in free TP */
             joint->free_tp.max_acc = joint->acc_limit;
-            joint->free_tp.max_jerk = joint->jerk_limit;
             /* execute free TP */
             if (joint->disable_jog == 0) {
                 /* do not allow jog over hard limit */
