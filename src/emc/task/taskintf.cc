@@ -16,6 +16,7 @@
 #include <float.h>              // DBL_MAX
 #include <string.h>		// memcpy() strncpy()
 #include <unistd.h>             // unlink()
+#include <assert.h>
 
 #include "usrmotintf.h"		// usrmotInit(), usrmotReadEmcmotStatus(),
 				// etc.
@@ -70,6 +71,8 @@ static emcmot_status_t emcmotStatus;
 
 static struct TrajConfig_t TrajConfig;
 static struct JointConfig_t JointConfig[EMCMOT_MAX_JOINTS];
+static int master_gantry_joint_id = -1;
+static int slave_gantry_joint_id = -1;
 static struct AxisConfig_t AxisConfig[EMCMOT_MAX_AXIS];
 
 static emcmot_command_t emcmotCommand;
@@ -297,12 +300,17 @@ int emcJointSetHomingParams(int joint, double home, double offset, double home_f
     if (locking_indexer) {
         emcmotCommand.flags |= HOME_UNLOCK_FIRST;
     }
+    JointConfig[joint].SyncJogId = -1;
     if (gantry_master) {
         emcmotCommand.flags |= HOME_GANTRY_MASTER;
         emcmotCommand.flags |= HOME_GANTRY_JOINT;
+        JointConfig[joint].SyncJogId = HOME_GANTRY_MASTER; // to find slave joint id to sync_jog
+        master_gantry_joint_id = joint; // to find slave joint id to sync_jog
     }
     if (gantry_slave) {
         emcmotCommand.flags |= HOME_GANTRY_JOINT;
+        JointConfig[joint].SyncJogId = 0; // to find master joint id to sync_jog
+        slave_gantry_joint_id = joint; // to find slave joint id to sync_jog
     }
 
     int retval = usrmotWriteEmcmotCommand(&emcmotCommand);
@@ -770,6 +778,14 @@ int emcJogCont(int nr, double vel)
 	vel = -JointConfig[nr].MaxVel;
     }
 
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOG_CONT;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        emcmotCommand.vel = vel;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
+    }
+
     emcmotCommand.command = EMCMOT_JOG_CONT;
     emcmotCommand.joint = nr;
     emcmotCommand.vel = vel;
@@ -787,6 +803,15 @@ int emcJogIncr(int nr, double incr, double vel)
 	vel = JointConfig[nr].MaxVel;
     } else if (vel < -JointConfig[nr].MaxVel) {
 	vel = -JointConfig[nr].MaxVel;
+    }
+
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOG_INCR;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        emcmotCommand.vel = vel;
+        emcmotCommand.offset = incr;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
     }
 
     emcmotCommand.command = EMCMOT_JOG_INCR;
@@ -809,6 +834,15 @@ int emcJogAbs(int nr, double pos, double vel)
 	vel = -JointConfig[nr].MaxVel;
     }
 
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOG_ABS;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        emcmotCommand.vel = vel;
+        emcmotCommand.offset = pos;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
+    }
+
     emcmotCommand.command = EMCMOT_JOG_ABS;
     emcmotCommand.joint = nr;
     emcmotCommand.vel = vel;
@@ -822,6 +856,14 @@ int emcJogStop(int nr)
     if (nr < 0 || nr >= EMCMOT_MAX_JOINTS) {
 	return 0;
     }
+
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOINT_ABORT;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
+    }
+
     emcmotCommand.command = EMCMOT_JOINT_ABORT;
     emcmotCommand.joint = nr;
 
@@ -1648,6 +1690,19 @@ int emcMotionInit()
 	if (0 != emcJointInit(joint)) {
 	    r2 = -1;		// at least one is busted
 	}
+    }
+
+    // set SyncJogId for gantry joints
+    for (joint = 0; joint < TrajConfig.Joints; joint++) {
+        if (JointConfig[joint].SyncJogId == HOME_GANTRY_MASTER) {
+            // set gantry_slave for gantry_master
+            JointConfig[joint].SyncJogId = slave_gantry_joint_id;
+        } else if (JointConfig[joint].SyncJogId == 0) {
+            // set gantry_slave for gantry_master
+            JointConfig[joint].SyncJogId = master_gantry_joint_id;
+        } else {
+            assert (JointConfig[joint].SyncJogId == -1);
+        }
     }
 
     r3 = 0;
