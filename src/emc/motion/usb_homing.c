@@ -46,9 +46,9 @@
    'home_do_moving_checks()' can access it */
 static int immediate_state;
 
-static emcmot_joint_t *master_gantry_joint;
-static emcmot_joint_t *slave_gantry_joint;
-static emcmot_joint_t *sync_gantry_joint;       // synchronized gantry joint
+static emcmot_joint_t* master_gantry_joint = 0;
+static emcmot_joint_t* slave_gantry_joint = 0;
+static emcmot_joint_t* sync_gantry_joint = 0;       // synchronized gantry joint
 
 /***********************************************************************
  *                      LOCAL FUNCTIONS                                 *
@@ -114,9 +114,9 @@ void do_homing_sequence(void)
         }
         /* ok to start the sequence, start at zero */
         home_sequence = 0;
-        /* reset gantry joint pointers */
-        master_gantry_joint = 0;
-        slave_gantry_joint = 0;
+//        /* reset gantry joint pointers */
+//        master_gantry_joint = 0;
+//        slave_gantry_joint = 0;
         /* tell the world we're on the job */
         emcmotStatus->homing_active = 1;
         /* and drop into next state */
@@ -215,6 +215,14 @@ void do_homing(void)
             immediate_state = 0;
             switch (joint->home_state) {
             case HOME_IDLE:
+                // update master and slave gantry joint pointers
+                if (joint->home_flags & HOME_GANTRY_JOINT) {
+                    if (joint->home_flags & HOME_GANTRY_MASTER) {
+                        master_gantry_joint = joint;
+                    } else {
+                        slave_gantry_joint = joint;
+                    }
+                }
                 /* nothing to do */
                 break;
 
@@ -231,19 +239,26 @@ void do_homing(void)
                 joint->free_tp.enable = 0;
 
                 if (joint->home_flags & HOME_GANTRY_JOINT) {
+                    assert (master_gantry_joint); // the master pointer must not be null
+                    assert (slave_gantry_joint); // the slave pointer must not be null
                     if (joint->home_flags & HOME_GANTRY_MASTER) {
-                        master_gantry_joint = joint;
-                        sync_gantry_joint = joint;
-                        // printf (" HOME_GANTRY_MASTER is waiting for GANTRY_SLAVE to search home switch\n");
-                        if (!slave_gantry_joint) {
-                            break;
-                        }
                         if (slave_gantry_joint->home_state != HOME_FINAL_MOVE_START) {
+                            if (slave_gantry_joint->home_state == HOME_IDLE) {
+                                slave_gantry_joint->home_state = HOME_START;
+                            }
                             break;
                         }
+                        sync_gantry_joint = slave_gantry_joint;
                         // ("Begin HOME_GANTRY_MASTER\n");
                     } else {
-                        slave_gantry_joint = joint;
+                        if (master_gantry_joint->home_state != HOME_START) {
+                            if (master_gantry_joint->home_state == HOME_IDLE) {
+                                master_gantry_joint->home_state = HOME_START;
+                            }
+                            // wait until master_gantry_joint starts homing
+                            break;
+                        }
+                        sync_gantry_joint = master_gantry_joint;
                         // ("Begin HOME_GANTRY_SLAVE\n");
                     }
                 }
@@ -673,7 +688,6 @@ void do_homing(void)
 
                 if (joint->home_flags & HOME_GANTRY_JOINT) {
                     if (joint == slave_gantry_joint) {
-                        sync_gantry_joint = joint;      // set synchronized gantry joint as slave joint
                         if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT) {
                             // wait until master_gantry_joint found its home switch
                             break;
