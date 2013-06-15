@@ -96,6 +96,18 @@ const char *enc_pol[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(enc_pol, MAX_CHAN,
         "encoder polarity (POSITIVE(p) or NEGATIVE(n)) for up to 8 channels");
 
+// lsp_id: gpio pin id for limit-switch-positive(lsp)
+const char *lsp_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(lsp_id, MAX_CHAN,
+        "lsp_id: gpio pin id for limit-switch-positive(lsp) for up to 8 channels");
+
+// lsn_id: gpio pin id for limit-switch-negative(lsn)
+const char *lsn_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(lsn_id, MAX_CHAN,
+        "lsn_id: gpio pin id for limit-switch-negative(lsn) for up to 8 channels");
+
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
 
@@ -824,6 +836,7 @@ int rtapi_app_main(void)
     double enc_scale;
     double max_jerk;
     int msg;
+    int lsp, lsn;
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     // rtapi_set_msg_level(RTAPI_MSG_INFO);
@@ -993,6 +1006,22 @@ int rtapi_app_main(void)
     wou_cmd (&w_param, WB_WR_CMD,
             (uint16_t) (SSIF_BASE | SSIF_ENC_POL),
             (uint8_t) 1, data);
+
+    // "set LSP_ID/LSN_ID for up to 8 channels"
+    data[0] = 0;
+    for (n = 0; n < MAX_CHAN && (lsp_id[n][0] != ' ') ; n++) {
+        pos_scale = atof(pos_scale_str[n]);
+        lsp = atoi(lsp_id[n]);
+        lsn = atoi(lsn_id[n]);
+        if(pos_scale >= 0) {
+            immediate_data = (n << 16) | (lsp << 8) | (lsn);
+        } else {
+            immediate_data = (n << 16) | (lsn << 8) | (lsp);
+        }
+        write_machine_param(JOINT_LSP_LSN, immediate_data);
+        while(wou_flush(&w_param) == -1);
+
+    }
 
     // configure alarm output (for E-Stop)
     write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));

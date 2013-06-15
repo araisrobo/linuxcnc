@@ -209,6 +209,7 @@ enum machine_parameter_addr {
     PARAM13,
     PARAM14,
     PARAM15,
+    JOINT_LSP_LSN,  // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
     ALR_OUTPUT, 
     MACHINE_CTRL,   // [31:28]  RESERVED
                     // [27:24]  SPINDLE_JOINT_ID
