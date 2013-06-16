@@ -686,15 +686,6 @@ void do_homing(void)
 		   which is not neccessarily the position of the home switch
 		   or index pulse. */
 
-                if (joint->home_flags & HOME_GANTRY_JOINT) {
-                    if (joint == slave_gantry_joint) {
-                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT) {
-                            // wait until master_gantry_joint found its home switch
-                            break;
-                        }
-                    }
-                }
-
                 /* is the joint already moving? */
                 if (joint->free_tp.active) {
                     /* yes, reset delay, wait until joint stops */
@@ -707,6 +698,16 @@ void do_homing(void)
                     joint->home_pause_timer++;
                     break;
                 }
+
+                if (joint->home_flags & HOME_GANTRY_JOINT) {
+                    if (joint == slave_gantry_joint) {
+                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT) {
+                            // wait until master_gantry_joint found its home switch
+                            break;
+                        }
+                    }
+                }
+
                 joint->home_pause_timer = 0;
                 /* plan a move to home position */
                 joint->free_tp.pos_cmd = joint->home;
