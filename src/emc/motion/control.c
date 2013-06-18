@@ -1120,31 +1120,23 @@ static void handle_jogwheels(void)
     int joint_num;
     emcmot_joint_t *joint;
     joint_hal_t *joint_data;
-    int new_jog_counts, delta;
-    double distance, pos, stop_dist;
 
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint data */
         joint_data = &(emcmot_hal_data->joint[joint_num]);
         joint = &joints[joint_num];
+
+        joint->wheel_jog_active = 0;
         if (!GET_JOINT_ACTIVE_FLAG(joint)) {
             /* if joint is not active, skip it */
             continue;
         }
-        /* get counts from jogwheel */
-        new_jog_counts = *(joint_data->jog_counts);
-        delta = new_jog_counts - joint->old_jog_counts;
-        /* save value for next time */
-        joint->old_jog_counts = new_jog_counts;
+
         /* initialization complete */
         if ( first_pass ) {
             continue;
         }
-        /* did the wheel move? */
-        if ( delta == 0 ) {
-            /* no, nothing to do */
-            continue;
-        }
+
         /* must be in free mode and enabled */
         if (GET_MOTION_COORD_FLAG()) {
             continue;
@@ -1152,10 +1144,12 @@ static void handle_jogwheels(void)
         if (!GET_MOTION_ENABLE_FLAG()) {
             continue;
         }
+
         /* the jogwheel input for this joint must be enabled */
         if ( *(joint_data->jog_enable) == 0 ) {
             continue;
         }
+
         /* must not be homing */
         if (emcmotStatus->homing_active) {
             continue;
@@ -1168,59 +1162,16 @@ static void handle_jogwheels(void)
             /* don't jog if feedhold is on or if feed override is zero */
             break;
         }
-        /* calculate distance to jog */
-        distance = delta * *(joint_data->jog_scale);
-        /* check for joint already on hard limit */
-        if (distance > 0.0 && GET_JOINT_PHL_FLAG(joint)) {
-            continue;
-        }
-        if (distance < 0.0 && GET_JOINT_NHL_FLAG(joint)) {
-            continue;
-        }
-        /* calc target position for jog */
-        pos = joint->free_tp.pos_cmd + distance;
-        /* don't jog past limits */
-        refresh_jog_limits(joint);
-        if (pos > joint->max_jog_limit) {
-            continue;
-        }
-        if (pos < joint->min_jog_limit) {
-            continue;
-        }
 
-        /* The default is to move exactly as far as the wheel commands,
-           even if that move takes much longer than the wheel movement
-           that commanded it.  Some folks prefer that the move stop as
-           soon as the wheel does, even if that means not moving the
-           commanded distance.  Velocity mode is for those folks.  If
-           the command is faster than the machine can track, excess
-           command is simply dropped. */
-        if ( *(joint_data->jog_vel_mode) ) {
-            double v = joint->vel_limit * emcmotStatus->net_feed_scale;
-            /* compute stopping distance at max speed */
-            stop_dist = v * v / ( 2 * joint->acc_limit);
-            /* if commanded position leads the actual position by more
-               than stopping distance, discard excess command */
-            if ( pos > joint->pos_cmd + stop_dist ) {
-                pos = joint->pos_cmd + stop_dist;
-            } else if ( pos < joint->pos_cmd - stop_dist ) {
-                pos = joint->pos_cmd - stop_dist;
-            }
-        }
-        /* set target position and use full velocity and accel */
-        joint->free_tp.pos_cmd = pos;
-        joint->free_tp.max_vel = joint->vel_limit;
-        joint->free_tp.max_acc = joint->acc_limit;
         /* lock out other jog sources */
         joint->wheel_jog_active = 1;
-        /* and let it go */
-        joint->free_tp.enable = 1;
+
         SET_JOINT_ERROR_FLAG(joint, 0);
-        /* clear joint homed flag(s) if we don't have forward kins.
-           Otherwise, a transition into coordinated mode will incorrectly
-           assume the homed position. Do all if they've all been moved
-           since homing, otherwise just do this one */
-        clearHomes(joint_num);
+//        /* clear joint homed flag(s) if we don't have forward kins.
+//           Otherwise, a transition into coordinated mode will incorrectly
+//           assume the homed position. Do all if they've all been moved
+//           since homing, otherwise just do this one */
+//        clearHomes(joint_num);
     }
 }
 
@@ -1363,7 +1314,6 @@ static void get_pos_cmds(long period)
                 SET_JOINT_INPOS_FLAG(joint, 1);
                 /* joint has stopped, so any outstanding jogs are done */
                 joint->kb_jog_active = 0;
-                joint->wheel_jog_active = 0;
             }
         }//for loop for joints
         /* if overriding is true and we're in position, the jog

@@ -372,12 +372,13 @@ typedef struct {
     hal_float_t  *ahc_level;
     double      prev_ahc_level;
     hal_float_t  *ahc_max_offset;
-    uint32_t      prev_ahc_max_level;
+    uint32_t     prev_ahc_max_level;
     hal_u32_t    *ahc_max_level;
-    uint32_t      prev_ahc_min_level;
+    uint32_t     prev_ahc_min_level;
     hal_u32_t    *ahc_min_level;
     /* motion state tracker */
-    hal_s32_t *motion_state;
+    hal_s32_t    *motion_state;
+    hal_u32_t    *jog_sel;
     /* command channel for emc2 */
     hal_u32_t *wou_cmd;
     uint32_t prev_wou_cmd;
@@ -1488,7 +1489,10 @@ static void update_freq(void *arg, long period)
      *  MACHINE_CTRL,   // [31:28]  RESERVED
      *                  // [27:24]  SPINDLE_JOINT_ID
      *                  // [23:16]  NUM_JOINTS
-     *                  // [15: 8]  RESERVED
+     *                  // [l5: 8]  JOG_SEL
+     *                                  [15]: MPG(1), CONT(0)
+     *                                  [14]: RESERVED
+     *                                  [13:8]: J[5:0], EN(1)
      *                  // [ 7: 4]  ACCEL_STATE
      *                  // [ 3: 1]  MOTION_MODE:
      *                                  FREE    (0)
@@ -1498,7 +1502,8 @@ static void update_freq(void *arg, long period)
      *                  // [    0]  MACHINE_ON
      **/
 
-    tmp = (*machine_control->motion_state << 4)
+    tmp = (*machine_control->jog_sel << 8)
+          | (*machine_control->motion_state << 4)
           | (*machine_control->homing << 3)
           | (*machine_control->coord_mode << 2)
           | (*machine_control->teleop_mode << 1)
@@ -2413,6 +2418,12 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->motion_state) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->jog_sel), comp_id, "wou.motion.jog-sel");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->jog_sel) = 0;
 
     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
             "wou.mpg_count");

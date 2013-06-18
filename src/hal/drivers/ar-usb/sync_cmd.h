@@ -133,7 +133,10 @@
  *  MACHINE_CTRL,   // [31:28]  RESERVED
  *                  // [27:24]  SPINDLE_JOINT_ID
  *                  // [23:16]  NUM_JOINTS
- *                  // [15: 8]  RESERVED
+ *                  // [l5: 8]  JOG_SEL
+ *                                  [15]: MPG(1), CONT(0)
+ *                                  [14]: RESERVED
+ *                                  [13:8]: J[5:0], EN(1)
  *                  // [ 7: 4]  ACCEL_STATE
  *                  // [ 3: 1]  MOTION_MODE: 
  *                                  FREE    (0) 
@@ -146,8 +149,10 @@
 #define MCTRL_MOTION_TYPE_MASK          0x0000000E  // MOTION_TYPE mask for MACHINE_CTRL
 #define MCTRL_HOMING_MASK               0x00000008  // HOMING_MASK for MACHINE_CTRL
 #define MCTRL_ACCEL_STATE_MASK          0x000000F0  // ACCEL_STATE mask for MACHINE_CTRL
-#define MCTRL_TAPPING_MASK              0x0000FF00  // TAPPING mask for MACHINE_CTRL
+//obsolete: #define MCTRL_TAPPING_MASK              0x0000FF00  // TAPPING mask for MACHINE_CTRL
 #define MCTRL_NUM_JOINTS_MASK           0x00FF0000  // NUM_JOINTS mask for MACHINE_CTRL
+#define MCTRL_SPINDLE_ID_MASK           0x0F000000  // SPINDLE_JOINT_ID mask for MACHINE_CTRL
+#define MCTRL_JOG_SEL_MASK              0x0000FF00  // JOG_SEL mask for MACHINE_CTRL
 
 typedef enum {
     // 0'b 0000     0000     0000     0000     0000     0000        0000   0000
@@ -214,9 +219,9 @@ enum machine_parameter_addr {
     MACHINE_CTRL,   // [31:28]  RESERVED
                     // [27:24]  SPINDLE_JOINT_ID
                     // [23:16]  NUM_JOINTS
-                    // [15: 8]  RESERVED
+                    // [l5: 8]  JOG_SEL
                     // [ 7: 4]  ACCEL_STATE
-                    // [ 3: 1]  MOTION_MODE: FREE(0) TELEOP(1) COORD(2) HOMING(4)
+                    // [ 3: 1]  MOTION_MODE: 
                     // [    0]  MACHINE_ON
     MACHINE_PARAM_ITEM
 };

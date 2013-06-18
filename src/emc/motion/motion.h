@@ -557,7 +557,6 @@ typedef struct {
     double      motor_offset;		/* diff between internal and motor pos, used
 				   	   to set position to zero during homing */
     double      blender_offset;        /* offset created by realtime component, blender.comp */
-    int         old_jog_counts;			/* prior value, used for deltas */
     double      probed_pos;
 
     double     risc_probe_vel; 	/* velocity for RISC probing */
