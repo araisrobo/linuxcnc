@@ -130,7 +130,7 @@
 #define AHC_DOING_BIT                   18
 
 /**
- *  MACHINE_CTRL,   // [31:28]  RESERVED
+ *  MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
  *                  // [27:24]  SPINDLE_JOINT_ID
  *                  // [23:16]  NUM_JOINTS
  *                  // [l5: 8]  JOG_SEL
@@ -153,6 +153,8 @@
 #define MCTRL_NUM_JOINTS_MASK           0x00FF0000  // NUM_JOINTS mask for MACHINE_CTRL
 #define MCTRL_SPINDLE_ID_MASK           0x0F000000  // SPINDLE_JOINT_ID mask for MACHINE_CTRL
 #define MCTRL_JOG_SEL_MASK              0x0000FF00  // JOG_SEL mask for MACHINE_CTRL
+#define MCTRL_JOG_VEL_SCALE_VALUE_MASK  0x70000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
+#define MCTRL_JOG_VEL_SCALE_SIGN_MASK   0x80000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
 
 typedef enum {
     // 0'b 0000     0000     0000     0000     0000     0000        0000   0000
@@ -216,10 +218,10 @@ enum machine_parameter_addr {
     PARAM15,
     JOINT_LSP_LSN,  // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
     ALR_OUTPUT, 
-    MACHINE_CTRL,   // [31:28]  RESERVED
+    MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
                     // [27:24]  SPINDLE_JOINT_ID
                     // [23:16]  NUM_JOINTS
-                    // [l5: 8]  JOG_SEL
+                    // [15: 8]  JOG_SEL
                     // [ 7: 4]  ACCEL_STATE
                     // [ 3: 1]  MOTION_MODE: 
                     // [    0]  MACHINE_ON

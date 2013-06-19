@@ -379,6 +379,8 @@ typedef struct {
     /* motion state tracker */
     hal_s32_t    *motion_state;
     hal_u32_t    *jog_sel;
+    hal_s32_t    *jog_vel_scale;
+
     /* command channel for emc2 */
     hal_u32_t *wou_cmd;
     uint32_t prev_wou_cmd;
@@ -1495,7 +1497,7 @@ static void update_freq(void *arg, long period)
 
     /* begin motion_mode */
     /**
-     *  MACHINE_CTRL,   // [31:28]  RESERVED
+     *  MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
      *                  // [27:24]  SPINDLE_JOINT_ID
      *                  // [23:16]  NUM_JOINTS
      *                  // [l5: 8]  JOG_SEL
@@ -1511,7 +1513,9 @@ static void update_freq(void *arg, long period)
      *                  // [    0]  MACHINE_ON
      **/
 
-    tmp = (*machine_control->jog_sel << 8)
+    assert(abs(*machine_control->jog_vel_scale) < 8);
+    tmp = (*machine_control->jog_vel_scale << 28)
+          | (*machine_control->jog_sel << 8)
           | (*machine_control->motion_state << 4)
           | (*machine_control->homing << 3)
           | (*machine_control->coord_mode << 2)
@@ -2433,6 +2437,12 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->jog_sel) = 0;
+
+    retval = hal_pin_s32_newf(HAL_IN, &(machine_control->jog_vel_scale), comp_id, "wou.motion.jog-vel-scale");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->jog_vel_scale) = 0;
 
     retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->mpg_count), comp_id,
             "wou.mpg_count");

@@ -5,15 +5,19 @@
 
 component jog "control MPG and CONT jogging";
 
+pin in  bit     mpg-scale-sel.#[2]      "array of mpg-scale-sel signals";
 pin in  bit     mpg-joint-sel.#[3]      "array of mpg-joint-sel signals";
 pin in  bit     wheel-jog-active.#[6]   "array of wheel-jog-active signals";
 
+pin out  s32    jog-vel-scale           "jog-vel-scale for shifting mpg-vel left/right";
 pin out  u32    jog-sel                 "bitwise jog select signal";
 pin out  bit    wheel-jog-enable.#[6]   "array of wheel-jog-enable signals for handle_jogwheels()";
 
 param rw  u32   master-gantry-id        "";
 param rw  u32   slave-gantry-id         "";
-
+param rw  s32   jog-scale.#[3]          "jog-vel-scale options for shifting mpg-vel left/right";
+                                        /* positive : shift left  *
+                                         * negative : shift right */
 
 license "GPL";
 
@@ -42,8 +46,8 @@ FUNCTION(_)
         jog_sel |= (1 << 7);            // set jog_sel[7] for MPG jogging
     }
     mpg_joint_code = ((mpg_joint_sel(2) << 2) |
-                     (mpg_joint_sel(1) << 1) |
-                     (mpg_joint_sel(0))) - 1;   // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
+                      (mpg_joint_sel(1) << 1) |
+                      (mpg_joint_sel(0))) - 1;   // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
     for(i=0; i<6; i++)
     {
         wheel_jog_enable(i) = 0;
@@ -61,6 +65,20 @@ FUNCTION(_)
     {
         wheel_jog_enable(master_gantry_id) = 1;
     }
-
-
+    
+    if (mpg_scale_sel(1))
+    {   // 2'b1x
+        jog_vel_scale = jog_scale(2);
+    }
+    else
+    {
+        if (mpg_scale_sel(0))
+        {   // 2'b01
+            jog_vel_scale = jog_scale(1);
+        }
+        else
+        {   // 2'b00
+            jog_vel_scale = jog_scale(0);
+        }
+    }
 }
