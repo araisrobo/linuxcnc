@@ -723,8 +723,8 @@ stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
 # wou.o is composed of (multiple) wou-objs
 obj-$(CONFIG_WOU) += wou.o
 wou-objs := hal/drivers/ar-usb/wou_stepgen.o $(MATHSTUB)
-obj-$(CONFIG_WOU_SIM) += wou_sim.o
-wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
+# obj-$(CONFIG_WOU_SIM) += wou_sim.o
+# wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -984,7 +984,7 @@ endif
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
 ../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
-../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
+# ../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
