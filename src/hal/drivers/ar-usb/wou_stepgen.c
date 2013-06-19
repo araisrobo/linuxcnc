@@ -1199,6 +1199,13 @@ int rtapi_app_main(void)
         write_mot_param (n, (ENC_SCALE), immediate_data);
         while(wou_flush(&w_param) == -1);
 
+        /* unit_pulse_scale per servo_period */
+        immediate_data = (uint32_t)(FIXED_POINT_SCALE * pos_scale * dt);
+        rtapi_print_msg(RTAPI_MSG_DBG, "j[%d] scale(0x%08X)\n", n, immediate_data);
+        assert(immediate_data != 0);
+        write_mot_param (n, (SCALE), immediate_data);
+        while(wou_flush(&w_param) == -1);
+
         /* config MAX velocity */
         // * 1.05 : add 5% head room
         immediate_data = (uint32_t)((max_vel * pos_scale * dt * FIXED_POINT_SCALE) * 1.05);    
@@ -1222,14 +1229,16 @@ int rtapi_app_main(void)
         while(wou_flush(&w_param) == -1);
         stepgen_array[n].pulse_maxa = immediate_data;
 
-        /* config acceleration recip */
-        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt * 1.05));
-        rtapi_print_msg(RTAPI_MSG_DBG, 
-                "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
-                n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
-        assert(immediate_data > 0);
-        write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
-        while(wou_flush(&w_param) == -1);
+//        /* config acceleration recip */
+//        immediate_data = (uint32_t)(FIXED_POINT_SCALE / (max_accel * pos_scale * dt * dt * 1.05));
+//        rtapi_print_msg(RTAPI_MSG_DBG,
+//                "j[%d] max_accel_recip(%d) = (%f/(%f*%f*(%f^2)))\n",
+//                n, immediate_data, FIXED_POINT_SCALE, max_accel, pos_scale, dt);
+//        assert(immediate_data > 0);
+//        write_mot_param (n, (MAX_ACCEL_RECIP), immediate_data);
+//        while(wou_flush(&w_param) == -1);
+
+
 
         /* config max jerk */
         /* TODO: confirm the "2.17x" of jerk:
@@ -1281,11 +1290,11 @@ int rtapi_app_main(void)
                 rtapi_print_msg(RTAPI_MSG_INFO, "pid(%d) = %s (%d)\n",i, pid_str[n][i], immediate_data);
             }
 
-            value = 0;
-            immediate_data = (int32_t) (value);
-            write_mot_param (n, (ENABLE), immediate_data);
-            while(wou_flush(&w_param) == -1);
-            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
+//            value = 0;
+//            immediate_data = (int32_t) (value);
+//            write_mot_param (n, (ENABLE), immediate_data);
+//            while(wou_flush(&w_param) == -1);
+//            rtapi_print_msg(RTAPI_MSG_INFO, "\n");
         }
     }
     analog = hal_malloc(sizeof(analog_t));

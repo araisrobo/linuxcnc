@@ -258,9 +258,9 @@ enum ahc_state_enum {
 enum motion_parameter_addr {
     MAX_VELOCITY      ,
     MAX_ACCEL         ,
-    MAX_ACCEL_RECIP   ,
+    MAX_JERK	      ,
     MAXFOLLWING_ERR   ,
-                            // PID section: begin
+    // PID section: begin
     P_GAIN            ,     // (unit: 1/65536)
     I_GAIN            ,     // (unit: 1/65536)
     D_GAIN            ,     // (unit: 1/65536)
@@ -274,14 +274,12 @@ enum motion_parameter_addr {
     MAXERROR_D        ,
     MAXCMD_D          ,
     MAXCMD_DD         ,
-    MAXOUTPUT         ,     // PID section: end
-
-    ENABLE            ,     // set to 1 to enable joint motion
-    MAX_JERK	      ,
+    MAXOUTPUT         ,     
+    // PID section: end
+    SCALE             ,     // unit_pulses/servo_period : 16.16 format, 
     ENC_SCALE         ,     // encoder scale: 16.16 format
     SSYNC_SCALE       ,     // spindle sync compensation scale: 16.16 format
     JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
-
     MAX_PARAM_ITEM
 };
 
