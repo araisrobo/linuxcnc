@@ -45,27 +45,34 @@ FUNCTION(_)
     {
         jog_sel |= (1 << 7);            // set jog_sel[7] for MPG jogging
     }
+
     mpg_joint_code = ((mpg_joint_sel(2) << 2) |
                       (mpg_joint_sel(1) << 1) |
-                      (mpg_joint_sel(0))) - 1;   // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
+                      (mpg_joint_sel(0)));   // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
     for(i=0; i<6; i++)
     {
         wheel_jog_enable(i) = 0;
     }
-    if (mpg_joint_code >= 0)
+
+    if (mpg_joint_code > 0)
     {
-        wheel_jog_enable(mpg_joint_code) = 1;
+        // wheel_jog_enable(mpg_joint_code) = 1;
+        if (mpg_joint_code == 1) {
+            // X
+            wheel_jog_enable(0) = 1;
+        } else if (mpg_joint_code == 2) {
+            // Y => gantry
+            wheel_jog_enable(master_gantry_id) = 1;
+            wheel_jog_enable(slave_gantry_id) = 1;
+        } else if (mpg_joint_code == 3) {
+            // Z 
+            wheel_jog_enable(3) = 1;
+        } else if (mpg_joint_code == 4) {
+            // W 
+            wheel_jog_enable(4) = 1;
+        }
     }
 
-    if (mpg_joint_code == master_gantry_id)
-    {
-        wheel_jog_enable(slave_gantry_id) = 1;
-    }
-    else if (mpg_joint_code == slave_gantry_id)
-    {
-        wheel_jog_enable(master_gantry_id) = 1;
-    }
-    
     if (mpg_scale_sel(1))
     {   // 2'b1x
         jog_vel_scale = jog_scale(2);
