@@ -334,7 +334,6 @@ void do_homing(void)
 		   successfully.  If the move ends or hits a limit before it
 		   clears the switch, the home is aborted. */
                 if (*emcmot_hal_data->update_pos_req == 0) {
-                    assert (!home_sw_active);
                     /* begin initial search */
                     joint->home_state = HOME_INITIAL_SEARCH_START;
                     immediate_state = 1;
