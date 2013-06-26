@@ -5,13 +5,14 @@
 
 component spindle_aux "Spindle with pulse command interface";
 
-//pin in  float velocity-cmd = 0   "Commanded speed (rps)";
-pin in  float css-error-velocity-cmd = 0   "Commanded speed (rps*radius)";
+pin in  float velocity-cmd = 0   "spindle speed command (rps)";
+pin in  float css-error-velocity-cmd = 0   "Const Surface Speed Commanded(rps*radius)";
 pin in  float aux-radius= 0      "aux-radius";
 
 pin in  float position-cmd = 0   "Commanded position";
 pin in  float feedback-vel = 0   "Feedback velocity based on spindle encoder";
 pin in  bit   velocity-mode = 0  "Velocity(1) or position(0) mode";
+pin in  float css-factor= 0      "CSS(non-0) or CONST-RPM(0)";
 pin in  bit   on = 0             "Spindle on";
 
 pin out bit   at-speed       "Set when spindle is at speed for velocity-mode";
@@ -65,8 +66,8 @@ void vel_ctrl (double vel_cmd, double period)
     max_da = max_jerk * period;
     tiny_dv = max_da * period * 0.001;
 
-    vel_cmd = vel_cmd / aux_radius;
-    //printf("vel_cmd(%f)", vel_cmd);
+    // vel_cmd = vel_cmd / aux_radius;
+    // printf("vel_cmd(%f)", vel_cmd);
     
     /* limit velocity cmd */
     if (vel_cmd > max_vel) {
@@ -120,19 +121,8 @@ void vel_ctrl (double vel_cmd, double period)
 
 
 FUNCTION(_) {
-    // double old_position = position_fb;
-    // double new_position = position_fb + css_error_velocity_cmd * fperiod * scale;
-
-    // if(index_enable && (floor(old_position) != floor(new_position))) {
-    //     index_enable = false;
-    //     if(css_error_velocity_cmd < 0)
-    //         new_position = new_position - ceil(new_position);
-    //     else
-    //         new_position = new_position - floor(new_position);
-    // }
-    // position_fb = new_position;
     double tmp;
-    //double velocity_cmd;
+    double vel_cmd;
     static spindle_state_t cur_state = S_IDLE;
     
     if ((!on) && (curr_vel == 0))
@@ -151,7 +141,6 @@ FUNCTION(_) {
             if (on) {
                 if (velocity_mode) {
                     cur_state = S_VEL_MODE;
-//                    at_speed = 0;
                 } else {
                     cur_state = S_POS_MODE;
                 }
@@ -160,9 +149,18 @@ FUNCTION(_) {
 
         case S_VEL_MODE:
             /* will set at-speed as 1 inside vel_ctrl() */
-            //velocity_cmd = css_error_velocity_cmd / aux_radius;
+            
+            if (css_factor != 0) 
+            {
+                vel_cmd = css_error_velocity_cmd / aux_radius;
+            }
+            else
+            {
+                vel_cmd = velocity_cmd;
+            }
             //printf("velocity_cmd(%f) css_error_velocity_cmd(%f)\n", velocity_cmd, css_error_velocity_cmd);
-            vel_ctrl (css_error_velocity_cmd, fperiod);
+
+            vel_ctrl (vel_cmd, fperiod);
             curr_pos += curr_vel * fperiod;
             if ((!on) || (!velocity_mode)) {
                 cur_state = S_VEL_DECEL;
