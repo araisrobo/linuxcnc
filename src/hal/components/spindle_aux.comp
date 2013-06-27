@@ -158,7 +158,7 @@ FUNCTION(_) {
             {
                 vel_cmd = velocity_cmd;
             }
-            //printf("velocity_cmd(%f) css_error_velocity_cmd(%f)\n", velocity_cmd, css_error_velocity_cmd);
+//            printf("velocity_cmd(%f) css_error_velocity_cmd(%f) vel_cmd(%f)\n", velocity_cmd, css_error_velocity_cmd, vel_cmd);
 
             vel_ctrl (vel_cmd, fperiod);
             curr_pos += curr_vel * fperiod;

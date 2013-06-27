@@ -1952,39 +1952,10 @@ static void output_to_hal(void)
     *(emcmot_hal_data->homing) = emcmotStatus->homing_active;
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
-//    if(emcmotStatus->spindle.css_factor)
-//    {
-//        double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
-//        double speed;
-//        double maxpositive;
-//        if(denom > 0) speed = emcmotStatus->spindle.css_factor / denom;
-//        else speed = emcmotStatus->spindle.speed;
-//
-//        speed = speed * emcmotStatus->net_spindle_scale;
-//
-//        maxpositive = fabs(emcmotStatus->spindle.speed);
-//        // cap speed to G96 D...
-//        if(speed < -maxpositive)
-//            speed = -maxpositive;
-//        if(speed > maxpositive)
-//            speed = maxpositive;
-//
-//        *(emcmot_hal_data->spindle_speed_out) = speed;
-//        *(emcmot_hal_data->spindle_speed_out_rps) = speed/60.;
-//        /* calculate css and exprot to hal pin */
-//        // TODO: confirm rad or diam mode??
-//        *(emcmot_hal_data->spindle_css) = *(emcmot_hal_data->spindle_speed_out_rps) * denom * 2 * PI;
-//    }
-//    else
-//    {
-//        *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
-//        *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;
-//    }
     *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
     *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;
 
     *(emcmot_hal_data->spindle_speed_cmd_rps) = emcmotStatus->spindle.speed / 60.;
-    *(emcmot_hal_data->spindle_on) = ((emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale) != 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_velocity_mode) = (!emcmotStatus->spindleSync);
     *(emcmot_hal_data->spindle_position_cmd) = (emcmotStatus->spindle_position_cmd);
     *(emcmot_hal_data->spindle_forward) = (*emcmot_hal_data->spindle_speed_out > 0) ? 1 : 0;
