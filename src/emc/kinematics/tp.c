@@ -1407,6 +1407,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
         emcmotStatus->zuu_per_rev = 0;
+        emcmotStatus->spindle.css_error = 0;
+
         return 0;
     }
 
@@ -1422,6 +1424,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
         emcmotStatus->zuu_per_rev = 0;
+        emcmotStatus->spindle.css_error = 0;
 
         if(tc->indexrotary != -1) {
             // this was an indexing move, so before we remove it we must

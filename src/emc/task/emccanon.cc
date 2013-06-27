@@ -1118,7 +1118,7 @@ void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_
     DP("vel(%f) acc(%f) jerk(%f)\n", vel, acc, rigidTapMsg.ini_maxjerk);
     DP("spindleSpeed(%f) spindle_dir(%d)\n", canon.spindleSpeed, canon.spindle_dir);
 
-    assert (vel > 0);
+    assert (vel != 0);
     assert (acc > 0);
 
     if(vel && acc)  {
