@@ -1508,6 +1508,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 waiting_for_index, tc->id);
         waiting_for_index = MOTION_INVALID_ID;
     }
+
     if (MOTION_ID_VALID(waiting_for_atspeed) && waiting_for_atspeed != tc->id)  
     {
 
@@ -1527,20 +1528,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         }
     }
 
+
     if(tc->active == 0) {
         // this means this tc is being read for the first time.
-
-        // wait for atspeed, if motion requested it.  also, force
-        // atspeed check for the start of all spindle synchronized
-        // moves.
-        if((tc->atspeed || (tc->synchronized && !tc->velocity_mode && !emcmotStatus->spindleSync)) && 
-           !emcmotStatus->spindle.at_speed) {
-            waiting_for_atspeed = tc->id;
-            emcmotStatus->xuu_per_rev = 0;
-            emcmotStatus->yuu_per_rev = 0;
-            emcmotStatus->zuu_per_rev = 0;
-            return 0;
-        }
 
         if (tc->indexrotary != -1) {
             // request that the axis unlock
@@ -1553,12 +1543,20 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
         tc->active = 1;
         tc->cur_vel = 0;
-        //ysli: not necessary to force depth to 1:
-        //      tp->depth = tp->activeDepth = 1;
         //ysli: can't understand the usage of activeDepth.
         tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
         tc->blending = 0;
+
+        // TODO: make sure the atspeed judgment is valid for G33 and G33.1
+        if(tc->atspeed) {
+            // force to wait 1 more cycle for updating emcmotStatus->spindle.at_speed
+            waiting_for_atspeed = tc->id;
+            emcmotStatus->xuu_per_rev = 0;
+            emcmotStatus->yuu_per_rev = 0;
+            emcmotStatus->zuu_per_rev = 0;
+            return 0;
+        }
     }
 
     emcmotStatus->spindleSync = tc->synchronized;

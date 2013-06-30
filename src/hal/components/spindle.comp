@@ -7,7 +7,7 @@ component spindle "Spindle with pulse command interface";
 
 pin in  float velocity-cmd = 0   "Commanded speed (rps)";
 pin in  float position-cmd = 0   "Commanded position";
-pin in  float feedback-vel = 0   "Feedback velocity based on spindle encoder";
+pin in  float feedback-vel = 0   "Feedback velocity based on spindle encoder (rps)";
 pin in  float css-factor = 0;
 pin in  bit   velocity-mode = 0  "Velocity(1) or position(0) mode";
 pin in  bit   on = 0             "Spindle on";
@@ -58,17 +58,9 @@ typedef enum {
 void vel_ctrl (double vel_cmd, double period)
 {
     double max_da, tiny_dv, vel_err, acc_req;
-    // static double curr_vel, curr_acc; // global signal
 
     max_da = max_jerk * period;
     tiny_dv = max_da * period * 0.001;
-
-    /* limit velocity cmd */
-    if (vel_cmd > max_vel) {
-        vel_cmd = max_vel;
-    } else if (vel_cmd < -max_vel) {
-        vel_cmd = -max_vel;
-    }
 
     /* calculate desired acceleration */
 
@@ -88,9 +80,6 @@ void vel_ctrl (double vel_cmd, double period)
         /* within 'tiny_dv' of desired vel, no need to accel */
         acc_req = 0;
         curr_vel = vel_cmd;
-//        if (curr_vel != 0) {
-//            at_speed = 1;
-//        }
     }
 
     /* limit acceleration request */
@@ -117,81 +106,84 @@ void vel_ctrl (double vel_cmd, double period)
 FUNCTION(_) {
     // double old_position = position_fb;
     // double new_position = position_fb + velocity_cmd * fperiod * scale;
+    // fperiod: default variable provided by .comp generator
 
-    // if(index_enable && (floor(old_position) != floor(new_position))) {
-    //     index_enable = false;
-    //     if(velocity_cmd < 0)
-    //         new_position = new_position - ceil(new_position);
-    //     else
-    //         new_position = new_position - floor(new_position);
-    // }
-    // position_fb = new_position;
     double tmp;
+    double vel_req;
+    int    immediate_state;
     static spindle_state_t cur_state = S_IDLE;
     
     if ((!on) && (curr_vel == 0))
     {
         cur_state = S_IDLE;
     }
-            
-
-    //printf("cur_state(%d)\n", cur_state);
-    switch (cur_state)
-    {
-        case S_IDLE:
-//            at_speed = 1;
-            curr_vel = 0;
-            in_position = 0;
-            if (on) {
-                if (velocity_mode && (css_factor == 0)) {
-                    cur_state = S_VEL_MODE;
-                } else {
-                    cur_state = S_POS_MODE;
+    
+    do {
+        immediate_state = 0;
+        switch (cur_state)
+        {
+            case S_IDLE:
+                vel_req = 0;
+                curr_vel = 0;
+                in_position = 0;
+                if (on) {
+                    immediate_state = 1;
+                    if (velocity_mode && (css_factor == 0)) {
+                        cur_state = S_VEL_MODE;
+                    } else {
+                        cur_state = S_POS_MODE;
+                    }
                 }
-            }
-            break;
+                break;
 
-        case S_VEL_MODE:
-            /* will set at-speed as 1 inside vel_ctrl() */
-            vel_ctrl (velocity_cmd, fperiod);
-            curr_pos += curr_vel * fperiod;
-            if ((!on) || (!velocity_mode)) {
-                cur_state = S_VEL_DECEL;
-            }
-            break;
+            case S_VEL_MODE:
+                vel_req = velocity_cmd;
+                /* limit velocity request */
+                if (vel_req > max_vel) {
+                    vel_req = max_vel;
+                } else if (vel_req < -max_vel) {
+                    vel_req = -max_vel;
+                }
+                vel_ctrl (vel_req, fperiod);
+                curr_pos += curr_vel * fperiod;
+                if ((!on) || (!velocity_mode)) {
+                    cur_state = S_VEL_DECEL;
+                }
+                break;
 
-        case S_VEL_DECEL:
-            // decel to vel == 0
-//            at_speed = 0;
-            in_position = 0;
-            vel_ctrl (0, fperiod);
-            if (curr_vel == 0) {
-                cur_state = S_IDLE;
-            } else if (on && velocity_mode) {
-                cur_state = S_VEL_MODE;
-            }
-            break;
+            case S_VEL_DECEL:
+                // decel to vel == 0
+                vel_req = 0;
+                in_position = 0;
+                vel_ctrl (0, fperiod);
+                if (curr_vel == 0) {
+                    cur_state = S_IDLE;
+                } else if (on && velocity_mode) {
+                    cur_state = S_VEL_MODE;
+                }
+                break;
 
-        case S_POS_MODE:
-            // TODO
-//            at_speed = 1;
-            in_position = 1;
-            tmp = curr_vel;
-            curr_vel = (position_cmd - curr_pos) / fperiod;
-            curr_acc = curr_vel - tmp;
-            curr_pos = position_cmd;
-            if ((!on) || (velocity_mode)) 
-            {
-                cur_state = S_VEL_DECEL;
-            }
-            break;
+            case S_POS_MODE:
+                in_position = 1;
+                tmp = curr_vel;
+                curr_vel = (position_cmd - curr_pos) / fperiod;
+                curr_acc = curr_vel - tmp;
+                curr_pos = position_cmd;
+                vel_req = curr_vel;
+                assert (fabs(vel_req) <= max_vel);
+                if ((!on) || (velocity_mode)) 
+                {
+                    cur_state = S_VEL_DECEL;
+                }
+                break;
 
-        default:
-            assert(0);
-            break;
-    }
-
-    if (curr_vel == 0)
+            default:
+                assert(0);
+                break;
+        }
+    } while (immediate_state != 0);
+    
+    if (vel_req == 0)
     {
         if (fabs(feedback_vel) <= at_speed_range) {
             at_speed = 1;
@@ -199,7 +191,7 @@ FUNCTION(_) {
             at_speed = 0;
         }
     } else {
-        if ((fabs(1 - feedback_vel/curr_vel)) <= at_speed_range) {
+        if ((fabs(1 - feedback_vel/vel_req)) <= at_speed_range) {
             at_speed = 1;
         } else {
             at_speed = 0;
