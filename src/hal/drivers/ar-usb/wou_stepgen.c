@@ -318,6 +318,12 @@ typedef struct {
 
     hal_float_t *uu_per_rev;
     hal_float_t prev_uu_per_rev;
+
+    hal_bit_t   *bypass_lsp;
+    hal_bit_t   *bypass_lsn;
+    hal_bit_t   prev_bypass_lsp;
+    hal_bit_t   prev_bypass_lsn;
+
 } stepgen_t;
 // #pragma pack(pop)   /* restore original alignment from stack */
 
@@ -1710,6 +1716,52 @@ static void update_freq(void *arg, long period)
             DP("spindle_joint_id(%d) uu_per_rev(%f) prev_uu_per_rev(%f)\n", *machine_control->spindle_joint_id, *stepgen->uu_per_rev, stepgen->prev_uu_per_rev);
         }
 
+        if (*stepgen->bypass_lsp != stepgen->prev_bypass_lsp)
+        {   // bypass limit-switch-positive
+            int lsp, lsn;
+
+            if (*stepgen->bypass_lsp)
+            {   /* 0 -> 1 */
+                lsp = 255;
+            }
+            else
+            {   /* 1 -> 0 */
+                lsp = atoi(lsp_id[n]);
+            }
+            lsn = atoi(lsn_id[n]);
+            if(stepgen->pos_scale >= 0) {
+                immediate_data = (n << 16) | (lsp << 8) | (lsn);
+            } else {
+                immediate_data = (n << 16) | (lsn << 8) | (lsp);
+            }
+            write_machine_param(JOINT_LSP_LSN, immediate_data);
+            while(wou_flush(&w_param) == -1);
+            stepgen->prev_bypass_lsp = *stepgen->bypass_lsp;
+        }
+
+        if (*stepgen->bypass_lsn != stepgen->prev_bypass_lsn)
+        {   // bypass limit-switch-negative
+            int lsp, lsn;
+
+            if (*stepgen->bypass_lsn)
+            {   /* 0 -> 1 */
+                lsn = 255;
+            }
+            else
+            {   /* 1 -> 0 */
+                lsn = atoi(lsn_id[n]);
+            }
+            lsp = atoi(lsp_id[n]);
+            if(stepgen->pos_scale >= 0) {
+                immediate_data = (n << 16) | (lsp << 8) | (lsn);
+            } else {
+                immediate_data = (n << 16) | (lsn << 8) | (lsp);
+            }
+            write_machine_param(JOINT_LSP_LSN, immediate_data);
+            while(wou_flush(&w_param) == -1);
+            stepgen->prev_bypass_lsn = *stepgen->bypass_lsn;
+        }
+
         *(stepgen->pos_fb) = (*stepgen->enc_pos) * stepgen->scale_recip;
         *(stepgen->risc_pos_cmd) = (*stepgen->cmd_fbs) * stepgen->scale_recip;
 
@@ -2159,6 +2211,16 @@ static int export_stepgen(int num, stepgen_t * addr,
     retval = hal_pin_bit_newf(HAL_IN, &(addr->homing), comp_id, "wou.stepgen.%d.homing", num);
     if (retval != 0) { return retval; }
     *addr->homing = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->bypass_lsp), comp_id, "wou.stepgen.%d.bypass_lsp", num);
+    if (retval != 0) { return retval; }
+    *addr->bypass_lsp = 0;
+    addr->prev_bypass_lsp = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->bypass_lsn), comp_id, "wou.stepgen.%d.bypass_lsn", num);
+    if (retval != 0) { return retval; }
+    *addr->bypass_lsn = 0;
+    addr->prev_bypass_lsn = 0;
 
     retval = hal_pin_float_newf(HAL_IN, &(addr->risc_probe_vel), comp_id, "wou.stepgen.%d.risc-probe-vel", num);
     if (retval != 0) { return retval; }
