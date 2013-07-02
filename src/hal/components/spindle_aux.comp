@@ -201,5 +201,10 @@ FUNCTION(_)
         }
     }
 
+    if (!on)
+    {
+        at_speed = 0;
+    }
+
     speed_rpm = curr_vel * 60.0;
 }
