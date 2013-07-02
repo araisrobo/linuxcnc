@@ -185,17 +185,30 @@ FUNCTION(_) {
     
     if (vel_req == 0)
     {
-        if (fabs(feedback_vel) <= at_speed_range) {
+        if (fabs(feedback_vel) <= at_speed_range) 
+        {
             at_speed = 1;
-        } else {
+        } 
+        else 
+        {
             at_speed = 0;
         }
-    } else {
-        if ((fabs(1 - feedback_vel/vel_req)) <= at_speed_range) {
+    } 
+    else 
+    {
+        if ((fabs(1 - feedback_vel/vel_req)) <= at_speed_range) 
+        {
             at_speed = 1;
-        } else {
+        } 
+        else 
+        {
             at_speed = 0;
         }
+    }
+
+    if (!on) 
+    {
+        at_speed = 0;
     }
 
     speed_rpm = curr_vel * 60.0;
