@@ -425,9 +425,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     pos.u = uvw.tran.x;
     pos.v = uvw.tran.y;
     pos.w = uvw.tran.z;
-//    DP ("GetEndPoint?(%d) tc->id %d MotionType %d X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",
-//    		of_endpoint,tc->id,tc->motion_type, pos.tran.x,
-//    		pos.tran.y, pos.tran.z, pos.a);
+    DP ("of_endpoint(%d) tc->id(%d) MotionType(%d) X(%.2f) Y(%.2f) Z(%.2f) W(%.2f)\n",
+    		of_endpoint, tc->id, tc->motion_type, pos.tran.x,
+    		pos.tran.y, pos.tran.z, pos.w);
     return pos;
 }
 
