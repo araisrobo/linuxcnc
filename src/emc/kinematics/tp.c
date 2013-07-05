@@ -1520,7 +1520,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
     // check for at-speed before marking the tc active
     if (MOTION_ID_VALID(waiting_for_atspeed)) {
-        if(!emcmotStatus->spindle.at_speed) {
+        if((emcmotStatus->spindle.on) && (!emcmotStatus->spindle.at_speed)) {
             /* spindle is still not at the right speed: wait */
             return 0;
         } else {
