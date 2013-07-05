@@ -1661,7 +1661,7 @@ void emcmotCommandHandler(void *arg, long period)
 	case EMCMOT_SPINDLE_OFF:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_OFF");
             *(emcmot_hal_data->spindle_on) = 0;
-            emcmotStatus->spindle.on = 1;
+            emcmotStatus->spindle.on = 0;
 	    emcmotStatus->spindle.speed = 0;
 	    emcmotStatus->spindle.direction = 0;
 	    emcmotStatus->spindle.brake = 1; // engage brake
