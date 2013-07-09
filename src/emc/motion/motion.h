@@ -613,6 +613,7 @@ typedef struct {
     int orient_state;       // orient_state_t
     int in_position;
     int at_speed;
+    int on;
     double curr_pos_cmd;
 } spindle_status;
 

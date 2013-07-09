@@ -416,6 +416,7 @@ static void process_inputs(void)
     emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
     emcmotStatus->spindle.in_position = *emcmot_hal_data->spindle_in_position;
     emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
+    emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
         /* use the enables that were queued with the current move */
