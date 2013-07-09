@@ -1563,8 +1563,11 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     emcmotStatus->spindle_position_cmd = emcmotStatus->spindle.curr_pos_cmd;
     if(emcmotStatus->spindleSync) {
         if(!emcmotStatus->spindle.in_position) {
-            // don't move: wait
-            return 0;
+            // don't move: wait until spindle.comp switch to S_POS_MODE
+            // spindle.comp will leave S_POS_MODE right after tp->aborting
+            // 避免 tcRunCycle 不再執行，所以加入以下檢查
+            if (!tp->aborting)
+                return 0;
         }
         if (!tc->coords.spindle_sync.spindle_start_pos_latch)
         {
@@ -1629,6 +1632,11 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             // change
             tc->reqvel = tc->coords.spindle_sync.spindle_reqvel * emcmotStatus->net_spindle_scale;
         }
+
+        if(tp->aborting) {
+            tc->reqvel = 0;
+        }
+
     } else
     {   // non spindle sync motion
         emcmotStatus->xuu_per_rev = 0;
