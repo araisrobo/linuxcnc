@@ -37,7 +37,7 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 
-#define CSS_TRACE 1
+#define CSS_TRACE 0
 #if (CSS_TRACE!=0)
 #if (TRACE==0)
 static FILE* csstrace = 0;
