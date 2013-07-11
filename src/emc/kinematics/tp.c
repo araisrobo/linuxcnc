@@ -1603,9 +1603,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             {
                 speed = tc->coords.spindle_sync.spindle_reqvel;
             }
+            speed = fabs(speed);
             maxpositive = fabs(tc->coords.spindle_sync.spindle_reqvel);
-            if(speed < -maxpositive)
-                speed = -maxpositive;
             if(speed > maxpositive)
                 speed = maxpositive;
             tc->reqvel = speed * emcmotStatus->net_spindle_scale;
