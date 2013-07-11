@@ -1652,7 +1652,10 @@ class GlCanonDraw:
                 glRotatef(90, 0, 1, 0)
             else:
                 if self.fix_tool_size == True:
+                    # self.distance: the distance to your eye (unit: mm)
                     dia = 4 * math.sqrt((self.distance / 10))
+                    if (self.get_show_metric() == False):
+                        dia = dia/25.4
                 else:
                     dia = current_tool.diameter 
                 r = self.to_internal_linear_unit(dia) / 2.
