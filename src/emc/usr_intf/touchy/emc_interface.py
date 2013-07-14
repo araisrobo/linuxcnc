@@ -377,8 +377,8 @@ class emc_status:
                 set_active(self.machines['on'], on)
                 set_active(self.machines['off'], not on)
 
-                ovl = self.emcstat.axis[0]['override_limits']
-                set_active(self.override_limit, ovl)
+#                ovl = self.emcstat.axis[0]['override_limits']
+#                set_active(self.override_limit, ovl)
 
                 set_text(self.status['file'], self.emcstat.file)
                 set_text(self.status['file_lines'], "%d" % len(self.listing.program))
