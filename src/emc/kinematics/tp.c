@@ -1612,7 +1612,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 speed = maxpositive;
             tc->reqvel = speed * emcmotStatus->net_spindle_scale;
             emcmotStatus->spindle.css_error = (emcmotStatus->spindle.css_factor / 60.0
-                                               - denom * tc->cur_vel / tc->cycle_time); // (unit/(2*PI*sec)
+                                               - denom * tc->cur_vel / tc->cycle_time)
+                                               * tc->coords.spindle_sync.spindle_dir; // (unit/(2*PI*sec)
             DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
             DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
             DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
