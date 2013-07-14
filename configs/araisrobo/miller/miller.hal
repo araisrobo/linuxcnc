@@ -63,10 +63,10 @@ net usb-cmd-param3 wou.usb.param-03 <= motion.usb.param-03
 
 net usb-stauts wou.motion.status => motion.wou.status
 net motionState motion.motion-state => wou.motion-state
-net rigid-tapping motion.rigid-tapping => wou.motion.rigid-tapping
-net xuu-per-rev motion.xuu-per-rev => wou.motion.xuu-per-rev
-net yuu-per-rev motion.yuu-per-rev => wou.motion.yuu-per-rev
-net zuu-per-rev motion.zuu-per-rev => wou.motion.zuu-per-rev
+net xuu-per-rev motion.xuu-per-rev => wou.stepgen.0.uu-per-rev
+net yuu-per-rev motion.yuu-per-rev => wou.stepgen.1.uu-per-rev
+net zuu-per-rev motion.zuu-per-rev => wou.stepgen.2.uu-per-rev
+setp wou.motion.spindle-joint-id [KINS]SPINDLE_JOINT_ID
 
 net Xpos  joint.0.motor-pos-cmd => wou.stepgen.0.position-cmd 
 net Ypos  joint.1.motor-pos-cmd => wou.stepgen.1.position-cmd 
