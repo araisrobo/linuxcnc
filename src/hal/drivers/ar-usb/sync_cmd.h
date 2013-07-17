@@ -136,7 +136,7 @@
  *                  // [l5: 8]  JOG_SEL
  *                                  [15]: MPG(1), CONT(0)
  *                                  [14]: RESERVED
- *                                  [13:8]: J[5:0], EN(1)
+ *                                  [13:8]: J[5:0], EN(1), DISABLE(0)
  *                  // [ 7: 4]  ACCEL_STATE
  *                  // [ 3: 1]  MOTION_MODE: 
  *                                  FREE    (0) 

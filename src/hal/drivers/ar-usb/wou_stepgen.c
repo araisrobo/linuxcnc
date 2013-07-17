@@ -1192,7 +1192,7 @@ int rtapi_app_main(void)
         // compute proper fraction bit for command
         // compute fraction bit for velocity
         // accurate 0.0001 mm
-        pos_scale   = fabs(atof(pos_scale_str[n]));
+        pos_scale   = atof(pos_scale_str[n]);
         max_vel     = atof(max_vel_str[n]);
         max_accel   = atof(max_accel_str[n]);
         max_jerk    = atof(max_jerk_str[n]);
@@ -1213,6 +1213,7 @@ int rtapi_app_main(void)
         assert(immediate_data != 0);
         write_mot_param (n, (SCALE), immediate_data);
         while(wou_flush(&w_param) == -1);
+        pos_scale = fabs(pos_scale);    // absolute pos_scale for MAX_VEL/ACCEL calculation
 
         /* config MAX velocity */
         // * 1.05 : add 5% head room
