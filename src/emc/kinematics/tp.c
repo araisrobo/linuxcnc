@@ -1403,12 +1403,10 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 	// when not executing a move, use the current enable flags
 	emcmotStatus->enables_queued = emcmotStatus->enables_new;
         // spindleSync maps to motion.spindle-velocity-mode
-        emcmotStatus->spindleSync = tp->synchronized;
+        emcmotStatus->spindleSync = 0;
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
         emcmotStatus->zuu_per_rev = 0;
-        emcmotStatus->spindle.css_error = 0;
-
         return 0;
     }
 
@@ -1424,7 +1422,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
         emcmotStatus->zuu_per_rev = 0;
-        emcmotStatus->spindle.css_error = 0;
 
         if(tc->indexrotary != -1) {
             // this was an indexing move, so before we remove it we must
@@ -1559,20 +1556,15 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         }
     }
 
+
     emcmotStatus->spindleSync = tc->synchronized;
-    emcmotStatus->spindle_position_cmd = emcmotStatus->spindle.curr_pos_cmd;
+//    emcmotStatus->spindle_position_cmd = emcmotStatus->spindle.curr_pos_cmd;
     if(emcmotStatus->spindleSync) {
-        if(!emcmotStatus->spindle.in_position) {
-            // don't move: wait until spindle.comp switch to S_POS_MODE
-            // spindle.comp will leave S_POS_MODE right after tp->aborting
-            // 避免 tcRunCycle 不再執行，所以加入以下檢查
-            if (!tp->aborting)
-                return 0;
-        }
         if (!tc->coords.spindle_sync.spindle_start_pos_latch)
         {
             tc->coords.spindle_sync.spindle_start_pos_latch = 1;
             tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->spindle.curr_pos_cmd;
+            tc->cur_vel = fabs(emcmotStatus->spindle.curr_vel_rps) * tc->cycle_time;
 
             /* bitmap for rigid-tapping-AXIS_X */
             if (tc->coords.spindle_sync.xyz.uVec.x > tiny)
@@ -1593,45 +1585,15 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
         }
 
-        if(emcmotStatus->spindle.css_factor)
-        {
-            double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
-            double speed;
-            double maxpositive;
-            // css_factor: unit(mm or inch)/min
-            if(denom > 0)
-            {
-                speed = emcmotStatus->spindle.css_factor / (denom * 60.0); // rps
-            } else
-            {
-                speed = tc->coords.spindle_sync.spindle_reqvel;
-            }
-            speed = fabs(speed);
-            maxpositive = fabs(tc->coords.spindle_sync.spindle_reqvel);
-            if(speed > maxpositive)
-                speed = maxpositive;
-            tc->reqvel = speed * emcmotStatus->net_spindle_scale;
-            emcmotStatus->spindle.css_error = (emcmotStatus->spindle.css_factor / 60.0
-                                               - denom * tc->cur_vel / tc->cycle_time)
-                                               * tc->coords.spindle_sync.spindle_dir; // (unit/(2*PI*sec)
-            DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
-            DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
-            DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
-            DP ("synched-joint-vel(%f)(unit/sec)\n",tc->cur_vel / tc->cycle_time * tp->uu_per_rev);
-
-#if (CSS_TRACE!=0)
-            /* prepare data for gnuplot */
-            fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
-                    , _dt, denom, tc->progress,emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI,denom * tc->cur_vel / tc->cycle_time * 2 * M_PI,
-                    (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * tc->cur_vel / tc->cycle_time * 2 * M_PI));
-            _dt += 1;
-#endif
-        } else
-        {
-            // G33 w/ G97 or G33.1
-            // change
-            tc->reqvel = tc->coords.spindle_sync.spindle_reqvel * emcmotStatus->net_spindle_scale;
-        }
+//        if(emcmotStatus->spindle.css_factor)
+//        {
+            tc->reqvel = fabs(emcmotStatus->spindle.speed_req_rps) * emcmotStatus->net_spindle_scale;
+//        } else
+//        {
+//            // G33 w/ G97 or G33.1
+//            // change
+//            tc->reqvel = tc->coords.spindle_sync.spindle_reqvel * emcmotStatus->net_spindle_scale;
+//        }
 
         if(tp->aborting) {
             tc->reqvel = 0;
@@ -1867,7 +1829,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     return 0;
 }
 
-int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode) {
+int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode)
+{
+    // tp->synchronized is for updating tc->synchronized and emcmotStatus->spindleSync
     if(sync) {
         tp->synchronized = 1;
         tp->uu_per_rev = sync;

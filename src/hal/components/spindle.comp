@@ -126,9 +126,10 @@ FUNCTION(_) {
                 vel_req = 0;
                 curr_vel = 0;
                 in_position = 0;
+                curr_pos = position_cmd;
                 if (on) {
                     immediate_state = 1;
-                    if (velocity_mode && (css_factor == 0)) {
+                    if (velocity_mode) {
                         cur_state = S_VEL_MODE;
                     } else {
                         cur_state = S_POS_MODE;
@@ -139,15 +140,22 @@ FUNCTION(_) {
             case S_VEL_MODE:
                 vel_req = velocity_cmd;
                 /* limit velocity request */
-                if (vel_req > max_vel) {
+                if (vel_req > max_vel)
+                {
                     vel_req = max_vel;
-                } else if (vel_req < -max_vel) {
+                } else if (vel_req < -max_vel)
+                {
                     vel_req = -max_vel;
                 }
                 vel_ctrl (vel_req, fperiod);
                 curr_pos += curr_vel * fperiod;
-                if ((!on) || (!velocity_mode)) {
+                if (!on)
+                {
                     cur_state = S_VEL_DECEL;
+                }
+                else if (!velocity_mode)
+                {
+                    cur_state = S_POS_MODE;
                 }
                 break;
 
@@ -156,9 +164,13 @@ FUNCTION(_) {
                 vel_req = 0;
                 in_position = 0;
                 vel_ctrl (0, fperiod);
-                if (curr_vel == 0) {
+                curr_pos += curr_vel * fperiod;
+                if (curr_vel == 0)
+                {
                     cur_state = S_IDLE;
-                } else if (on && velocity_mode) {
+                }
+                else if (on && velocity_mode)
+                {
                     cur_state = S_VEL_MODE;
                 }
                 break;
@@ -166,14 +178,19 @@ FUNCTION(_) {
             case S_POS_MODE:
                 in_position = 1;
                 tmp = curr_vel;
+                // position_cmd is controlled by tp
                 curr_vel = (position_cmd - curr_pos) / fperiod;
                 curr_acc = curr_vel - tmp;
                 curr_pos = position_cmd;
                 vel_req = curr_vel;
                 assert (fabs(vel_req) <= max_vel);
-                if ((!on) || (velocity_mode)) 
+                if (!on)
                 {
                     cur_state = S_VEL_DECEL;
+                }
+                else if (velocity_mode)
+                {
+                    cur_state = S_VEL_MODE;
                 }
                 break;
 

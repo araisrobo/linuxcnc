@@ -112,8 +112,6 @@ int kinematicsForward(const double *joints,
     // pos->b = joints[5];
     // pos->c = joints[6];
 
-    // YY_OFFSET = joints[1] - (joints[2] * GANTRY_POLARITY);
-
     DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f),POLARITY(%f)\n",
         pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
 

@@ -1647,6 +1647,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    /* 	SET_MOTION_ERROR_FLAG(1); */
 	    /* } else { */
 	    emcmotStatus->spindle.speed = emcmotCommand->vel;
+            emcmotStatus->spindle.speed_rps = emcmotCommand->vel / 60.0;
 	    emcmotStatus->spindle.css_factor = emcmotCommand->ini_maxvel;
 	    emcmotStatus->spindle.xoffset = emcmotCommand->acc;
 	    if (emcmotCommand->vel >= 0) {

@@ -119,6 +119,7 @@ typedef struct {
     hal_bit_t *spindle_is_atspeed;
     hal_bit_t *spindle_in_position;
     hal_float_t *spindle_curr_pos_cmd;
+    hal_float_t *spindle_curr_vel_rps;
     hal_float_t *spindle_revs;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
@@ -186,7 +187,6 @@ typedef struct {
     // output of a prescribed speed (to hook-up to a velocity controller)
     hal_float_t *spindle_speed_out;	/* spindle speed output */
     hal_float_t *spindle_speed_out_rps;	/* spindle speed output */
-    hal_float_t *spindle_speed_cmd_rps;	/* spindle speed command without SO applied */
     hal_float_t *spindle_speed_in;	/* spindle speed measured */
     hal_float_t *spindle_css_error;     /* error of Constant Surface Speed(CSS) motion, (unit/(2*PI*sec) */
     hal_float_t *spindle_css_factor;    /* 0: for CONST-RPM mode, NON-0 for CSS mode */

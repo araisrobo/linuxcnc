@@ -279,7 +279,7 @@ typedef struct {
     hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
-    hal_float_t *vel_cmd;	/* pin: velocity command (pos units/sec) */
+    hal_float_t *vel_cmd;	/* pin: velocity command (pos units/cycle_time) */
     double prev_vel_cmd;        /* prev vel cmd: previous velocity command */
     double      pos_cmd_s;	/* saved pos_cmd at rising edge of usb_busy */
     hal_float_t *pos_cmd;	/* pin: motor_pos_cmd (position units) */
@@ -851,19 +851,6 @@ int rtapi_app_main(void)
     // rtapi_set_msg_level(RTAPI_MSG_INFO);
     rtapi_set_msg_level(RTAPI_MSG_DBG);
 
-#if (TRACE!=0)
-    // initialize file handle for logging wou steps
-    dptrace = fopen("wou_stepgen.log", "w");
-    /* prepare header for gnuplot */
-    DPS("#%10s  %15s%15s%15s%15s  %15s%15s%15s%15s  %15s%15s%15s%15s  %15s%15s%15s%15s\n",
-            "dt",
-            "int_pcmd[0]", "prev_pcmd[0]", "pos_fb[0]", "risc_pos_cmd[0]",
-            "int_pcmd[1]", "prev_pcmd[1]", "pos_fb[1]", "risc_pos_cmd[1]",
-            "int_pcmd[2]", "prev_pcmd[2]", "pos_fb[2]", "risc_pos_cmd[2]",
-            "int_pcmd[3]", "prev_pcmd[3]", "pos_fb[3]", "risc_pos_cmd[3]"
-    );
-#endif
-
     machine_control = NULL;
 
     /* test for bitfile string: bits */
@@ -879,6 +866,11 @@ int rtapi_app_main(void)
             return -1;
         }
     }
+
+#if (TRACE!=0)
+    // initialize file handle for logging wou steps
+    dptrace = fopen("wou_stepgen.log", "w");
+#endif
 
     /* test for risc image file string: bins */
     if ((bins == 0) || (bins[0] == '\0')) {
@@ -1130,6 +1122,29 @@ int rtapi_app_main(void)
     data[0] = (1 << num_joints) - 1;  // bit-map-for-num_joints
     wou_cmd(&w_param, WB_WR_CMD, SSIF_BASE | SSIF_RST_POS, 1, data);
     while(wou_flush(&w_param) == -1);
+
+#if (TRACE!=0)
+// initialize file handle for logging wou steps
+//     dptrace = fopen("wou_stepgen.log", "w");
+    /* prepare header for gnuplot */
+//    DPS("#%10s  %15s%15s%15s%15s  %15s%15s%15s%15s  %15s%15s%15s%15s  %15s%15s%15s%15s\n",
+//            "dt",
+//            "int_pcmd[0]", "prev_pcmd[0]", "pos_fb[0]", "risc_pos_cmd[0]",
+//            "int_pcmd[1]", "prev_pcmd[1]", "pos_fb[1]", "risc_pos_cmd[1]",
+//            "int_pcmd[2]", "prev_pcmd[2]", "pos_fb[2]", "risc_pos_cmd[2]",
+//            "int_pcmd[3]", "prev_pcmd[3]", "pos_fb[3]", "risc_pos_cmd[3]"
+//    );
+
+    DPS("#%10s", "dt");
+    for (n = 0; n < num_joints; n++)
+    {
+        DPS("      int_pcmd[%d]", n);
+        DPS("     prev_pcmd[%d]", n);
+        DPS("        pos_fb[%d]", n);
+        DPS("  risc_pos_cmd[%d]", n);
+    }
+    DPS("\n");
+#endif
 
     // issue a WOU_WRITE to clear SSIF_RST_POS register
     data[0] = 0x00;
@@ -1881,6 +1896,7 @@ static void update_freq(void *arg, long period)
             }
             *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
         } else {
+            assert(0);
             /* velocity command mode */
             /* NB: has to wire *pos_cmd-pin to velocity command input */
             if (fabs(*stepgen->pos_cmd) > stepgen->maxvel) {

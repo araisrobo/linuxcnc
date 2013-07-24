@@ -602,7 +602,9 @@ typedef struct {
 
 
 typedef struct {
-    double speed;		// spindle speed in RPMs
+    double speed;               // spindle speed command in RPM; set at command.c
+    double speed_rps;           // spindle speed command in RPS; set at command.c
+    double speed_req_rps;       // calculated spindle speed command in RPS
     double css_factor;
     double xoffset;
     double css_error;          //
@@ -615,6 +617,7 @@ typedef struct {
     int at_speed;
     int on;
     double curr_pos_cmd;
+    double curr_vel_rps;
 } spindle_status;
 
 typedef struct {

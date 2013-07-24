@@ -125,6 +125,8 @@ FUNCTION(_)
 	case S_IDLE:
 	    curr_vel = 0;
 	    in_position = 0;
+            // TODO: position_cmd need to be updated by tp
+            curr_pos = position_cmd;
 	    if (on) {
 	        immediate_state = 1;
 		if (velocity_mode) {
@@ -149,6 +151,7 @@ FUNCTION(_)
             }
             vel_ctrl (vel_req, fperiod);
 	    curr_pos += curr_vel * fperiod;
+            // TODO: position_cmd need to be updated by tp
 	    if ((!on) || (!velocity_mode)) {
 		cur_state = S_VEL_DECEL;
 	    }
@@ -159,6 +162,8 @@ FUNCTION(_)
             vel_req = 0;
 	    in_position = 0;
 	    vel_ctrl(0, fperiod);
+	    curr_pos += curr_vel * fperiod;
+            // TODO: position_cmd need to be updated by tp
 	    if (curr_vel == 0) {
 		cur_state = S_IDLE;
 	    } else if (on && velocity_mode) {
@@ -170,6 +175,7 @@ FUNCTION(_)
 	    // TODO
 	    in_position = 1;
 	    tmp = curr_vel;
+            // position_cmd is controlled by tp
 	    curr_vel = (position_cmd - curr_pos) / fperiod;
 	    curr_acc = curr_vel - tmp;
 	    curr_pos = position_cmd;

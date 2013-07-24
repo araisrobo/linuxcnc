@@ -203,6 +203,7 @@ static void handle_jogwheels(void);
    calling the trajectory planner and interpolating its outputs.
  */
 static void get_pos_cmds(long period);
+static void get_spindle_cmds(double servo_period);
 
 /* 'compute_screw_comp()' is responsible for calculating backlash and
    lead screw error compensation.  (Leadscrew error compensation is
@@ -371,7 +372,8 @@ void emcmotController(void *arg, long period)
     do_homing();
     check_stuff ( "after do_homing()" );
     if (*(emcmot_hal_data->usb_busy) == 0) {
-        get_pos_cmds(period);
+        get_spindle_cmds (servo_period);
+        get_pos_cmds (period);
     }
     check_stuff ( "after get_pos_cmds()" );
     compute_screw_comp();
@@ -416,6 +418,8 @@ static void process_inputs(void)
     emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
     emcmotStatus->spindle.in_position = *emcmot_hal_data->spindle_in_position;
     emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
+    emcmotStatus->spindle.curr_vel_rps = *emcmot_hal_data->spindle_curr_vel_rps;
+    emcmotStatus->spindle_position_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
     emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
@@ -1213,6 +1217,51 @@ static double calc_vel(double vel_limit, double cur_vel, double cur_accel)
     return (cur_vel);
 }
 
+static void get_spindle_cmds (double cycle_time)
+{
+    if(emcmotStatus->spindle.css_factor)
+    {
+        // for G96
+        double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
+        double speed;       // speed for major spindle (spindle-s)
+        double maxpositive;
+        // css_factor: unit(mm or inch)/min
+        if(denom > 0)
+        {
+            speed = emcmotStatus->spindle.css_factor / (denom * 60.0); // rps
+        }
+        else
+        {
+            speed = emcmotStatus->spindle.speed_rps;
+        }
+        speed = fabs(speed);
+        maxpositive = fabs(emcmotStatus->spindle.speed_rps);
+        if(speed > maxpositive) speed = maxpositive;
+        emcmotStatus->spindle.speed_req_rps = speed * emcmotStatus->spindle.direction;
+        emcmotStatus->spindle.css_error =
+                        (emcmotStatus->spindle.css_factor / 60.0
+                         - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
+                        * emcmotStatus->spindle.direction; // (unit/(2*PI*sec)
+        //            DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
+        //            DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
+        //            DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
+        //            DP ("synched-joint-vel(%f)(unit/sec)\n",tc->cur_vel / tc->cycle_time * tp->uu_per_rev);
+        //#if (CSS_TRACE!=0)
+        //            /* prepare data for gnuplot */
+        //            fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
+        //                    , _dt, denom, tc->progress,emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI,denom * tc->cur_vel / tc->cycle_time * 2 * M_PI,
+        //                    (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * tc->cur_vel / tc->cycle_time * 2 * M_PI));
+        //            _dt += 1;
+        //#endif
+    }
+    else
+    {
+        // G97, G33 w/ G97 or G33.1
+        emcmotStatus->spindle.speed_req_rps = emcmotStatus->spindle.speed_rps;
+        emcmotStatus->spindle.css_error = 0;
+    }
+}
+
 static void get_pos_cmds(long period)
 {
     int joint_num, result;
@@ -1953,12 +2002,10 @@ static void output_to_hal(void)
     *(emcmot_hal_data->homing) = emcmotStatus->homing_active;
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
-    *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
-    *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;
-
-    *(emcmot_hal_data->spindle_speed_cmd_rps) = emcmotStatus->spindle.speed / 60.;
-    *(emcmot_hal_data->spindle_velocity_mode) = (!emcmotStatus->spindleSync);
+    *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed_req_rps * emcmotStatus->net_spindle_scale * 60.0;
+    *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed_req_rps * emcmotStatus->net_spindle_scale;
     *(emcmot_hal_data->spindle_position_cmd) = (emcmotStatus->spindle_position_cmd);
+    *(emcmot_hal_data->spindle_velocity_mode) = (!emcmotStatus->spindleSync);
     *(emcmot_hal_data->spindle_forward) = (*emcmot_hal_data->spindle_speed_out > 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_reverse) = (*emcmot_hal_data->spindle_speed_out < 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle.brake != 0) ? 1 : 0;
