@@ -1,8 +1,7 @@
 #
-# example usage of the VF-S11 VFD driver
-#
-# $Id: vfdb_vfd.hal,v 1.1 2009-09-19 23:00:27 mah Exp $
-#
+# example usage of the DELTA VFD-B driver
+# detail HAL and INI settings are at configs/araisrobo/css/
+# 
 loadusr -Wn spindle-vfd vfdb_vfd -n spindle-vfd -I css.ini -S VFDB -r 
 
 # connect the spindle direction pins to the VFD
