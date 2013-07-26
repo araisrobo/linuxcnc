@@ -66,6 +66,9 @@ static void home_start_move(emcmot_joint_t * joint, double vel, int probe_type)
     joint->risc_probe_vel = vel;
     joint->risc_probe_pin = joint->home_sw_id;
     joint->risc_probe_type = probe_type;
+    if (probe_type == RISC_PROBE_INDEX) {
+        joint->risc_probe_pin = joint->id;
+    }
     if (joint->home_flags & HOME_GANTRY_JOINT) {
         sync_gantry_joint->risc_probe_vel = vel;
         sync_gantry_joint->risc_probe_pin = joint->home_sw_id;
@@ -188,7 +191,6 @@ void do_homing(void)
     double offset;
     int homing_flag;
     int home_sw_active;
-
 
     homing_flag = 0;
     if (emcmotStatus->motion_state != EMCMOT_MOTION_FREE) {
@@ -589,7 +591,6 @@ void do_homing(void)
                 break;
 
             case HOME_INDEX_ONLY_START:
-                assert(0);
                 /* This state is used if the machine has been pre-positioned
 		   near the home position, and simply needs to find the
 		   next index pulse.  It starts a move at latch_vel, and
@@ -613,34 +614,38 @@ void do_homing(void)
 		   we reset the joint coordinates now so that screw error
 		   comp will be appropriate for this portion of the screw
 		   (previously we didn't know where we were at all). */
+
                 /* set the current position to 'home_offset' */
-                offset = joint->home_offset - joint->pos_fb;
+                offset = joint->home_offset -
+                         (joint->risc_pos_cmd - joint->motor_offset);
                 /* this moves the internal position but does not affect the
-		   motor position */
+                   motor position */
                 joint->pos_cmd += offset;
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
                 joint->motor_offset -= offset;
-                /* set the index enable */
-                joint->index_enable = 1;
-                /* set up a move at 'latch_vel' to find the index pulse */
-                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_RISING);
+
                 /* next state */
-                joint->home_state = HOME_INDEX_SEARCH_WAIT;
+                joint->home_state = HOME_INDEX_SEARCH_START;
+                immediate_state = 1;
+
                 break;
 
             case HOME_INDEX_SEARCH_START:
-                assert(0);
                 /* This state is called after the machine has made a low
 		   speed pass to determine the limit switch location. It
 		   sets index-enable, which tells the encoder driver to
 		   reset its counter to zero and clear the enable when the
 		   next index pulse arrives. */
-                /* set the index enable */
-                joint->index_enable = 1;
-                /* and move right into the waiting state */
-                joint->home_state = HOME_INDEX_SEARCH_WAIT;
-                immediate_state = 1;
+
+                /* set up a move at 'latch_vel' to find the index LOCK signal */
+                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_INDEX);
+                if(*emcmot_hal_data->update_pos_req == 1)
+                {
+                    /* next state */
+                    joint->home_state = HOME_INDEX_SEARCH_WAIT;
+                }
+
                 break;
 
             case HOME_INDEX_SEARCH_WAIT:
@@ -660,20 +665,30 @@ void do_homing(void)
                     immediate_state = 1;
                     break;
                 }
+
+                if(*emcmot_hal_data->update_pos_req == 0)
+                {
+                    /* yes, where do we go next? */
+                    joint->home_state = HOME_SET_INDEX_POSITION;
+                    immediate_state = 1;
+                }
                 break;
 
             case HOME_SET_INDEX_POSITION:
-                assert(0);
                 /* This state is called when the encoder has been reset at
 		   the index pulse position.  It sets the current joint
 		   position to 'home_offset', which is the location of the
 		   index pulse in joint coordinates. */
                 /* set the current position to 'home_offset' */
-                joint->motor_offset = -joint->home_offset;
-                joint->pos_fb = joint->motor_pos_fb -
-                        (joint->backlash_filt + joint->motor_offset);
-                joint->pos_cmd = joint->pos_fb;
-                joint->free_tp.curr_pos = joint->pos_fb;
+                offset = joint->home_offset -
+                         (joint->probed_pos - joint->motor_offset);
+                /* this moves the internal position but does not affect the
+                   motor position */
+                joint->pos_cmd += offset;
+                joint->pos_fb += offset;
+                joint->free_tp.curr_pos += offset;
+                joint->motor_offset -= offset;
+
                 /* next state */
                 joint->home_state = HOME_FINAL_MOVE_START;
                 immediate_state = 1;
@@ -691,6 +706,7 @@ void do_homing(void)
                     joint->home_pause_timer = 0;
                     break;
                 }
+
                 /* has delay timed out? */
                 if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
                     /* no, update timer and wait some more */

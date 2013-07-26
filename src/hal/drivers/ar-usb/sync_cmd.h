@@ -177,8 +177,7 @@ typedef enum {
 typedef enum {
     RISC_PROBE_LOW = 0,
     RISC_PROBE_HIGH,
-    RISC_PROBE_FALLING,
-    RISC_PROBE_RISING,
+    RISC_PROBE_INDEX,
 } rsic_probe_type_t;
 
 // memory map for machine config
