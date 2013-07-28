@@ -13,7 +13,7 @@ pin in  bit   velocity-mode = 0  "Velocity(1) or position(0) mode";
 pin in  bit   on = 0             "Spindle on";
 
 pin out bit   at-speed       "Set when spindle is at speed for velocity-mode";
-pin out bit   in-position    "Set when spindle is in position for position-mode";
+pin out bit   update-pos-req "Set when spindle position is under control by vel_ctrl()";
 pin out float curr-pos       "Feedback position, in revolutions";
 pin out float curr-vel       "Current velocity (rps)";
 pin out float curr-acc       "Current acceleration (rev/s^2)";
@@ -125,7 +125,7 @@ FUNCTION(_) {
             case S_IDLE:
                 vel_req = 0;
                 curr_vel = 0;
-                in_position = 0;
+                update_pos_req = 0;
                 curr_pos = position_cmd;
                 if (on) {
                     immediate_state = 1;
@@ -149,6 +149,7 @@ FUNCTION(_) {
                 }
                 vel_ctrl (vel_req, fperiod);
                 curr_pos += curr_vel * fperiod;
+                update_pos_req = 1;
                 if (!on)
                 {
                     cur_state = S_VEL_DECEL;
@@ -162,9 +163,9 @@ FUNCTION(_) {
             case S_VEL_DECEL:
                 // decel to vel == 0
                 vel_req = 0;
-                in_position = 0;
                 vel_ctrl (0, fperiod);
                 curr_pos += curr_vel * fperiod;
+                update_pos_req = 1;
                 if (curr_vel == 0)
                 {
                     cur_state = S_IDLE;
@@ -176,12 +177,12 @@ FUNCTION(_) {
                 break;
 
             case S_POS_MODE:
-                in_position = 1;
                 tmp = curr_vel;
                 // position_cmd is controlled by tp
                 curr_vel = (position_cmd - curr_pos) / fperiod;
                 curr_acc = curr_vel - tmp;
                 curr_pos = position_cmd;
+                update_pos_req = 0;
                 vel_req = curr_vel;
                 assert (fabs(vel_req) <= max_vel);
                 if (!on)

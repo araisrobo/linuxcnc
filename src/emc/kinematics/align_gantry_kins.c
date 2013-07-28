@@ -109,6 +109,7 @@ int kinematicsForward(const double *joints,
     pos->tran.y = joints[1];
     pos->tran.z = joints[3];
     pos->w = joints[4];
+    pos->s = joints[5];
     // pos->b = joints[5];
     // pos->c = joints[6];
 
@@ -153,6 +154,7 @@ int kinematicsInverse(const EmcPose * pos,
     joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
     joints[3] = pos->tran.z;
     joints[4] = pos->w;
+    joints[5] = pos->s;
     // joints[5] = pos->b;
     // joints[6] = pos->c;
     // joints[6] = pos->u;

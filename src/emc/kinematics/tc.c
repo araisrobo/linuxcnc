@@ -172,12 +172,15 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose xyz;
     PmPose abc;
     PmPose uvw;
+    double s;
     
     double progress = of_endpoint? tc->target: tc->progress;
 #if(TRACE != 0)
     static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
 #endif
 
+    // update spindle position
+    s = emcmotStatus->spindle.curr_pos_cmd;
     if (tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
         // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
         pmLinePoint(&tc->coords.spindle_sync.xyz, tc->coords.spindle_sync.xyz.tmag * (progress / tc->target) , &xyz);
@@ -186,7 +189,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
         uvw.tran = tc->coords.spindle_sync.uvw;
         if (!of_endpoint)
         {
-            emcmotStatus->spindle_position_cmd = tc->coords.spindle_sync.spindle_start_pos + tc->coords.spindle_sync.spindle_dir * progress;
+            s = tc->coords.spindle_sync.spindle_start_pos + tc->coords.spindle_sync.spindle_dir * progress;
         }
     } else if (tc->motion_type == TC_LINEAR) {
 
@@ -425,6 +428,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     pos.u = uvw.tran.x;
     pos.v = uvw.tran.y;
     pos.w = uvw.tran.z;
+    pos.s = s;
     DP ("of_endpoint(%d) tc->id(%d) MotionType(%d) X(%.2f) Y(%.2f) Z(%.2f) W(%.2f)\n",
     		of_endpoint, tc->id, tc->motion_type, pos.tran.x,
     		pos.tran.y, pos.tran.z, pos.w);

@@ -117,10 +117,8 @@ typedef struct {
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;
-    hal_bit_t *spindle_in_position;
+    hal_bit_t *spindle_update_pos_req;
     hal_float_t *spindle_curr_pos_cmd;
-    hal_float_t *spindle_curr_vel_rps;
-    hal_float_t *spindle_revs;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
     hal_bit_t *motion_enabled;	/* RPI: motion enable for all joints */
@@ -164,13 +162,12 @@ typedef struct {
     // creating a lot of pins for spindle control to be very flexible
     // the user needs only a subset of these
 
+    hal_u32_t spindle_joint_id;
     // simplest way of spindle control (output start/stop)
     hal_bit_t *spindle_on;	/* spindle spin output */
 
     // spindle_velocity_mode: velocity(1) or position(0) mode
     hal_bit_t *spindle_velocity_mode;      /* spindle velocity_mode output */
-
-    hal_float_t *spindle_position_cmd;
 
     // same thing for 2 directions
     hal_bit_t *spindle_forward;	/* spindle spin-forward output */

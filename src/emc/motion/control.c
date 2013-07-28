@@ -413,13 +413,10 @@ static void process_inputs(void)
     emcmotStatus->usb_status = *emcmot_hal_data->usb_status;
 
     /* read spindle angle (for threading, etc) */
-    emcmotStatus->spindleRevs = *emcmot_hal_data->spindle_revs;
     emcmotStatus->spindleSpeedIn = *emcmot_hal_data->spindle_speed_in;
     emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
-    emcmotStatus->spindle.in_position = *emcmot_hal_data->spindle_in_position;
+    emcmotStatus->spindle.update_pos_req = *emcmot_hal_data->spindle_update_pos_req;
     emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
-    emcmotStatus->spindle.curr_vel_rps = *emcmot_hal_data->spindle_curr_vel_rps;
-    emcmotStatus->spindle_position_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
     emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
@@ -857,6 +854,28 @@ static void handle_special_cmd(void)
         emcmotStatus->update_current_pos_flag = 1; // force emcTaskPlanSynch() at emcTask.cc
     }
 
+    // if spindle position get updated by spindle.comp
+    if (emcmotStatus->spindle.update_pos_req != 0)
+    {
+        emcmot_joint_t *joint;
+
+        /* point to joint struct */
+        joint = &joints[emcmot_hal_data->spindle_joint_id];
+        /* copy risc_pos_cmd feedback */
+        joint->pos_cmd = emcmotStatus->spindle.curr_pos_cmd
+                         - joint->backlash_filt
+                         - joint->motor_offset
+                         - joint->blender_offset;
+        joint->coarse_pos = joint->pos_cmd;
+        joint->free_tp.curr_pos = joint->pos_cmd;
+        /* to reset cubic parameters */
+        joint->cubic.needNextPoint=1;
+        joint->cubic.filled=0;
+        cubicAddPoint(&(joint->cubic), joint->coarse_pos);
+        /* update carte_pos_cmd for RISC-JOGGING */
+        emcmotStatus->carte_pos_cmd.s = joint->pos_cmd;
+        emcmotDebug->coord_tp.currentPos.s = joint->pos_cmd;
+    }
 }
 
 static void check_for_faults(void)
@@ -2004,7 +2023,6 @@ static void output_to_hal(void)
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
     *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed_req_rps * emcmotStatus->net_spindle_scale * 60.0;
     *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed_req_rps * emcmotStatus->net_spindle_scale;
-    *(emcmot_hal_data->spindle_position_cmd) = (emcmotStatus->spindle_position_cmd);
     *(emcmot_hal_data->spindle_velocity_mode) = (!emcmotStatus->spindleSync);
     *(emcmot_hal_data->spindle_forward) = (*emcmot_hal_data->spindle_speed_out > 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_reverse) = (*emcmot_hal_data->spindle_speed_out < 0) ? 1 : 0;
@@ -2054,7 +2072,7 @@ static void output_to_hal(void)
     emcmot_hal_data->debug_bit_0 = joints[1].free_tp.active;
     emcmot_hal_data->debug_bit_1 = emcmotStatus->enables_new & AF_ENABLED;
     emcmot_hal_data->debug_float_0 = emcmotStatus->net_feed_scale;
-    emcmot_hal_data->debug_float_1 = emcmotStatus->spindleRevs;
+    emcmot_hal_data->debug_float_1 = emcmotStatus->carte_pos_cmd.s; // spindle position command
     emcmot_hal_data->debug_float_2 = emcmotStatus->spindleSpeedIn;
     emcmot_hal_data->debug_float_3 = emcmotStatus->net_spindle_scale;
     emcmot_hal_data->debug_s32_0 = emcmotStatus->overrideLimitMask;

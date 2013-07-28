@@ -613,7 +613,7 @@ typedef struct {
     int locked;             // spindle lock engaged after orient
     int orient_fault;       // fault code from motion.spindle-orient-fault
     int orient_state;       // orient_state_t
-    int in_position;
+    int update_pos_req;
     int at_speed;
     int on;
     double curr_pos_cmd;
@@ -704,9 +704,7 @@ typedef struct emcmot_status_t {
 				   after last probeTripped */
     int spindle_index_enable;  /* hooked to a canon encoder index-enable */
     int spindleSync;        /* we are doing spindle-synced motion */
-    double spindleRevs;     /* position of spindle in revolutions */
     double spindleSpeedIn;  /* velocity of spindle in revolutions per minute */
-    double spindle_position_cmd;
 
     spindle_status spindle;	/* data types for spindle status */
 

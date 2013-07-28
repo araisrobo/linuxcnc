@@ -16,7 +16,6 @@ pin in float css-factor = 0 "CSS(non-0) or CONST-RPM(0)";
 pin in bit on = 0 "Spindle on";
 
 pin out bit at-speed "Set when spindle is at speed for velocity-mode";
-pin out bit in-position "Set when spindle is in position for position-mode";
 pin out float curr-pos "Feedback position, in revolutions";
 pin out float curr-vel "Current velocity (rps)";
 pin out float curr-acc "Current acceleration (rev/s^2)";
@@ -124,8 +123,6 @@ FUNCTION(_)
 	switch (cur_state) {
 	case S_IDLE:
 	    curr_vel = 0;
-	    in_position = 0;
-            // TODO: position_cmd need to be updated by tp
             curr_pos = position_cmd;
 	    if (on) {
 	        immediate_state = 1;
@@ -151,7 +148,6 @@ FUNCTION(_)
             }
             vel_ctrl (vel_req, fperiod);
 	    curr_pos += curr_vel * fperiod;
-            // TODO: position_cmd need to be updated by tp
 	    if ((!on) || (!velocity_mode)) {
 		cur_state = S_VEL_DECEL;
 	    }
@@ -160,10 +156,8 @@ FUNCTION(_)
 	case S_VEL_DECEL:
 	    // decel to vel == 0
             vel_req = 0;
-	    in_position = 0;
 	    vel_ctrl(0, fperiod);
 	    curr_pos += curr_vel * fperiod;
-            // TODO: position_cmd need to be updated by tp
 	    if (curr_vel == 0) {
 		cur_state = S_IDLE;
 	    } else if (on && velocity_mode) {
@@ -173,7 +167,7 @@ FUNCTION(_)
 
 	case S_POS_MODE:
 	    // TODO
-	    in_position = 1;
+            assert(0);  // spindle_aux does not support S_POS_MODE yet
 	    tmp = curr_vel;
             // position_cmd is controlled by tp
 	    curr_vel = (position_cmd - curr_pos) / fperiod;
