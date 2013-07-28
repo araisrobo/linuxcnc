@@ -496,6 +496,7 @@ typedef enum {
 typedef struct {
 
     /* configuration info - changes rarely */
+    int id;                     /* joint-id */
     int type;		        /* 0 = linear, 1 = rotary */
     double max_pos_limit;	/* upper soft limit on joint pos */
     double min_pos_limit;	/* lower soft limit on joint pos */
