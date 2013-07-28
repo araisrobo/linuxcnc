@@ -36,14 +36,14 @@ setp spindle_t.max-jerk [SPINDLE_T]MAX_JERK
 setp spindle_s.at-speed-range 0.01
 setp spindle_t.at-speed-range 0.01
 
-net  spindle-velocity-mode  spindle_s.velocity-mode    <= motion.spindle-velocity-mode
-net  spindle-on             spindle_s.on               <= motion.spindle-on
-net  spindle-speed-cmd-rps  spindle_s.velocity-cmd     <= motion.spindle-speed-cmd-rps
-net  spindle-position-cmd   spindle_s.position-cmd     <= motion.spindle-position-cmd
-net  spindle-curr-pos-cmd   spindle_s.curr-pos         => motion.spindle-curr-pos-cmd
-net  spindle-in-position    spindle_s.in-position      => motion.spindle-in-position
-net  spindle-at-speed       spindle_s.at-speed         => motion.spindle-at-speed
-net  vel-fb-j4              spindle_s.feedback-vel
+net spindle-velocity-mode       spindle_s.velocity-mode    <= motion.spindle-velocity-mode
+net spindle-on                  spindle_s.on               <= motion.spindle-on
+net spindle-speed-out-rps       spindle_s.velocity-cmd     <= motion.spindle-speed-out-rps
+net spindle-position-cmd        spindle_s.position-cmd     <= joint.4.motor-pos-cmd
+net spindle-curr-pos-cmd        spindle_s.curr-pos         => motion.spindle-curr-pos-cmd
+net spindle-update-position-req spindle_s.update-pos-req   => motion.spindle-update-pos-req
+net spindle-at-speed            spindle_s.at-speed         => motion.spindle-at-speed
+net vel-fb-j4                   spindle_s.feedback-vel
 
 setp spindle_t.velocity-mode 1 
 net  spindle-on             spindle_t.on               
@@ -54,7 +54,6 @@ net  spindle-t-css-error-cmd    spindle_t.css-error-velocity-cmd   <= motion.spi
 # TODO: forward VEL-CMD of SPINDLE-T to VFD-B 
 # net  spindle-t-curr-pos-cmd   spindle_t.curr-pos         
 net  spindle-t-speed-out   spindle_t.speed-rpm
-net  spindle-t-in-position    spindle_t.in-position      
 net  spindle-t-at-speed       spindle_t.at-speed         
 # get vel feedback of SPINDLE-T from VFD-B
 net  spindle-t-speed-feedback spindle_t.feedback-vel
@@ -101,7 +100,7 @@ net Xpos-fb   wou.stepgen.0.position-fb => joint.0.motor-pos-fb
 net Ypos-fb   wou.stepgen.1.position-fb => joint.1.motor-pos-fb
 net YYpos-fb  wou.stepgen.2.position-fb => joint.2.motor-pos-fb
 net Zpos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
-net Spos-fb   wou.stepgen.4.position-fb => motion.spindle-revs
+net Spos-fb   wou.stepgen.4.position-fb => joint.4.motor-pos-fb
 
 # TODO:
 # motor_index positions
