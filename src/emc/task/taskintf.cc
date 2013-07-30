@@ -1367,11 +1367,12 @@ int emcTrajSetOffset(EmcPose tool_offset)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajSetSpindleSync(double fpr, bool wait_for_index) 
+int emcTrajSetSpindleSync(double fpr, bool wait_for_index, bool spindlesync)
 {
     emcmotCommand.command = EMCMOT_SET_SPINDLESYNC;
-    emcmotCommand.spindlesync = fpr;
+    emcmotCommand.uu_per_rev = fpr;
     emcmotCommand.flags = wait_for_index;
+    emcmotCommand.spindlesync = spindlesync;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

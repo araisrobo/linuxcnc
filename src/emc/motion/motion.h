@@ -229,8 +229,11 @@ typedef struct emcmot_command_t {
     double ini_maxvel;      /* max velocity allowed by machine
                                    constraints (the ini file) */
     int motion_type;        /* this move is because of traverse, feed, arc, or toolchange */
-    double spindlesync;     /* user units per spindle revolution, 0 = no sync */
-    double acc;		/* acceleration for traj */
+
+    double uu_per_rev;     /* user units per spindle revolution, 0 = no sync */
+    int spindlesync;            /* 0 = no sync */
+
+    double acc;		     /* acceleration for traj */
     double jerk;		/* jerk for traj */
     double ini_maxacc;
     double ini_maxjerk;

@@ -91,7 +91,7 @@ extern int tpIsDone(TP_STRUCT * tp);
 extern int tpQueueDepth(TP_STRUCT * tp);
 extern int tpActiveDepth(TP_STRUCT * tp);
 extern int tpGetMotionType(TP_STRUCT * tp);
-extern int tpSetSpindleSync(TP_STRUCT * tp, double sync, int wait);
+extern int tpSetSpindleSync(TP_STRUCT * tp, double spindlesync, int wait_for_index, int synchronized);
 extern void tpToggleDIOs(TC_STRUCT * tc); //gets called when a new tc is taken from the queue. it checks and toggles all needed DIO's
 
 extern int tpSetAout(TP_STRUCT * tp, unsigned char index, double start, double end);

@@ -940,7 +940,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    break;
 
         case EMCMOT_SET_SPINDLESYNC:
-            tpSetSpindleSync(&emcmotDebug->coord_tp, emcmotCommand->spindlesync, emcmotCommand->flags);
+            tpSetSpindleSync(&emcmotDebug->coord_tp, emcmotCommand->uu_per_rev, emcmotCommand->flags /* wait_for_index */, emcmotCommand->spindlesync);
             break;
 
         case EMCMOT_SET_NURBS:

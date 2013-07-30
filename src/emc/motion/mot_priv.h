@@ -119,6 +119,7 @@ typedef struct {
     hal_bit_t *spindle_is_atspeed;
     hal_bit_t *spindle_update_pos_req;
     hal_float_t *spindle_curr_pos_cmd;
+    hal_float_t *spindle_curr_vel_rps;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
     hal_bit_t *motion_enabled;	/* RPI: motion enable for all joints */

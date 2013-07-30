@@ -354,6 +354,8 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.feed_override = 0.0;
     tc.id = tp->nextId;
     tc.active = 0;
+
+    // TODO: pass atspeed as parameter (G33.1/G33.2/G33.3 will not wait for atspeed, G33 needs)
     tc.atspeed = 1;
 
     tc.cur_accel = 0.0;
@@ -375,7 +377,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.nexttc_target = 0;
 
     if(!tp->synchronized) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot add unsynchronized rigid tap move.\n");
+        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot add unsynchronized spindle sync move.\n");
         return -1;
     }
     tc.synchronized = tp->synchronized;
@@ -1380,7 +1382,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     EmcPose primary_before, primary_after;
     EmcPose secondary_before, secondary_after;
     EmcPose primary_displacement, secondary_displacement;
-    static double spindleoffset;
     static int waiting_for_index = MOTION_INVALID_ID;
     static int waiting_for_atspeed = MOTION_INVALID_ID;
     EmcPose target;
@@ -1414,10 +1415,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // if we're synced, and this move is ending, save the
         // spindle position so the next synced move can be in
         // the right place.
-        if(tc->synchronized)
-            spindleoffset += tc->target/tc->uu_per_rev;
-        else
-            spindleoffset = 0.0;
 
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
@@ -1558,8 +1555,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
 
     emcmotStatus->spindleSync = tc->synchronized;
-//    emcmotStatus->spindle_position_cmd = emcmotStatus->spindle.curr_pos_cmd;
-    if(emcmotStatus->spindleSync) {
+    if(tc->synchronized) {
         if (!tc->coords.spindle_sync.spindle_start_pos_latch)
         {
             tc->coords.spindle_sync.spindle_start_pos_latch = 1;
@@ -1582,24 +1578,17 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             {
                 emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.z;
             }
-
+            return 0;   // for atspeed detection
         }
 
-//        if(emcmotStatus->spindle.css_factor)
-//        {
-            tc->reqvel = fabs(emcmotStatus->spindle.speed_req_rps) * emcmotStatus->net_spindle_scale;
-//        } else
-//        {
-//            // G33 w/ G97 or G33.1
-//            // change
-//            tc->reqvel = tc->coords.spindle_sync.spindle_reqvel * emcmotStatus->net_spindle_scale;
-//        }
+        tc->reqvel = fabs(emcmotStatus->spindle.speed_req_rps) * emcmotStatus->net_spindle_scale;
 
         if(tp->aborting) {
             tc->reqvel = 0;
         }
 
-    } else
+    }
+    else
     {   // non spindle sync motion
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
@@ -1701,14 +1690,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         next_accel = tc->cur_accel;
         next_accel_state = tc->accel_state;
         next_progress = tc->progress - tc->target;
-
-        // if we're synced, and this move is ending, save the
-        // spindle position so the next synced move can be in
-        // the right place.
-        if (tc->synchronized)
-            spindleoffset += tc->target / tc->uu_per_rev;
-        else
-            spindleoffset = 0.0;
         
         tcqRemove(&tp->queue, 1);
         tp->depth = tcqLen(&tp->queue);
@@ -1829,16 +1810,12 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     return 0;
 }
 
-int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode)
+int tpSetSpindleSync(TP_STRUCT * tp, double uu_per_rev, int wait_for_index, int synchronized)
 {
     // tp->synchronized is for updating tc->synchronized and emcmotStatus->spindleSync
-    if(sync) {
-        tp->synchronized = 1;
-        tp->uu_per_rev = sync;
-        tp->velocity_mode = mode;
-    } else {
-        tp->synchronized = 0;
-    }
+    tp->uu_per_rev = uu_per_rev;
+    tp->synchronized = synchronized;    // synchronized spindle motion
+    tp->velocity_mode = wait_for_index; // TODO: replace velocity_mode as wait-for-index
     return 0;
 }
 
