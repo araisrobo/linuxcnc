@@ -417,6 +417,7 @@ static void process_inputs(void)
     emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
     emcmotStatus->spindle.update_pos_req = *emcmot_hal_data->spindle_update_pos_req;
     emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
+    emcmotStatus->spindle.curr_vel_rps = *emcmot_hal_data->spindle_curr_vel_rps;
     emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
@@ -1261,10 +1262,14 @@ static void get_spindle_cmds (double cycle_time)
                         (emcmotStatus->spindle.css_factor / 60.0
                          - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
                         * emcmotStatus->spindle.direction; // (unit/(2*PI*sec)
-        //            DP ("css_req(%f)(unit/sec)\n", denom * tc->reqvel * 2 * M_PI);
-        //            DP ("css_cur(%f)\n", denom * tc->cur_vel / tc->cycle_time * 2 * M_PI);
-        //            DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
-        //            DP ("synched-joint-vel(%f)(unit/sec)\n",tc->cur_vel / tc->cycle_time * tp->uu_per_rev);
+        DP ("css_req(%f)(unit/sec)\n", denom * emcmotStatus->spindle.speed_req_rps * 2 * M_PI);
+        DP ("css_cur(%f)\n", denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI);
+        DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
+        DP ("speed(%f) denom(%f) s.curr_vel(%f) css_factor(%f)\n",
+                             speed, denom, emcmotStatus->spindle.curr_vel_rps, emcmotStatus->spindle.css_factor);
+        DP ("spindle.direction(%d)\n",
+                             emcmotStatus->spindle.direction);
+//        DP ("synched-joint-vel(%f)(unit/sec)\n",emcmotStatus->spindle.curr_vel_rps * tp->uu_per_rev);
         //#if (CSS_TRACE!=0)
         //            /* prepare data for gnuplot */
         //            fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
@@ -1455,11 +1460,12 @@ static void get_pos_cmds(long period)
                         &iflags, &fflags);
                 /* copy to joint structures and spline them up */
                 DPS("%11u", _dt);
-                DPS("%10.5f%10.5f%10.5f%10.5f",
+                DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
                         emcmotStatus->carte_pos_cmd.tran.x,
                         emcmotStatus->carte_pos_cmd.tran.y,
                         emcmotStatus->carte_pos_cmd.tran.z,
-                        emcmotStatus->carte_pos_cmd.a);
+                        emcmotStatus->carte_pos_cmd.a,
+                        emcmotStatus->carte_pos_cmd.s);
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
                     /* point to joint struct */
                     joint = &joints[joint_num];

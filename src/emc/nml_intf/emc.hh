@@ -495,7 +495,7 @@ extern int emcTrajNurbsMove(EmcPose end, int type,nurbs_block_t nurbs_block, dou
 extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
         normal, int turn, int type, double vel, double ini_maxvel, double acc, double ini_maxjerk);
 extern int emcTrajSetTermCond(int cond, double tolerance);
-extern int emcTrajSetSpindleSync(double feed_per_revolution, bool wait_for_index);
+extern int emcTrajSetSpindleSync(double feed_per_revolution, bool wait_for_index, bool spindlesync);
 extern int emcTrajSetOffset(EmcPose tool_offset);
 extern int emcTrajSetOrigin(EmcPose origin);
 extern int emcTrajSetRotation(double rotation);

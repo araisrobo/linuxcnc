@@ -895,7 +895,8 @@ class EMC_TRAJ_SET_SPINDLESYNC:public EMC_TRAJ_CMD_MSG {
 
         void update(CMS * cms);
         double feed_per_revolution;
-	bool velocity_mode; 
+	bool wait_for_index;
+	bool spindlesync;
 };
 
 class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {

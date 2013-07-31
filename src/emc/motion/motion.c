@@ -351,6 +351,7 @@ static int init_hal_io(void)
     *(emcmot_hal_data->spindle_orient) = 0;
     emcmot_hal_data->spindle_joint_id = 0;
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_curr_pos_cmd), mot_comp_id, "motion.spindle-curr-pos-cmd")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_curr_vel_rps), mot_comp_id, "motion.spindle-curr-vel-rps")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_speed_in), mot_comp_id, "motion.spindle-speed-in")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_is_atspeed), mot_comp_id, "motion.spindle-at-speed")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_update_pos_req), mot_comp_id, "motion.spindle-update-pos-req")) != 0) goto error;

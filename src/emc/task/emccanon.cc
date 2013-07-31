@@ -1074,37 +1074,43 @@ void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_
     double xyz_vel;
     double spindle_speed;
     
-    if(canon.css_maximum) {
-        // for CSS(G96)
-        spindle_speed = canon.css_maximum;
-    } else {
-        // for (G97)
-        spindle_speed = canon.spindleSpeed;
+    if (ssm_mode < 2)
+    {   // G33, G33.1
+        if(canon.css_maximum) {
+            // for CSS(G96)
+            spindle_speed = canon.css_maximum;
+        } else {
+            // for (G97)
+            spindle_speed = canon.spindleSpeed;
+        }
+
+        from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
+        rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
+        max_xyz_vel = getStraightVelocity(x, y, z, unused, unused, unused, unused, unused, unused);
+
+        /* the unit for canon.spindleSpeed is RPM; need to convert to RPS */
+        xyz_vel = canon.feed_per_spindle_revolution * spindle_speed / 60.0;
+        /* obtain the velocity for cartesian_move */
+        vel = MIN(xyz_vel, max_xyz_vel);
+        /* convert cartesian_move velocity to spindle velocity in rps */
+        vel = canon.spindle_dir * vel / canon.feed_per_spindle_revolution; // unit: rps
+
+        if (xyz_vel > max_xyz_vel)
+        {
+            printf("WARN: constrain spindle speed to %f RPM\n", vel * 60.0);
+        }
+        spindleSyncMotionMsg.pos = to_ext_pose(x,y,z,
+                canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+                canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+    }
+    else
+    {   // G33.2, G33.3
+        spindleSyncMotionMsg.pos.s = x; // spindle position passed as x parameter
+        vel = y / 60.0; // spindle positioning velocity (RPS) passed as y parameter(RPM)
     }
 
-    from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
-    rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
-    max_xyz_vel = getStraightVelocity(x, y, z, unused, unused, unused, unused, unused, unused);
-//    printf("max_xyz_vel(%f) \n", max_xyz_vel);
-
-    /* the unit for canon.spindleSpeed is RPM; need to convert to RPS */
-    xyz_vel = canon.feed_per_spindle_revolution * spindle_speed / 60.0;
-//    xyz_vel = canon.feed_per_spindle_revolution * canon.spindleSpeed / 60.0;
-    /* obtain the velocity for cartesian_move */
-    vel = MIN(xyz_vel, max_xyz_vel);
-    /* convert cartesian_move velocity to spindle velocity in rps */
-    vel = canon.spindle_dir * vel / canon.feed_per_spindle_revolution; // unit: rps
     
-    if (xyz_vel > max_xyz_vel)
-    {
-        printf("WARN: constrain spindle speed to %f RPM\n", vel * 60.0);
-    }
-
     acc = emcAxisGetMaxAcceleration(9);     // AXIS_S: 9
-    spindleSyncMotionMsg.pos = to_ext_pose(x,y,z,
-                                 canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
-                                 canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
-
     // spindle velocity unit: rps
     spindleSyncMotionMsg.vel = (vel); //spindle velocity (rps)
     spindleSyncMotionMsg.ini_maxvel = emcAxisGetMaxVelocity(9);  // AXIS_S: 9
@@ -1233,14 +1239,13 @@ void STOP_CUTTER_RADIUS_COMPENSATION()
     // nothing need be done here
 }
 
-
-
-void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
+void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool wait_for_index)
 {
     flush_segments();
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
-    spindlesyncMsg.velocity_mode = velocity_mode;
+    spindlesyncMsg.wait_for_index = wait_for_index;
+    spindlesyncMsg.spindlesync = true;
     interp_list.append(spindlesyncMsg);
     canon.synched = 1;
     canon.feed_per_spindle_revolution = feed_per_revolution;
@@ -1252,7 +1257,8 @@ void STOP_SPEED_FEED_SYNCH()
     flush_segments();
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = 0.0;
-    spindlesyncMsg.velocity_mode = false;
+    spindlesyncMsg.wait_for_index = false;
+    spindlesyncMsg.spindlesync = false;
     interp_list.append(spindlesyncMsg);
     canon.synched = 0;
     canon.feed_per_spindle_revolution = 0;
