@@ -356,7 +356,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.active = 0;
 
     // TODO: pass atspeed as parameter (G33.1/G33.2/G33.3 will not wait for atspeed, G33 needs)
-    tc.atspeed = 1;
+    tc.atspeed = 0;
 
     tc.cur_accel = 0.0;
     tc.cur_vel = 0.0;
