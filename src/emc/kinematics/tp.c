@@ -1577,7 +1577,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             if (tc->coords.spindle_sync.mode < 2)
             {   // G33, G33.1
                 tc->coords.spindle_sync.spindle_start_pos_latch = 1;
-                tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->spindle.curr_pos_cmd;
+                tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->carte_pos_cmd.s;
                 tc->cur_vel = fabs(emcmotStatus->spindle.curr_vel_rps) * tc->cycle_time;
 
                 /* bitmap for rigid-tapping-AXIS_X */
@@ -1608,13 +1608,12 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
                     tc->cur_vel = 0;
 
-                    start_angle = emcmotStatus->spindle.curr_pos_cmd - floor(emcmotStatus->spindle.curr_pos_cmd);
+                    start_angle = emcmotStatus->carte_pos_cmd.s - floor(emcmotStatus->carte_pos_cmd.s);
                     tc->target = (tc->coords.spindle_sync.spindle_end_angle - start_angle) * tc->coords.spindle_sync.spindle_dir;
                     if (tc->target < 0)
                     {
                         tc->target += 1;        // move toward spindle_end_angle
                     }
-                    DP("emcmotStatus->spindle.curr_pos_cmd(%f)\n", emcmotStatus->spindle.curr_pos_cmd);
                     DP("start_angle(%f)\n", start_angle);
                     DP("end_angle(%f)\n", tc->coords.spindle_sync.spindle_end_angle);
                     DP("emcmotStatus->spindle.direction(%d)\n", emcmotStatus->spindle.direction);
