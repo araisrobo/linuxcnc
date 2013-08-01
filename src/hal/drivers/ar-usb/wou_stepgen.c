@@ -1869,7 +1869,7 @@ static void update_freq(void *arg, long period)
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
             assert(*stepgen->risc_probe_pin < 64);
             assert(dbuf[2] != 0);
-//            printf ("j[%d]: do risc-probing\n", n);
+            // printf ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
         //
