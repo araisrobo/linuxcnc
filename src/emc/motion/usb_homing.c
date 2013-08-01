@@ -325,6 +325,8 @@ void do_homing(void)
                 home_start_move(joint, -joint->home_search_vel, RISC_PROBE_LOW);
                 if(*emcmot_hal_data->update_pos_req == 1)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     /* next state */
                     joint->home_state = HOME_INITIAL_BACKOFF_WAIT;
                 }
@@ -359,6 +361,8 @@ void do_homing(void)
                 home_start_move(joint, joint->home_search_vel, RISC_PROBE_HIGH);
                 if(*emcmot_hal_data->update_pos_req == 1)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     /* next state */
                     joint->home_state = HOME_INITIAL_SEARCH_WAIT;
                 }
@@ -441,6 +445,8 @@ void do_homing(void)
                 /* next state */
                 if(*emcmot_hal_data->update_pos_req == 1)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     joint->home_state = HOME_FINAL_BACKOFF_WAIT;
                 }
                 break;
@@ -480,6 +486,8 @@ void do_homing(void)
                 /* next state */
                 if(*emcmot_hal_data->update_pos_req == 1)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     joint->home_state = HOME_RISE_SEARCH_WAIT;
                 }
                 break;
@@ -526,6 +534,8 @@ void do_homing(void)
                 home_start_move(joint, joint->home_latch_vel, RISC_PROBE_LOW);
                 if(*emcmot_hal_data->update_pos_req == 1)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     /* next state */
                     joint->home_state = HOME_FALL_SEARCH_WAIT;
                 }
@@ -624,6 +634,17 @@ void do_homing(void)
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
                 joint->motor_offset -= offset;
+                // rtapi_print (
+                //          _("HOME_INDEX_ONLY_START: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+                //          joint_num,
+                //          joint->home_offset,
+                //          offset,
+                //          joint->risc_pos_cmd,
+                //          joint->probed_pos,
+                //          joint->pos_cmd,
+                //          joint->pos_fb,
+                //          joint->free_tp.curr_pos,
+                //          joint->motor_offset);
 
                 /* next state */
                 joint->home_state = HOME_INDEX_SEARCH_START;
@@ -642,6 +663,8 @@ void do_homing(void)
                 home_start_move(joint, joint->home_latch_vel, RISC_PROBE_INDEX);
                 if(*emcmot_hal_data->update_pos_req == 1)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     /* next state */
                     joint->home_state = HOME_INDEX_SEARCH_WAIT;
                 }
@@ -655,17 +678,6 @@ void do_homing(void)
 		   an index pulse is detected, at which point it sets the
 		   final home position.  If the move ends or hits a limit
 		   before an index pulse occurs, the home is aborted. */
-                /* has an index pulse arrived yet? encoder driver clears
-		   enable when it does */
-                if ( joint->index_enable == 0 ) {
-                    /* yes, stop motion */
-                    joint->free_tp.enable = 0;
-                    /* go to next step */
-                    joint->home_state = HOME_SET_INDEX_POSITION;
-                    immediate_state = 1;
-                    break;
-                }
-
                 if(*emcmot_hal_data->update_pos_req == 0)
                 {
                     /* yes, where do we go next? */
@@ -688,6 +700,18 @@ void do_homing(void)
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
                 joint->motor_offset -= offset;
+
+                // rtapi_print (
+                //          _("HOME_SET_INDEX_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+                //          joint_num,
+                //          joint->home_offset,
+                //          offset,
+                //          joint->risc_pos_cmd,
+                //          joint->probed_pos,
+                //          joint->pos_cmd,
+                //          joint->pos_fb,
+                //          joint->free_tp.curr_pos,
+                //          joint->motor_offset);
 
                 /* next state */
                 joint->home_state = HOME_FINAL_MOVE_START;
@@ -738,8 +762,6 @@ void do_homing(void)
                     joint->free_tp.max_vel = joint->vel_limit;
                 }
 
-                /* stop searching for home-switch */
-                home_stop_move(joint);
                 /* start the move */
                 joint->free_tp.enable = 1;
                 joint->home_state = HOME_FINAL_MOVE_WAIT;
