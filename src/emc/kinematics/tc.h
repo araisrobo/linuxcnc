@@ -65,9 +65,11 @@ typedef struct {
     PmCartesian abc;
     PmCartesian uvw;
     double spindle_start_pos;
+    double spindle_end_angle;
     int spindle_start_pos_latch;
     double spindle_dir;
     double spindle_reqvel;
+    int mode;   // G33(0), G33.1(1), G33.2(2)
 } PmSpindleSyncMotion;
 
 enum state_type {

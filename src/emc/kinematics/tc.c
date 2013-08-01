@@ -180,7 +180,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
 #endif
 
     // update spindle position
-    s = emcmotStatus->spindle.curr_pos_cmd;
+    s = emcmotStatus->carte_pos_cmd.s;
     if (tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
         // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
         pmLinePoint(&tc->coords.spindle_sync.xyz, tc->coords.spindle_sync.xyz.tmag * (progress / tc->target) , &xyz);

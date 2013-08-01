@@ -1500,10 +1500,8 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
 
 int emcTrajSpindleSyncMotion(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk, int ssm_mode)
 {
-    CATCH_NAN(isnan(pos.tran.x) || isnan(pos.tran.y) || isnan(pos.tran.z));
-
     emcmotCommand.command = EMCMOT_SPINDLE_SYNC_MOTION;
-    emcmotCommand.pos.tran = pos.tran;
+    emcmotCommand.pos = pos;
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;

@@ -228,9 +228,17 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def spindle_sync_motion(self, x, y, z, ssm_mode):
         if self.suppress > 0: return
         self.first_move = False
-        l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
-        l += [self.lo[3], self.lo[4], self.lo[5],
+        
+        if (ssm_mode < 2):
+            """ G33 CSS(w/ G96) """
+            """ G33.1 RIGID_TAP """
+            l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
+            l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
+        elif (ssm_mode == 2):
+            """ G33.2 Spindle Positioning """
+            l = self.lo
+
         self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
         # calculate length
         length_vector = []
@@ -242,14 +250,18 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.path.append(('feed', self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo], length))
         
         if (ssm_mode == 0):
-            """ G33 """
+            """ G33 CSS(w/ G96) """
             self.lo = l
         elif (ssm_mode == 1):
             """ G33.1 RIGID_TAP """
             self.feed_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
             self.feed_info_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo], length))
             self.path.append(('feed', self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo], length))
+        elif (ssm_mode == 2):
+            """ G33.2 Spindle Positioning """
+            pass
         else:
+            print ("Unknown SSM_MODE for G33.X")
             assert(0)
             
     def arc_feed(self, *args):

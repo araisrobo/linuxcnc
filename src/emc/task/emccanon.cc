@@ -1105,8 +1105,9 @@ void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_
     }
     else
     {   // G33.2, G33.3
+        // x = angle, y = rpm, z = axis_id
         spindleSyncMotionMsg.pos.s = x; // spindle position passed as x parameter
-        vel = y / 60.0; // spindle positioning velocity (RPS) passed as y parameter(RPM)
+        vel = canon.spindle_dir * y / 60.0; // spindle positioning velocity (RPS) passed as y parameter(RPM)
     }
 
     

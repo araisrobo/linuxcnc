@@ -333,7 +333,18 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     uvw.y = tp->goalPos.v;
     uvw.z = tp->goalPos.w;
 
-    pmLineInit(&line_xyz, start_xyz, end_xyz);
+    // TODO: pass atspeed as parameter (G33.1/G33.2/G33.3 will not wait for atspeed, G33 needs)
+    if (ssm_mode < 2){
+        tc.atspeed = 0;
+        pmLineInit(&line_xyz, start_xyz, end_xyz);
+    }
+    else if (ssm_mode == 2)
+    {   // G33.2
+        tc.atspeed = 1;
+        pmLineInit(&line_xyz, start_xyz, start_xyz);      // prevent motion for xyz for G33.2
+        tc.coords.spindle_sync.spindle_end_angle = end.s / 360.0;
+    }
+
 
     tc.sync_accel = 0;
     tc.cycle_time = tp->cycleTime;
@@ -355,8 +366,8 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.id = tp->nextId;
     tc.active = 0;
 
-    // TODO: pass atspeed as parameter (G33.1/G33.2/G33.3 will not wait for atspeed, G33 needs)
-    tc.atspeed = 0;
+
+
 
     tc.cur_accel = 0.0;
     tc.cur_vel = 0.0;
@@ -388,6 +399,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.indexrotary = -1;
     tc.coords.spindle_sync.spindle_start_pos_latch = 0;
     tc.coords.spindle_sync.spindle_start_pos = 0;
+    tc.coords.spindle_sync.mode = ssm_mode;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
 	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
@@ -397,7 +409,6 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
-    // TAPPING
     if (vel > 0)        // vel is requested spindle velocity
     {
         tc.coords.spindle_sync.spindle_dir = 1.0;
@@ -405,6 +416,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     {
         tc.coords.spindle_sync.spindle_dir = -1.0;
     }
+
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return -1;
@@ -427,10 +439,14 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
         // do not change tp->goalPos here,
         // since this move will end just where it started
     }
-    else
+    else if (ssm_mode == 0)
     {   // for G33
         tp->goalPos = end;      // remember the end of this move, as it's
                                 // the start of the next one.
+    }
+    else if (ssm_mode == 2)
+    {   // for G33.2
+        // TODO: need to change tp->goalPos ?
     }
 
 
@@ -1558,30 +1574,65 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     if(tc->synchronized) {
         if (!tc->coords.spindle_sync.spindle_start_pos_latch)
         {
-            tc->coords.spindle_sync.spindle_start_pos_latch = 1;
-            tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->spindle.curr_pos_cmd;
-            tc->cur_vel = fabs(emcmotStatus->spindle.curr_vel_rps) * tc->cycle_time;
+            if (tc->coords.spindle_sync.mode < 2)
+            {   // G33, G33.1
+                tc->coords.spindle_sync.spindle_start_pos_latch = 1;
+                tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->spindle.curr_pos_cmd;
+                tc->cur_vel = fabs(emcmotStatus->spindle.curr_vel_rps) * tc->cycle_time;
 
-            /* bitmap for rigid-tapping-AXIS_X */
-            if (tc->coords.spindle_sync.xyz.uVec.x > tiny)
-            {
-                emcmotStatus->xuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.x;
+                /* bitmap for rigid-tapping-AXIS_X */
+                if (tc->coords.spindle_sync.xyz.uVec.x > tiny)
+                {
+                    emcmotStatus->xuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.x;
+                }
+                /* bitmap for rigid-tapping-AXIS_Y */
+                if (tc->coords.spindle_sync.xyz.uVec.y > tiny)
+                {
+                    emcmotStatus->yuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.y;
+                    printf("emcmotStatus->yuu_per_rev(%f)\n",emcmotStatus->yuu_per_rev);
+                }
+                /* bitmap for rigid-tapping-AXIS_Z */
+                if (tc->coords.spindle_sync.xyz.uVec.z > tiny)
+                {
+                    emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.z;
+                }
+                return 0;   // for atspeed detection
             }
-            /* bitmap for rigid-tapping-AXIS_Y */
-            if (tc->coords.spindle_sync.xyz.uVec.y > tiny)
-            {
-                emcmotStatus->yuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.y;
-                printf("emcmotStatus->yuu_per_rev(%f)\n",emcmotStatus->yuu_per_rev);
+            else if (tc->coords.spindle_sync.mode == 2)
+            {   // G33.2, wait for spindle to be stopped completely
+                if (emcmotStatus->spindle.curr_vel_rps == 0)
+                {
+                    double start_angle; // unit: rev
+                    tc->coords.spindle_sync.spindle_start_pos_latch = 1;
+                    tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->carte_pos_cmd.s;
+
+                    tc->cur_vel = 0;
+
+                    start_angle = emcmotStatus->spindle.curr_pos_cmd - floor(emcmotStatus->spindle.curr_pos_cmd);
+                    tc->target = (tc->coords.spindle_sync.spindle_end_angle - start_angle) * tc->coords.spindle_sync.spindle_dir;
+                    if (tc->target < 0)
+                    {
+                        tc->target += 1;        // move toward spindle_end_angle
+                    }
+                    DP("emcmotStatus->spindle.curr_pos_cmd(%f)\n", emcmotStatus->spindle.curr_pos_cmd);
+                    DP("start_angle(%f)\n", start_angle);
+                    DP("end_angle(%f)\n", tc->coords.spindle_sync.spindle_end_angle);
+                    DP("emcmotStatus->spindle.direction(%d)\n", emcmotStatus->spindle.direction);
+                    DP("tc->coords.spindle_sync.spindle_dir(%f)\n", tc->coords.spindle_sync.spindle_dir);
+                    DP("target(%f)\n", tc->target);
+                }
+                return 0;   // for spindle stop detection
             }
-            /* bitmap for rigid-tapping-AXIS_Z */
-            if (tc->coords.spindle_sync.xyz.uVec.z > tiny)
-            {
-                emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.z;
-            }
-            return 0;   // for atspeed detection
         }
 
-        tc->reqvel = fabs(emcmotStatus->spindle.speed_req_rps) * emcmotStatus->net_spindle_scale;
+        if (tc->coords.spindle_sync.mode < 2)
+        {   // G33, G33.1
+            tc->reqvel = fabs(emcmotStatus->spindle.speed_req_rps) * emcmotStatus->net_spindle_scale;
+        }
+        else if (tc->coords.spindle_sync.mode == 2)
+        {   // G33.2, unit for spindle_reqvel is RPS
+            tc->reqvel = fabs(tc->coords.spindle_sync.spindle_reqvel) * emcmotStatus->net_spindle_scale;
+        }
 
         if(tp->aborting) {
             tc->reqvel = 0;

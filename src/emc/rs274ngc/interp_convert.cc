@@ -3528,7 +3528,9 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
         int n;
         if(ai) n=3; else if(bi) n=4; else n=5;
         CHP(convert_straight_indexer(n, block, settings));
-    } else if ((motion == G_0) || (motion == G_1) || (motion == G_33) || (motion == G_33_1) || (motion == G_76)) {
+    } else if ((motion == G_0) || (motion == G_1) ||
+                (motion == G_33) || (motion == G_33_1) || (motion == G_33_2) || (motion == G_33_3) ||
+                (motion == G_76)) {
         CHP(convert_straight(motion, block, settings));
     } else if ((motion == G_3) || (motion == G_2)) {
         CHP(convert_arc(motion, block, settings));
@@ -4512,8 +4514,7 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
         CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
                 (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
                 _("Spindle not turning in G33"));
-        START_SPEED_FEED_SYNCH(block->k_number, 0);
-        //    STRAIGHT_FEED(block->line_number, end_x, end_y, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
+        START_SPEED_FEED_SYNCH(block->k_number, 0 /* wait_for_index */);
         SPINDLE_SYNC_MOTION(block->line_number, end_x, end_y, end_z, 0); // set ssm_mode flag as G33(0)
         STOP_SPEED_FEED_SYNCH();
         settings->current_x = end_x;
@@ -4523,10 +4524,42 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
         CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
                 (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
                 _("Spindle not turning in G33.1"));
-        START_SPEED_FEED_SYNCH(block->k_number, 0);
+        // TODO: ysli: set wait_for_index as 1 for RigidTap
+        START_SPEED_FEED_SYNCH(block->k_number, 0  /* wait_for_index */);
         SPINDLE_SYNC_MOTION(block->line_number, end_x, end_y, end_z, 1); // set ssm_mode flag as rigid_tap(1)
         STOP_SPEED_FEED_SYNCH();
         // after the RIGID_TAP cycle we'll be in the same spot
+    } else if (move == G_33_2) {
+        // SPINDLE_POSITIONING (ABSOLUTE_POSITION)
+        // G33.2 [ABC][ABSOLUTE_ANGLE] K[RPM]; Spindle must be on; and its speed must be 0 (M3S0)
+        // TODO: find a better syntax for spindle positioning where spindle may be used as A/B/C axis
+        int i, j;
+        double angle;
+        CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
+                (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
+                _("Spindle not turning in G33.2"));
+        i = 0;
+        if(block->a_flag) {
+            j = 3;
+            i += 1;
+            angle = AA_end;
+        }
+        if(block->b_flag) {
+            j = 4;
+            i += 1;
+            angle = BB_end;
+        }
+        if(block->c_flag) {
+            j = 5;
+            i += 1;
+            angle = CC_end;
+        }
+        CHKS((i != 1),
+                _("G33.2: Need absolute angle for A/B/C"));
+        printf("G33.2: i(%d) j(%d) angle(%f) rpm(%f)\n", i, j, angle, block->k_number);
+        START_SPEED_FEED_SYNCH(0, 0  /* wait_for_index */);
+        SPINDLE_SYNC_MOTION(block->line_number, angle, block->k_number, j, 2); // set ssm_mode flag as spindle_positioning(2)
+        STOP_SPEED_FEED_SYNCH();
     } else if (move == G_76) {
         CHKS((settings->AA_current != AA_end ||
                 settings->BB_current != BB_end ||
@@ -4629,25 +4662,25 @@ threading_pass(setup_pointer settings, block_pointer block,
             start_y, start_z - zoff, AABBCC); //back
     if(taper_dist && entry_taper) {
         DISABLE_FEED_OVERRIDE();
-        START_SPEED_FEED_SYNCH(taper_pitch, 0);
+        START_SPEED_FEED_SYNCH(taper_pitch, 0  /* wait_for_index */);
         STRAIGHT_FEED(block->line_number, boring?
                 safe_x + depth - full_threadheight:
                 safe_x - depth + full_threadheight,
                 start_y, start_z - zoff, AABBCC); //in
         STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, //angled in
                 start_y, start_z - zoff - taper_dist, AABBCC);
-        START_SPEED_FEED_SYNCH(pitch, 0);
+        START_SPEED_FEED_SYNCH(pitch, 0  /* wait_for_index */);
     } else {
         STRAIGHT_TRAVERSE(block->line_number, boring? safe_x + depth: safe_x - depth,
                 start_y, start_z - zoff, AABBCC); //in
         DISABLE_FEED_OVERRIDE();
-        START_SPEED_FEED_SYNCH(pitch, 0);
+        START_SPEED_FEED_SYNCH(pitch, 0  /* wait_for_index */);
     }
 
     if(taper_dist && exit_taper) {
         STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth,  //over
                 start_y, target_z - zoff + taper_dist, AABBCC);
-        START_SPEED_FEED_SYNCH(taper_pitch, 0);
+        START_SPEED_FEED_SYNCH(taper_pitch, 0  /* wait_for_index */);
         STRAIGHT_FEED(block->line_number, boring?
                 safe_x + depth - full_threadheight:
                 safe_x - depth + full_threadheight,
