@@ -4543,16 +4543,19 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
             j = 3;
             i += 1;
             angle = AA_end;
+            AA_end = settings->AA_current;
         }
         if(block->b_flag) {
             j = 4;
             i += 1;
             angle = BB_end;
+            BB_end = settings->BB_current;
         }
         if(block->c_flag) {
             j = 5;
             i += 1;
             angle = CC_end;
+            CC_end = settings->CC_current;
         }
         CHKS((i != 1),
                 _("G33.2: Need absolute angle for A/B/C"));
