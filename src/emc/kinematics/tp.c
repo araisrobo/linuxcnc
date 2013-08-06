@@ -1693,7 +1693,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             pmCartCartDot(tc->utvOut, nexttc->utvIn, &dot);
             k = acos(dot)/rv;
             ca = k * rv * rv;
-            if (ca < tc->maxaccel) {
+            // SMLBLND is for XYZ motion only
+            if ((ca < tc->maxaccel) && (!tc->coords.line.xyz.tmag_zero) && (!nexttc->coords.line.xyz.tmag_zero)) {
                 // allow seamless blending, SMLBLND
                 // also, (nexttc->atspeed == 0)
                 tc->seamless_blend_mode = SMLBLND_ENABLE;
