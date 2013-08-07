@@ -1792,6 +1792,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             target = tcGetEndpoint(tc);
             tp->motionType = tc->canon_motion_type;
 	    emcmotStatus->distance_to_go = tc->target - tc->progress;
+            emcmotStatus->progress = tc->progress;
 	    emcmotStatus->enables_queued = tc->enables;
 	    // report our line number to the guis
 	    tp->execId = tc->id;
@@ -1801,6 +1802,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             target = tcGetEndpoint(nexttc);
             tp->motionType = nexttc->canon_motion_type;
 	    emcmotStatus->distance_to_go = nexttc->target - nexttc->progress;
+            emcmotStatus->progress = nexttc->progress;
 	    emcmotStatus->enables_queued = nexttc->enables;
 	    // report our line number to the guis
 	    tp->execId = nexttc->id;
@@ -1840,6 +1842,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         target = tcGetEndpoint(tc);
         tp->motionType = tc->canon_motion_type;
 	emcmotStatus->distance_to_go = tc->target - tc->progress;
+        emcmotStatus->progress = tc->progress;
         tp->currentPos = primary_after;
         emcmotStatus->current_vel = (tc->cur_vel) / tc->cycle_time;
         emcmotStatus->requested_vel = tc->reqvel;

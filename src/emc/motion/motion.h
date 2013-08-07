@@ -742,6 +742,7 @@ typedef struct emcmot_status_t {
     double zuu_per_rev;        /* user-unit per rev for AXIS_Z */
     int motionType;
     double distance_to_go;  /* in this move */
+    double progress;        /* progress updated by tp */
     EmcPose dtg;
     double current_vel;
     double requested_vel;

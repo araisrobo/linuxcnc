@@ -50,6 +50,16 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 
+#define CSS_TRACE 0
+#if (CSS_TRACE!=0)
+#if (TRACE==0)
+static FILE* csstrace = 0;
+static uint32_t _dt = 0;
+#else
+#undef CSS_TRACE // disable CSS_TRACE when TRACE is enabled
+#endif
+#endif
+
 /* debugging function - prints a cartesean pose (multplies the floating
    point numbers by 1 million since kernel printf doesn't handle floats
  */
@@ -291,6 +301,12 @@ void emcmotController(void *arg, long period)
     _dt+=1;
 #endif
 
+#if (CSS_TRACE!=0)
+    if (!csstrace) {
+        csstrace = fopen("css.log", "w");
+        _dt = 0;
+    }
+#endif
 #ifndef RTAPI_SIM
     if(!priming) {
         // we have CYCLE_HISTORY samples, so check for this call being 
@@ -1239,7 +1255,7 @@ static double calc_vel(double vel_limit, double cur_vel, double cur_accel)
 
 static void get_spindle_cmds (double cycle_time)
 {
-    if(emcmotStatus->spindle.css_factor)
+    if(emcmotStatus->spindle.css_factor && emcmotStatus->spindle.on)
     {
         // for G96
         double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
@@ -1270,13 +1286,17 @@ static void get_spindle_cmds (double cycle_time)
         DP ("spindle.direction(%d)\n",
                              emcmotStatus->spindle.direction);
 //        DP ("synched-joint-vel(%f)(unit/sec)\n",emcmotStatus->spindle.curr_vel_rps * tp->uu_per_rev);
-        //#if (CSS_TRACE!=0)
-        //            /* prepare data for gnuplot */
-        //            fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
-        //                    , _dt, denom, tc->progress,emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI,denom * tc->cur_vel / tc->cycle_time * 2 * M_PI,
-        //                    (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * tc->cur_vel / tc->cycle_time * 2 * M_PI));
-        //            _dt += 1;
-        //#endif
+#if (CSS_TRACE!=0)
+        /* prepare data for gnuplot */
+        fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
+                , _dt
+                , denom
+                , emcmotStatus->progress
+                , emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI
+                , denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI
+                , (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI));
+        _dt += 1;
+#endif
     }
     else
     {
