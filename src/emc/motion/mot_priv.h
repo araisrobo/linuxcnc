@@ -135,6 +135,7 @@ typedef struct {
     hal_float_t *requested_vel; /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_s32_t *motion_state;    /* indicate s-curve state */
+    hal_s32_t *motion_type;     /* motion_type of current tc: LINEAR(1) CIRCULAR(2) SPINDLE_SYNC_MOTION(3) NURBS(4) */
     hal_s32_t *rigid_tapping;   /* bit-wise mapping to indicate which AXIS is rigid-tapping */
     hal_float_t *xuu_per_rev;   /* user unit per revolution for AXIS_X */
     hal_float_t *yuu_per_rev;   /* user unit per revolution for AXIS_Y */

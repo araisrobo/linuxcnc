@@ -2059,6 +2059,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->distance_to_go) = emcmotStatus->distance_to_go;
     *(emcmot_hal_data->motion_state) = emcmotStatus->motionState;
+    *(emcmot_hal_data->motion_type) = emcmotStatus->motion_type;
     *(emcmot_hal_data->xuu_per_rev) = emcmotStatus->xuu_per_rev;
     *(emcmot_hal_data->yuu_per_rev) = emcmotStatus->yuu_per_rev;
     *(emcmot_hal_data->zuu_per_rev) = emcmotStatus->zuu_per_rev;

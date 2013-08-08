@@ -1772,7 +1772,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     primary_displacement.v = primary_after.v - primary_before.v;
     primary_displacement.w = primary_after.w - primary_before.w;
 
-    emcmotStatus->motionState = tc->accel_state;
         
     // blend criteria
     if( (tc->blending && nexttc) || 
@@ -1860,6 +1859,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     emcmotStatus->dtg.u = target.u - tp->currentPos.u;
     emcmotStatus->dtg.v = target.v - tp->currentPos.v;
     emcmotStatus->dtg.w = target.w - tp->currentPos.w;
+
+    emcmotStatus->motion_type = tc->motion_type;
+    emcmotStatus->motionState = tc->accel_state;
 
     return 0;
 }
