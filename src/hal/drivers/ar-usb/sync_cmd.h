@@ -124,7 +124,9 @@
 #define SPEC_CMD_REQ_SYNC               0x00002000
 
 /* bit index for machine_status[31:0] */
-#define FERROR_MASK                     0xFFFF0000  // machine_status[15:0]
+// #define FERROR_MASK                     0xFFFFFF00  // machine_status[15:0]
+#define FERROR_MASK                     0x000000FF  // machine_status[7:0]
+#define ALARM_MASK                      0x00000100  // machine_status[8]
 #define PROBE_RESULT_BIT                16
 #define MACHINE_MOVING_BIT              17
 #define AHC_DOING_BIT                   18
@@ -216,7 +218,8 @@ enum machine_parameter_addr {
     PARAM14,
     PARAM15,
     JOINT_LSP_LSN,  // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
-    ALR_OUTPUT, 
+    ALR_OUTPUT,     // output value when ESTOP is pressed
+    ALR_EN_BITS,    // the enable bitmap of ALARM input bits
     MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
                     // [27:24]  SPINDLE_JOINT_ID
                     // [23:16]  NUM_JOINTS

@@ -108,6 +108,12 @@ const char *lsn_id[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(lsn_id, MAX_CHAN,
         "lsn_id: gpio pin id for limit-switch-negative(lsn) for up to 8 channels");
 
+// lsp_id: gpio pin id for ALARM siganl
+const char *alr_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(alr_id, MAX_CHAN,
+        "alr_id: gpio pin id for ALARM signal for up to 8 channels");
+
 const char *bits = "\0";
 RTAPI_MP_STRING(bits, "FPGA bitfile");
 
@@ -845,7 +851,7 @@ int rtapi_app_main(void)
     double enc_scale;
     double max_jerk;
     int msg;
-    int lsp, lsn;
+    int lsp, lsn, alr;
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     // rtapi_set_msg_level(RTAPI_MSG_INFO);
@@ -1023,6 +1029,19 @@ int rtapi_app_main(void)
         while(wou_flush(&w_param) == -1);
 
     }
+
+    // "set ALR_ID for up to 8 channels"
+    data[0] = 0;
+    for (n = 0; n < MAX_CHAN && (alr_id[n][0] != ' ') ; n++) {
+        alr = atoi(alr_id[n]);
+        if(alr != 255) {
+            immediate_data |= (1 << alr);
+            assert (alr < 7);    // AR08: ALARM maps to GPIO[6:1]
+            assert (alr > 0);
+        }
+    }
+    write_machine_param(ALR_EN_BITS, immediate_data);
+    while(wou_flush(&w_param) == -1);
 
     // configure alarm output (for E-Stop)
     write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
