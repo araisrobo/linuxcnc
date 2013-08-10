@@ -124,7 +124,6 @@
 #define SPEC_CMD_REQ_SYNC               0x00002000
 
 /* bit index for machine_status[31:0] */
-// #define FERROR_MASK                     0xFFFFFF00  // machine_status[15:0]
 #define FERROR_MASK                     0x000000FF  // machine_status[7:0]
 #define ALARM_MASK                      0x00000100  // machine_status[8]
 #define PROBE_RESULT_BIT                16
