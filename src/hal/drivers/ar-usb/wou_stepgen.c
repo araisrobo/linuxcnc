@@ -1015,7 +1015,6 @@ int rtapi_app_main(void)
             (uint8_t) 1, data);
 
     // "set LSP_ID/LSN_ID for up to 8 channels"
-    data[0] = 0;
     for (n = 0; n < MAX_CHAN && (lsp_id[n][0] != ' ') ; n++) {
         pos_scale = atof(pos_scale_str[n]);
         lsp = atoi(lsp_id[n]);
@@ -1031,7 +1030,7 @@ int rtapi_app_main(void)
     }
 
     // "set ALR_ID for up to 8 channels"
-    data[0] = 0;
+    immediate_data = 0; // reset ALR_EN_BITS to 0
     for (n = 0; n < MAX_CHAN && (alr_id[n][0] != ' ') ; n++) {
         alr = atoi(alr_id[n]);
         if(alr != 255) {
