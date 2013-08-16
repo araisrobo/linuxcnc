@@ -4559,7 +4559,7 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
         }
         CHKS((i != 1),
                 _("G33.2: Need absolute angle for A/B/C"));
-        printf("G33.2: i(%d) j(%d) angle(%f) rpm(%f)\n", i, j, angle, block->k_number);
+        // debug: printf("G33.2: i(%d) j(%d) angle(%f) rpm(%f)\n", i, j, angle, block->k_number);
         START_SPEED_FEED_SYNCH(0, 0  /* wait_for_index */);
         SPINDLE_SYNC_MOTION(block->line_number, angle, block->k_number, j, 2); // set ssm_mode flag as spindle_positioning(2)
         STOP_SPEED_FEED_SYNCH();
