@@ -1261,6 +1261,7 @@ static void get_spindle_cmds (double cycle_time)
         double denom = emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x;
         double speed;       // speed for major spindle (spindle-s)
         double maxpositive;
+
         // css_factor: unit(mm or inch)/min
         if(denom != 0)
         {
@@ -1275,7 +1276,8 @@ static void get_spindle_cmds (double cycle_time)
         if(speed > maxpositive) speed = maxpositive;
         emcmotStatus->spindle.speed_req_rps = speed * emcmotStatus->spindle.direction;
         emcmotStatus->spindle.css_error =
-                        (emcmotStatus->spindle.css_factor / 60.0 - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
+                        (emcmotStatus->spindle.css_factor / 60.0
+                         - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
                         * emcmotStatus->spindle.direction; // (unit/(2*PI*sec)
         DP ("css_req(%f)(unit/sec)\n", denom * emcmotStatus->spindle.speed_req_rps * 2 * M_PI);
         DP ("css_cur(%f)\n", denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI);
