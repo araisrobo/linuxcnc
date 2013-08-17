@@ -620,6 +620,8 @@ typedef struct {
     int update_pos_req;
     int at_speed;
     int on;
+    int dynamic_speed_mode;
+    double const_speed_radius;  // rotation speed is constant within the radius
     double curr_pos_cmd;
     double curr_vel_rps;
 } spindle_status;

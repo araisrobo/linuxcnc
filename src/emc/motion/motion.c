@@ -329,6 +329,8 @@ static int init_hal_io(void)
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) != 0) goto error;
     if ((retval = hal_param_u32_newf(HAL_RW, &(emcmot_hal_data->spindle_joint_id), mot_comp_id, "motion.spindle-joint-id")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_on), mot_comp_id, "motion.spindle-on")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_dynamic_speed_mode), mot_comp_id, "motion.spindle-dynamic-speed-mode")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_const_speed_radius), mot_comp_id, "motion.spindle-const-speed-radius")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_velocity_mode), mot_comp_id, "motion.spindle-velocity-mode")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_forward), mot_comp_id, "motion.spindle-forward")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_reverse), mot_comp_id, "motion.spindle-reverse")) != 0) goto error;
@@ -337,7 +339,8 @@ static int init_hal_io(void)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out_rps), mot_comp_id, "motion.spindle-speed-out-rps")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_css_error), mot_comp_id, "motion.spindle-css-error")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_css_factor), mot_comp_id, "motion.spindle-css-factor")) < 0) goto error;
-
+    *(emcmot_hal_data->spindle_dynamic_speed_mode) = 0;
+    *(emcmot_hal_data->spindle_const_speed_radius) = 1.0;
 
     // spindle orient pins
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_orient_angle), mot_comp_id, "motion.spindle-orient-angle")) < 0) goto error;
