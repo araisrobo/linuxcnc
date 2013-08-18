@@ -167,6 +167,8 @@ typedef struct {
     hal_u32_t spindle_joint_id;
     // simplest way of spindle control (output start/stop)
     hal_bit_t *spindle_on;	/* spindle spin output */
+    hal_bit_t *spindle_dynamic_speed_mode;
+    hal_float_t *spindle_const_speed_radius;
 
     // spindle_velocity_mode: velocity(1) or position(0) mode
     hal_bit_t *spindle_velocity_mode;      /* spindle velocity_mode output */

@@ -435,6 +435,10 @@ static void process_inputs(void)
     emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
     emcmotStatus->spindle.curr_vel_rps = *emcmot_hal_data->spindle_curr_vel_rps;
     emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
+    emcmotStatus->spindle.dynamic_speed_mode = *emcmot_hal_data->spindle_dynamic_speed_mode;
+    emcmotStatus->spindle.const_speed_radius = *emcmot_hal_data->spindle_const_speed_radius;
+
+
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
         /* use the enables that were queued with the current move */
@@ -1263,13 +1267,33 @@ static void get_spindle_cmds (double cycle_time)
         double maxpositive;
 
         // css_factor: unit(mm or inch)/min
-        if(denom != 0)
+        if(emcmotStatus->spindle.dynamic_speed_mode == 0)
         {
-            speed = emcmotStatus->spindle.css_factor / (denom * 60.0); // rps
+            if(denom != 0)
+            {
+                speed = emcmotStatus->spindle.css_factor / (denom * 60.0); // rps
+            }
+            else
+            {
+                speed = emcmotStatus->spindle.speed_rps;
+            }
         }
         else
         {
-            speed = emcmotStatus->spindle.speed_rps;
+            // dynamic_spindle_mode == 1
+            // adjust spindle speed dynamically to maintain constant tangential velocity
+            // the spindle speed is constant if (r <= const_speed_radius)
+            double csr;
+            csr = emcmotStatus->spindle.const_speed_radius;
+
+            if ((fabs(denom) >= csr) && (csr > 0))
+            {
+                speed = (emcmotStatus->spindle.speed_rps * csr) / denom; // rps
+            }
+            else
+            {
+                speed = emcmotStatus->spindle.speed_rps;
+            }
         }
         speed = fabs(speed);
         maxpositive = fabs(emcmotStatus->spindle.speed_rps);
