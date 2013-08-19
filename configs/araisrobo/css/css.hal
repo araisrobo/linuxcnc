@@ -267,14 +267,14 @@ net J5-risc-pos-cmd wou.stepgen.5.risc-pos-cmd => joint.5.risc-pos-cmd
 setp joint.0.home-sw-id 8
 setp joint.1.home-sw-id 10
 setp joint.2.home-sw-id 12
-# use LSP as homing switch for AXIS-Z:
-setp joint.3.home-sw-id 13
+# use LSN as homing switch for AXIS-Z:
+setp joint.3.home-sw-id 14
 setp joint.4.home-sw-id 15
 # home switch status from FPGA
 net din_08      joint.0.home-sw-in
 net din_10      joint.1.home-sw-in
 net din_12      joint.2.home-sw-in
-net din_13      joint.3.home-sw-in
+net din_14      joint.3.home-sw-in
 net din_15      joint.4.home-sw-in
 
 net j0-homing   joint.0.homing => wou.stepgen.0.homing
