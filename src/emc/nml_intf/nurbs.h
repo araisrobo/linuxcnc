@@ -7,7 +7,8 @@
 #ifndef NURBS_H_
 #define NURBS_H_
 
-#include <stdint.h>
+// #include <stdint.h>
+#include "rtapi.h"		/* RTAPI realtime OS API */
 
 typedef struct {          /* type for NURBS control points */
       double X,
@@ -30,20 +31,20 @@ typedef struct {
       } PLANE_POINT;
 /*typedef struct  {
     double              uofl_knot;
-    uint32_t            uofl_knot_flag;
+    __u32            uofl_knot_flag;
     double              uofl_weight;
-    uint32_t            uofl_weight_flag;
+    __u32            uofl_weight_flag;
     double              uofl_ctrl_pt;
-    uint32_t            uofl_ctrl_pt_flag;
+    __u32            uofl_ctrl_pt_flag;
 } uofl_block_t;*/
 typedef struct
 {
     // NURBS curve paramters
     CONTROL_POINT               *ctrl_pts_ptr;
-    uint32_t                    nr_of_ctrl_pts;
+    __u32                       nr_of_ctrl_pts;
     double                      *knots_ptr;
-    uint32_t                    nr_of_knots;
-    uint32_t                    order;
+    __u32                    nr_of_knots;
+    __u32                    order;
     double                      curve_len;
     double                      curvature;
     double                      knot;

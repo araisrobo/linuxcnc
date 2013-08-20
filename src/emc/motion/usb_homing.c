@@ -11,18 +11,24 @@
  * Copyright (c) 2004 All rights reserved.
  *
  ********************************************************************/
+#ifdef RTAPI
+#define assert(args...)		do {} while(0)
+#else
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
+#endif
 
 #include "rtapi.h"
 #include "hal.h"
 #include "motion.h"
 #include "mot_priv.h"
 #include "rtapi_math.h"
-#include <stdio.h>
 #include <wou.h>
-#include <wb_regs.h>
 #include <mailtag.h>
-#include <sync_cmd.h>
-#include <assert.h>
+#include "sync_cmd.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)

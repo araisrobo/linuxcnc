@@ -407,7 +407,7 @@ endif
 ifeq ($(BUILD_SYS),kbuild)
 
 modules:
-	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 modules
+	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=1 modules
 	-cp Module.symvers *$(MODULE_EXT) ../rtlib/
 endif
 
@@ -665,7 +665,7 @@ EXTRA_CFLAGS = $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I
 	-I$(BASEPWD)/libnml/os_intf -I$(BASEPWD)/libnml/nml -I$(BASEPWD)/libnml/buffer \
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
 	-I$(BASEPWD)/emc/nml_intf -I$(BASEPWD)/emc/kinematics -I$(BASEPWD)/emc/motion \
-        -DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
+	-DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
 	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations 
 	#not for sim: $(call cc-option,-Wframe-larger-than=2560)
 
@@ -680,7 +680,12 @@ endif
 # for libwou
 ifneq ($(WOU_VERSION),)
 EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB
+ifeq ($(BUILD_SYS),sim)
 LDFLAGS += $(WOU_LIBS)
+else
+# for kernel module build:
+EXTRA_CFLAGS += -I$(BASEPWD)/hal/drivers/ar-usb
+endif
 endif
 
 
@@ -936,7 +941,7 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	$(Q)ld -r -o objects/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary objects/$*.tmp objects/$*.exp; fi
 	@if ! $(IS_POWERPC); then objcopy -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
-	$(Q)$(CC) -shared -Bsymbolic -o $@ objects/$*.tmp -lm $(LDFLAGS)
+	$(Q)$(CC) -shared -Bsymbolic $(LDFLAGS) -o $@ objects/$*.tmp -lm
 
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)
@@ -969,7 +974,7 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 
 ../rtlib/%.o:
 	$(ECHO) Linking $@
-	$(Q)ld -r -static -S -Os $(LDFLAGS) -o $@ $^ $(EXTRALINK) $(MATHLIB)
+	$(Q)ld -r -static -S $(OPT) $(LDFLAGS) -o $@ $^ $(EXTRALINK) $(MATHLIB)
 endif
 
 ifneq "$(filter normal sim,$(BUILD_SYS))" ""

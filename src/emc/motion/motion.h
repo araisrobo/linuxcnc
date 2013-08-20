@@ -81,6 +81,12 @@ to another.
 #include "rtapi_limits.h"
 #include <stdarg.h>
 
+#ifdef RTAPI
+#define uint32_t __u32
+#else
+#include <stdint.h>
+#endif
+
 
 // define a special value to denote an invalid motion ID 
 // NB: do not ever generate a motion id of  MOTION_INVALID_ID

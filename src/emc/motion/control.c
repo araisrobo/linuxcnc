@@ -12,7 +12,15 @@
  *
  * Copyright (c) 2004 All rights reserved.
  ********************************************************************/
+#ifdef RTAPI
+#define assert(args...)		do {} while(0)
+#else
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 #include <stdint.h>
+#endif
 
 #include "posemath.h"
 #include "rtapi.h"
@@ -26,8 +34,7 @@
 #include "simple_tp.h"
 #include "motion_debug.h"
 #include "config.h"
-#include "assert.h"
-#include <sync_cmd.h>
+#include "sync_cmd.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -797,36 +804,8 @@ static void process_probe_inputs(void)
 static int update_current_pos = 0;
 static void handle_special_cmd(void)
 {
-    if (update_current_pos == 1) {
-        DP("update_current_pos(%d)\n", update_current_pos);
-
-        /* sync current pos-cmd with pos-fb */
-        update_current_pos = 0;
-        emcmotStatus->update_current_pos_flag = 1;
-        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-
-        emcmotStatus->special_cmd = SPEC_CMD_ACK;
-        /* tell USB that we've got the status */
-        emcmotStatus->usb_cmd &= ~(0x0008);
-        emcmotStatus->usb_cmd |= SPECIAL_CMD_TYPE;
-        emcmotStatus->usb_cmd_param[0] = emcmotStatus->special_cmd;
-
-        printf("ERROR: handle_special_cmd(): update_current_pos(1)\n");
-        assert(0);
-
-    } else {
-        emcmotStatus->update_current_pos_flag = 0;
-    }
-
-    if (*emcmot_hal_data->req_cmd_sync == 1) {
-        DP("req_cmd_sync(%d)\n", *emcmot_hal_data->req_cmd_sync);
-        emcmotStatus->sync_pos_cmd = 1;
-        update_current_pos = 1;
-        printf("ERROR: handle_special_cmd(): req_cmd_sync(1)\n");
-        assert(0);
-    } else {
-        emcmotStatus->sync_pos_cmd = 0;
-    }
+    emcmotStatus->update_current_pos_flag = 0;
+    emcmotStatus->sync_pos_cmd = 0;
 
     if (emcmotStatus->depth == 0)
     {   // not at EMCMOT_MOTION_COORD mode

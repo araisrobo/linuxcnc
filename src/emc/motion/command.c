@@ -53,6 +53,13 @@
 *
 * Copyright (c) 2004 All rights reserved.
 ********************************************************************/
+#ifdef RTAPI
+#define assert(args...)		do {} while(0)
+#else
+// SIM
+#include "stdio.h"
+#include "assert.h"
+#endif
 
 #include <linux/types.h>
 #include <float.h>
@@ -66,9 +73,7 @@
 #include "mot_priv.h"
 #include "rtapi_math.h"
 #include "motion_types.h"
-#include "stdio.h"
-#include "assert.h"
-#include <sync_cmd.h>
+#include "sync_cmd.h"
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
 
@@ -1492,8 +1497,6 @@ void emcmotCommandHandler(void *arg, long period)
                     emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
                     emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
                     rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_LOW");
-                    printf("USB_CMD_PROBE_LOW\n");
-
 		} else
 		{
 		    // G38.2, G38.3
@@ -1501,7 +1504,6 @@ void emcmotCommandHandler(void *arg, long period)
 		    emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
 		    emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
 		    rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_HIGH");
-		    printf("USB_CMD_PROBE_HIGH\n");
 		}
 		rtapi_print_msg(RTAPI_MSG_DBG, "usb_cmd(0x%0x) usb_cmd_param(%f)\n",
 		                emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
