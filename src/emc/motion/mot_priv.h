@@ -83,6 +83,7 @@ typedef struct {
     hal_s32_t   *risc_probe_pin;	/* OUT */
     hal_s32_t   *risc_probe_type;	/* OUT */
     hal_s32_t   *home_sw_id;		/* IN */
+    hal_float_t *blender_offset;
 
 } joint_hal_t;
 
@@ -116,7 +117,9 @@ typedef struct {
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;
-    hal_float_t *spindle_revs;
+    hal_bit_t *spindle_update_pos_req;
+    hal_float_t *spindle_curr_pos_cmd;
+    hal_float_t *spindle_curr_vel_rps;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion */
     hal_bit_t *motion_enabled;	/* RPI: motion enable for all joints */
@@ -132,6 +135,11 @@ typedef struct {
     hal_float_t *requested_vel; /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_s32_t *motion_state;    /* indicate s-curve state */
+    hal_s32_t *motion_type;     /* motion_type of current tc: LINEAR(1) CIRCULAR(2) SPINDLE_SYNC_MOTION(3) NURBS(4) */
+    hal_s32_t *rigid_tapping;   /* bit-wise mapping to indicate which AXIS is rigid-tapping */
+    hal_float_t *xuu_per_rev;   /* user unit per revolution for AXIS_X */
+    hal_float_t *yuu_per_rev;   /* user unit per revolution for AXIS_Y */
+    hal_float_t *zuu_per_rev;   /* user unit per revolution for AXIS_Z */
     hal_float_t *feed_scale;
 
     hal_bit_t debug_bit_0;	/* RPA: generic param, for debugging */
@@ -156,8 +164,14 @@ typedef struct {
     // creating a lot of pins for spindle control to be very flexible
     // the user needs only a subset of these
 
+    hal_u32_t spindle_joint_id;
     // simplest way of spindle control (output start/stop)
     hal_bit_t *spindle_on;	/* spindle spin output */
+    hal_bit_t *spindle_dynamic_speed_mode;
+    hal_float_t *spindle_const_speed_radius;
+
+    // spindle_velocity_mode: velocity(1) or position(0) mode
+    hal_bit_t *spindle_velocity_mode;      /* spindle velocity_mode output */
 
     // same thing for 2 directions
     hal_bit_t *spindle_forward;	/* spindle spin-forward output */
@@ -174,9 +188,9 @@ typedef struct {
     // output of a prescribed speed (to hook-up to a velocity controller)
     hal_float_t *spindle_speed_out;	/* spindle speed output */
     hal_float_t *spindle_speed_out_rps;	/* spindle speed output */
-    hal_float_t *spindle_speed_cmd_rps;	/* spindle speed command without SO applied */
     hal_float_t *spindle_speed_in;	/* spindle speed measured */
-    hal_float_t *spindle_css;           /* output surface when CSS mode */
+    hal_float_t *spindle_css_error;     /* error of Constant Surface Speed(CSS) motion, (unit/(2*PI*sec) */
+    hal_float_t *spindle_css_factor;    /* 0: for CONST-RPM mode, NON-0 for CSS mode */
     
     // spindle orient
     hal_float_t *spindle_orient_angle;	/* out: desired spindle angle, degrees */

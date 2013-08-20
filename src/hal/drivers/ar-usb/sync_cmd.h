@@ -124,15 +124,20 @@
 #define SPEC_CMD_REQ_SYNC               0x00002000
 
 /* bit index for machine_status[31:0] */
-#define FERROR_MASK                     0xFFFF0000  // machine_status[15:0]
+#define FERROR_MASK                     0x000000FF  // machine_status[7:0]
+#define ALARM_MASK                      0x00000100  // machine_status[8]
 #define PROBE_RESULT_BIT                16
 #define MACHINE_MOVING_BIT              17
 #define AHC_DOING_BIT                   18
 
 /**
- *  MACHINE_CTRL,   // [31:24]  RESERVED
+ *  MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
+ *                  // [27:24]  SPINDLE_JOINT_ID
  *                  // [23:16]  NUM_JOINTS
- *                  // [15: 8]  RESERVED
+ *                  // [l5: 8]  JOG_SEL
+ *                                  [15]: MPG(1), CONT(0)
+ *                                  [14]: RESERVED
+ *                                  [13:8]: J[5:0], EN(1), DISABLE(0)
  *                  // [ 7: 4]  ACCEL_STATE
  *                  // [ 3: 1]  MOTION_MODE: 
  *                                  FREE    (0) 
@@ -145,7 +150,12 @@
 #define MCTRL_MOTION_TYPE_MASK          0x0000000E  // MOTION_TYPE mask for MACHINE_CTRL
 #define MCTRL_HOMING_MASK               0x00000008  // HOMING_MASK for MACHINE_CTRL
 #define MCTRL_ACCEL_STATE_MASK          0x000000F0  // ACCEL_STATE mask for MACHINE_CTRL
+//obsolete: #define MCTRL_TAPPING_MASK              0x0000FF00  // TAPPING mask for MACHINE_CTRL
 #define MCTRL_NUM_JOINTS_MASK           0x00FF0000  // NUM_JOINTS mask for MACHINE_CTRL
+#define MCTRL_SPINDLE_ID_MASK           0x0F000000  // SPINDLE_JOINT_ID mask for MACHINE_CTRL
+#define MCTRL_JOG_SEL_MASK              0x0000FF00  // JOG_SEL mask for MACHINE_CTRL
+#define MCTRL_JOG_VEL_SCALE_VALUE_MASK  0x70000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
+#define MCTRL_JOG_VEL_SCALE_SIGN_MASK   0x80000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
 
 typedef enum {
     // 0'b 0000     0000     0000     0000     0000     0000        0000   0000
@@ -168,14 +178,14 @@ typedef enum {
 typedef enum {
     RISC_PROBE_LOW = 0,
     RISC_PROBE_HIGH,
-    RISC_PROBE_FALLING,
-    RISC_PROBE_RISING,
+    RISC_PROBE_INDEX,
 } rsic_probe_type_t;
 
 // memory map for machine config
 enum machine_parameter_addr {
     AHC_JNT,
     AHC_POLARITY,
+    GANTRY_POLARITY,
     TEST_PATTERN_TYPE,
     TEST_PATTERN,
     ANALOG_REF_LEVEL,   // wait analog signal: M110
@@ -206,12 +216,15 @@ enum machine_parameter_addr {
     PARAM13,
     PARAM14,
     PARAM15,
-    ALR_OUTPUT, 
-    MACHINE_CTRL,   // [31:24]  RESERVED
+    JOINT_LSP_LSN,  // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
+    ALR_OUTPUT,     // output value when ESTOP is pressed
+    ALR_EN_BITS,    // the enable bitmap of ALARM input bits
+    MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
+                    // [27:24]  SPINDLE_JOINT_ID
                     // [23:16]  NUM_JOINTS
-                    // [15: 8]  RESERVED
+                    // [15: 8]  JOG_SEL
                     // [ 7: 4]  ACCEL_STATE
-                    // [ 3: 1]  MOTION_MODE: FREE(0) TELEOP(1) COORD(2) HOMING(4)
+                    // [ 3: 1]  MOTION_MODE: 
                     // [    0]  MACHINE_ON
     MACHINE_PARAM_ITEM
 };
@@ -248,9 +261,9 @@ enum ahc_state_enum {
 enum motion_parameter_addr {
     MAX_VELOCITY      ,
     MAX_ACCEL         ,
-    MAX_ACCEL_RECIP   ,
+    MAX_JERK	      ,
     MAXFOLLWING_ERR   ,
-                            // PID section: begin
+    // PID section: begin
     P_GAIN            ,     // (unit: 1/65536)
     I_GAIN            ,     // (unit: 1/65536)
     D_GAIN            ,     // (unit: 1/65536)
@@ -265,12 +278,11 @@ enum motion_parameter_addr {
     MAXCMD_D          ,
     MAXCMD_DD         ,
     MAXOUTPUT         ,     
-                            // PID section: end
-    ENABLE            ,     // set to 1 to enable joint motion
-    MAX_JERK	      ,
-    MAX_JERK_RECIP    ,
+    // PID section: end
+    SCALE             ,     // unit_pulses/servo_period : 16.16 format, 
+    ENC_SCALE         ,     // encoder scale: 16.16 format
+    SSYNC_SCALE       ,     // spindle sync compensation scale: 16.16 format
     JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
-
     MAX_PARAM_ITEM
 };
 

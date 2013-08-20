@@ -311,6 +311,8 @@ class EMC_JOINT_SET_HOMING_PARAMS:public EMC_JOINT_CMD_MSG {
     int home_sequence;
     int volatile_home;
     int locking_indexer;
+    int gantry_master;
+    int gantry_slave;
 };
 
 class EMC_JOINT_SET_MAX_VELOCITY:public EMC_JOINT_CMD_MSG {
@@ -893,7 +895,8 @@ class EMC_TRAJ_SET_SPINDLESYNC:public EMC_TRAJ_CMD_MSG {
 
         void update(CMS * cms);
         double feed_per_revolution;
-	bool velocity_mode; 
+	bool wait_for_index;
+	bool spindlesync;
 };
 
 class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {
@@ -1008,10 +1011,11 @@ class EMC_TRAJ_PROBE:public EMC_TRAJ_CMD_MSG {
     unsigned char probe_type;
 };
 
-class EMC_TRAJ_RIGID_TAP:public EMC_TRAJ_CMD_MSG {
+class EMC_TRAJ_SPINDLE_SYNC_MOTION:public EMC_TRAJ_CMD_MSG {
+    // for G33 and G33.1
   public:
-    EMC_TRAJ_RIGID_TAP():EMC_TRAJ_CMD_MSG(EMC_TRAJ_RIGID_TAP_TYPE,
-				      sizeof(EMC_TRAJ_RIGID_TAP)) {
+    EMC_TRAJ_SPINDLE_SYNC_MOTION():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE,
+				      sizeof(EMC_TRAJ_SPINDLE_SYNC_MOTION)) {
     };
 
     // For internal NML/CMS use only.
@@ -1019,6 +1023,7 @@ class EMC_TRAJ_RIGID_TAP:public EMC_TRAJ_CMD_MSG {
 
     EmcPose pos;
     double vel, ini_maxvel, acc, ini_maxjerk;
+    int ssm_mode; // set to 1 for rigid-tapping
 };
 
 // EMC_TRAJ status base class

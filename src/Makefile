@@ -102,7 +102,8 @@ SUBDIRS := \
     rtapi/examples/extint rtapi/examples/fifo rtapi/examples rtapi \
     \
     hal/components hal/drivers hal/user_comps/devices \
-    hal/user_comps hal/user_comps/vismach hal/user_comps/vfs11_vfd hal/classicladder hal/utils hal \
+    hal/user_comps/vfs11_vfd hal/user_comps/vfdb_vfd \
+    hal/user_comps hal/user_comps/vismach hal/classicladder hal/utils hal \
     \
     emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
     emc/usr_intf/gremlin \ emc/usr_intf/gscreen \
@@ -722,8 +723,8 @@ stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
 # wou.o is composed of (multiple) wou-objs
 obj-$(CONFIG_WOU) += wou.o
 wou-objs := hal/drivers/ar-usb/wou_stepgen.o $(MATHSTUB)
-obj-$(CONFIG_WOU_SIM) += wou_sim.o
-wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
+# obj-$(CONFIG_WOU_SIM) += wou_sim.o
+# wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -895,6 +896,9 @@ align_gantry_kins-objs := emc/kinematics/align_gantry_kins.o
 obj-m += yyzzkins.o
 yyzzkins-objs := emc/kinematics/yyzzkins.o
 
+obj-m += miller_kins.o
+miller_kins-objs := emc/kinematics/miller_kins.o
+
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o
 motmod-objs += emc/kinematics/tc.o
@@ -980,7 +984,7 @@ endif
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
 ../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
-../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
+# ../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
@@ -1024,6 +1028,7 @@ endif
 ../rtlib/alignmentkins$(MODULE_EXT): $(addprefix objects/rt,$(alignmentkins-objs))
 ../rtlib/align_gantry_kins$(MODULE_EXT): $(addprefix objects/rt,$(align_gantry_kins-objs))
 ../rtlib/yyzzkins$(MODULE_EXT): $(addprefix objects/rt,$(yyzzkins-objs))
+../rtlib/miller_kins$(MODULE_EXT): $(addprefix objects/rt,$(miller_kins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))

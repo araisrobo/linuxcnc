@@ -13,17 +13,7 @@
 
 import math
 
-# from __main__ import set_active, set_text
-
-def set_active(w, s):
-	if not w: return
-	os = w.get_active()
-	if os != s: w.set_active(s)
-
-def set_text(w, t):
-	if not w: return
-	ot = w.get_label()
-	if ot != t: w.set_label(t)
+from __main__ import set_active, set_text
 
 class emc_control:
         def __init__(self, emc, listing, error):
@@ -65,22 +55,18 @@ class emc_control:
                 self.emccommand.flood(0)
 
         def estop(self, b):
-                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ESTOP)
 
         def estop_reset(self, b):
-                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ESTOP_RESET)
 
         def machine_off(self, b):
-                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_OFF)
 
         def machine_on(self, b):
-                set_text(self.error, "")
                 if self.masked: return
                 self.emccommand.state(self.emc.STATE_ON)
 
@@ -144,22 +130,14 @@ class emc_control:
                         if self.isjogging[i]:
                                 self.emccommand.jog(self.emc.JOG_CONTINUOUS, i, self.isjogging[i] * self.jog_velocity)
         
-        def continuous_jog(self, joint, direction):
-                self.emcstat.poll()
-                if self.emcstat.task_mode != self.emc.MODE_MANUAL:
-                    # TODO wait till task_mode equal to emc.MODE_MANUAL
-                    return False
-                if self.masked: 
-                    return False
-                # DEBUG:
-                # print "continuous_jog(%d) dir(%d) vel(%d)" % (joint, direction, direction * self.jog_velocity)
+        def continuous_jog(self, axis, direction):
+                if self.masked: return
                 if direction == 0:
-                        self.isjogging[joint] = 0
-                        self.emccommand.jog(self.emc.JOG_STOP, joint)
+                        self.isjogging[axis] = 0
+                        self.emccommand.jog(self.emc.JOG_STOP, axis)
                 else:
-                        self.isjogging[joint] = direction
-                        self.emccommand.jog(self.emc.JOG_CONTINUOUS, joint, direction * self.jog_velocity)
-                return True
+                        self.isjogging[axis] = direction
+                        self.emccommand.jog(self.emc.JOG_CONTINUOUS, axis, direction * self.jog_velocity)
                 
 	def quill_up(self):
                 if self.masked: return
@@ -213,23 +191,23 @@ class emc_control:
                         else:
                                 self.emccommand.auto(self.emc.AUTO_RESUME)
 
-#        def cycle_start(self):
-#                self.emcstat.poll()
-#                if self.emcstat.paused:
-#                        if self.sb:
-#                                self.emccommand.auto(self.emc.AUTO_STEP)
-#                        else:
-#                                self.emccommand.auto(self.emc.AUTO_RESUME)
-#                        return
-#
-#                if self.emcstat.interp_state == self.emc.INTERP_IDLE:
-#                        self.emccommand.mode(self.emc.MODE_AUTO)
-#                        self.emccommand.wait_complete()
-#                        if self.sb:
-#                                self.emccommand.auto(self.emc.AUTO_STEP)
-#                        else:
-#                                self.emccommand.auto(self.emc.AUTO_RUN, self.listing.get_startline())
-#                                self.listing.clear_startline()
+        def cycle_start(self):
+                self.emcstat.poll()
+                if self.emcstat.paused:
+                        if self.sb:
+                                self.emccommand.auto(self.emc.AUTO_STEP)
+                        else:
+                                self.emccommand.auto(self.emc.AUTO_RESUME)
+                        return
+
+                if self.emcstat.interp_state == self.emc.INTERP_IDLE:
+                        self.emccommand.mode(self.emc.MODE_AUTO)
+                        self.emccommand.wait_complete()
+                        if self.sb:
+                                self.emccommand.auto(self.emc.AUTO_STEP)
+                        else:
+                                self.emccommand.auto(self.emc.AUTO_RUN, self.listing.get_startline())
+                                self.listing.clear_startline()
 
 class emc_status:
         def __init__(self, gtk, emc, listing, relative, absolute, distance,
@@ -357,9 +335,9 @@ class emc_status:
                         dtg = self.convert_units(dtg,self.unit_convert)
 
                 if self.mm:
-                        fmt = "%c:% 10.2f"
+                        fmt = "%c:% 10.3f"
                 else:
-                        fmt = "%c:% 9.2f"
+                        fmt = "%c:% 9.4f"
 
                 d = 0
                 if (am & 1):
@@ -399,15 +377,15 @@ class emc_status:
                 set_active(self.machines['on'], on)
                 set_active(self.machines['off'], not on)
 
-                ovl = self.emcstat.joint[0]['override_limits']
-                set_active(self.override_limit, ovl)
+#                ovl = self.emcstat.axis[0]['override_limits']
+#                set_active(self.override_limit, ovl)
 
                 set_text(self.status['file'], self.emcstat.file)
-#                set_text(self.status['file_lines'], "%d" % len(self.listing.program))
+                set_text(self.status['file_lines'], "%d" % len(self.listing.program))
                 set_text(self.status['line'], "%d" % self.emcstat.current_line)
                 set_text(self.status['id'], "%d" % self.emcstat.id)
                 set_text(self.status['dtg'], "%.4f" % self.emcstat.distance_to_go)
-                set_text(self.status['velocity'], "%.2f" % (self.emcstat.current_vel * 60.0))
+                set_text(self.status['velocity'], "%.4f" % (self.emcstat.current_vel * 60.0))
                 set_text(self.status['delay'], "%.2f" % self.emcstat.delay_left)
 
                 flood = self.emcstat.flood
@@ -463,8 +441,8 @@ class emc_status:
                 g92 = ""
                 for i in range(len(self.emcstat.g5x_offset)):
                         letter = "XYZABCUVW"[i]
-                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.2f " % (letter, self.emcstat.g5x_offset[i])
-                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.2f " % (letter, self.emcstat.g92_offset[i])
+                        if self.emcstat.g5x_offset[i] != 0: g5x += "%s%.4f " % (letter, self.emcstat.g5x_offset[i])
+                        if self.emcstat.g92_offset[i] != 0: g92 += "%s%.4f " % (letter, self.emcstat.g92_offset[i])
                                    
                 set_text(self.status['g5xoffset'], g5x);
                 set_text(self.status['g92offset'], g92);
@@ -500,12 +478,12 @@ class emc_status:
                 set_active(self.blockdel['off'], not self.emcstat.block_delete)
                 
 
-#                if self.emcstat.id == 0 and (self.emcstat.interp_state == self.emc.INTERP_PAUSED or self.emcstat.exec_state == self.emc.EXEC_WAITING_FOR_DELAY):
-#                        self.listing.highlight_line(self.emcstat.current_line)
-#                elif self.emcstat.id == 0:
-#                        self.listing.highlight_line(self.emcstat.motion_line)
-#                else:
-#                        self.listing.highlight_line(self.emcstat.id or self.emcstat.motion_line)
+                if self.emcstat.id == 0 and (self.emcstat.interp_state == self.emc.INTERP_PAUSED or self.emcstat.exec_state == self.emc.EXEC_WAITING_FOR_DELAY):
+                        self.listing.highlight_line(self.emcstat.current_line)
+                elif self.emcstat.id == 0:
+                        self.listing.highlight_line(self.emcstat.motion_line)
+                else:
+                        self.listing.highlight_line(self.emcstat.id or self.emcstat.motion_line)
 
                 e = self.emcerror.poll()
                 if e:

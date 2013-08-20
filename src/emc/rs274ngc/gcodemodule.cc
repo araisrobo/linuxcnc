@@ -675,14 +675,13 @@ void STRAIGHT_PROBE(int line_number,
     Py_XDECREF(result);
 
 }
-void RIGID_TAP(int line_number,
-               double x, double y, double z) {
+void SPINDLE_SYNC_MOTION(int line_number,
+               double x, double y, double z, int ssm_mode) {
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "rigid_tap", "fff",
-            x, y, z);
+        callmethod(callback, "spindle_sync_motion", "fffi", x, y, z, ssm_mode);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 }

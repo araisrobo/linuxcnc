@@ -36,10 +36,23 @@
 static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
+
+#define CSS_TRACE 0
+#if (CSS_TRACE!=0)
+#if (TRACE==0)
+static FILE* csstrace = 0;
+static uint32_t _dt = 0;
+#else
+#undef CSS_TRACE // disable CSS_TRACE when TRACE is enabled
+#endif
+#endif
+
 #define EPSTHON 1e-6
 
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
+
+static const double tiny = 1e-7;
 
 int output_chan = 0;
 syncdio_t syncdio; //record tpSetDout's here
@@ -71,6 +84,12 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
     }
 #endif
 
+#if (CSS_TRACE!=0)
+    if (!csstrace) {
+        csstrace = fopen("tp_css.log", "w");
+        _dt = 0;
+    }
+#endif
     /* init the rest of our data */
     return tpInit(tp);
 }
@@ -274,9 +293,15 @@ int tpSetPos(TP_STRUCT * tp, EmcPose pos)
     return 0;
 }
 
-int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel, 
-                  double ini_maxvel, double acc, 
-                  double jerk, unsigned char enables) 
+/**
+ * SPINDLE_SYNC_MOTION:
+ *      -- RIGID_TAPPING(G33.1)
+ *      -- CSS(G33 w/ G96)
+ *      -- THREADING(G33 w/ G97)
+ */
+int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
+                  double ini_maxvel, double acc, double jerk,
+                  int ssm_mode, unsigned char enables)
 {
     TC_STRUCT tc;
     PmLine line_xyz;
@@ -308,20 +333,27 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     uvw.y = tp->goalPos.v;
     uvw.z = tp->goalPos.w;
 
-    pmLineInit(&line_xyz, start_xyz, end_xyz);
+    // TODO: pass atspeed as parameter (G33.1/G33.2/G33.3 will not wait for atspeed, G33 needs)
+    if (ssm_mode < 2){
+        tc.atspeed = 0;
+        pmLineInit(&line_xyz, start_xyz, end_xyz);
+    }
+    else if (ssm_mode == 2)
+    {   // G33.2
+        tc.atspeed = 1;
+        pmLineInit(&line_xyz, start_xyz, start_xyz);      // prevent motion for xyz for G33.2
+        tc.coords.spindle_sync.spindle_end_angle = end.s / 360.0;
+    }
+
 
     tc.sync_accel = 0;
     tc.cycle_time = tp->cycleTime;
-    tc.coords.rigidtap.reversal_target = line_xyz.tmag;
 
-    // allow 10 turns of the spindle to stop - we don't want to just go on forever
-    tc.target = line_xyz.tmag + 10. * tp->uu_per_rev;
-    
-    DP("tpAddRigidTap(): jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
+    // tc.target: set as revolutions of spindle
+    tc.target = line_xyz.tmag / tp->uu_per_rev;
+    DP("jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
         jerk, vel, acc, ini_maxvel);
-    DP("tpAddRigidTap(): reversal_target(%f) target(%f) uu_per_rev(%f)\n", 
-        tc.coords.rigidtap.reversal_target,
-        tc.target, tp->uu_per_rev);
+    DP("target(%f) uu_per_rev(%f)\n", tc.target, tp->uu_per_rev);
 
     tc.progress = 0.0;
     tc.accel_state = ACCEL_S3;
@@ -333,17 +365,21 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.feed_override = 0.0;
     tc.id = tp->nextId;
     tc.active = 0;
-    tc.atspeed = 1;
+
+
+
 
     tc.cur_accel = 0.0;
     tc.cur_vel = 0.0;
     tc.blending = 0;
 
-    tc.coords.rigidtap.xyz = line_xyz;
-    tc.coords.rigidtap.abc = abc;
-    tc.coords.rigidtap.uvw = uvw;
-    tc.coords.rigidtap.state = TAPPING;
-    tc.motion_type = TC_RIGIDTAP;
+    tc.coords.spindle_sync.xyz = line_xyz;
+    tc.coords.spindle_sync.abc = abc;
+    tc.coords.spindle_sync.uvw = uvw;
+    // updated spindle speed constrain based on spindleSyncMotionMsg.vel of emccanon.cc
+    tc.coords.spindle_sync.spindle_reqvel = vel;
+
+    tc.motion_type = TC_SPINDLE_SYNC_MOTION;
 
     tc.canon_motion_type = 0;
     tc.blend_with_next = 0;
@@ -352,16 +388,18 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
     tc.nexttc_target = 0;
 
     if(!tp->synchronized) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot add unsynchronized rigid tap move.\n");
+        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot add unsynchronized spindle sync move.\n");
         return -1;
     }
     tc.synchronized = tp->synchronized;
-    
     tc.uu_per_rev = tp->uu_per_rev;
     tc.css_progress_cmd = 0;
     tc.velocity_mode = tp->velocity_mode;
     tc.enables = enables;
     tc.indexrotary = -1;
+    tc.coords.spindle_sync.spindle_start_pos_latch = 0;
+    tc.coords.spindle_sync.spindle_start_pos = 0;
+    tc.coords.spindle_sync.mode = ssm_mode;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
 	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
@@ -371,13 +409,46 @@ int tpAddRigidTap(TP_STRUCT *tp, EmcPose end, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
+    if (vel > 0)        // vel is requested spindle velocity
+    {
+        tc.coords.spindle_sync.spindle_dir = 1.0;
+    } else
+    {
+        tc.coords.spindle_sync.spindle_dir = -1.0;
+    }
+
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
-	return -1;
+        return -1;
     }
-    
-    // do not change tp->goalPos here,
-    // since this move will end just where it started
+    if (ssm_mode == 1)  // for G33.1
+    {   // REVERSING
+        pmLineInit(&line_xyz, end_xyz, start_xyz);  // reverse the line direction
+        tc.coords.spindle_sync.xyz = line_xyz;
+        if (vel > 0)
+        {
+            tc.coords.spindle_sync.spindle_dir = -1.0;
+        } else
+        {
+            tc.coords.spindle_sync.spindle_dir = 1.0;
+        }
+        if (tcqPut(&tp->queue, tc) == -1) {
+            rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
+            return -1;
+        }
+        // do not change tp->goalPos here,
+        // since this move will end just where it started
+    }
+    else if (ssm_mode == 0)
+    {   // for G33
+        tp->goalPos = end;      // remember the end of this move, as it's
+                                // the start of the next one.
+    }
+    else if (ssm_mode == 2)
+    {   // for G33.2
+        // TODO: need to change tp->goalPos ?
+    }
+
 
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
@@ -1327,10 +1398,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     EmcPose primary_before, primary_after;
     EmcPose secondary_before, secondary_after;
     EmcPose primary_displacement, secondary_displacement;
-    static double spindleoffset;
     static int waiting_for_index = MOTION_INVALID_ID;
     static int waiting_for_atspeed = MOTION_INVALID_ID;
-    static double revs;
     EmcPose target;
 
     emcmotStatus->tcqlen = tcqLen(&tp->queue);
@@ -1350,6 +1419,11 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         tpResume(tp);
 	// when not executing a move, use the current enable flags
 	emcmotStatus->enables_queued = emcmotStatus->enables_new;
+        // spindleSync maps to motion.spindle-velocity-mode
+        emcmotStatus->spindleSync = 0;
+        emcmotStatus->xuu_per_rev = 0;
+        emcmotStatus->yuu_per_rev = 0;
+        emcmotStatus->zuu_per_rev = 0;
         return 0;
     }
 
@@ -1357,10 +1431,10 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         // if we're synced, and this move is ending, save the
         // spindle position so the next synced move can be in
         // the right place.
-        if(tc->synchronized)
-            spindleoffset += tc->target/tc->uu_per_rev;
-        else
-            spindleoffset = 0.0;
+
+        emcmotStatus->xuu_per_rev = 0;
+        emcmotStatus->yuu_per_rev = 0;
+        emcmotStatus->zuu_per_rev = 0;
 
         if(tc->indexrotary != -1) {
             // this was an indexing move, so before we remove it we must
@@ -1425,6 +1499,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             waiting_for_index = MOTION_INVALID_ID;
             waiting_for_atspeed = MOTION_INVALID_ID;
             emcmotStatus->spindleSync = 0;
+            emcmotStatus->xuu_per_rev = 0;
+            emcmotStatus->yuu_per_rev = 0;
+            emcmotStatus->zuu_per_rev = 0;
             tpResume(tp);
             return 0;
         } else {
@@ -1441,6 +1518,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 waiting_for_index, tc->id);
         waiting_for_index = MOTION_INVALID_ID;
     }
+
     if (MOTION_ID_VALID(waiting_for_atspeed) && waiting_for_atspeed != tc->id)  
     {
 
@@ -1452,7 +1530,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
     // check for at-speed before marking the tc active
     if (MOTION_ID_VALID(waiting_for_atspeed)) {
-        if(!emcmotStatus->spindle_is_atspeed) {
+        if((emcmotStatus->spindle.on) && (!emcmotStatus->spindle.at_speed)) {
             /* spindle is still not at the right speed: wait */
             return 0;
         } else {
@@ -1460,17 +1538,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         }
     }
 
+
     if(tc->active == 0) {
         // this means this tc is being read for the first time.
-
-        // wait for atspeed, if motion requested it.  also, force
-        // atspeed check for the start of all spindle synchronized
-        // moves.
-        if((tc->atspeed || (tc->synchronized && !tc->velocity_mode && !emcmotStatus->spindleSync)) && 
-           !emcmotStatus->spindle_is_atspeed) {
-            waiting_for_atspeed = tc->id;
-            return 0;
-        }
 
         if (tc->indexrotary != -1) {
             // request that the axis unlock
@@ -1483,168 +1553,111 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
         tc->active = 1;
         tc->cur_vel = 0;
-        //ysli: not necessary to force depth to 1:
-        //      tp->depth = tp->activeDepth = 1;
         //ysli: can't understand the usage of activeDepth.
         tp->activeDepth = 1;
         tp->motionType = tc->canon_motion_type;
         tc->blending = 0;
 
-        // honor accel constraint in case we happen to make an acute angle
-        // with the next segment.
-
-        if(tc->synchronized) {
-            if(!tc->velocity_mode && !emcmotStatus->spindleSync) {
-                // if we aren't already synced, wait
-                waiting_for_index = tc->id;
-                // ask for an index reset
-                emcmotStatus->spindle_index_enable = 1;
-                spindleoffset = 0.0;
-                // don't move: wait
-                return 0;
-            }
-        }
-    }
-
-    if (MOTION_ID_VALID(waiting_for_index)) {
-        if(emcmotStatus->spindle_index_enable) {
-            /* haven't passed index yet */
+        // TODO: make sure the atspeed judgment is valid for G33 and G33.1
+        if(tc->atspeed) {
+            // force to wait 1 more cycle for updating emcmotStatus->spindle.at_speed
+            waiting_for_atspeed = tc->id;
+            emcmotStatus->xuu_per_rev = 0;
+            emcmotStatus->yuu_per_rev = 0;
+            emcmotStatus->zuu_per_rev = 0;
             return 0;
-        } else {
-            /* passed index, start the move */
-            emcmotStatus->spindleSync = 1;
-            waiting_for_index = MOTION_INVALID_ID;
-            tc->sync_accel=1;
-            revs=0;
         }
     }
 
-    if (tc->motion_type == TC_RIGIDTAP) {
-        static double old_spindlepos;
-        double new_spindlepos = emcmotStatus->spindleRevs;
-        if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
 
-        switch (tc->coords.rigidtap.state) {
-        case TAPPING:
-            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
-                // command reversal
-                emcmotStatus->spindle.speed *= -1;
-                tc->coords.rigidtap.state = REVERSING;
-            }
-            break;
-        case REVERSING:
-            if (new_spindlepos < old_spindlepos) {
-                PmPose start, end;
-                PmLine *aux = &tc->coords.rigidtap.aux_xyz;
-                // we've stopped, so set a new target at the original position
-                tc->coords.rigidtap.spindlerevs_at_reversal = new_spindlepos + spindleoffset;
-                
-                pmLinePoint(&tc->coords.rigidtap.xyz, tc->progress, &start);
-                end = tc->coords.rigidtap.xyz.start;
-                pmLineInit(aux, start, end);
-                tc->coords.rigidtap.reversal_target = aux->tmag;
-                tc->target = aux->tmag + 10. * tc->uu_per_rev;
-                tc->progress = 0.0;
-                tc->css_progress_cmd = 0;
+    emcmotStatus->spindleSync = tc->synchronized;
+    if(tc->synchronized) {
+        if (!tc->coords.spindle_sync.spindle_start_pos_latch)
+        {
+            if (tc->coords.spindle_sync.mode < 2)
+            {   // G33, G33.1
+                tc->coords.spindle_sync.spindle_start_pos_latch = 1;
+                tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->carte_pos_cmd.s;
+                tc->cur_vel = fabs(emcmotStatus->spindle.curr_vel_rps) * tc->cycle_time;
 
-                tc->coords.rigidtap.state = RETRACTION;
+                /* bitmap for rigid-tapping-AXIS_X */
+                if (tc->coords.spindle_sync.xyz.uVec.x > tiny)
+                {
+                    emcmotStatus->xuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.x;
+                }
+                /* bitmap for rigid-tapping-AXIS_Y */
+                if (tc->coords.spindle_sync.xyz.uVec.y > tiny)
+                {
+                    emcmotStatus->yuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.y;
+                    printf("emcmotStatus->yuu_per_rev(%f)\n",emcmotStatus->yuu_per_rev);
+                }
+                /* bitmap for rigid-tapping-AXIS_Z */
+                if (tc->coords.spindle_sync.xyz.uVec.z > tiny)
+                {
+                    emcmotStatus->zuu_per_rev = tc->uu_per_rev * tc->coords.spindle_sync.xyz.uVec.z;
+                }
+                return 0;   // for atspeed detection
             }
-            break;
-        case RETRACTION:
-            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
-                emcmotStatus->spindle.speed *= -1;
-                tc->coords.rigidtap.state = FINAL_REVERSAL;
-            }
-            break;
-        case FINAL_REVERSAL:
-            if (new_spindlepos > old_spindlepos) {
-                PmPose start, end;
-                PmLine *aux = &tc->coords.rigidtap.aux_xyz;
-                pmLinePoint(aux, tc->progress, &start);
-                end = tc->coords.rigidtap.xyz.start;
-                pmLineInit(aux, start, end);
-                tc->target = aux->tmag;
-                tc->progress = 0.0;
-                tc->synchronized = 0;
-                tc->reqvel = tc->maxvel;
-                tc->css_progress_cmd = 0;
+            else if (tc->coords.spindle_sync.mode == 2)
+            {   // G33.2, wait for spindle to be stopped completely
+                if (emcmotStatus->spindle.curr_vel_rps == 0)
+                {
+                    double start_angle; // unit: rev
+                    tc->coords.spindle_sync.spindle_start_pos_latch = 1;
+                    tc->coords.spindle_sync.spindle_start_pos = emcmotStatus->carte_pos_cmd.s;
 
-                tc->coords.rigidtap.state = FINAL_PLACEMENT;
+                    tc->cur_vel = 0;
+
+                    start_angle = emcmotStatus->carte_pos_cmd.s - floor(emcmotStatus->carte_pos_cmd.s);
+                    tc->target = (tc->coords.spindle_sync.spindle_end_angle - start_angle) * tc->coords.spindle_sync.spindle_dir;
+                    if (tc->target < 0)
+                    {
+                        tc->target += 1;        // move toward spindle_end_angle
+                    }
+                    DP("start_angle(%f)\n", start_angle);
+                    DP("end_angle(%f)\n", tc->coords.spindle_sync.spindle_end_angle);
+                    DP("emcmotStatus->spindle.direction(%d)\n", emcmotStatus->spindle.direction);
+                    DP("tc->coords.spindle_sync.spindle_dir(%f)\n", tc->coords.spindle_sync.spindle_dir);
+                    DP("target(%f)\n", tc->target);
+                }
+                return 0;   // for spindle stop detection
             }
-            break;
-        case FINAL_PLACEMENT:
-            // this is a regular move now, it'll stop at target above.
-            break;
         }
-        old_spindlepos = new_spindlepos;
+
+        if (tc->coords.spindle_sync.mode < 2)
+        {   // G33, G33.1
+            tc->reqvel = fabs(emcmotStatus->spindle.speed_req_rps) * emcmotStatus->net_spindle_scale;
+        }
+        else if (tc->coords.spindle_sync.mode == 2)
+        {   // G33.2, unit for spindle_reqvel is RPS
+            tc->reqvel = fabs(tc->coords.spindle_sync.spindle_reqvel) * emcmotStatus->net_spindle_scale;
+        }
+
+        if(tp->aborting) {
+            tc->reqvel = 0;
+        }
+
     }
-
-
-    if(!tc->synchronized) emcmotStatus->spindleSync = 0;
-
+    else
+    {   // non spindle sync motion
+        emcmotStatus->xuu_per_rev = 0;
+        emcmotStatus->yuu_per_rev = 0;
+        emcmotStatus->zuu_per_rev = 0;
+    }
 
     if(nexttc && nexttc->active == 0) {
         // this means this tc is being read for the first time.
 
         nexttc->cur_vel = 0;
-        //orig: tp->depth = tp->activeDepth = 1;
         tp->activeDepth = 1;
         nexttc->active = 1;
         nexttc->blending = 0;
 
     }
 
-
-    if(tc->synchronized) {
-        // for CSS and TC_RIGIDTAP
-        double css_progress_cmd;
-        double pos_error;
-        double new_spindlepos = emcmotStatus->spindleRevs;
-
-        tc->feed_override = 1.0;
-
-        if (emcmotStatus->spindle.direction < 0) new_spindlepos = -new_spindlepos;
-        revs = new_spindlepos;
-
-        if(tc->motion_type == TC_RIGIDTAP && 
-           (tc->coords.rigidtap.state == RETRACTION || 
-            tc->coords.rigidtap.state == FINAL_REVERSAL))
-            revs = tc->coords.rigidtap.spindlerevs_at_reversal - new_spindlepos;
-        else
-            revs = new_spindlepos;
-
-        // feed-forward reqvel calculation for CSS motion
-        css_progress_cmd = (revs - spindleoffset) * tc->uu_per_rev;
-        
-        pos_error = tc->css_progress_cmd - tc->progress;
-        if (pos_error > tc->jerk) {
-            pos_error = tc->jerk;
-        } else if (pos_error < -tc->jerk) {
-            pos_error = -tc->jerk;
-        }
-
-        tc->reqvel = (css_progress_cmd - tc->css_progress_cmd + pos_error) / tc->cycle_time;
-        tc->css_progress_cmd = css_progress_cmd;
-        
-        if (nexttc) {
-            if (nexttc->synchronized) {
-                // nexttc->reqvel = tc->reqvel;
-                // nexttc->feed_override = 1.0;
-                // if (nexttc->reqvel < 0.0)
-                //     nexttc->reqvel = 0.0;
-                
-                // disable velocity blending for CSS motion
-                nexttc->reqvel = 0;
-                nexttc->feed_override = 0;
-            } else {
-                nexttc->feed_override = emcmotStatus->net_feed_scale;
-            }
-        }
-    } else {
-        tc->feed_override = emcmotStatus->net_feed_scale;
-        if(nexttc) {
-	    nexttc->feed_override = emcmotStatus->net_feed_scale;
-	}
+    tc->feed_override = emcmotStatus->net_feed_scale;
+    if(nexttc) {
+        nexttc->feed_override = emcmotStatus->net_feed_scale;
     }
 
     /* handle pausing */
@@ -1680,7 +1693,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             pmCartCartDot(tc->utvOut, nexttc->utvIn, &dot);
             k = acos(dot)/rv;
             ca = k * rv * rv;
-            if (ca < tc->maxaccel) {
+            // SMLBLND is for XYZ motion only
+            if ((ca < tc->maxaccel) && (!tc->coords.line.xyz.tmag_zero) && (!nexttc->coords.line.xyz.tmag_zero)) {
                 // allow seamless blending, SMLBLND
                 // also, (nexttc->atspeed == 0)
                 tc->seamless_blend_mode = SMLBLND_ENABLE;
@@ -1727,14 +1741,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         next_accel = tc->cur_accel;
         next_accel_state = tc->accel_state;
         next_progress = tc->progress - tc->target;
-
-        // if we're synced, and this move is ending, save the
-        // spindle position so the next synced move can be in
-        // the right place.
-        if (tc->synchronized)
-            spindleoffset += tc->target / tc->uu_per_rev;
-        else
-            spindleoffset = 0.0;
         
         tcqRemove(&tp->queue, 1);
         tp->depth = tcqLen(&tp->queue);
@@ -1766,7 +1772,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     primary_displacement.v = primary_after.v - primary_before.v;
     primary_displacement.w = primary_after.w - primary_before.w;
 
-    emcmotStatus->motionState = tc->accel_state;
         
     // blend criteria
     if( (tc->blending && nexttc) || 
@@ -1786,6 +1791,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             target = tcGetEndpoint(tc);
             tp->motionType = tc->canon_motion_type;
 	    emcmotStatus->distance_to_go = tc->target - tc->progress;
+            emcmotStatus->progress = tc->progress;
 	    emcmotStatus->enables_queued = tc->enables;
 	    // report our line number to the guis
 	    tp->execId = tc->id;
@@ -1795,6 +1801,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             target = tcGetEndpoint(nexttc);
             tp->motionType = nexttc->canon_motion_type;
 	    emcmotStatus->distance_to_go = nexttc->target - nexttc->progress;
+            emcmotStatus->progress = nexttc->progress;
 	    emcmotStatus->enables_queued = nexttc->enables;
 	    // report our line number to the guis
 	    tp->execId = nexttc->id;
@@ -1834,6 +1841,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         target = tcGetEndpoint(tc);
         tp->motionType = tc->canon_motion_type;
 	emcmotStatus->distance_to_go = tc->target - tc->progress;
+        emcmotStatus->progress = tc->progress;
         tp->currentPos = primary_after;
         emcmotStatus->current_vel = (tc->cur_vel) / tc->cycle_time;
         emcmotStatus->requested_vel = tc->reqvel;
@@ -1852,17 +1860,18 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     emcmotStatus->dtg.v = target.v - tp->currentPos.v;
     emcmotStatus->dtg.w = target.w - tp->currentPos.w;
 
+    emcmotStatus->motion_type = tc->motion_type;
+    emcmotStatus->motionState = tc->accel_state;
+
     return 0;
 }
 
-int tpSetSpindleSync(TP_STRUCT * tp, double sync, int mode) {
-    if(sync) {
-        tp->synchronized = 1;
-        tp->uu_per_rev = sync;
-        tp->velocity_mode = mode;
-    } else
-        tp->synchronized = 0;
-
+int tpSetSpindleSync(TP_STRUCT * tp, double uu_per_rev, int wait_for_index, int synchronized)
+{
+    // tp->synchronized is for updating tc->synchronized and emcmotStatus->spindleSync
+    tp->uu_per_rev = uu_per_rev;
+    tp->synchronized = synchronized;    // synchronized spindle motion
+    tp->velocity_mode = wait_for_index; // TODO: replace velocity_mode as wait-for-index
     return 0;
 }
 

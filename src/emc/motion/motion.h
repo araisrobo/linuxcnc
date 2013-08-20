@@ -135,8 +135,7 @@ typedef enum {
     EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
     EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
-    EMCMOT_RIGID_TAP,	/* go to pos, with sync to spindle speed,
-				   then return to initial pos */
+    EMCMOT_SPINDLE_SYNC_MOTION,	/* for G33 and G33.1, motion with sync to spindle speed*/
 
     EMCMOT_SET_POSITION_LIMITS,	/* set the joint position +/- limits */
     EMCMOT_SET_BACKLASH,	/* set the joint backlash */
@@ -230,8 +229,11 @@ typedef struct emcmot_command_t {
     double ini_maxvel;      /* max velocity allowed by machine
                                    constraints (the ini file) */
     int motion_type;        /* this move is because of traverse, feed, arc, or toolchange */
-    double spindlesync;     /* user units per spindle revolution, 0 = no sync */
-    double acc;		/* acceleration for traj */
+
+    double uu_per_rev;     /* user units per spindle revolution, 0 = no sync */
+    int spindlesync;            /* 0 = no sync */
+
+    double acc;		     /* acceleration for traj */
     double jerk;		/* jerk for traj */
     double ini_maxacc;
     double ini_maxjerk;
@@ -269,6 +271,7 @@ typedef struct emcmot_command_t {
     double  timeout;        /* of wait for spindle orient to complete or sync_in to timeout */
     unsigned char tail;	/* flag count for mutex detect */
     int wait_type;          /* wait type for sync_in command */
+    int ssm_mode;           /* spindle sync motion mode: G33(0) /rigid_tap G33.1(1) */
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -425,32 +428,32 @@ typedef enum {
 /* states for homing */
 typedef enum {
     HOME_IDLE = 0,
-    HOME_START,			// 1
-    HOME_UNLOCK,			// 2
-    HOME_UNLOCK_WAIT,		// 3
-    HOME_INITIAL_BACKOFF_START,	// 4
-    HOME_INITIAL_BACKOFF_WAIT,	// 5
-    HOME_INITIAL_SEARCH_START,	// 6
-    HOME_INITIAL_SEARCH_WAIT,	// 7
-    HOME_SET_COARSE_POSITION,	// 8
-    HOME_FINAL_BACKOFF_START,	// 9
-    HOME_FINAL_BACKOFF_WAIT,	// 10
-    HOME_RISE_SEARCH_START,		// 11
-    HOME_RISE_SEARCH_WAIT,		// 12
-    HOME_FALL_SEARCH_START,		// 13
-    HOME_FALL_SEARCH_WAIT,		// 14
-    HOME_SET_SWITCH_POSITION,	// 15
-    HOME_INDEX_ONLY_START,		// 16
-    HOME_INDEX_SEARCH_START,	// 17
-    HOME_INDEX_SEARCH_WAIT,		// 18
-    HOME_SET_INDEX_POSITION,	// 19
-    HOME_FINAL_MOVE_START,		// 20
-    HOME_FINAL_MOVE_WAIT,		// 21
-    HOME_LOCK,			// 22
-    HOME_LOCK_WAIT,			// 23
-    HOME_WAIT,                      // 24
-    HOME_FINISHED,			// 25
-    HOME_ABORT			// 26
+    HOME_START,                         // 1
+    HOME_UNLOCK,                        // 2
+    HOME_UNLOCK_WAIT,                   // 3
+    HOME_INITIAL_BACKOFF_START,         // 4
+    HOME_INITIAL_BACKOFF_WAIT,          // 5
+    HOME_INITIAL_SEARCH_START,          // 6
+    HOME_INITIAL_SEARCH_WAIT,           // 7
+    HOME_SET_COARSE_POSITION,           // 8
+    HOME_FINAL_BACKOFF_START,           // 9
+    HOME_FINAL_BACKOFF_WAIT,            // 10
+    HOME_RISE_SEARCH_START,             // 11
+    HOME_RISE_SEARCH_WAIT,              // 12
+    HOME_FALL_SEARCH_START,             // 13
+    HOME_FALL_SEARCH_WAIT,              // 14
+    HOME_SET_SWITCH_POSITION,           // 15
+    HOME_INDEX_ONLY_START,              // 16
+    HOME_INDEX_SEARCH_START,            // 17
+    HOME_INDEX_SEARCH_WAIT,             // 18
+    HOME_SET_INDEX_POSITION,            // 19
+    HOME_FINAL_MOVE_START,              // 20
+    HOME_FINAL_MOVE_WAIT,               // 21
+    HOME_LOCK,                          // 22
+    HOME_LOCK_WAIT,                     // 23
+    HOME_WAIT,                          // 24
+    HOME_FINISHED,                      // 25
+    HOME_ABORT,                         // 26
 } home_state_t;
 
 typedef enum {
@@ -468,10 +471,13 @@ typedef enum {
 } orient_state_t;
 
 /* flags for homing */
-#define HOME_IGNORE_LIMITS	1
-#define HOME_USE_INDEX		2
-#define HOME_IS_SHARED		4
-#define HOME_UNLOCK_FIRST       8
+#define HOME_IGNORE_LIMITS      0x01
+#define HOME_USE_INDEX          0x02
+#define HOME_IS_SHARED          0x04
+#define HOME_UNLOCK_FIRST       0x08
+#define HOME_GANTRY_MASTER      0x10    // gantry_master(1) gantry_slave(0)
+#define HOME_GANTRY_JOINT       0x20    // gantry_master/gantry_slave:(1), others:(0)
+
 
 /* flags for enabling spindle scaling, feed scaling,
    adaptive feed, and feed hold */
@@ -493,7 +499,8 @@ typedef enum {
 typedef struct {
 
     /* configuration info - changes rarely */
-    int type;		/* 0 = linear, 1 = rotary */
+    int id;                     /* joint-id */
+    int type;		        /* 0 = linear, 1 = rotary */
     double max_pos_limit;	/* upper soft limit on joint pos */
     double min_pos_limit;	/* lower soft limit on joint pos */
     double max_jog_limit;	/* jog limits change when not homed */
@@ -503,12 +510,12 @@ typedef struct {
     double jerk_limit;	/* upper limit of joint jerk */
     double min_ferror;	/* zero speed following error limit */
     double max_ferror;	/* max speed following error limit */
-    double home_search_vel;	/* dir/spd to look for home switch */
-    double home_final_vel;  /* speed to travel from OFFSET to HOME position */
-    double home_latch_vel;	/* dir/spd to latch switch/index pulse */
-    double home_offset;	/* dir/dist from switch to home point */
-    double home;		/* joint coordinate of home point */
-    int home_flags;		/* flags for various homing options */
+    double home_search_vel;     /* dir/spd to look for home switch */
+    double home_final_vel;      /* speed to travel from OFFSET to HOME position */
+    double home_latch_vel;      /* dir/spd to latch switch/index pulse */
+    double home_offset;         /* dir/dist from switch to home point */
+    double home;                /* joint coordinate of home point */
+    int home_flags;             /* flags for various homing options */
     int volatile_home;      /* joint should get unhomed when we get unhome -2
                                    (generated by task upon estop, etc) */
     double backlash;	/* amount of backlash */
@@ -552,8 +559,8 @@ typedef struct {
     home_state_t home_state;	/* state machine for homing */
     double      index_pos;     	 	/* motor index position in absolute motor pulse counts */
     double      motor_offset;		/* diff between internal and motor pos, used
-				   	   	   	   	   to set position to zero during homing */
-    int         old_jog_counts;			/* prior value, used for deltas */
+				   	   to set position to zero during homing */
+    double      blender_offset;        /* offset created by realtime component, blender.comp */
     double      probed_pos;
 
     double     risc_probe_vel; 	/* velocity for RISC probing */
@@ -599,14 +606,24 @@ typedef struct {
 
 
 typedef struct {
-    double speed;		// spindle speed in RPMs
+    double speed;               // spindle speed command in RPM; set at command.c
+    double speed_rps;           // spindle speed command in RPS; set at command.c
+    double speed_req_rps;       // calculated spindle speed command in RPS
     double css_factor;
     double xoffset;
+    double css_error;          //
     int direction;		// 0 stopped, 1 forward, -1 reverse
     int brake;		// 0 released, 1 engaged
     int locked;             // spindle lock engaged after orient
     int orient_fault;       // fault code from motion.spindle-orient-fault
     int orient_state;       // orient_state_t
+    int update_pos_req;
+    int at_speed;
+    int on;
+    int dynamic_speed_mode;
+    double const_speed_radius;  // rotation speed is constant within the radius
+    double curr_pos_cmd;
+    double curr_vel_rps;
 } spindle_status;
 
 typedef struct {
@@ -693,7 +710,6 @@ typedef struct emcmot_status_t {
 				   after last probeTripped */
     int spindle_index_enable;  /* hooked to a canon encoder index-enable */
     int spindleSync;        /* we are doing spindle-synced motion */
-    double spindleRevs;     /* position of spindle in revolutions */
     double spindleSpeedIn;  /* velocity of spindle in revolutions per minute */
 
     spindle_status spindle;	/* data types for spindle status */
@@ -722,9 +738,14 @@ typedef struct emcmot_status_t {
     double vel;		/* vel for traj */
     double acc;		/* accel for traj */
     double jerk;		/* jerk for traj */
-    int32_t motionState;    /* s-curve motion state */
+    int32_t motionState;        /* s-curve motion state */
+    double xuu_per_rev;        /* user-unit per rev for AXIS_X */
+    double yuu_per_rev;        /* user-unit per rev for AXIS_Y */
+    double zuu_per_rev;        /* user-unit per rev for AXIS_Z */
     int motionType;
-    double distance_to_go;  /* in this move */
+    double distance_to_go;      /* in this move */
+    double progress;            /* progress updated by tp */
+    char motion_type;           /* motion_type of current tc */
     EmcPose dtg;
     double current_vel;
     double requested_vel;
@@ -732,7 +753,7 @@ typedef struct emcmot_status_t {
     unsigned int tcqlen;
     EmcPose tool_offset;
     int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
-    int spindle_is_atspeed; /* hal input */
+// moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
 
 } emcmot_status_t;

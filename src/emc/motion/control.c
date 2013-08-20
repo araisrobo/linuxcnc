@@ -50,6 +50,16 @@ static FILE* dptrace = 0;
 static uint32_t _dt = 0;
 #endif
 
+#define CSS_TRACE 0
+#if (CSS_TRACE!=0)
+#if (TRACE==0)
+static FILE* csstrace = 0;
+static uint32_t _dt = 0;
+#else
+#undef CSS_TRACE // disable CSS_TRACE when TRACE is enabled
+#endif
+#endif
+
 /* debugging function - prints a cartesean pose (multplies the floating
    point numbers by 1 million since kernel printf doesn't handle floats
  */
@@ -203,6 +213,7 @@ static void handle_jogwheels(void);
    calling the trajectory planner and interpolating its outputs.
  */
 static void get_pos_cmds(long period);
+static void get_spindle_cmds(double servo_period);
 
 /* 'compute_screw_comp()' is responsible for calculating backlash and
    lead screw error compensation.  (Leadscrew error compensation is
@@ -290,6 +301,12 @@ void emcmotController(void *arg, long period)
     _dt+=1;
 #endif
 
+#if (CSS_TRACE!=0)
+    if (!csstrace) {
+        csstrace = fopen("css.log", "w");
+        _dt = 0;
+    }
+#endif
 #ifndef RTAPI_SIM
     if(!priming) {
         // we have CYCLE_HISTORY samples, so check for this call being 
@@ -371,7 +388,8 @@ void emcmotController(void *arg, long period)
     do_homing();
     check_stuff ( "after do_homing()" );
     if (*(emcmot_hal_data->usb_busy) == 0) {
-        get_pos_cmds(period);
+        get_spindle_cmds (servo_period);
+        get_pos_cmds (period);
     }
     check_stuff ( "after get_pos_cmds()" );
     compute_screw_comp();
@@ -411,9 +429,16 @@ static void process_inputs(void)
     emcmotStatus->usb_status = *emcmot_hal_data->usb_status;
 
     /* read spindle angle (for threading, etc) */
-    emcmotStatus->spindleRevs = *emcmot_hal_data->spindle_revs;
     emcmotStatus->spindleSpeedIn = *emcmot_hal_data->spindle_speed_in;
-    emcmotStatus->spindle_is_atspeed = *emcmot_hal_data->spindle_is_atspeed;
+    emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
+    emcmotStatus->spindle.update_pos_req = *emcmot_hal_data->spindle_update_pos_req;
+    emcmotStatus->spindle.curr_pos_cmd = *emcmot_hal_data->spindle_curr_pos_cmd;
+    emcmotStatus->spindle.curr_vel_rps = *emcmot_hal_data->spindle_curr_vel_rps;
+    emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
+    emcmotStatus->spindle.dynamic_speed_mode = *emcmot_hal_data->spindle_dynamic_speed_mode;
+    emcmotStatus->spindle.const_speed_radius = *emcmot_hal_data->spindle_const_speed_radius;
+
+
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
         /* use the enables that were queued with the current move */
@@ -471,6 +496,7 @@ static void process_inputs(void)
         joint->pos_fb = joint->motor_pos_fb -
                 (joint->backlash_filt + joint->motor_offset);
         joint->risc_pos_cmd = *(joint_data->risc_pos_cmd);
+        joint->blender_offset = *(joint_data->blender_offset);
 
         /* calculate following error */
         joint->ferror = joint->pos_cmd - joint->pos_fb;
@@ -730,7 +756,7 @@ static void process_probe_inputs(void)
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
                 {
                     joint = &joints[joint_num];
-                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset);
+                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
                 }
                 kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
             } else
@@ -813,6 +839,7 @@ static void handle_special_cmd(void)
         *emcmot_hal_data->update_pos_ack = 0;
     }
 
+    emcmotStatus->update_current_pos_flag = 0;  // prevent emcTaskPlanSynch() at emcTask.cc
     if (*emcmot_hal_data->update_pos_ack != 0)
     {
         int joint_num;
@@ -825,7 +852,7 @@ static void handle_special_cmd(void)
             /* point to joint struct */
             joint = &joints[joint_num];
             /* copy risc_pos_cmd feedback */
-            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset;
+            joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset - joint->blender_offset;
             joint->coarse_pos = joint->pos_cmd;
             joint->free_tp.curr_pos = joint->pos_cmd;
             /* to reset cubic parameters */
@@ -840,12 +867,36 @@ static void handle_special_cmd(void)
             positions[joint_num] = 0.0;
             joint_num++;
         }
+
         /* update carte_pos_cmd for RISC-JOGGING */
         kinematicsForward(positions, &emcmotStatus->carte_pos_cmd, &fflags, &iflags);
         /* preset traj planner to current position */
         tpSetPos(&emcmotDebug->coord_tp, emcmotStatus->carte_pos_cmd); // for EMCMOT_MOTION_COORD mode
+        emcmotStatus->update_current_pos_flag = 1; // force emcTaskPlanSynch() at emcTask.cc
     }
 
+    // if spindle position get updated by spindle.comp
+    if (emcmotStatus->spindle.update_pos_req != 0)
+    {
+        emcmot_joint_t *joint;
+
+        /* point to joint struct */
+        joint = &joints[emcmot_hal_data->spindle_joint_id];
+        /* copy risc_pos_cmd feedback */
+        joint->pos_cmd = emcmotStatus->spindle.curr_pos_cmd
+                         - joint->backlash_filt
+                         - joint->motor_offset
+                         - joint->blender_offset;
+        joint->coarse_pos = joint->pos_cmd;
+        joint->free_tp.curr_pos = joint->pos_cmd;
+        /* to reset cubic parameters */
+        joint->cubic.needNextPoint=1;
+        joint->cubic.filled=0;
+        cubicAddPoint(&(joint->cubic), joint->coarse_pos);
+        /* update carte_pos_cmd for RISC-JOGGING */
+        emcmotStatus->carte_pos_cmd.s = joint->pos_cmd;
+        emcmotDebug->coord_tp.currentPos.s = joint->pos_cmd;
+    }
 }
 
 static void check_for_faults(void)
@@ -863,7 +914,8 @@ static void check_for_faults(void)
         }
     }
 
-    if ( *(emcmot_hal_data->enable) == 0 )
+    if (( *(emcmot_hal_data->enable) == 0 ) ||
+            (emcmotDebug->enabling == 0))
     {
         int n;
         /* turn-off all motion-synch-dout[] */
@@ -1113,31 +1165,23 @@ static void handle_jogwheels(void)
     int joint_num;
     emcmot_joint_t *joint;
     joint_hal_t *joint_data;
-    int new_jog_counts, delta;
-    double distance, pos, stop_dist;
 
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint data */
         joint_data = &(emcmot_hal_data->joint[joint_num]);
         joint = &joints[joint_num];
+
+        joint->wheel_jog_active = 0;
         if (!GET_JOINT_ACTIVE_FLAG(joint)) {
             /* if joint is not active, skip it */
             continue;
         }
-        /* get counts from jogwheel */
-        new_jog_counts = *(joint_data->jog_counts);
-        delta = new_jog_counts - joint->old_jog_counts;
-        /* save value for next time */
-        joint->old_jog_counts = new_jog_counts;
+
         /* initialization complete */
         if ( first_pass ) {
             continue;
         }
-        /* did the wheel move? */
-        if ( delta == 0 ) {
-            /* no, nothing to do */
-            continue;
-        }
+
         /* must be in free mode and enabled */
         if (GET_MOTION_COORD_FLAG()) {
             continue;
@@ -1145,10 +1189,12 @@ static void handle_jogwheels(void)
         if (!GET_MOTION_ENABLE_FLAG()) {
             continue;
         }
+
         /* the jogwheel input for this joint must be enabled */
         if ( *(joint_data->jog_enable) == 0 ) {
             continue;
         }
+
         /* must not be homing */
         if (emcmotStatus->homing_active) {
             continue;
@@ -1161,61 +1207,127 @@ static void handle_jogwheels(void)
             /* don't jog if feedhold is on or if feed override is zero */
             break;
         }
-        /* calculate distance to jog */
-        distance = delta * *(joint_data->jog_scale);
-        /* check for joint already on hard limit */
-        if (distance > 0.0 && GET_JOINT_PHL_FLAG(joint)) {
-            continue;
-        }
-        if (distance < 0.0 && GET_JOINT_NHL_FLAG(joint)) {
-            continue;
-        }
-        /* calc target position for jog */
-        pos = joint->free_tp.pos_cmd + distance;
-        /* don't jog past limits */
-        refresh_jog_limits(joint);
-        if (pos > joint->max_jog_limit) {
-            continue;
-        }
-        if (pos < joint->min_jog_limit) {
-            continue;
-        }
 
-        /* The default is to move exactly as far as the wheel commands,
-           even if that move takes much longer than the wheel movement
-           that commanded it.  Some folks prefer that the move stop as
-           soon as the wheel does, even if that means not moving the
-           commanded distance.  Velocity mode is for those folks.  If
-           the command is faster than the machine can track, excess
-           command is simply dropped. */
-        if ( *(joint_data->jog_vel_mode) ) {
-            double v = joint->vel_limit * emcmotStatus->net_feed_scale;
-            /* compute stopping distance at max speed */
-            stop_dist = v * v / ( 2 * joint->acc_limit);
-            /* if commanded position leads the actual position by more
-               than stopping distance, discard excess command */
-            if ( pos > joint->pos_cmd + stop_dist ) {
-                pos = joint->pos_cmd + stop_dist;
-            } else if ( pos < joint->pos_cmd - stop_dist ) {
-                pos = joint->pos_cmd - stop_dist;
-            }
-        }
-        /* set target position and use full velocity and accel */
-        joint->free_tp.pos_cmd = pos;
-        joint->free_tp.max_vel = joint->vel_limit;
-        joint->free_tp.max_acc = joint->acc_limit;
-        joint->free_tp.max_jerk = joint->jerk_limit;
         /* lock out other jog sources */
         joint->wheel_jog_active = 1;
-        /* and let it go */
-        joint->free_tp.enable = 1;
-        joint->free_tp.position_mode = 1; // wheel jog: accurate positioning
+
         SET_JOINT_ERROR_FLAG(joint, 0);
-        /* clear joint homed flag(s) if we don't have forward kins.
-           Otherwise, a transition into coordinated mode will incorrectly
-           assume the homed position. Do all if they've all been moved
-           since homing, otherwise just do this one */
-        clearHomes(joint_num);
+//        /* clear joint homed flag(s) if we don't have forward kins.
+//           Otherwise, a transition into coordinated mode will incorrectly
+//           assume the homed position. Do all if they've all been moved
+//           since homing, otherwise just do this one */
+//        clearHomes(joint_num);
+    }
+}
+
+
+static double calc_accel(double acc_limit, double acc_desired)
+{
+    double accel_mag;
+
+    if (emcmotStatus->acc > acc_limit)
+    {
+        accel_mag = acc_limit;
+    } else
+    {
+        accel_mag = emcmotStatus->acc;
+    }
+
+    if (fabs(acc_desired) > accel_mag)
+    {
+        accel_mag = accel_mag * acc_desired / fabs(acc_desired);
+    } else
+    {
+        accel_mag = acc_desired;
+    }
+
+    return (accel_mag);
+}
+
+static double calc_vel(double vel_limit, double cur_vel, double cur_accel)
+{
+    cur_vel += cur_accel * servo_period;
+    if (cur_vel > vel_limit)
+    {
+        cur_vel = vel_limit;
+    } else if (cur_vel < -vel_limit)
+    {
+        cur_vel = -vel_limit;
+    }
+    return (cur_vel);
+}
+
+static void get_spindle_cmds (double cycle_time)
+{
+    if(emcmotStatus->spindle.css_factor && emcmotStatus->spindle.on)
+    {
+        // for G96
+        double denom = emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x;
+        double speed;       // speed for major spindle (spindle-s)
+        double maxpositive;
+
+        // css_factor: unit(mm or inch)/min
+        if(emcmotStatus->spindle.dynamic_speed_mode == 0)
+        {
+            if(denom != 0)
+            {
+                speed = emcmotStatus->spindle.css_factor / (denom * 60.0); // rps
+            }
+            else
+            {
+                speed = emcmotStatus->spindle.speed_rps;
+            }
+        }
+        else
+        {
+            // dynamic_spindle_mode == 1
+            // adjust spindle speed dynamically to maintain constant tangential velocity
+            // the spindle speed is constant if (r <= const_speed_radius)
+            double csr;
+            csr = emcmotStatus->spindle.const_speed_radius;
+
+            if ((fabs(denom) >= csr) && (csr > 0))
+            {
+                speed = (emcmotStatus->spindle.speed_rps * csr) / denom; // rps
+            }
+            else
+            {
+                speed = emcmotStatus->spindle.speed_rps;
+            }
+        }
+        speed = fabs(speed);
+        maxpositive = fabs(emcmotStatus->spindle.speed_rps);
+        if(speed > maxpositive) speed = maxpositive;
+        emcmotStatus->spindle.speed_req_rps = speed * emcmotStatus->spindle.direction;
+        emcmotStatus->spindle.css_error =
+                        (emcmotStatus->spindle.css_factor / 60.0
+                         - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
+                        * emcmotStatus->spindle.direction; // (unit/(2*PI*sec)
+        DP ("css_req(%f)(unit/sec)\n", denom * emcmotStatus->spindle.speed_req_rps * 2 * M_PI);
+        DP ("css_cur(%f)\n", denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI);
+        DP ("css_error(%f)(unit/(2*PI*sec))\n", emcmotStatus->spindle.css_error);
+        DP ("speed(%f) denom(%f) s.curr_vel(%f) css_factor(%f)\n",
+                             speed, denom, emcmotStatus->spindle.curr_vel_rps, emcmotStatus->spindle.css_factor);
+        DP ("spindle.direction(%d)\n",
+                             emcmotStatus->spindle.direction);
+//        DP ("synched-joint-vel(%f)(unit/sec)\n",emcmotStatus->spindle.curr_vel_rps * tp->uu_per_rev);
+#if (CSS_TRACE!=0)
+        /* prepare data for gnuplot */
+        fprintf (csstrace, "%11d%15.9f%15.9f%19.9f%19.9f%19.9f\n"
+                , _dt
+                , denom
+                , emcmotStatus->progress
+                , emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI
+                , denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI
+                , (emcmotStatus->spindle.css_factor / 60.0 * 2 * M_PI - denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI));
+        _dt += 1;
+#endif
+    }
+    else
+    {
+        // G97, G33 w/ G97 or G33.1
+        emcmotStatus->spindle.speed_req_rps = emcmotStatus->spindle.speed_rps;
+        emcmotStatus->spindle.css_error = 0;
     }
 }
 
@@ -1226,9 +1338,6 @@ static void get_pos_cmds(long period)
     //obsolete: emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
     double old_pos_cmd;
-    // double vel_lim;
-    /* used in teleop mode to compute the max accell requested */
-    double accell_mag;
     int onlimit = 0;
     int joint_limit[EMCMOT_MAX_JOINTS][2];
     int num_joints;
@@ -1293,7 +1402,6 @@ static void get_pos_cmds(long period)
 
             /* set acc limit in free TP */
             joint->free_tp.max_acc = joint->acc_limit;
-            joint->free_tp.max_jerk = joint->jerk_limit;
             /* execute free TP */
             if (joint->disable_jog == 0) {
                 /* do not allow jog over hard limit */
@@ -1325,7 +1433,6 @@ static void get_pos_cmds(long period)
                 SET_JOINT_INPOS_FLAG(joint, 1);
                 /* joint has stopped, so any outstanding jogs are done */
                 joint->kb_jog_active = 0;
-                joint->wheel_jog_active = 0;
             }
         }//for loop for joints
         /* if overriding is true and we're in position, the jog
@@ -1398,11 +1505,12 @@ static void get_pos_cmds(long period)
                         &iflags, &fflags);
                 /* copy to joint structures and spline them up */
                 DPS("%11u", _dt);
-                DPS("%10.5f%10.5f%10.5f%10.5f",
+                DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
                         emcmotStatus->carte_pos_cmd.tran.x,
                         emcmotStatus->carte_pos_cmd.tran.y,
                         emcmotStatus->carte_pos_cmd.tran.z,
-                        emcmotStatus->carte_pos_cmd.a);
+                        emcmotStatus->carte_pos_cmd.a,
+                        emcmotStatus->carte_pos_cmd.s);
                 for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
                     /* point to joint struct */
                     joint = &joints[joint_num];
@@ -1445,102 +1553,69 @@ static void get_pos_cmds(long period)
                     (emcmotDebug->teleop_data.desiredVel.tran.x -
                             emcmotDebug->teleop_data.currentVel.tran.x) /
                             servo_period;
+            emcmotDebug->teleop_data.currentAccell.tran.x = calc_accel(axes[0].acc_limit, emcmotDebug->teleop_data.desiredAccell.tran.x);
+            emcmotDebug->teleop_data.currentVel.tran.x = calc_vel(axes[0].vel_limit,
+                                                                  emcmotDebug->teleop_data.currentVel.tran.x,
+                                                                  emcmotDebug->teleop_data.currentAccell.tran.x);
+
             emcmotDebug->teleop_data.desiredAccell.tran.y =
                     (emcmotDebug->teleop_data.desiredVel.tran.y -
                             emcmotDebug->teleop_data.currentVel.tran.y) /
                             servo_period;
+            emcmotDebug->teleop_data.currentAccell.tran.y = calc_accel(axes[1].acc_limit, emcmotDebug->teleop_data.desiredAccell.tran.y);
+            emcmotDebug->teleop_data.currentVel.tran.y = calc_vel(axes[1].vel_limit,
+                                                                  emcmotDebug->teleop_data.currentVel.tran.y,
+                                                                  emcmotDebug->teleop_data.currentAccell.tran.y);
+
             emcmotDebug->teleop_data.desiredAccell.tran.z =
                     (emcmotDebug->teleop_data.desiredVel.tran.z -
                             emcmotDebug->teleop_data.currentVel.tran.z) /
                             servo_period;
-
-            /* a Carthesian Accell is computed */
-            pmCartMag(emcmotDebug->teleop_data.desiredAccell.tran,
-                    &accell_mag);
+            emcmotDebug->teleop_data.currentAccell.tran.z = calc_accel(axes[2].acc_limit, emcmotDebug->teleop_data.desiredAccell.tran.z);
+            emcmotDebug->teleop_data.currentVel.tran.z = calc_vel(axes[2].vel_limit,
+                                                                  emcmotDebug->teleop_data.currentVel.tran.z,
+                                                                  emcmotDebug->teleop_data.currentAccell.tran.z);
 
             /* then the accells for the rotary axes */
             emcmotDebug->teleop_data.desiredAccell.a =
                     (emcmotDebug->teleop_data.desiredVel.a -
                             emcmotDebug->teleop_data.currentVel.a) /
                             servo_period;
+            emcmotDebug->teleop_data.currentAccell.a = calc_accel(axes[3].acc_limit, emcmotDebug->teleop_data.desiredAccell.a);
+            emcmotDebug->teleop_data.currentVel.a = calc_vel(axes[3].vel_limit,
+                                                             emcmotDebug->teleop_data.currentVel.a,
+                                                             emcmotDebug->teleop_data.currentAccell.a);
+
             emcmotDebug->teleop_data.desiredAccell.b =
                     (emcmotDebug->teleop_data.desiredVel.b -
                             emcmotDebug->teleop_data.currentVel.b) /
                             servo_period;
+            emcmotDebug->teleop_data.currentAccell.b = calc_accel(axes[4].acc_limit, emcmotDebug->teleop_data.desiredAccell.b);
+            emcmotDebug->teleop_data.currentVel.b = calc_vel(axes[4].vel_limit,
+                                                             emcmotDebug->teleop_data.currentVel.b,
+                                                             emcmotDebug->teleop_data.currentAccell.b);
+
             emcmotDebug->teleop_data.desiredAccell.c =
                     (emcmotDebug->teleop_data.desiredVel.c -
                             emcmotDebug->teleop_data.currentVel.c) /
                             servo_period;
-            if (emcmotDebug->teleop_data.desiredAccell.a > accell_mag) {
-                accell_mag = emcmotDebug->teleop_data.desiredAccell.a;
-            }
-            if (emcmotDebug->teleop_data.desiredAccell.b > accell_mag) {
-                accell_mag = emcmotDebug->teleop_data.desiredAccell.b;
-            }
-            if (emcmotDebug->teleop_data.desiredAccell.c > accell_mag) {
-                accell_mag = emcmotDebug->teleop_data.desiredAccell.c;
-            }
-
-            /* accell_mag should now hold the max accell */
-
-            if (accell_mag > emcmotStatus->acc) {
-                /* if accell_mag is too great, all need resizing */
-                pmCartScalMult(emcmotDebug->teleop_data.desiredAccell.tran,
-                        emcmotStatus->acc / accell_mag,
-                        &emcmotDebug->teleop_data.currentAccell.tran);
-                emcmotDebug->teleop_data.currentAccell.a =
-                        emcmotDebug->teleop_data.desiredAccell.a *
-                        emcmotStatus->acc / accell_mag;
-                emcmotDebug->teleop_data.currentAccell.b =
-                        emcmotDebug->teleop_data.desiredAccell.b *
-                        emcmotStatus->acc / accell_mag;
-                emcmotDebug->teleop_data.currentAccell.c =
-                        emcmotDebug->teleop_data.desiredAccell.c *
-                        emcmotStatus->acc / accell_mag;
-                emcmotDebug->teleop_data.currentVel.tran.x +=
-                        emcmotDebug->teleop_data.currentAccell.tran.x *
-                        servo_period;
-                emcmotDebug->teleop_data.currentVel.tran.y +=
-                        emcmotDebug->teleop_data.currentAccell.tran.y *
-                        servo_period;
-                emcmotDebug->teleop_data.currentVel.tran.z +=
-                        emcmotDebug->teleop_data.currentAccell.tran.z *
-                        servo_period;
-                emcmotDebug->teleop_data.currentVel.a +=
-                        emcmotDebug->teleop_data.currentAccell.a *
-                        servo_period;
-                emcmotDebug->teleop_data.currentVel.b +=
-                        emcmotDebug->teleop_data.currentAccell.b *
-                        servo_period;
-                emcmotDebug->teleop_data.currentVel.c +=
-                        emcmotDebug->teleop_data.currentAccell.c *
-                        servo_period;
-            } else {
-                /* if accell_mag is not greater, the computed accell's stay as is */
-                emcmotDebug->teleop_data.currentAccell =
-                        emcmotDebug->teleop_data.desiredAccell;
-                emcmotDebug->teleop_data.currentVel =
-                        emcmotDebug->teleop_data.desiredVel;
-            }
-
+            emcmotDebug->teleop_data.currentAccell.c = calc_accel(axes[5].acc_limit, emcmotDebug->teleop_data.desiredAccell.c);
+            emcmotDebug->teleop_data.currentVel.c = calc_vel(axes[5].vel_limit,
+                                                             emcmotDebug->teleop_data.currentVel.c,
+                                                             emcmotDebug->teleop_data.currentAccell.c);
 
             /* based on curent position, current vel and period,
                    the next position is computed */
             emcmotStatus->carte_pos_cmd.tran.x +=
-                    emcmotDebug->teleop_data.currentVel.tran.x *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.tran.x * servo_period;
             emcmotStatus->carte_pos_cmd.tran.y +=
-                    emcmotDebug->teleop_data.currentVel.tran.y *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.tran.y * servo_period;
             emcmotStatus->carte_pos_cmd.tran.z +=
-                    emcmotDebug->teleop_data.currentVel.tran.z *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.tran.z * servo_period;
             emcmotStatus->carte_pos_cmd.a +=
-                    emcmotDebug->teleop_data.currentVel.a *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.a * servo_period;
             emcmotStatus->carte_pos_cmd.b +=
-                    emcmotDebug->teleop_data.currentVel.b *
-                    servo_period;
+                    emcmotDebug->teleop_data.currentVel.b * servo_period;
             emcmotStatus->carte_pos_cmd.c +=
                     emcmotDebug->teleop_data.currentVel.c *
                     servo_period;
@@ -1557,6 +1632,13 @@ static void get_pos_cmds(long period)
                     emcmotDebug->teleop_data.currentVel.tran.y,
                     emcmotDebug->teleop_data.desiredVel.tran.y,
                     emcmotDebug->teleop_data.desiredAccell.tran.y
+            );
+
+            DPS("z.pos_cmd(%f) z.cur_vel(%f) z.desired_vel(%f) z.desired_acc(%f)\n",
+                    emcmotStatus->carte_pos_cmd.tran.z,
+                    emcmotDebug->teleop_data.currentVel.tran.z,
+                    emcmotDebug->teleop_data.desiredVel.tran.z,
+                    emcmotDebug->teleop_data.desiredAccell.tran.z
             );
 
             /* the next position then gets run through the inverse kins,
@@ -1976,6 +2058,7 @@ static void output_to_hal(void)
                 emcmotStatus->sync_risc_pos);
         *(emcmot_hal_data->align_pos_cmd) = 1;
         emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
+        assert(0);
     } else {
         *(emcmot_hal_data->align_pos_cmd) = 0;
     }
@@ -1989,40 +2072,22 @@ static void output_to_hal(void)
     *(emcmot_hal_data->homing) = emcmotStatus->homing_active;
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
-    if(emcmotStatus->spindle.css_factor) {
-        double denom = fabs(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
-        double speed;
-        double maxpositive;
-        if(denom > 0) speed = emcmotStatus->spindle.css_factor / denom;
-        else speed = emcmotStatus->spindle.speed;
-
-        speed = speed * emcmotStatus->net_spindle_scale;
-
-        maxpositive = fabs(emcmotStatus->spindle.speed);
-        // cap speed to G96 D...
-        if(speed < -maxpositive)
-            speed = -maxpositive;
-        if(speed > maxpositive)
-            speed = maxpositive;
-
-        *(emcmot_hal_data->spindle_speed_out) = speed;
-        *(emcmot_hal_data->spindle_speed_out_rps) = speed/60.;
-        /* calculate css and exprot to hal pin */
-        // TODO: confirm rad or diam mode??
-        *(emcmot_hal_data->spindle_css) = *(emcmot_hal_data->spindle_speed_out_rps) * denom * 2 * PI;
-    } else {
-        *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale;
-        *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale / 60.;
-    }
-    *(emcmot_hal_data->spindle_speed_cmd_rps) = emcmotStatus->spindle.speed / 60.;
-    *(emcmot_hal_data->spindle_on) = ((emcmotStatus->spindle.speed * emcmotStatus->net_spindle_scale) != 0) ? 1 : 0;
+    *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle.speed_req_rps * emcmotStatus->net_spindle_scale * 60.0;
+    *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle.speed_req_rps * emcmotStatus->net_spindle_scale;
+    *(emcmot_hal_data->spindle_velocity_mode) = (!emcmotStatus->spindleSync);
     *(emcmot_hal_data->spindle_forward) = (*emcmot_hal_data->spindle_speed_out > 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_reverse) = (*emcmot_hal_data->spindle_speed_out < 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle.brake != 0) ? 1 : 0;
+    *(emcmot_hal_data->spindle_css_error) = emcmotStatus->spindle.css_error;
+    *(emcmot_hal_data->spindle_css_factor) = emcmotStatus->spindle.css_factor;
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->distance_to_go) = emcmotStatus->distance_to_go;
     *(emcmot_hal_data->motion_state) = emcmotStatus->motionState;
+    *(emcmot_hal_data->motion_type) = emcmotStatus->motion_type;
+    *(emcmot_hal_data->xuu_per_rev) = emcmotStatus->xuu_per_rev;
+    *(emcmot_hal_data->yuu_per_rev) = emcmotStatus->yuu_per_rev;
+    *(emcmot_hal_data->zuu_per_rev) = emcmotStatus->zuu_per_rev;
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
         *(emcmot_hal_data->requested_vel) = emcmotStatus->requested_vel;
@@ -2059,7 +2124,7 @@ static void output_to_hal(void)
     emcmot_hal_data->debug_bit_0 = joints[1].free_tp.active;
     emcmot_hal_data->debug_bit_1 = emcmotStatus->enables_new & AF_ENABLED;
     emcmot_hal_data->debug_float_0 = emcmotStatus->net_feed_scale;
-    emcmot_hal_data->debug_float_1 = emcmotStatus->spindleRevs;
+    emcmot_hal_data->debug_float_1 = emcmotStatus->carte_pos_cmd.s; // spindle position command
     emcmot_hal_data->debug_float_2 = emcmotStatus->spindleSpeedIn;
     emcmot_hal_data->debug_float_3 = emcmotStatus->net_spindle_scale;
     emcmot_hal_data->debug_s32_0 = emcmotStatus->overrideLimitMask;
@@ -2095,7 +2160,7 @@ static void output_to_hal(void)
         joint = &joints[joint_num];
         /* apply backlash and motor offset to output */
         joint->motor_pos_cmd =
-                joint->pos_cmd + joint->backlash_filt + joint->motor_offset;
+                joint->pos_cmd + joint->backlash_filt + joint->motor_offset + joint->blender_offset;
         /* point to HAL data */
         joint_data = &(emcmot_hal_data->joint[joint_num]);
         /* write to HAL pins */

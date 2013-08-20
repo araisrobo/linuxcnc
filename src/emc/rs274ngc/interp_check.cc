@@ -284,9 +284,10 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
 
   if (block->k_flag) {    /* could still be useless if xy_plane arc */
     CHKS(((motion != G_2) && (motion != G_3) && (motion != G_6_2) && (motion != G_33) &&
-          (motion != G_33_1) && (motion != G_76) && (motion != G_87) &&
+          (motion != G_33_1) && (motion != G_33_2) && (motion != G_33_3) &&
+          (motion != G_76) && (motion != G_87) &&
           (block->m_modes[10] < 100 || block->m_modes[10] > 199 )), /* M-code M100 ~ M199 */
-         _("K word with no G2, G3, G6.2, G33, G33.1, G76, or G87 to use it"));
+         _("K word with no G2, G3, G6.2, G33, G33.1, G33.2, G33.3, G76, or G87 to use it"));
   }
 
   if (block->l_number != -1) {
@@ -344,7 +345,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
     CHKS((block->g_modes[14] == G_96), NCE_S_WORD_MISSING_WITH_G96);
   }
 
-  if (motion == G_33 || motion == G_33_1) {
+  if (motion == G_33 || motion == G_33_1 || motion == G_33_2 || motion == G_33_3) {
     CHKS((!block->k_flag), NCE_K_WORD_MISSING_WITH_G33);
     CHKS((block->f_flag), NCE_F_WORD_USED_WITH_G33);
   }

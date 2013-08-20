@@ -623,7 +623,7 @@ extern "C" {
 	PmPose end;		/* where motion is going */
 	PmCartesian uVec;	/* unit vector from start to end */
 	PmQuaternion qVec;	/* unit of rotation */
-	double tmag;
+	double tmag;         /* length of the line */
 	double rmag;
 	int tmag_zero;
 	int rmag_zero;

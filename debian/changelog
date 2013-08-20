@@ -1,3 +1,11 @@
+linuxcnc (1:2.5.0-2013.08.18) precise; urgency=low
+
+  * Implementation for USB and spindle synchronized motion.
+    + usb-rigid-tap
+    + usb-css
+
+ -- Yishin Li <ysli@araisrobo.com>  Sun, 18 Aug 2013 21:11:46 +0800
+
 linuxcnc (1:2.5.0-2012.10.21) lucid; urgency=low
 
   * Add TELEOP implementation to araisrobo branch

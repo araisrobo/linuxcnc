@@ -1,7 +1,8 @@
 component sim_spindle "Simulated spindle with index pulse";
 
-pin in float velocity-cmd "Commanded speed";
+pin in float velocity-cmd "Commanded speed, in RPM";
 pin out float position-fb "Feedback position, in revolutions";
+pin out float vel-fb-rps  "Feedback velocity, in RPS";
 pin io bit index-enable "Reset \\fBposition-fb\\fP to 0 at the next full rotation";
 param rw float scale = 1.0 
 """factor applied to \\fBvelocity-cmd\\fP.
@@ -30,5 +31,6 @@ FUNCTION(_) {
            new_position = new_position - floor(new_position);
    }
    position_fb = new_position;
+   vel_fb_rps = velocity_cmd * scale;   // convert from RPM to RPS
 }
 

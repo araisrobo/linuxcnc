@@ -1,0 +1,33 @@
+#
+# example usage of the VF-S11 VFD driver
+#
+# $Id: vfdb_vfd.hal,v 1.1 2009-09-19 23:00:27 mah Exp $
+#
+loadusr -Wn spindle-vfd vfdb_vfd -n spindle-vfd -I css.ini -S VFDB -r 
+
+# connect the spindle direction pins to the VFD
+net vfdb-fwd spindle-vfd.spindle-fwd <= motion.spindle-forward
+net vfdb-rev spindle-vfd.spindle-rev <= motion.spindle-reverse
+
+# connect the spindle on pin to the VF-S11
+net spindle-on => spindle-vfd.spindle-on
+
+# connect the VF-S11 at speed to the motion at speed
+net vfdb-at-speed <= spindle-vfd.at-speed
+
+# connect the spindle RPM to the VF-S11
+net spindle-t-speed-out         spindle-vfd.speed-command
+net spindle-t-speed-feedback    spindle-vfd.motor-RPS
+
+# to use the VFS11 jog mode for spindle orient 
+# see orient.9 and motion.9
+# TODO: this mode is not verified
+net spindle-orient motion.spindle-orient spindle-vfd.max-speed spindle-vfd.jog-mode
+
+# take precedence over control panel
+setp spindle-vfd.enable 1
+
+setp spindle-vfd.rpm-limit 12000
+setp spindle-vfd.nameplate-RPM 12000
+setp spindle-vfd.nameplate-HZ 400
+

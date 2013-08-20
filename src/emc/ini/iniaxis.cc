@@ -65,7 +65,6 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     double maxVelocity;
     double maxAcceleration;
     double maxJerk;
-    // int res;
 
     // compose string to match, axis = 0 -> AXIS_X etc.
     switch (axis) {
@@ -78,6 +77,10 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
 	case 6: sprintf(axisString, "AXIS_U");break;
 	case 7: sprintf(axisString, "AXIS_V");break;
 	case 8: sprintf(axisString, "AXIS_W");break;
+        case 9: sprintf(axisString, "AXIS_S");break;
+	default:
+	    rcs_print_error("Unknown axis id: %d\n", axis);
+	    assert(0); // unknown axis id
     }
 
     axisIniFile->EnableExceptions(EmcIniFile::ERR_CONVERSION);

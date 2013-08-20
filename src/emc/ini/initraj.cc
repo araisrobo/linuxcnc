@@ -130,6 +130,10 @@ static int loadTraj(EmcIniFile *trajInifile)
 	         axismask |= 256;
 	         axes += 1;
             }
+            if(strchr(coord, 's') || strchr(coord, 'S')) {
+                 axismask |= 512;
+                 axes += 1;
+            }
 	} else {
 	    axismask = 1 | 2 | 4;		// default: XYZ machine
 	    axes = 3;

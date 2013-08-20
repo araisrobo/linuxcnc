@@ -565,7 +565,6 @@ double getStraightJerk(double x, double y, double z,
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-
         jerk = MIN3((dx?emcAxisGetMaxJerk(0): huge),
                     (dy?emcAxisGetMaxJerk(1): huge),
                     (dz?emcAxisGetMaxJerk(2): huge));
@@ -607,6 +606,7 @@ double getStraightJerk(double x, double y, double z,
     }
     return jerk;
 }
+
 double getStraightAcceleration(double x, double y, double z,
                                double a, double b, double c,
                                double u, double v, double w)
@@ -639,31 +639,31 @@ double getStraightAcceleration(double x, double y, double z,
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
     if(debug_velacc) 
-        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
+        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making.  This is used to determine
     // the units of vel/acc.
     if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
         du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
-	canon.cartesian_move = 0;
+        canon.cartesian_move = 0;
     } else {
-	canon.cartesian_move = 1;
+        canon.cartesian_move = 1;
     }
     if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
-	canon.angular_move = 0;
+        canon.angular_move = 0;
     } else {
-	canon.angular_move = 1;
+        canon.angular_move = 1;
     }
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
-	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
-	tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
-	tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
-	tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
-	tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
+        tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
+        ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
+        tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
+        tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
+        tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
+        tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
         tmax = MAX3(tx, ty ,tz);
         tmax = MAX4(tu, tv, tw, tmax);
 
@@ -672,35 +672,33 @@ double getStraightAcceleration(double x, double y, double z,
         else
             dtot = sqrt(du * du + dv * dv + dw * dw);
         
-	if (tmax > 0.0) {
-	    acc = dtot / tmax;
-	}
-        assert(acc > 0);
+        if (tmax > 0.0) {
+            acc = dtot / tmax;
+        }
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-	ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
-	tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
-	tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
+        ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
+        tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
+        tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
         tmax = MAX3(ta, tb, tc);
 
-	dtot = sqrt(da * da + db * db + dc * dc);
-	if (tmax > 0.0) {
-	    acc = dtot / tmax;
-	}
-        assert(acc > 0);
+        dtot = sqrt(da * da + db * db + dc * dc);
+        if (tmax > 0.0) {
+            acc = dtot / tmax;
+        }
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-	tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
-	ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
-	tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
-	ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
-	tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
-	tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
-	tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
-	tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
-	tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
+        tx = dx? (dx / FROM_EXT_LEN(emcAxisGetMaxAcceleration(0))): 0.0;
+        ty = dy? (dy / FROM_EXT_LEN(emcAxisGetMaxAcceleration(1))): 0.0;
+        tz = dz? (dz / FROM_EXT_LEN(emcAxisGetMaxAcceleration(2))): 0.0;
+        ta = da? (da / FROM_EXT_ANG(emcAxisGetMaxAcceleration(3))): 0.0;
+        tb = db? (db / FROM_EXT_ANG(emcAxisGetMaxAcceleration(4))): 0.0;
+        tc = dc? (dc / FROM_EXT_ANG(emcAxisGetMaxAcceleration(5))): 0.0;
+        tu = du? (du / FROM_EXT_LEN(emcAxisGetMaxAcceleration(6))): 0.0;
+        tv = dv? (dv / FROM_EXT_LEN(emcAxisGetMaxAcceleration(7))): 0.0;
+        tw = dw? (dw / FROM_EXT_LEN(emcAxisGetMaxAcceleration(8))): 0.0;
         tmax = MAX9(tx, ty, tz,
                     ta, tb, tc,
                     tu, tv, tw);
@@ -716,26 +714,24 @@ double getStraightAcceleration(double x, double y, double z,
         else
             dtot = sqrt(du * du + dv * dv + dw * dw);
 
-	if (tmax > 0.0) {
-	    acc = dtot / tmax;
-	}
-        assert(acc > 0);
+        if (tmax > 0.0) {
+            acc = dtot / tmax;
+        }
     }
-
     if(debug_velacc) 
         printf("cartesian %d ang %d acc %g\n", canon.cartesian_move, canon.angular_move, acc);
-
     return acc;
 }
 
+/* 取得依 INI 設定，以及向量距離，所能達到的最大直線速度 */
 double getStraightVelocity(double x, double y, double z,
-			   double a, double b, double c,
+                           double a, double b, double c,
                            double u, double v, double w)
 {
     double dx, dy, dz, da, db, dc, du, dv, dw;
     double tx, ty, tz, ta, tb, tc, tu, tv, tw, tmax;
-    double vel, dtot, ang_vel;
-    
+    double vel, dtot;
+
 /* If we get a move to nowhere (!canon.cartesian_move && !canon.angular_move)
    we might as well go there at the canon.linearFeedRate...
 */
@@ -762,34 +758,31 @@ double getStraightVelocity(double x, double y, double z,
     if(!axis_valid(7) || dv < tiny) dv = 0.0;
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
-    DP ("dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g\n", 
-        dx, dy, dz, da, db, dc, du, dv, dw);
     if(debug_velacc) 
-        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g \n", 
+        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ",
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making:
     if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
         du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
-	canon.cartesian_move = 0;
+        canon.cartesian_move = 0;
     } else {
-	canon.cartesian_move = 1;
+        canon.cartesian_move = 1;
     }
     if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
-	canon.angular_move = 0;
+        canon.angular_move = 0;
     } else {
-	canon.angular_move = 1;
+        canon.angular_move = 1;
     }
 
     // Pure linear move:
     if (canon.cartesian_move && !canon.angular_move) {
-        // calculate travel time for linear  
-	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
-	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
-	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
-	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
-	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
-	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
+        tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+        ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
+        tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
+        tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
+        tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
+        tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
         tmax = MAX3(tx, ty ,tz);
         tmax = MAX4(tu, tv, tw, tmax);
 
@@ -798,41 +791,37 @@ double getStraightVelocity(double x, double y, double z,
         else
             dtot = sqrt(du * du + dv * dv + dw * dw);
 
-        vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
-                    (dy?emcAxisGetMaxVelocity(1): 1e9),
-                    (dz?emcAxisGetMaxVelocity(2): 1e9));
-        vel = FROM_EXT_LEN(MIN4((vel),
-                        (du?emcAxisGetMaxVelocity(6): 1e9),
-                        (dv?emcAxisGetMaxVelocity(7): 1e9),
-                        (dw?emcAxisGetMaxVelocity(8): 1e9)));
-        assert(vel > 0);
+        if (tmax <= 0.0) {
+            vel = canon.linearFeedRate;
+        } else {
+            vel = dtot / tmax;
+        }
     }
     // Pure angular move:
     else if (!canon.cartesian_move && canon.angular_move) {
-	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
-	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
-	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
+        ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
+        tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
+        tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
         tmax = MAX3(ta, tb, tc);
 
-	dtot = sqrt(da * da + db * db + dc * dc);
-	if (tmax <= 0.0) {
-	    vel = canon.angularFeedRate;
-	} else {
-	    vel = dtot / tmax;
-	}
-        assert(vel > 0);
+        dtot = sqrt(da * da + db * db + dc * dc);
+        if (tmax <= 0.0) {
+            vel = canon.angularFeedRate;
+        } else {
+            vel = dtot / tmax;
+        }
     }
     // Combination angular and linear move:
     else if (canon.cartesian_move && canon.angular_move) {
-	tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
-	ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
-	tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
-	ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
-	tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
-	tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
-	tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
-	tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
-	tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
+        tx = dx? fabs(dx / FROM_EXT_LEN(emcAxisGetMaxVelocity(0))): 0.0;
+        ty = dy? fabs(dy / FROM_EXT_LEN(emcAxisGetMaxVelocity(1))): 0.0;
+        tz = dz? fabs(dz / FROM_EXT_LEN(emcAxisGetMaxVelocity(2))): 0.0;
+        ta = da? fabs(da / FROM_EXT_ANG(emcAxisGetMaxVelocity(3))): 0.0;
+        tb = db? fabs(db / FROM_EXT_ANG(emcAxisGetMaxVelocity(4))): 0.0;
+        tc = dc? fabs(dc / FROM_EXT_ANG(emcAxisGetMaxVelocity(5))): 0.0;
+        tu = du? fabs(du / FROM_EXT_LEN(emcAxisGetMaxVelocity(6))): 0.0;
+        tv = dv? fabs(dv / FROM_EXT_LEN(emcAxisGetMaxVelocity(7))): 0.0;
+        tw = dw? fabs(dw / FROM_EXT_LEN(emcAxisGetMaxVelocity(8))): 0.0;
         tmax = MAX9(tx, ty, tz,
                     ta, tb, tc,
                     tu, tv, tw);
@@ -848,28 +837,14 @@ double getStraightVelocity(double x, double y, double z,
         else
             dtot = sqrt(du * du + dv * dv + dw * dw);
 
-        vel = MIN3((dx?emcAxisGetMaxVelocity(0): 1e9),
-                    (dy?emcAxisGetMaxVelocity(1): 1e9),
-                    (dz?emcAxisGetMaxVelocity(2): 1e9));
-        vel = FROM_EXT_LEN(MIN4((vel),
-                        (du?emcAxisGetMaxVelocity(6): 1e9),
-                        (dv?emcAxisGetMaxVelocity(7): 1e9),
-                        (dw?emcAxisGetMaxVelocity(8): 1e9)));
-
-        ang_vel = FROM_EXT_ANG(MIN3(
-                            (da?emcAxisGetMaxVelocity(3): 1e9),
-                            (db?emcAxisGetMaxVelocity(4): 1e9),
-                            (dc?emcAxisGetMaxVelocity(5): 1e9)));
-
-        vel = MIN(vel, ang_vel);
-        printf("debug: vel(%f)", vel);
-        assert(vel > 0);
+        if (tmax <= 0.0) {
+            vel = canon.linearFeedRate;
+        } else {
+            vel = dtot / tmax;
+        }
     }
-
-    DP ("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
     if(debug_velacc) 
         printf("cartesian %d ang %d vel %g\n", canon.cartesian_move, canon.angular_move, vel);
-
     return vel;
 }
 
@@ -1090,44 +1065,72 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-void RIGID_TAP(int line_number, double x, double y, double z)
+void SPINDLE_SYNC_MOTION(int line_number, double x, double y, double z, int ssm_mode)
 {
-    double ini_maxvel, vel, acc;
-    EMC_TRAJ_RIGID_TAP rigidTapMsg;
+    double vel, acc;
+    EMC_TRAJ_SPINDLE_SYNC_MOTION spindleSyncMotionMsg;
     double unused=0;
+    double max_xyz_vel;
+    double xyz_vel;
+    double spindle_speed;
     
-    from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
-    rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
+    if (ssm_mode < 2)
+    {   // G33, G33.1
+        if(canon.css_maximum) {
+            // for CSS(G96)
+            spindle_speed = canon.css_maximum;
+        } else {
+            // for (G97)
+            spindle_speed = canon.spindleSpeed;
+        }
 
+        from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
+        rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
+        max_xyz_vel = getStraightVelocity(x, y, z, unused, unused, unused, unused, unused, unused);
 
-    vel = getStraightVelocity(x, y, z, 
-                              canon.endPoint.a, canon.endPoint.b, canon.endPoint.c, 
-                              canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
-    ini_maxvel = vel;
+        /* the unit for canon.spindleSpeed is RPM; need to convert to RPS */
+        xyz_vel = canon.feed_per_spindle_revolution * spindle_speed / 60.0;
+        /* obtain the velocity for cartesian_move */
+        vel = MIN(xyz_vel, max_xyz_vel);
+        /* convert cartesian_move velocity to spindle velocity in rps */
+        vel = canon.spindle_dir * vel / canon.feed_per_spindle_revolution; // unit: rps
+
+        if (xyz_vel > max_xyz_vel)
+        {
+            printf("WARN: constrain spindle speed to %f RPM\n", vel * 60.0);
+        }
+        spindleSyncMotionMsg.pos = to_ext_pose(x,y,z,
+                canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
+                canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+    }
+    else
+    {   // G33.2, G33.3
+        // x = angle, y = rpm, z = axis_id
+        spindleSyncMotionMsg.pos.s = x; // spindle position passed as x parameter
+        vel = canon.spindle_dir * y / 60.0; // spindle positioning velocity (RPS) passed as y parameter(RPM)
+    }
+
     
-    acc = getStraightAcceleration(x, y, z, 
-                                  canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
-                                  canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
-    
-    rigidTapMsg.pos = to_ext_pose(x,y,z,
-                                 canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
-                                 canon.endPoint.u, canon.endPoint.v, canon.endPoint.w);
+    acc = emcAxisGetMaxAcceleration(9);     // AXIS_S: 9
+    // spindle velocity unit: rps
+    spindleSyncMotionMsg.vel = (vel); //spindle velocity (rps)
+    spindleSyncMotionMsg.ini_maxvel = emcAxisGetMaxVelocity(9);  // AXIS_S: 9
+    spindleSyncMotionMsg.acc = acc;
+    spindleSyncMotionMsg.ini_maxjerk = emcAxisGetMaxJerk(9);     // AXIS_S: 9
+    spindleSyncMotionMsg.ssm_mode = ssm_mode;
 
-    rigidTapMsg.vel = toExtVel(vel);
-    rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
-    rigidTapMsg.acc = toExtAcc(acc);
-    rigidTapMsg.ini_maxjerk = TO_EXT_LEN(getStraightJerk(x, y, z, 
-                                                         canon.endPoint.a, canon.endPoint.b, canon.endPoint.c,
-                                                         canon.endPoint.u, canon.endPoint.v, canon.endPoint.w));
     flush_segments();
     
     DP("x(%f) y(%f) z(%f)\n", x, y, z);
     DP("vel(%f) acc(%f) jerk(%f)\n", vel, acc, rigidTapMsg.ini_maxjerk);
     DP("spindleSpeed(%f) spindle_dir(%d)\n", canon.spindleSpeed, canon.spindle_dir);
 
+    assert (vel != 0);
+    assert (acc > 0);
+
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-        interp_list.append(rigidTapMsg);
+        interp_list.append(spindleSyncMotionMsg);
     }
 
     // don't move the endpoint because after this move, we are back where we started
@@ -1237,16 +1240,16 @@ void STOP_CUTTER_RADIUS_COMPENSATION()
     // nothing need be done here
 }
 
-
-
-void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
+void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool wait_for_index)
 {
     flush_segments();
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
-    spindlesyncMsg.velocity_mode = velocity_mode;
+    spindlesyncMsg.wait_for_index = wait_for_index;
+    spindlesyncMsg.spindlesync = true;
     interp_list.append(spindlesyncMsg);
     canon.synched = 1;
+    canon.feed_per_spindle_revolution = feed_per_revolution;
     DP("feed_per_revolution(%f), velocity_mode(%d)\n", spindlesyncMsg.feed_per_revolution, velocity_mode);
 }
 
@@ -1255,9 +1258,11 @@ void STOP_SPEED_FEED_SYNCH()
     flush_segments();
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = 0.0;
-    spindlesyncMsg.velocity_mode = false;
+    spindlesyncMsg.wait_for_index = false;
+    spindlesyncMsg.spindlesync = false;
     interp_list.append(spindlesyncMsg);
     canon.synched = 0;
+    canon.feed_per_spindle_revolution = 0;
 }
 
 /* Machining Functions */
@@ -2088,7 +2093,8 @@ void SPINDLE_RETRACT_TRAVERSE()
 }
 
 void SET_SPINDLE_MODE(double css_max) {
-    canon.css_maximum = fabs(css_max);
+    canon.css_maximum = fabs(css_max);  // css_maximum is the Max spindle speed(rpm) for CSS(G96) mode
+                                        //                 set to 0 under G97
 }
 
 void START_SPINDLE_CLOCKWISE(int l)
@@ -2144,22 +2150,21 @@ void SET_SPINDLE_SPEED(double r)
 
     flush_segments();
 
-    if(canon.css_maximum) {
+    if(canon.css_maximum)
+    {
+        // css_maximum: D of G_96
 	if(canon.lengthUnits == CANON_UNITS_INCHES) 
-// <<<<<<< HEAD
-	    // fix: numerator was wrong	    
-	    //      factor = cs * 60 / 2pi
-	    //      factor = css / 2pi
-	    canon.css_numerator = 1 / (2 * M_PI) * canon.spindleSpeed;
-// =======
-//	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4);
-// >>>>>>> lcnc-ja3
+	    // convert from ft/min to inch/min
+	    canon.css_numerator = 12 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(25.4); // spindleSpeed: S(CSS)
 	else
+	    // convert from m/min to mm/min
 	    canon.css_numerator = 1000 / (2 * M_PI) * canon.spindleSpeed * TO_EXT_LEN(1);
-	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.css_maximum;
+	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.css_maximum; // set MAX spindle speed for CSS motion
 	emc_spindle_speed_msg.factor = canon.spindle_dir * canon.css_numerator;
 	emc_spindle_speed_msg.xoffset = TO_EXT_LEN(canon.g5xOffset.x + canon.g92Offset.x + canon.toolOffset.tran.x);
-    } else {
+    }
+    else
+    {
 	emc_spindle_speed_msg.speed = canon.spindle_dir * canon.spindleSpeed;
 	canon.css_numerator = 0;
     }
@@ -2755,6 +2760,7 @@ void INIT_CANON()
     canon.rotary_unlock_for_traverse = -1;
     canon.css_maximum = 0.0;
     canon.css_numerator = 0.0;
+    canon.feed_per_spindle_revolution = 0.0;
     canon.spindle_dir = 0;
     canon.feed_mode = 0;
     canon.synched = 0;

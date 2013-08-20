@@ -16,6 +16,7 @@
 #include <float.h>              // DBL_MAX
 #include <string.h>		// memcpy() strncpy()
 #include <unistd.h>             // unlink()
+#include <assert.h>
 
 #include "usrmotintf.h"		// usrmotInit(), usrmotReadEmcmotStatus(),
 				// etc.
@@ -51,9 +52,10 @@
 
 
 // MOTION INTERFACE
-
-/*! \todo FIXME - this decl was originally much later in the file, moved
-here temporarily for debugging */
+/**
+ * emcmotStatus:
+ *      copied by usrmotReadEmcmotStatus() from emcMotionUpdate()
+ **/
 static emcmot_status_t emcmotStatus;
 
 /*
@@ -69,6 +71,8 @@ static emcmot_status_t emcmotStatus;
 
 static struct TrajConfig_t TrajConfig;
 static struct JointConfig_t JointConfig[EMCMOT_MAX_JOINTS];
+static int master_gantry_joint_id = -1;
+static int slave_gantry_joint_id = -1;
 static struct AxisConfig_t AxisConfig[EMCMOT_MAX_AXIS];
 
 static emcmot_command_t emcmotCommand;
@@ -265,7 +269,8 @@ int emcJointSetMinFerror(int joint, double ferror)
 int emcJointSetHomingParams(int joint, double home, double offset, double home_final_vel,
 			   double search_vel, double latch_vel,
 			   int use_index, int ignore_limits, int is_shared,
-			   int sequence,int volatile_home, int locking_indexer)
+			   int sequence,int volatile_home, int locking_indexer,
+			   int gantry_master, int gantry_slave)
 {
     CATCH_NAN(isnan(home) || isnan(offset) || isnan(home_final_vel) || isnan(search_vel) || isnan(latch_vel));
 
@@ -294,6 +299,18 @@ int emcJointSetHomingParams(int joint, double home, double offset, double home_f
     }
     if (locking_indexer) {
         emcmotCommand.flags |= HOME_UNLOCK_FIRST;
+    }
+    JointConfig[joint].SyncJogId = -1;
+    if (gantry_master) {
+        emcmotCommand.flags |= HOME_GANTRY_MASTER;
+        emcmotCommand.flags |= HOME_GANTRY_JOINT;
+        JointConfig[joint].SyncJogId = HOME_GANTRY_MASTER; // to find slave joint id to sync_jog
+        master_gantry_joint_id = joint; // to find slave joint id to sync_jog
+    }
+    if (gantry_slave) {
+        emcmotCommand.flags |= HOME_GANTRY_JOINT;
+        JointConfig[joint].SyncJogId = 0; // to find master joint id to sync_jog
+        slave_gantry_joint_id = joint; // to find slave joint id to sync_jog
     }
 
     int retval = usrmotWriteEmcmotCommand(&emcmotCommand);
@@ -559,22 +576,14 @@ int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
     return 0;
 }
 
-static int issue_sync_count = 0;
-#define SYNC_FREQ 50
 void checkPlanSyncReq(void) {
-  // TODO: check sync req flag from emcmotStatus and issue
-//         emcTaskPlanSynch?
-    if (emcmotStatus.update_current_pos_flag == 1 || issue_sync_count > 0) {
-    	issue_sync_count ++;
-    	if (issue_sync_count > SYNC_FREQ) {
-    		issue_sync_count = 0;
-			emcmotStatus.update_current_pos_flag = 0;
-			EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
-			emcTaskQueueCommand(&taskPlanSynchCmd);
-    	}
+    if (emcmotStatus.update_current_pos_flag == 1) {
+        // force to update current position for interp_convert.cc
+        emcTaskPlanSynch();
     }
-  return;
+    return;
 }
+
 /* This function checks to see if any joint or the traj has
    been inited already.  At startup, if none have been inited,
    usrmotIniLoad and usrmotInit must be called first.  At
@@ -769,6 +778,14 @@ int emcJogCont(int nr, double vel)
 	vel = -JointConfig[nr].MaxVel;
     }
 
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOG_CONT;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        emcmotCommand.vel = vel;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
+    }
+
     emcmotCommand.command = EMCMOT_JOG_CONT;
     emcmotCommand.joint = nr;
     emcmotCommand.vel = vel;
@@ -786,6 +803,15 @@ int emcJogIncr(int nr, double incr, double vel)
 	vel = JointConfig[nr].MaxVel;
     } else if (vel < -JointConfig[nr].MaxVel) {
 	vel = -JointConfig[nr].MaxVel;
+    }
+
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOG_INCR;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        emcmotCommand.vel = vel;
+        emcmotCommand.offset = incr;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
     }
 
     emcmotCommand.command = EMCMOT_JOG_INCR;
@@ -808,6 +834,15 @@ int emcJogAbs(int nr, double pos, double vel)
 	vel = -JointConfig[nr].MaxVel;
     }
 
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOG_ABS;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        emcmotCommand.vel = vel;
+        emcmotCommand.offset = pos;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
+    }
+
     emcmotCommand.command = EMCMOT_JOG_ABS;
     emcmotCommand.joint = nr;
     emcmotCommand.vel = vel;
@@ -821,6 +856,14 @@ int emcJogStop(int nr)
     if (nr < 0 || nr >= EMCMOT_MAX_JOINTS) {
 	return 0;
     }
+
+    if (JointConfig[nr].SyncJogId >= 0) {
+        // synchronize jog for gantry joint
+        emcmotCommand.command = EMCMOT_JOINT_ABORT;
+        emcmotCommand.joint = JointConfig[nr].SyncJogId;
+        usrmotWriteEmcmotCommand(&emcmotCommand);
+    }
+
     emcmotCommand.command = EMCMOT_JOINT_ABORT;
     emcmotCommand.joint = nr;
 
@@ -1324,11 +1367,12 @@ int emcTrajSetOffset(EmcPose tool_offset)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajSetSpindleSync(double fpr, bool wait_for_index) 
+int emcTrajSetSpindleSync(double fpr, bool wait_for_index, bool spindlesync)
 {
     emcmotCommand.command = EMCMOT_SET_SPINDLESYNC;
-    emcmotCommand.spindlesync = fpr;
+    emcmotCommand.uu_per_rev = fpr;
     emcmotCommand.flags = wait_for_index;
+    emcmotCommand.spindlesync = spindlesync;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
@@ -1454,17 +1498,16 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk)
+int emcTrajSpindleSyncMotion(EmcPose pos, double vel, double ini_maxvel, double acc, double ini_maxjerk, int ssm_mode)
 {
-    CATCH_NAN(isnan(pos.tran.x) || isnan(pos.tran.y) || isnan(pos.tran.z));
-
-    emcmotCommand.command = EMCMOT_RIGID_TAP;
-    emcmotCommand.pos.tran = pos.tran;
+    emcmotCommand.command = EMCMOT_SPINDLE_SYNC_MOTION;
+    emcmotCommand.pos = pos;
     emcmotCommand.id = TrajConfig.MotionId;
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.ini_maxjerk = ini_maxjerk;
+    emcmotCommand.ssm_mode = ssm_mode;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
@@ -1646,6 +1689,19 @@ int emcMotionInit()
 	if (0 != emcJointInit(joint)) {
 	    r2 = -1;		// at least one is busted
 	}
+    }
+
+    // set SyncJogId for gantry joints
+    for (joint = 0; joint < TrajConfig.Joints; joint++) {
+        if (JointConfig[joint].SyncJogId == HOME_GANTRY_MASTER) {
+            // set gantry_slave for gantry_master
+            JointConfig[joint].SyncJogId = slave_gantry_joint_id;
+        } else if (JointConfig[joint].SyncJogId == 0) {
+            // set gantry_slave for gantry_master
+            JointConfig[joint].SyncJogId = master_gantry_joint_id;
+        } else {
+            assert (JointConfig[joint].SyncJogId == -1);
+        }
     }
 
     r3 = 0;

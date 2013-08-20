@@ -108,14 +108,14 @@ int kinematicsForward(const double *joints,
     pos->tran.x = joints[0];
     pos->tran.y = joints[1];
     pos->tran.z = joints[3];
-    pos->a = joints[4];
-    pos->b = joints[5];
-    pos->c = joints[6];
-
-    // YY_OFFSET = joints[1] - (joints[2] * GANTRY_POLARITY);
+    pos->w = joints[4];
+    pos->s = joints[5];
+    // pos->b = joints[5];
+    // pos->c = joints[6];
 
     DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f),POLARITY(%f)\n",
         pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
+    DP("kFWD: s(%f), j5(%f)\n", pos->s, joints[5]);
 
     return 0;
 }
@@ -152,17 +152,19 @@ int kinematicsInverse(const EmcPose * pos,
     //             (pos->tran.y - y_cent - Y_OFFSET) * cos(rad) + Y_OFFSET + y_cent;
     joints[0] = pos->tran.x;
     joints[1] = pos->tran.y;
-    joints[2] = (pos->tran.y - YY_OFFSET) * GANTRY_POLARITY;  // YY
+    joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
     joints[3] = pos->tran.z;
-    joints[4] = pos->a;
-    joints[5] = pos->b;
-    joints[6] = pos->c;
+    joints[4] = pos->w;
+    joints[5] = pos->s;
+    // joints[5] = pos->b;
+    // joints[6] = pos->c;
     // joints[6] = pos->u;
     // joints[7] = pos->v;
     // joints[8] = pos->w;
     // fprintf(stderr,"kI j0(%f) j1(%f)\n",joints[0], joints[1]);
-    DP("kINV: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f), POLARITY(%f) \n",
-       pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
+    DP("kINV: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f)\n",
+       pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET);
+    DP("kINV: s(%f), j5(%f)\n", pos->s, joints[5]);
 
     return 0;
 }
