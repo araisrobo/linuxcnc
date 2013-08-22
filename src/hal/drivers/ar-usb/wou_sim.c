@@ -380,7 +380,6 @@ typedef struct {
     hal_float_t *pos_cmd;	/* pin: position command (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *probed_pos;
-    hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
     double      prev_pos_fb;    /* previous position feedback for calculating vel_fb */
@@ -420,7 +419,6 @@ typedef struct {
     hal_bit_t   *usb_busy;
     hal_bit_t   usb_busy_s;
     hal_bit_t   *ignore_ahc_limit;
-    hal_bit_t   *align_pos_cmd;
     hal_bit_t   *ignore_host_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
@@ -1384,14 +1382,6 @@ static void update_freq(void *arg, long period)
             (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
             stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
         }
-	    if (*machine_control->align_pos_cmd == 1 /* || *machine_control->ignore_host_cmd */ ){
-	        (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
-                stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
-                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
-                stepgen->pulse_vel = 0;
-                stepgen->pulse_accel = 0;
-                stepgen->pulse_jerk = 0;
-	    }
 	    *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
 	} else {
 	    /* velocity command mode */
@@ -1868,12 +1858,6 @@ static int export_machine_control(machine_control_t * machine_control)
                               "wou.cl.abort");
     if (retval != 0) { return retval; }
     *(machine_control->cl_abort) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->align_pos_cmd), comp_id,
-                                    "wou.align-pos-cmd");
-    if (retval != 0) {
-        return retval;
-    }
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->ignore_host_cmd), comp_id,
                                     "wou.ignore-host-cmd");

@@ -6,15 +6,17 @@
 component jog "control MPG and CONT jogging";
 
 pin in  bit     mpg-scale-sel.#[2]      "array of mpg-scale-sel signals";
-pin in  bit     mpg-joint-sel.#[3]      "array of mpg-joint-sel signals";
+pin in  bit     mpg-joint-sel.#[7]      "array of mpg-joint-sel signals";
 pin in  bit     wheel-jog-active.#[6]   "array of wheel-jog-active signals";
 
 pin out  s32    jog-vel-scale           "jog-vel-scale for shifting mpg-vel left/right";
 pin out  u32    jog-sel                 "bitwise jog select signal";
 pin out  bit    wheel-jog-enable.#[6]   "array of wheel-jog-enable signals for handle_jogwheels()";
+pin out  bit    mpg-scale-x1            "mpg scale at x1 mode -- accurate positioning mode";
 
-param rw  u32   master-gantry-id        "";
-param rw  u32   slave-gantry-id         "";
+param rw  u32   master-gantry-id        "joint-id for mater gantry";
+param rw  u32   slave-gantry-id         "joint-id for slave gantry";
+param rw  bit   binary-sel-mode         "1: binary select mode; 0: one-hot select mode";
 param rw  s32   jog-scale.#[3]          "jog-vel-scale options for shifting mpg-vel left/right";
                                         /* positive : shift left  *
                                          * negative : shift right */
@@ -34,7 +36,8 @@ FUNCTION(_)
 {
     int mpg_joint_code;
     int i;
-
+    
+    // prepare jog_sel signale for RISC-VEL-JOG
     jog_sel = (wheel_jog_active(5) << 5) |
               (wheel_jog_active(4) << 4) |
               (wheel_jog_active(3) << 3) |
@@ -45,10 +48,25 @@ FUNCTION(_)
     {
         jog_sel |= (1 << 7);            // set jog_sel[7] for MPG jogging
     }
+    
+    // interpret mpg_joint_sel signal
+    if (binary_sel_mode)
+    {
+        mpg_joint_code = ((mpg_joint_sel(2) << 2) |
+                          (mpg_joint_sel(1) << 1) |
+                          (mpg_joint_sel(0)));      // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
+    }
+    else
+    {
+        mpg_joint_code = 7 * (mpg_joint_sel(6)) +
+                         6 * (mpg_joint_sel(5)) +
+                         5 * (mpg_joint_sel(4)) +
+                         4 * (mpg_joint_sel(3)) +
+                         3 * (mpg_joint_sel(2)) +
+                         2 * (mpg_joint_sel(1)) +
+                         1 * (mpg_joint_sel(0));    // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
+    }
 
-    mpg_joint_code = ((mpg_joint_sel(2) << 2) |
-                      (mpg_joint_sel(1) << 1) |
-                      (mpg_joint_sel(0)));   // MPG.AXIS.SEL: JOG_DISABLE(0), JOG_X(1), JOG_Y(2)...
     for(i=0; i<6; i++)
     {
         wheel_jog_enable(i) = 0;
@@ -77,18 +95,28 @@ FUNCTION(_)
     }
 
     if (mpg_scale_sel(1))
-    {   // 2'b1x
+    {   // 2'b1x -- x100 mode
         jog_vel_scale = jog_scale(2);
+        mpg_scale_x1 = 0;
     }
     else
     {
         if (mpg_scale_sel(0))
-        {   // 2'b01
+        {   // 2'b01 -- x10 mode
             jog_vel_scale = jog_scale(1);
+            mpg_scale_x1 = 0;
         }
         else
-        {   // 2'b00
+        {   // 2'b00 -- x1 mode -- accurate positioning mode
             jog_vel_scale = jog_scale(0);
+            mpg_scale_x1 = 1;
+            jog_sel = 0; // disable RISC-JOG (velocity mode)
         }
+    }
+
+    // workaround for joint_5 (S)
+    if (mpg_joint_code == 5) {
+        // S can only accept jog_scale(0) for x10 and x100 modes
+        jog_vel_scale = jog_scale(0);
     }
 }

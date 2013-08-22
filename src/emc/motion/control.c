@@ -855,6 +855,7 @@ static void handle_special_cmd(void)
             joint->pos_cmd = joint->risc_pos_cmd - joint->backlash_filt - joint->motor_offset - joint->blender_offset;
             joint->coarse_pos = joint->pos_cmd;
             joint->free_tp.curr_pos = joint->pos_cmd;
+            joint->free_tp.pos_cmd = joint->pos_cmd;
             /* to reset cubic parameters */
             joint->cubic.needNextPoint=1;
             joint->cubic.filled=0;
@@ -1165,6 +1166,8 @@ static void handle_jogwheels(void)
     int joint_num;
     emcmot_joint_t *joint;
     joint_hal_t *joint_data;
+    int new_jog_counts, delta;
+    double distance, pos;
 
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint data */
@@ -1177,6 +1180,12 @@ static void handle_jogwheels(void)
             continue;
         }
 
+        /* get counts from jogwheel */
+        new_jog_counts = *(joint_data->jog_counts);
+        delta = new_jog_counts - joint->old_jog_counts;
+        /* save value for next time */
+        joint->old_jog_counts = new_jog_counts;
+
         /* initialization complete */
         if ( first_pass ) {
             continue;
@@ -1186,6 +1195,7 @@ static void handle_jogwheels(void)
         if (GET_MOTION_COORD_FLAG()) {
             continue;
         }
+
         if (!GET_MOTION_ENABLE_FLAG()) {
             continue;
         }
@@ -1199,14 +1209,44 @@ static void handle_jogwheels(void)
         if (emcmotStatus->homing_active) {
             continue;
         }
+
         /* must not be doing a keyboard jog */
         if (joint->kb_jog_active) {
             continue;
         }
+
         if (emcmotStatus->net_feed_scale < 0.0001 ) {
             /* don't jog if feedhold is on or if feed override is zero */
             break;
         }
+
+        /* MPG scale switch at x1 mode -- accurate positioning mode */
+        printf("control.c: handle_jogwheels: mpg_scale_x1(%d)\n", *(emcmot_hal_data->mpg_scale_x1));
+        if (*(emcmot_hal_data->mpg_scale_x1) == 1) {
+            /* calculate distance to jog */
+            distance = (double) delta * (*(joint_data->jog_scale));
+            /* check for joint already on hard limit */
+            if (distance > 0.0 && GET_JOINT_PHL_FLAG(joint)) {
+                continue;
+            }
+            if (distance < 0.0 && GET_JOINT_NHL_FLAG(joint)) {
+                continue;
+            }
+            /* calc target position for jog */
+            pos = joint->free_tp.pos_cmd + distance;
+            /* don't jog past limits */
+            refresh_jog_limits(joint);
+            if (pos > joint->max_jog_limit) {
+                continue;
+            }
+            if (pos < joint->min_jog_limit) {
+                continue;
+            }
+            /* set target position */
+            joint->free_tp.pos_cmd = pos;
+            /* and let it go */
+            joint->free_tp.enable = 1;
+        } // end: MPG scale switch at x1 (accurate positioning mode)
 
         /* lock out other jog sources */
         joint->wheel_jog_active = 1;
@@ -2049,19 +2089,6 @@ static void output_to_hal(void)
     emcmotStatus->last_usb_cmd = *(emcmot_hal_data->last_usb_cmd);
     // WORKAROUND: raise align pos cmd flag at least 3 cycles to
     //             make sure the pos_cmd is aligned with pos_fb
-
-    if (emcmotStatus->align_pos_cmd || (emcmotStatus->sync_pos_cmd == 1) ||
-            (emcmotStatus->sync_risc_pos == 1)) {
-        DP("align_pos_cmd(%d) sync_pos_cmd(%d) sync_risc_pos(%d) \n",
-                emcmotStatus->align_pos_cmd,
-                emcmotStatus->sync_pos_cmd,
-                emcmotStatus->sync_risc_pos);
-        *(emcmot_hal_data->align_pos_cmd) = 1;
-        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-        assert(0);
-    } else {
-        *(emcmot_hal_data->align_pos_cmd) = 0;
-    }
 
     emcmotStatus->usb_cmd = 0;
     /* output machine info to HAL for scoping, etc */

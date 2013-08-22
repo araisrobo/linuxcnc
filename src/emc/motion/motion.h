@@ -542,9 +542,10 @@ typedef struct {
     double ferror_limit;	/* limit depends on speed */
     double ferror_high_mark;	/* max following error */
     simple_tp_t free_tp;	/* planner for free mode motion */
-    int kb_jog_active;	/* non-zero during a keyboard jog */
-    int wheel_jog_active;	/* non-zero during a wheel jog */
-    int disable_jog;        /* flag to disable jogging: not calling simple_tp_update() */
+    int kb_jog_active;          /* non-zero during a keyboard jog */
+    int wheel_jog_active;       /* non-zero during a wheel jog */
+    int disable_jog;            /* flag to disable jogging: not calling simple_tp_update() */
+    int old_jog_counts;         /* previous jog counts from MPG */
 
     /* internal info - changes regularly, not usually accessed from user
 	   space */
@@ -668,7 +669,6 @@ typedef struct emcmot_status_t {
     double last_usb_cmd_param[4];
     uint32_t usb_status;
     int sync_pos_cmd;
-    int align_pos_cmd;
     int sync_risc_pos;
 
     unsigned char head;	/* flag count for mutex detect */
