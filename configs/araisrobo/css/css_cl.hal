@@ -32,6 +32,6 @@ net mot_spindle_brake classicladder.0.in-05 <= motion.spindle-brake
 
 # CL outputs
 # net dout_00      <=  classicladder.0.out-01  # SVO-ON
-# net dout_01      <=  classicladder.0.out-02  # AXIS_Z.BREAK_N
+net dout_02      <=  classicladder.0.out-02  # AXIS_Z.BREAK_N
 net dout_09        <=  classicladder.0.out-03  # SPINDLE-BRAKE -> gpio.out.09
 

@@ -1,0 +1,76 @@
+
+# mapping wou.gpio to motion.synch_di[]
+net din_00	gpio_test.din_00
+net din_01 	gpio_test.din_01
+net din_02 	gpio_test.din_02
+net din_03 	gpio_test.din_03
+net din_04 	gpio_test.din_04
+net din_05 	gpio_test.din_05
+net din_06 	gpio_test.din_06
+net din_07 	gpio_test.din_07
+net din_08 	gpio_test.din_08
+net din_09 	gpio_test.din_09
+net din_10 	gpio_test.din_10
+net din_11 	gpio_test.din_11
+net din_12 	gpio_test.din_12
+net din_13 	gpio_test.din_13
+net din_14 	gpio_test.din_14
+net din_15 	gpio_test.din_15
+net din_16 	gpio_test.din_16
+net din_17 	gpio_test.din_17
+net din_18 	gpio_test.din_18
+net din_19 	gpio_test.din_19
+net din_20 	gpio_test.din_20
+net din_21 	gpio_test.din_21
+net din_22 	gpio_test.din_22
+net din_23 	gpio_test.din_23
+net din_24 	gpio_test.din_24
+net din_25 	gpio_test.din_25
+net din_26 	gpio_test.din_26
+net din_27 	gpio_test.din_27
+net din_28 	gpio_test.din_28
+net din_29 	gpio_test.din_29
+net din_30 	gpio_test.din_30
+net din_31 	gpio_test.din_31
+net din_32 	gpio_test.din_32
+net din_33 	gpio_test.din_33
+net din_34 	gpio_test.din_34
+net din_35 	gpio_test.din_35
+net din_36 	gpio_test.din_36
+net din_37 	gpio_test.din_37
+net din_38 	gpio_test.din_38
+net din_39 	gpio_test.din_39
+net din_40 	gpio_test.din_40
+net din_41 	gpio_test.din_41
+net din_42 	gpio_test.din_42
+net din_43 	gpio_test.din_43
+net din_44 	gpio_test.din_44
+net din_45 	gpio_test.din_45
+net din_46   	gpio_test.din_46
+net din_47 	gpio_test.din_47
+net din_48 	gpio_test.din_48
+net din_49 	gpio_test.din_49
+net din_50 	gpio_test.din_50
+net din_51 	gpio_test.din_51
+net din_52 	gpio_test.din_52
+net din_53 	gpio_test.din_53
+net din_54 	gpio_test.din_54
+net din_55 	gpio_test.din_55
+net din_56 	gpio_test.din_56
+net din_57 	gpio_test.din_57
+net din_58 	gpio_test.din_58
+net din_59 	gpio_test.din_59
+net din_60 	gpio_test.din_60
+net din_61 	gpio_test.din_61
+net din_62 	gpio_test.din_62
+net din_63 	gpio_test.din_63
+
+net torch_voltage   => gpio_test.analog_00
+net analog_01       => gpio_test.analog_01
+net analog_02       => gpio_test.analog_02
+net analog_03       => gpio_test.analog_03
+net analog_04       => gpio_test.analog_04
+net analog_05       => gpio_test.analog_05
+net analog_06       => gpio_test.analog_06
+net adc_7s          => gpio_test.analog_07
+

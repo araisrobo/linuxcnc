@@ -1,0 +1,19 @@
+[DEFAULT]
+maxvel = 1000
+control_font = Sans 30
+text_font = Sans 16
+system_font = Sans 40
+dro_font = Courier 10 Pitch Bold 16
+error_font = Sans Bold 10
+listing_font = Sans 16
+gtk_theme = Blue-Joy
+abs_textcolor = default
+rel_textcolor = default
+dtg_textcolor = default
+err_textcolor = default
+window_geometry = default
+window_force_max = False
+toolsetting_fixture = 0
+dro_mm = 0
+dro_actual = 0
+
