@@ -217,8 +217,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             length_vector.append(l[i] - self.lo[i])
         length = LA.norm(length_vector)
 
-        if not self.first_move:
-            self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+        self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
             
         self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
         self.path.append(('traverse', self.lineno, self.lo, l, self.feedrate, length))
