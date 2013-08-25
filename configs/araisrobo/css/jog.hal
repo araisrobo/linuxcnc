@@ -7,7 +7,7 @@ setp jog.slave-gantry-id        2
 
 # binary-sel-mode: 1: binary select mode
 #                  0: one-hot select mode
-setp jog.binary-sel-mode        0
+setp jog.binary-sel-mode        1
 
 # jog-scale(0):     (mpg_vel << 0)
 # jog-scale(3):     (mpg_vel << 3)
@@ -17,25 +17,25 @@ setp jog.jog-scale.0            0
 setp jog.jog-scale.1            3
 setp jog.jog-scale.2            7
 
-# # binary mpg jog-scale-select
-# net mpg-jss-0 jog.mpg-scale-sel.0 <= wou.gpio.in.66
-# net mpg-jss-1 jog.mpg-scale-sel.1 <= wou.gpio.in.67
+# binary mpg jog-scale-select
+net mpg-jss-0 jog.mpg-scale-sel.0 <= wou.gpio.in.66
+net mpg-jss-1 jog.mpg-scale-sel.1 <= wou.gpio.in.67
+
+# binary mpg joint-select
+net mpg-js-0 jog.mpg-joint-sel.0 <= wou.gpio.in.68
+net mpg-js-1 jog.mpg-joint-sel.1 <= wou.gpio.in.69
+net mpg-js-2 jog.mpg-joint-sel.2 <= wou.gpio.in.70
+
+# # one-hot mpg joint-select
+# net mpg-js-0 jog.mpg-joint-sel.0 <= wou.gpio.in.66
+# net mpg-js-1 jog.mpg-joint-sel.1 <= wou.gpio.in.67
+# net mpg-js-2 jog.mpg-joint-sel.2 <= wou.gpio.in.68
+# net mpg-js-3 jog.mpg-joint-sel.3 <= wou.gpio.in.69
+# net mpg-js-4 jog.mpg-joint-sel.4 <= wou.gpio.in.70
 # 
-# # binary mpg joint-select
-# net mpg-js-0 jog.mpg-joint-sel.0 <= wou.gpio.in.68
-# net mpg-js-1 jog.mpg-joint-sel.1 <= wou.gpio.in.69
-# net mpg-js-2 jog.mpg-joint-sel.2 <= wou.gpio.in.70
-
-# one-hot mpg joint-select
-net mpg-js-0 jog.mpg-joint-sel.0 <= wou.gpio.in.66
-net mpg-js-1 jog.mpg-joint-sel.1 <= wou.gpio.in.67
-net mpg-js-2 jog.mpg-joint-sel.2 <= wou.gpio.in.68
-net mpg-js-3 jog.mpg-joint-sel.3 <= wou.gpio.in.69
-net mpg-js-4 jog.mpg-joint-sel.4 <= wou.gpio.in.70
-
-# one-hot mpg jog-scale-select
-net mpg-jss-0 jog.mpg-scale-sel.0 <= wou.gpio.in.72
-net mpg-jss-1 jog.mpg-scale-sel.1 <= wou.gpio.in.73
+# # one-hot mpg jog-scale-select
+# net mpg-jss-0 jog.mpg-scale-sel.0 <= wou.gpio.in.72
+# net mpg-jss-1 jog.mpg-scale-sel.1 <= wou.gpio.in.73
 
 # bitwise mpg jog enable
 net mpg-jen-0 jog.wheel-jog-enable.0 => joint.0.jog-enable
