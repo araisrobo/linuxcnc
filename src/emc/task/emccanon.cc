@@ -1452,6 +1452,7 @@ void NURBS_FEED_3D (
                         nurbs_control_points[i+1].W);
         assert(0);
     }
+
     if (canon.cartesian_move ) {
         nurbsMoveMsg.ini_maxvel = MIN3(dx > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(0)):huge,
                                        dy > 0? FROM_EXT_LEN(emcAxisGetMaxVelocity(1)):huge,
@@ -1606,17 +1607,7 @@ void NURBS_FEED_3D (
         }
         nurbsMoveMsg.nurbs_block.axis_mask = axis_mask;
         // feed rate
-        if(nurbs_control_points[i].F != -1 ) {
-
-            nurbsMoveMsg.vel = FROM_PROG_LEN(nurbs_control_points[i].F)/60;
-            vel = nurbsMoveMsg.vel;
-        } else {
-            if(i != 0) {
-                nurbsMoveMsg.vel = vel;//FROM_PROG_LEN(nurbs_control_points[i-1].F);
-            } else {
-                nurbsMoveMsg.vel = vel;
-            }
-        }
+        nurbsMoveMsg.vel = vel;
 
         interp_list.set_line_number(line_number);
         interp_list.append(nurbsMoveMsg);

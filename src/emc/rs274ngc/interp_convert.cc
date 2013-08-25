@@ -247,7 +247,6 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
             CHKS((block->r_number < 0),
                     ("Must specify positive weight R for every Control Point"));
             CP.R = block->r_number;
-            CP.F = block->f_number;
             // D: Curvature
             if (block->d_flag == ON) {
                 CP.D = block->d_number_float;

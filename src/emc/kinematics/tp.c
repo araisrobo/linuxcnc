@@ -745,12 +745,14 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 
         nurbs_to_tc->ctrl_pts_ptr = (CONTROL_POINT*) malloc(
                 sizeof(CONTROL_POINT) * nurbs_block.nr_of_ctrl_pts);
+        /* knots array: allocate 'order' of extra knots for THE-NURBS-BOOK-Algorithm */
         nurbs_to_tc->knots_ptr = (double*) malloc(sizeof(double)
-                * nurbs_block.nr_of_knots);
+                * (nurbs_block.nr_of_knots + nurbs_block.order));
         nurbs_to_tc->N = (double*) malloc(sizeof(double) * (order + 1));
         nurbs_to_tc->axis_mask = nurbs_block.axis_mask;
 
     }
+
     if (knots_todo > 0) {
         if (knots_todo > (nr_of_knots - nr_of_ctrl_pts)) { // this part add ctrl pts and knots
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots - knots_todo].X = pos.tran.x;
@@ -764,7 +766,6 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots - knots_todo].W = pos.w;
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots - knots_todo].R = nurbs_block.weight;
             nurbs_to_tc->ctrl_pts_ptr[nr_of_knots - knots_todo].D = nurbs_block.curvature;
-            nurbs_to_tc->ctrl_pts_ptr[nr_of_knots - knots_todo].F = vel; // requested feedrate for this cp
             nurbs_to_tc->knots_ptr[nr_of_knots - knots_todo] = nurbs_block.knot;
 
         } else {
@@ -776,6 +777,12 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 
 
     if ((0 == knots_todo)) {
+        int i;
+        /* duplicate 'order' of extra knots for THE-NURBS-BOOK-Algorithm */
+        for (i=0; i<nurbs_block.order; i++) {
+            nurbs_to_tc->knots_ptr[nr_of_knots + i] = nurbs_block.knot;
+        }
+
         // knots == 0 means all NURBS collected
 #if 0 //dump control points and knots info
         uint32_t i=0;
@@ -803,8 +810,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.progress = 0.0;
         tc.accel_state = ACCEL_S3;
         tc.distance_to_go = tc.target;
-        // tc.accel_time = 0.0;
-        tc.reqvel = nurbs_to_tc->ctrl_pts_ptr[0].F;// the first feedrate for first cp for reqvel//vel;
+        tc.reqvel = vel;
         tc.maxvel = ini_maxvel * tp->cycleTime;
         tc.maxaccel = ini_maxacc * tp->cycleTime * tp->cycleTime;
         tc.jerk = ini_maxjerk * tp->cycleTime * tp->cycleTime * tp->cycleTime;
@@ -818,6 +824,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.nurbs_block.order = nurbs_block.order;
         tc.nurbs_block.nr_of_ctrl_pts = nurbs_block.nr_of_ctrl_pts;
         tc.nurbs_block.nr_of_knots = nurbs_block.nr_of_knots;
+        tc.nurbs_block.reqvel = vel;
 
         tc.cur_accel = 0.0;
         tc.cur_vel = 0.0;

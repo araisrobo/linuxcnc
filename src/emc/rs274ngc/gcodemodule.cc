@@ -201,7 +201,7 @@ void NURBS_FEED_3D (
     knot_size = k.size();
 
     if (nc + d == (int)(knot_size - 1)) {
-        int s, tmp1;
+        int s, tmp1, id;
         
         for (int col(0); col<nu; col++) {
 
@@ -213,94 +213,79 @@ void NURBS_FEED_3D (
             tmp1 = s - d;                
             
             R = 0.0;
-            for (i=0; i<=d; i++) {
-                R += N[i]*cp[tmp1+i].R;
+            X = 0.0;
+            Y = 0.0;
+            Z = 0.0;
+            A = 0.0;
+            B = 0.0;
+            C = 0.0;
+            U = 0.0;
+            V = 0.0;
+            W = 0.0;
+            for (i = 0; i <= d; i++) {
+                id = tmp1 + i;
+                if (id < 0) id = 0;
+                else if (id >= nc) id = nc - 1;
+                R += N[i]*cp[id].R;
+                X += N[i]*cp[id].X*cp[id].R;
+                Y += N[i]*cp[id].Y*cp[id].R;
+                Z += N[i]*cp[id].Z*cp[id].R;
+                A += N[i]*cp[id].A*cp[id].R;
+                B += N[i]*cp[id].B*cp[id].R;
+                C += N[i]*cp[id].C*cp[id].R;
+                U += N[i]*cp[id].U*cp[id].R;
+                V += N[i]*cp[id].V*cp[id].R;
+                W += N[i]*cp[id].W*cp[id].R;
+                if (cp[id].R != 1.0) {
+                    printf ("gcodemodule.cc: WARN: R!=1.0, cp[%d].R(%f)\n", id, cp[id].R);
+                }
             }
 
+            X = X/R;
+            Y = Y/R;
+            Z = Z/R;
+            A = A/R;
+            B = B/R;
+            C = C/R;
+            U = U/R;
+            V = V/R;
+            W = W/R;
+
             if ( axis_mask &  AXIS_MASK_X ) {
-                X = 0.0;
-                for (i=0; i<=d; i++) {
-                    X += N[i]*cp[tmp1+i].X*cp[tmp1+i].R;
-                }
-                X = X/R;
                 _pos_x = X;
             }
 
             if ( axis_mask & AXIS_MASK_Y) {
-                Y = 0.0;
-                for (i=0; i<=d; i++) {
-                    Y += N[i]*cp[tmp1+i].Y*cp[tmp1+i].R;
-                }
-                Y = Y/R;
                 _pos_y = Y;
             }
 
             if ( axis_mask & AXIS_MASK_Z) {
-                    Z = 0.0;
-                    for (i=0; i<=d; i++) {
-                            Z += N[i]*cp[tmp1+i].Z*cp[tmp1+i].R;
-                    }
-                    Z = Z/R;
                     _pos_z = Z;
             }
 
             if ( axis_mask & AXIS_MASK_A) {
-                    A = 0.0;
-                    for (i=0; i<=d; i++) {
-                            A += N[i]*cp[tmp1+i].A*cp[tmp1+i].R;
-                    }
-                    A = A/R;
                     _pos_a = A;
             }
             if ( axis_mask & AXIS_MASK_B) {
-                    B = 0.0;
-                    for (i=0; i<=d; i++) {
-                            B += N[i]*cp[tmp1+i].B*cp[tmp1+i].R;
-                    }
-                    B = B/R;
                     _pos_b = B;
             }
             if ( axis_mask & AXIS_MASK_C) {
-                    C = 0.0;
-                    for (i=0; i<=d; i++) {
-                            C += N[i]*cp[tmp1+i].C*cp[tmp1+i].R;
-                    }
-                    C = C/R;
                     _pos_c = C;
             }
             if ( axis_mask & AXIS_MASK_U) {
-                    U = 0.0;
-                    for (i=0; i<=d; i++) {
-                            U += N[i]*cp[tmp1+i].U*cp[tmp1+i].R;
-                    }
-                    U = U/R;
-                    _pos_u = u;
+                    _pos_u = U;
             }
             if ( axis_mask & AXIS_MASK_V) {
-                    V = 0.0;
-                    for (i=0; i<=d; i++) {
-                            V += N[i]*cp[tmp1+i].V*cp[tmp1+i].R;
-                    }
-                    V = V/R;
                     _pos_v = V;
             }
             if ( axis_mask & AXIS_MASK_W) {
-                    W = 0.0;
-                    for (i=0; i<=d; i++) {
-                            W += N[i]*cp[tmp1+i].W*cp[tmp1+i].R;
-                    }
-                    W = W/R;
                     _pos_w = W;
             }
-
             STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
                           _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
 
-
         }
     } else {
-        /*fprintf(stderr, "inconsistent bspline data, d(%d) + columns(c(%d)) != length(k(%d)) - 1.\n",
-                d, nc, k);*/
         fprintf(stderr, "src/emc/rs274gnc/gcodemodule.cc:inconsistent bspline data, d + columns(c) != length(k).\n");
     }
 
@@ -308,8 +293,8 @@ void NURBS_FEED_3D (
     free(cp);
     free(knot);
     
-    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() end\n", //TODO-eric:GCODE NURBS_FEED_3D Print
-    //         __FILE__, __FUNCTION__, __LINE__, c.size());
+    // printf("%s: (%s:%d): c.size(%d); NURBS_FEED() end\n",
+    //          __FILE__, __FUNCTION__, __LINE__, c.size());
 }
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
@@ -379,6 +364,8 @@ void STRAIGHT_FEED(int line_number,
                             x, y, z, a, b, c, u, v, w);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
+//    printf("%s: (%s:%d): x(%f) y(%f) z(%f)\n",
+//             __FILE__, __FUNCTION__, __LINE__, x, y, z);
 }
 
 void STRAIGHT_TRAVERSE(int line_number,
