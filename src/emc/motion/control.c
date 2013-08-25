@@ -1221,7 +1221,6 @@ static void handle_jogwheels(void)
         }
 
         /* MPG scale switch at x1 mode -- accurate positioning mode */
-        printf("control.c: handle_jogwheels: mpg_scale_x1(%d)\n", *(emcmot_hal_data->mpg_scale_x1));
         if (*(emcmot_hal_data->mpg_scale_x1) == 1) {
             /* calculate distance to jog */
             distance = (double) delta * (*(joint_data->jog_scale));

@@ -222,6 +222,8 @@ void NURBS_FEED_3D (
             U = 0.0;
             V = 0.0;
             W = 0.0;
+//            printf("%s: (%s:%d):\n",
+//                 __FILE__, __FUNCTION__, __LINE__);
             for (i = 0; i <= d; i++) {
                 id = tmp1 + i;
                 if (id < 0) id = 0;
@@ -239,7 +241,9 @@ void NURBS_FEED_3D (
                 if (cp[id].R != 1.0) {
                     printf ("gcodemodule.cc: WARN: R!=1.0, cp[%d].R(%f)\n", id, cp[id].R);
                 }
+//                printf ("N[%d](%f) ", i, N[i]);
             }
+//            printf ("\n");
 
             X = X/R;
             Y = Y/R;
@@ -283,7 +287,8 @@ void NURBS_FEED_3D (
             }
             STRAIGHT_FEED(line_number, _pos_x, _pos_y, _pos_z,
                           _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
-
+//            printf("%s: (%s:%d): x(%f) y(%f) u(%f) s(%d)\n",
+//                 __FILE__, __FUNCTION__, __LINE__, X, Y, u, s);
         }
     } else {
         fprintf(stderr, "src/emc/rs274gnc/gcodemodule.cc:inconsistent bspline data, d + columns(c) != length(k).\n");
