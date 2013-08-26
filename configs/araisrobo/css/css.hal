@@ -396,6 +396,8 @@ net tool_change	wou.gpio.out.08     => motion.digital-out-08
 # net s_brake     wou.gpio.out.09     => motion.digital-out-09
 net dout_09     wou.gpio.out.09
 
+net analog_07   wou.analog.in.07
+
 net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
 net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
 net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable

@@ -68,3 +68,5 @@ net enc-pos-j0                                 => css_vcp.j0-enc_pos-label
 net enc-pos-j1                                 => css_vcp.j1-enc_pos-label
 net enc-pos-j3                                 => css_vcp.j3-enc_pos-label
 net enc-pos-j5                                 => css_vcp.j5-enc_pos-label
+
+net analog_07                                  => css_vcp.analog_07

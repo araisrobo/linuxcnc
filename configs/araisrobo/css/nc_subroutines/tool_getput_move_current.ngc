@@ -1,0 +1,22 @@
+; parameter: last_slot
+o<tool_getput_move_current> sub  
+;o100 if [EXISTS[#<_ini[change_position]x>]]
+o100 if[#<_current_pocket> GT 5]
+     g53 g0 Z #<_ini[change_position]safe_z>
+     g53 g0 X #<_ini[change_position]safe_x> Y #<_ini[change_position]safe_y> 
+     g53 g0 Y #<_ini[tool_holder_clear]y>
+     g53 g0 X [#<_ini[change_position]x> +20 + #1 * #<_ini[tool_slot_delta]x>]
+     g53 g0 Y [#<_ini[change_position]y> + #1 * #<_ini[tool_slot_delta]y>]
+     g53 g0 Z #<_ini[change_position]z>
+     
+o100 else     
+     g53 g0 Z #<_ini[change_position]safe_z>
+     g53 g0 X #<_ini[change_position]safe_x> Y #<_ini[change_position]safe_y> 
+     g53 g0 Y #<_ini[tool_holder_clear]y>
+     g53 g0 X [#<_ini[change_position]x> + #1 * #<_ini[tool_slot_delta]x>]
+     g53 g0 Y [#<_ini[change_position]y> + #1 * #<_ini[tool_slot_delta]y>]
+     g53 g0 Z #<_ini[change_position]z>
+o100 endif
+o<tool_getput_move> endsub  
+
+m2

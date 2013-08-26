@@ -231,13 +231,13 @@ class HandlerClass:
                   "label3","j4-enc_pos-label",
                   "label6","current-tool","label7","prepared-tool","label8",
                   "label9","label10","label11","label12","label13","label14","label15",
-                  "label16","label17","label18","label19"]:
+                  "label16","label17","label18","label19","label20"]:
             w = self.builder.get_object(i)
             if w:
                 w.modify_font(self.listing_font)        
 
 
-        for i in ["prepared-tool","current-tool","j4-enc_pos-label"]:
+        for i in ["prepared-tool","current-tool","j4-enc_pos-label","analog_07"]:
             w = self.builder.get_object(i)
             if w:
                 w.modify_font(control_font)        
