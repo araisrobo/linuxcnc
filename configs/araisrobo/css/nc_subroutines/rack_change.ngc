@@ -15,15 +15,13 @@ o300 if [#<_current_pocket> GT 0]
 o300 endif
 
 ; 等待使用者輸入一個 in 的訊號，然後才可以放刀
-(MSG, press key-1 to release)
+; (MSG, press key-1 to release)
 ;M66 P #<_ini[pins]confirmed> L3 Q10000 ; 
-M1;
 M64 P #<_ini[pins]release> ; set release pin, M62: set-motion-sync-out
 M66 P #<_ini[pins]released> L3 Q3; wait on released pin, L3: wait HIGH Q3: timeout 3sec
 G4P1 ; 為了避免誤認成同一個訊號
-(MSG, press key-1 move to each tool)
+; (MSG, press key-1 move to each tool)
 ; M66 P #<_ini[pins]confirmed> L3 Q10000 ; 
-M1;
 ; go to new tool
 o500 if [#<_selected_pocket> GT 0]
     ; 等待使用者輸入一個 in 的訊號，然後才可以夾刀
@@ -31,15 +29,13 @@ o500 if [#<_selected_pocket> GT 0]
 o500 else
      g53 g0 Z #<_ini[change_position]safe_z>    
 o500 endif
-    (MSG, press key-1 to clamped)
+    ; (MSG, press key-1 to clamped)
     ;M66 P #<_ini[pins]confirmed> L3 Q10000 ;
-    M1;
     M65 P #<_ini[pins]release> ; clear release pin, M62: reset-motion-sync-out
     M66 P #<_ini[pins]clamped> L3 Q3; wait on clamped pin, L3: wait HIGH Q3: timeout 3sec
     G4P1 ; 為了避免誤認成同一個訊號
-    (MSG, press key-1 to finished tool change)
+    ; (MSG, press key-1 to finished tool change)
     ;M66 P #<_ini[pins]confirmed> L3 Q10000 ;
-    M1;
 ; the purpose of this move is unclear to me
 ; micges - please explain!
 ; o400 if [#<_absolute>]
