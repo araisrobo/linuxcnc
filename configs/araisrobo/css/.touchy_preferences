@@ -14,6 +14,6 @@ err_textcolor = default
 window_geometry = default
 window_force_max = False
 toolsetting_fixture = 0
-dro_mm = 0
+dro_mm = 1
 dro_actual = 0
 

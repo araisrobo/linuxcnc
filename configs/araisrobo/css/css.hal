@@ -69,13 +69,13 @@ net  spindle-t-speed-feedback spindle_t.feedback-vel
 
 # send the position commands thru differentiators to
 # generate velocity and accel signals
-net Xvel-fb     => ddt.0.in hypot.0.in0
+net vel-fb-j0   => ddt.0.in hypot.0.in0
 net Xacc        <= ddt.0.out 
 
-net Yvel-fb     => ddt.1.in hypot.0.in1
+net vel-fb-j1   => ddt.1.in hypot.0.in1
 net Yacc        <= ddt.1.out 
 
-net Zvel        => ddt.2.in hypot.1.in0
+net vel-fb-j3   => ddt.2.in hypot.1.in0
 net Zacc        <= ddt.2.out 
 
 # Cartesian 2- and 3-axis velocities
