@@ -309,9 +309,13 @@ static int init_hal_io(void)
 
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->usb_busy), mot_comp_id, "motion.usb-busy")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x1), mot_comp_id, "motion.mpg-scale-x1")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x10), mot_comp_id, "motion.mpg-scale-x10")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x100), mot_comp_id, "motion.mpg-scale-x100")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->req_cmd_sync), mot_comp_id, "motion.req-cmd-syn")) < 0) goto error;
     *emcmot_hal_data->req_cmd_sync = 0;
     *emcmot_hal_data->mpg_scale_x1 = 0;
+    *emcmot_hal_data->mpg_scale_x10 = 0;
+    *emcmot_hal_data->mpg_scale_x100 = 0;
     *emcmot_hal_data->usb_busy = 0;
 
     if ((retval = hal_pin_u32_newf(HAL_IO, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.usb.cmd")) < 0) goto error;
