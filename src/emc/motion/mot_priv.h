@@ -107,6 +107,8 @@ typedef struct {
     hal_u32_t *usb_status;      /* usb status input */
     hal_bit_t *usb_busy;
     hal_bit_t *mpg_scale_x1;    /* is MPG scale at x1 mode? */
+    hal_bit_t *mpg_scale_x10;    /* is MPG scale at x10 mode? */
+    hal_bit_t *mpg_scale_x100;    /* is MPG scale at x100 mode? */
 
     /* signal for RISC_CMD REQ and ACK */
     hal_bit_t *update_pos_req;
