@@ -13,6 +13,8 @@ pin out  s32    jog-vel-scale           "jog-vel-scale for shifting mpg-vel left
 pin out  u32    jog-sel                 "bitwise jog select signal";
 pin out  bit    wheel-jog-enable.#[6]   "array of wheel-jog-enable signals for handle_jogwheels()";
 pin out  bit    mpg-scale-x1            "mpg scale at x1 mode -- accurate positioning mode";
+pin out  bit    mpg-scale-x10           "mpg scale at x10 mode -- accurate positioning mode";
+pin out  bit    mpg-scale-x100          "mpg scale at x100 mode -- accurate positioning mode";
 
 param rw  u32   master-gantry-id        "joint-id for mater gantry";
 param rw  u32   slave-gantry-id         "joint-id for slave gantry";
@@ -96,20 +98,41 @@ FUNCTION(_)
 
     if (mpg_scale_sel(1))
     {   // 2'b1x -- x100 mode
-        jog_vel_scale = jog_scale(2);
-        mpg_scale_x1 = 0;
+
+        if (mpg_joint_code == 5){
+            jog_vel_scale = jog_scale(0);
+            mpg_scale_x1 = 0;
+            mpg_scale_x10 = 0;
+            mpg_scale_x100 = 1;
+            jog_sel = 0; // disable RISC-JOG (velocity mode)
+        }
+        else{
+             jog_vel_scale = jog_scale(2);
+             mpg_scale_x1 = 0;
+        }
     }
     else
     {
         if (mpg_scale_sel(0))
         {   // 2'b01 -- x10 mode
-            jog_vel_scale = jog_scale(1);
+            if (mpg_joint_code == 5){
+            jog_vel_scale = jog_scale(0);
             mpg_scale_x1 = 0;
+            mpg_scale_x10 = 1;
+            mpg_scale_x100 = 0;
+            jog_sel = 0; // disable RISC-JOG (velocity mode)
+            }
+            else{
+                jog_vel_scale = jog_scale(1);
+                mpg_scale_x1 = 0;
+            }
         }
         else
         {   // 2'b00 -- x1 mode -- accurate positioning mode
             jog_vel_scale = jog_scale(0);
             mpg_scale_x1 = 1;
+            mpg_scale_x10 = 0;
+            mpg_scale_x100 = 0;
             jog_sel = 0; // disable RISC-JOG (velocity mode)
         }
     }

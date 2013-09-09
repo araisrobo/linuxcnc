@@ -1,3 +1,10 @@
-T1 P1 D2.5 ; 2.5mm end mill
+T1 P1 D2.5 ;2.5mm end mill 
 T2 P2 D4 ;added 20130528 
 T3 P3 D9 ;added 20130528 
+T4 P4 ;Added 20130822 
+T5 P5 ;Added 20130822 
+T6 P6 ;Added 20130822 
+T7 P7 ;Added 20130822 
+T8 P8 ;Added 20130822 
+T9 P9 ;Added 20130822 
+T10 P10 ;Added 20130822 

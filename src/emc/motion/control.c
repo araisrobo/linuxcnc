@@ -1221,9 +1221,18 @@ static void handle_jogwheels(void)
         }
 
         /* MPG scale switch at x1 mode -- accurate positioning mode */
-        if (*(emcmot_hal_data->mpg_scale_x1) == 1) {
+        if (*(emcmot_hal_data->mpg_scale_x1) == 1 ||
+                *(emcmot_hal_data->mpg_scale_x10) == 1 ||
+                *(emcmot_hal_data->mpg_scale_x100) == 1)
+        {
             /* calculate distance to jog */
             distance = (double) delta * (*(joint_data->jog_scale));
+            if (*(emcmot_hal_data->mpg_scale_x10) == 1){
+                distance = (double) delta * (*(joint_data->jog_scale) *10);
+            }
+            else if (*(emcmot_hal_data->mpg_scale_x100) == 1){
+                distance = (double) delta * (*(joint_data->jog_scale) *100);
+            }
             /* check for joint already on hard limit */
             if (distance > 0.0 && GET_JOINT_PHL_FLAG(joint)) {
                 continue;

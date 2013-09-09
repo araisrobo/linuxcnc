@@ -656,8 +656,6 @@
                         <property name="justify">right</property>
                         <property name="wrap">True</property>
                         <property name="wrap_mode">word-char</property>
-                        <property name="ellipsize">end</property>
-                        <property name="label_pin_type">2</property>
                         <property name="text_template">%12d</property>
                       </object>
                       <packing>
