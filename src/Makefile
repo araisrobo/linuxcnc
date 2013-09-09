@@ -893,6 +893,9 @@ alignmentkins-objs := emc/kinematics/alignmentkins.o
 obj-m += align_gantry_kins.o
 align_gantry_kins-objs := emc/kinematics/align_gantry_kins.o
 
+obj-m += gantry_xyzc_kins.o
+gantry_xyzc_kins-objs := emc/kinematics/gantry_xyzc_kins.o
+
 obj-m += yyzzkins.o
 yyzzkins-objs := emc/kinematics/yyzzkins.o
 
@@ -1027,6 +1030,7 @@ endif
 ../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
 ../rtlib/alignmentkins$(MODULE_EXT): $(addprefix objects/rt,$(alignmentkins-objs))
 ../rtlib/align_gantry_kins$(MODULE_EXT): $(addprefix objects/rt,$(align_gantry_kins-objs))
+../rtlib/gantry_xyzc_kins$(MODULE_EXT): $(addprefix objects/rt,$(gantry_xyzc_kins-objs))
 ../rtlib/yyzzkins$(MODULE_EXT): $(addprefix objects/rt,$(yyzzkins-objs))
 ../rtlib/miller_kins$(MODULE_EXT): $(addprefix objects/rt,$(miller_kins-objs))
 
