@@ -190,8 +190,6 @@ enum machine_parameter_addr {
     TEST_PATTERN,
     ANALOG_REF_LEVEL,   // wait analog signal: M110
     AHC_MAX_OFFSET,
-    AHC_LEVEL_MAX,
-    AHC_LEVEL_MIN,
     AHC_ANALOG_CH,
     WAIT_TIMEOUT,
     PROBE_CONFIG,     // setup while initializing
@@ -238,11 +236,6 @@ enum accel_state_type {
   MACH_ACCEL_S4 = (4 << 4),     // 4
   MACH_ACCEL_S5 = (5 << 4),     // 5
   MACH_ACCEL_S6 = (6 << 4)      // 6
-};
-
-enum ahc_polarity_enum {
-    AHC_POSITIVE,        // positive command to lift up axis z
-    AHC_NEGATIVE,       // positive command to lay down axis z
 };
 
 enum test_pattern_type_enum {

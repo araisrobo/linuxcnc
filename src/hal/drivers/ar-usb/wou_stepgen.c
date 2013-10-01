@@ -220,14 +220,6 @@ const char *ahc_ch_str ="0"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(ahc_ch_str,
         "auto height control analog channel");
 
-const char *ahc_level_max_str ="1700";
-RTAPI_MP_STRING(ahc_level_max_str,
-        "auto height control: max level");
-
-const char *ahc_level_min_str ="1100";
-RTAPI_MP_STRING(ahc_level_min_str,
-        "auto height control: min level");
-
 const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
         "indicate test pattern type");
@@ -383,11 +375,6 @@ typedef struct {
     hal_bit_t    *ahc_state;     // 0: disable 1:enable
     hal_float_t  *ahc_level;
     double      prev_ahc_level;
-    hal_float_t  *ahc_max_offset;
-    uint32_t     prev_ahc_max_level;
-    hal_u32_t    *ahc_max_level;
-    uint32_t     prev_ahc_min_level;
-    hal_u32_t    *ahc_min_level;
     /* motion state tracker */
     hal_s32_t    *motion_state;
     hal_u32_t    *jog_sel;
@@ -1062,30 +1049,24 @@ int rtapi_app_main(void)
     pos_scale = atof(pos_scale_str[immediate_data]);
     write_machine_param(AHC_JNT, immediate_data);
     while(wou_flush(&w_param) == -1);
-    immediate_data = atoi(ahc_level_min_str);
-    write_machine_param(AHC_LEVEL_MIN, immediate_data);
-    while(wou_flush(&w_param) == -1);
-    immediate_data = atoi(ahc_level_max_str);
-    write_machine_param(AHC_LEVEL_MAX, immediate_data);
-    while(wou_flush(&w_param) == -1);
 
     if (strcmp(ahc_polarity, "POSITIVE") == 0) {
         if (pos_scale >=0) {
             // set risc positive
-            write_machine_param(AHC_POLARITY, AHC_POSITIVE);
+            write_machine_param(AHC_POLARITY, 1);
 
         } else {
             // set risc negative
-            write_machine_param(AHC_POLARITY, AHC_NEGATIVE);
+            write_machine_param(AHC_POLARITY, -1);
         }
 
     } else if (strcmp(ahc_polarity, "NEGATIVE") == 0) {
         if (pos_scale >= 0) {
             // set risc negative
-            write_machine_param(AHC_POLARITY, AHC_NEGATIVE);
+            write_machine_param(AHC_POLARITY, -1);
         } else {
             // set risc positive
-            write_machine_param(AHC_POLARITY, AHC_POSITIVE);
+            write_machine_param(AHC_POLARITY, 1);
         }
 
     } else {
@@ -1584,6 +1565,7 @@ static void update_freq(void *arg, long period)
         uint32_t dbuf[2];
         dbuf[0] = RCMD_UPDATE_POS_ACK;
         dbuf[1] = *machine_control->rcmd_seq_num_ack;
+        DP("update_pos_ack");
         send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
     }
     /* end: handle usb cmd */
@@ -1591,6 +1573,7 @@ static void update_freq(void *arg, long period)
     /* begin: handle AHC state, AHC level */
     if (*machine_control->ahc_level != machine_control->prev_ahc_level) {
         immediate_data = (uint32_t)(*(machine_control->ahc_level));
+        immediate_data *= 65536; //coonvert from 32.0 to 16.16
         write_machine_param(AHC_LEVEL, immediate_data);
         machine_control->prev_ahc_level = *(machine_control->ahc_level);
         fprintf(stderr,"wou_stepgen.c: ahc_level(%d)\n",
@@ -1609,18 +1592,6 @@ static void update_freq(void *arg, long period)
     }
     /* end: handle AHC state, AHC level */
 
-    /* begin: process ahc limit control */
-    if (*(machine_control->ahc_max_level) != (machine_control->prev_ahc_max_level)) {
-        fprintf(stderr,"wou_stepgen.c: ahc_max_level has been changed (%u) \n", *machine_control->ahc_max_level);
-        write_machine_param(AHC_LEVEL_MAX, (uint32_t)*(machine_control->ahc_max_level ));
-    }
-    machine_control->prev_ahc_max_level = *(machine_control->ahc_max_level);
-    if (*(machine_control->ahc_min_level) != (machine_control->prev_ahc_min_level)) { 
-        fprintf(stderr,"wou_stepgen.c: ahc_min_level has been changed (%u) \n", *machine_control->ahc_min_level);
-        write_machine_param(AHC_LEVEL_MIN, (uint32_t)*(machine_control->ahc_min_level ));
-    }
-    machine_control->prev_ahc_min_level = *(machine_control->ahc_min_level);
-    /* end: process ahc limit control */
     /* begin: setup sync wait timeout */
     if (*machine_control->timeout != machine_control->prev_timeout) {
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
@@ -2452,31 +2423,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->ahc_level) = 0;
-
-    retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->ahc_max_offset), comp_id,
-                    "wou.ahc.max_offset");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->ahc_max_offset) = 0;
-
-    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->ahc_max_level), comp_id,
-            "wou.ahc.max_level");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->ahc_max_level) = atoi(ahc_level_max_str);
-    machine_control->prev_ahc_max_level = *(machine_control)->ahc_max_level;
-
-    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->ahc_min_level), comp_id,
-            "wou.ahc.min_level");
-    if (retval != 0) {
-        return retval;
-    }
-
-    *(machine_control->ahc_min_level) = atoi(ahc_level_min_str);
-    machine_control->prev_ahc_min_level = *(machine_control)->ahc_min_level;
 
     /* wou command */
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
