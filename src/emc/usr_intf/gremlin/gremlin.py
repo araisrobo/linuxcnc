@@ -239,6 +239,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         td = tempfile.mkdtemp()
         self._current_file = filename
+#        print 'gremlin.load(%s)' % filename
+        if ('converted_dryrun') not in filename:
+#            print 'no load remap, but it can run, just no display'
+            return
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             # we want canon to retain some information
