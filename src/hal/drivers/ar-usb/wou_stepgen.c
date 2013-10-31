@@ -241,6 +241,9 @@ RTAPI_MP_STRING(alr_output,
 int gantry_polarity = 0;
 RTAPI_MP_INT(gantry_polarity, "gantry polarity");
 
+int gantry_brake_gpio = -1;
+RTAPI_MP_INT(gantry_brake_gpio, "gantry brake_gpio");
+
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
 static const char *board = "7i43u";
@@ -421,6 +424,11 @@ typedef struct {
     hal_bit_t   *ahc_doing;
 
     hal_u32_t   *spindle_joint_id;
+
+    hal_bit_t   *gantry_en;
+    hal_bit_t   *gantry_lock;
+    uint32_t    gantry_ctrl;
+    uint32_t    prev_gantry_ctrl;
 
 } machine_control_t;
 
@@ -915,8 +923,8 @@ int rtapi_app_main(void)
         return -1;
     }
 
-    if (abs(gantry_polarity) == 1) {
-        // set risc positive
+    if (gantry_polarity != 0) {
+        // gantry_polarity should either be 1 or -1
         write_machine_param(GANTRY_POLARITY, gantry_polarity);
     }
     while(wou_flush(&w_param) == -1);
@@ -1329,6 +1337,7 @@ int rtapi_app_main(void)
         return -1;
     }
     machine_control->prev_machine_ctrl = 0;	// num_joints is not included
+    machine_control->prev_gantry_ctrl = 0;           // gantry_brake_gpio is not included
 
     /* export all the variables for each pulse generator */
     for (n = 0; n < num_joints; n++) {
@@ -1540,11 +1549,18 @@ static void update_freq(void *arg, long period)
         immediate_data = (num_joints << 16) | tmp;
         immediate_data = ((*machine_control->spindle_joint_id) << 24) | immediate_data ;
         write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
-
-
     }
 
-
+    tmp = (*machine_control->gantry_en << 31)
+          | (*machine_control->gantry_lock << 30);
+    if (tmp != machine_control->prev_gantry_ctrl) {
+        machine_control->prev_gantry_ctrl = tmp;
+        if (*machine_control->machine_on)
+        {   // only Lock/Release gantry brake after servo-on to prevent dropping
+            immediate_data = tmp | (gantry_brake_gpio & GCTRL_BRAKE_GPIO_MASK);
+            write_machine_param(GANTRY_CTRL, (uint32_t) immediate_data);
+        }
+    }
     /* end: */
 
     /* begin: handle usb cmd */
@@ -2326,6 +2342,14 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->machine_on) = 0;
 
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->gantry_en), comp_id, "wou.gantry-en");
+    if (retval != 0) { return retval; }
+    *(machine_control->gantry_en) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->gantry_lock), comp_id, "wou.gantry-lock");
+    if (retval != 0) { return retval; }
+    *(machine_control->gantry_lock) = 0;
+
     // rt_abort: realtime abort command to FPGA
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id, "wou.rt.abort");
     if (retval != 0) { return retval; }
@@ -2337,12 +2361,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    //    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->ignore_host_cmd), comp_id,
-    //                                    "wou.ignore-host-cmd");
-    //    if (retval != 0) {
-    //        return retval;
-    //    }
-    //    *machine_control->ignore_host_cmd = 0;
     // export input status pin
     for (i = 0; i < GPIO_IN_NUM; i++) {
         retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->in[i]), comp_id,

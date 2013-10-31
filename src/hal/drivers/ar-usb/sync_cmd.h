@@ -147,6 +147,15 @@
 #define MCTRL_JOG_VEL_SCALE_VALUE_MASK  0x70000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
 #define MCTRL_JOG_VEL_SCALE_SIGN_MASK   0x80000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
 
+/**
+ *  GANTRY_CTRL,    // [31]     GANTRY_EN
+ *                  // [30]     GANTRY_LOCK, SET to lock gantry joints with BRAKEs
+ *                  // [7:0]    GANTRY_BRAKE_GPIO
+ **/                  
+#define GCTRL_EN_MASK                   0x80000000  // Gantry Enable Bit
+#define GCTRL_LOCK_MASK                 0x40000000  // Gantry Lock Bit
+#define GCTRL_BRAKE_GPIO_MASK           0x000000FF  // GPIO pin ID for Brake Signal
+
 typedef enum {
     // 0'b 0000     0000     0000     0000     0000     0000        0000   0000
     //     reserved reserved reserved reserved reserved req_to_host homing probing
@@ -204,9 +213,15 @@ enum machine_parameter_addr {
     PARAM13,
     PARAM14,
     PARAM15,
+
+    GANTRY_CTRL,    // [31]     GANTRY_EN
+                    // [30]     GANTRY_LOCK
+                    // [7:0]    GANTRY_BRAKE_GPIO_PIN
+                    
     JOINT_LSP_LSN,  // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
     ALR_OUTPUT,     // output value when ESTOP is pressed
     ALR_EN_BITS,    // the enable bitmap of ALARM input bits
+
     MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
                     // [27:24]  SPINDLE_JOINT_ID
                     // [23:16]  NUM_JOINTS

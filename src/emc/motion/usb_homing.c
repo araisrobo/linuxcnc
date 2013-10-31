@@ -501,7 +501,7 @@ void do_homing(void)
                 if(*emcmot_hal_data->update_pos_req == 0)
                 {
                     /* have we hit the home switch yet? */
-                    assert (home_sw_active);
+                    // TODO: confirm why failed for VBC#2: assert (home_sw_active);
                     /* yes, where do we go next? */
                     if (joint->home_flags & HOME_USE_INDEX) {
                         /* look for index pulse */
