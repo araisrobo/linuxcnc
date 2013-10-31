@@ -17,7 +17,7 @@
  *    SYNC_MOT_PARM      4'b0111  {ADDR}{ID}      ADDR[11:4]
  *                                                ID[3:0]:
  *                                                VAL: from immediate data
- *    SYNC_AHC           4'b1000  ... TODO        auto height control
+ *    SYNC_AHC           4'b1000  ... RESERVED    auto height control
  *    SYNC_VEL           4'b1001  {VEL, VAL}      VEL: velocity in mm/s
  *                                                VAL[0]: 1: velocity sync'd
  *                                                        0: velocity not sync'd
@@ -39,14 +39,14 @@
 #define SYNC_DIN            0x5000
 #define SYNC_MOT_POS_CMD    0x6000
 #define SYNC_MOT_PARAM      0x7000
-#define SYNC_AHC            0x8000         // auto height control
+// RESERVED #define SYNC_AHC            0x8000         // auto height control
 #define SYNC_VEL            0x9000
 #define SYNC_USB_CMD        0xA000
 #define SYNC_MACH_PARAM     0xB000
 #define SYNC_DATA           0xC000
 #define SYNC_EOF            0xD000
-// 0xe000 command not available
-// 0xf000 command not available
+// RESERVED  0xe000
+// RESERVED  0xf000
 
 //  timeout type
 #define WAIT_LEVEL_LOWER    0x0   // wait analog input to be lower than specified value
@@ -98,8 +98,9 @@
 #define PACK_MACH_PARAM_ADDR(t)         ((t) & SYNC_MACH_PARAM_ADDR_MASK)
 #define PACK_USB_CMD_TYPE(t)            ((t) & SYNC_USB_CMD_TYPE_MASK)
 
-#define PROBE_CMD_TYPE                  0x0001  // for GET_USB_CMD_TYPE
-// command for probing   (usb.param-00)
+#define PROBE_CMD_TYPE                  0x0001  // for SYNC_USB_CMD
+#define RISC_CMD_TYPE                   0x0004  // for SYNC_USB_CMD
+// USB commands for PROBE_CMD_TYPE:
 #define USB_CMD_NOOP  			1     /* no-operation */
 #define USB_CMD_ABORT  			2     /* abort current command */
 #define USB_CMD_PROBE_HIGH 		3     /* probing for probe.input changes from 0->1 */
@@ -111,17 +112,6 @@
 #define USB_CMD_PROBE_FINAL_MOVE        9
 #define USB_CMD_PROBE_PROBE_REPORT_RISC_ERROR 10 // used by risc probing
 
-#define HOME_CMD_TYPE                   0x0002
-// command for homig              (usb.param-00 [11:8] )
-#define HOME_ACK                        0x00000100
-#define HOME_NACK                       0x00000200
-#define HOME_ABORT_NOW                  0x00000400
-
-#define RISC_CMD_TYPE                   0x0004  // for SYNC_USB_CMD
-
-#define SPECIAL_CMD_TYPE                0x0008
-#define SPEC_CMD_ACK                    0x00001000
-#define SPEC_CMD_REQ_SYNC               0x00002000
 
 /* bit index for machine_status[31:0] */
 #define FERROR_MASK                     0x000000FF  // machine_status[7:0]
@@ -188,13 +178,13 @@ enum machine_parameter_addr {
     GANTRY_POLARITY,
     TEST_PATTERN_TYPE,
     TEST_PATTERN,
-    ANALOG_REF_LEVEL,   // wait analog signal: M110
+    ANALOG_REF_LEVEL,       // wait analog signal: M110
     AHC_MAX_OFFSET,
     AHC_ANALOG_CH,
     WAIT_TIMEOUT,
-    PROBE_CONFIG,     // setup while initializing
-    PROBE_ANALOG_REF_LEVEL,     // setup while initializing
-    USB_STATUS,         // report status response to usb commands
+    PROBE_CONFIG,           // setup while initializing
+    PROBE_ANALOG_REF_LEVEL, // setup while initializing
+    USB_STATUS,             // report status response to usb commands
     AHC_STATE,
     AHC_LEVEL,
     // parameters specified by machine

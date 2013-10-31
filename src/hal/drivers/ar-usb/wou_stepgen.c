@@ -785,13 +785,6 @@ static void write_usb_cmd(machine_control_t *mc)
                 sizeof(uint16_t), buf);
         break;
 
-    case HOME_CMD_TYPE:
-        assert(0);
-        break;
-
-    case SPECIAL_CMD_TYPE:
-        assert(0);
-        break;
     default:
         // do nothing, don't write command if it is invalid.
         break;

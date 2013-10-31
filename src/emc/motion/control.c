@@ -797,27 +797,6 @@ static void process_probe_inputs(void)
 static int update_current_pos = 0;
 static void handle_special_cmd(void)
 {
-    if (update_current_pos == 1) {
-        DP("update_current_pos(%d)\n", update_current_pos);
-
-        /* sync current pos-cmd with pos-fb */
-        update_current_pos = 0;
-        emcmotStatus->update_current_pos_flag = 1;
-        emcmotDebug->coord_tp.currentPos = emcmotStatus->carte_pos_fb;
-
-        emcmotStatus->special_cmd = SPEC_CMD_ACK;
-        /* tell USB that we've got the status */
-        emcmotStatus->usb_cmd &= ~(0x0008);
-        emcmotStatus->usb_cmd |= SPECIAL_CMD_TYPE;
-        emcmotStatus->usb_cmd_param[0] = emcmotStatus->special_cmd;
-
-        printf("ERROR: handle_special_cmd(): update_current_pos(1)\n");
-        assert(0);
-
-    } else {
-        emcmotStatus->update_current_pos_flag = 0;
-    }
-
     if (*emcmot_hal_data->req_cmd_sync == 1) {
         DP("req_cmd_sync(%d)\n", *emcmot_hal_data->req_cmd_sync);
         emcmotStatus->sync_pos_cmd = 1;
