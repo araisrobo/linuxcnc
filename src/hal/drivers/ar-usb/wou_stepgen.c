@@ -83,7 +83,7 @@ RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
 const char *pulse_type[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(pulse_type, MAX_CHAN,
-        "pulse type (AB-PHASE(a) or STEP-DIR(s)) for up to 8 channels");
+        "pulse type (AB-PHASE(A) or STEP-DIR(S) or PWM-DIR(P)) for up to 8 channels");
 
 const char *enc_type[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
@@ -122,12 +122,6 @@ RTAPI_MP_STRING(bins, "RISC binfile");
 
 int alarm_en = -1;
 RTAPI_MP_INT(alarm_en, "hardware alarm dection mode");
-
-// int pulse_type = -1;
-// RTAPI_MP_INT(pulse_type, "WOU Register Value for pulse type");
-// 
-// int enc_type = -1;
-// RTAPI_MP_INT(enc_type, "WOU Register Value for encoder type");
 
 int servo_period_ns = -1;   // init to '-1' for testing valid parameter value
 RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: ns");
@@ -929,17 +923,29 @@ int rtapi_app_main(void)
     }
     while(wou_flush(&w_param) == -1);
 
-    // "pulse type (AB-PHASE(a) or STEP-DIR(s)) for up to 8 channels")
+    // "pulse type (AB-PHASE(a) or STEP-DIR(s) or PWM-DIR(p)) for up to 8 channels")
     data[0] = 0;
+    data[1] = 0;
     for (n = 0; n < MAX_CHAN && (pulse_type[n][0] != ' ') ; n++) {
-        if ((pulse_type[n][0] == 'a') || (pulse_type[n][0] == 'A')) {
+        if (toupper(pulse_type[n][0]) == 'A') {
             // PULSE_TYPE(0): ab-phase
-        } else if ((pulse_type[n][0] == 's') || (pulse_type[n][0] == 'S')) {
+        } else if (toupper(pulse_type[n][0]) == 'S') {
             // PULSE_TYPE(1): step-dir
-            data[0] |= (1 << n);
+            if (n < 4) {
+                data[0] |= (1 << (n * 2));
+            } else {
+                data[1] |= (1 << ((n - 4) * 2));
+            }
+        } else if (toupper(pulse_type[n][0]) == 'P') {
+            // PULSE_TYPE(1): pwm-dir
+            if (n < 4) {
+                data[0] |= (3 << (n * 2));
+            } else {
+                data[1] |= (3 << ((n - 4) * 2));
+            }
         } else {
             rtapi_print_msg(RTAPI_MSG_ERR,
-                    "STEPGEN: ERROR: bad pulse_type '%s' for joint %i (must be 'a' or 's')\n",
+                    "STEPGEN: ERROR: bad pulse_type '%s' for joint %i (must be 'A' or 'S' or 'P')\n",
                     pulse_type[n], n);
             return -1;
         }
@@ -947,9 +953,11 @@ int rtapi_app_main(void)
     if(n > 0) {
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
-                (uint8_t) 1, data);
+                (uint8_t) 2, data);
         rtapi_print_msg(RTAPI_MSG_INFO,
-                "STEPGEN: PULSE_TYPE: 0x%02X\n", data[0]);
+                "STEPGEN: PULSE_TYPE[J3:J0]: 0x%02X\n", data[0]);
+        rtapi_print_msg(RTAPI_MSG_INFO,
+                "STEPGEN: PULSE_TYPE[J7:J4]: 0x%02X\n", data[1]);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
                 "WOU: ERROR: no pulse_type defined\n");
