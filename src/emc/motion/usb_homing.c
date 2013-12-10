@@ -64,14 +64,14 @@ static emcmot_joint_t* sync_gantry_joint = 0;       // synchronized gantry joint
 static void home_start_move(emcmot_joint_t * joint, double vel, int probe_type)
 {
     joint->risc_probe_vel = vel;
-    joint->risc_probe_pin = joint->home_sw_id;
     joint->risc_probe_type = probe_type;
+    joint->risc_probe_pin = joint->home_sw_id;
     if (probe_type == RISC_PROBE_INDEX) {
         joint->risc_probe_pin = joint->id;
     }
     if (joint->home_flags & HOME_GANTRY_JOINT) {
         sync_gantry_joint->risc_probe_vel = vel;
-        sync_gantry_joint->risc_probe_pin = joint->home_sw_id;
+        sync_gantry_joint->risc_probe_pin = joint->risc_probe_pin;
         sync_gantry_joint->risc_probe_type = probe_type;
     }
 }
@@ -243,6 +243,8 @@ void do_homing(void)
                 if (joint->home_flags & HOME_GANTRY_JOINT) {
                     assert (master_gantry_joint); // the master pointer must not be null
                     assert (slave_gantry_joint); // the slave pointer must not be null
+                    // 先做 SLAVE JOINT HOMING
+                    // 再做 MASTER JOINT HOMING
                     if (joint->home_flags & HOME_GANTRY_MASTER) {
                         if (slave_gantry_joint->home_state != HOME_FINAL_MOVE_START) {
                             if (slave_gantry_joint->home_state == HOME_IDLE) {
@@ -250,6 +252,7 @@ void do_homing(void)
                             }
                             break;
                         }
+                        // 做 MASTER JOINT HOMING 時，被同步的軸是 SLAVE
                         sync_gantry_joint = slave_gantry_joint;
                         // ("Begin HOME_GANTRY_MASTER\n");
                     } else {
@@ -260,6 +263,7 @@ void do_homing(void)
                             // wait until master_gantry_joint starts homing
                             break;
                         }
+                        // 做 SLAVE JOINT HOMING 時，被同步的軸是 MASTER
                         sync_gantry_joint = master_gantry_joint;
                         // ("Begin HOME_GANTRY_SLAVE\n");
                     }
@@ -712,6 +716,22 @@ void do_homing(void)
                 //          joint->pos_fb,
                 //          joint->free_tp.curr_pos,
                 //          joint->motor_offset);
+                // if (joint->home_flags & HOME_GANTRY_JOINT) {
+                //     if (joint == master_gantry_joint) {
+                //         rtapi_print ("DEBUG\n");
+                //         rtapi_print (
+                //                   _("SLAVE: HOME_SET_INDEX_POSITION: \nhome_offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+                //                   slave_gantry_joint->home_offset,
+                //                   slave_gantry_joint->risc_pos_cmd,
+                //                   slave_gantry_joint->probed_pos,
+                //                   slave_gantry_joint->pos_cmd,
+                //                   slave_gantry_joint->pos_fb,
+                //                   slave_gantry_joint->free_tp.curr_pos,
+                //                   slave_gantry_joint->motor_offset);
+                //         assert(0);
+                //         // TODO: find a better way for gantry alignment tuning
+                //     }
+                // }
 
                 /* next state */
                 joint->home_state = HOME_FINAL_MOVE_START;
@@ -739,6 +759,7 @@ void do_homing(void)
                 }
 
                 if (joint->home_flags & HOME_GANTRY_JOINT) {
+                    // SLAVE HOMING 會先做，所以要等 MASTER 做完再 FINAL_MOVE
                     if (joint == slave_gantry_joint) {
                         if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT) {
                             // wait until master_gantry_joint found its home switch
