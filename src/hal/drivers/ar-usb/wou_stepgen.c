@@ -310,6 +310,7 @@ typedef struct {
     hal_float_t *risc_probe_dist;
     hal_s32_t   *risc_probe_pin;
     hal_s32_t   *risc_probe_type;
+    uint32_t    risc_probing;
 
     hal_float_t *uu_per_rev;
     hal_float_t prev_uu_per_rev;
@@ -1860,8 +1861,12 @@ static void update_freq(void *arg, long period)
             continue;
         }
 
+        if(*stepgen->risc_probe_vel == 0)
+            stepgen->risc_probing = 0;
+
         if((*stepgen->homing) &&
            (*stepgen->risc_probe_vel != 0) &&
+           (stepgen->risc_probing == 0) &&
            (*machine_control->update_pos_req == 0))
         {
             // do RISC_PROBE
@@ -1875,6 +1880,7 @@ static void update_freq(void *arg, long period)
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
             assert(*stepgen->risc_probe_pin < 64);
             assert(dbuf[2] != 0);
+            stepgen->risc_probing = 1;
             // printf ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
