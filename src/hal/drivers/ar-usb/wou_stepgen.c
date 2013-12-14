@@ -280,7 +280,6 @@ typedef struct {
     hal_float_t *pos_cmd;	/* pin: motor_pos_cmd (position units) */
     double prev_pos_cmd;        /* prev pos_cmd: previous position command */
     hal_float_t *probed_pos;
-    hal_bit_t *align_pos_cmd;
     hal_float_t *pos_fb;	/* pin: position feedback (position units) */
     hal_float_t *risc_pos_cmd;  /* pin: position command issued by RISC (position units) */
     hal_float_t *vel_fb;        /* pin: velocity feedback */
@@ -334,8 +333,6 @@ typedef struct {
     hal_bit_t   *usb_busy;
     hal_bit_t   usb_busy_s;
     hal_bit_t   *ignore_ahc_limit;
-    hal_bit_t   *align_pos_cmd;
-    // hal_bit_t   *ignore_host_cmd;
     int32_t     prev_vel_sync;
     hal_float_t *vel_sync_scale;
     hal_float_t *current_vel;
@@ -682,31 +679,6 @@ static void fetchmail(const uint8_t *buf_head)
         fprintf(stderr, "ERROR: wou_stepgen.c unknown mail tag (%d)\n", mail_tag);
         break;
     }
-}
-
-
-static void write_mot_pos_cmd (uint32_t joint, int64_t mot_pos_cmd)
-{
-    uint16_t    sync_cmd;
-    uint8_t     buf[sizeof(uint16_t)];
-    int         j;
-
-    for(j=0; j<sizeof(int64_t); j++) {
-        // byte sequence for int64_t: "4, 5, 6, 7, 0, 1, 2, 3"
-        sync_cmd = SYNC_DATA | ((uint8_t *)&mot_pos_cmd)[(4+j) & 0x07];
-        memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), buf);
-    }
-
-    sync_cmd = SYNC_MOT_POS_CMD | PACK_MOT_PARAM_ID(joint);
-    memcpy(buf, &sync_cmd, sizeof(uint16_t));
-    wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-            sizeof(uint16_t), buf);
-    while(wou_flush(&w_param) == -1);
-    DP("end of SYNC_MOT_POS_CMD\n");
-
-    return;
 }
 
 static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
@@ -1895,17 +1867,6 @@ static void update_freq(void *arg, long period)
                 (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
             }
-            if (*machine_control->align_pos_cmd == 1 /* || *machine_control->ignore_host_cmd */ )
-            {
-                assert(0);
-                (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
-                stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
-                write_mot_pos_cmd(n, stepgen->rawcount << (32 - FRACTION_BITS));
-                DP("align_pos_cmd == 1\n");
-                stepgen->pulse_vel = 0;
-                stepgen->pulse_accel = 0;
-                stepgen->pulse_jerk = 0;
-            }
             *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
         } else {
             assert(0);
@@ -2368,12 +2329,6 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id, "wou.rt.abort");
     if (retval != 0) { return retval; }
     *(machine_control->rt_abort) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->align_pos_cmd), comp_id,
-            "wou.align-pos-cmd");
-    if (retval != 0) {
-        return retval;
-    }
 
     // export input status pin
     for (i = 0; i < GPIO_IN_NUM; i++) {
