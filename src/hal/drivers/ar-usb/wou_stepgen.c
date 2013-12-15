@@ -301,9 +301,6 @@ typedef struct {
     hal_s32_t     *cmd_fbs;     /* position command retained by RISC (unit: pulse) */
     hal_s32_t     *enc_vel_p;   /* encoder velocity in pulse per servo-period */
 
-    hal_float_t   *risc_jog_vel;     /* for RISC-Jogging */
-    double       prev_risc_jog_vel;
-
     hal_bit_t   *homing;
     hal_float_t *risc_probe_vel;
     hal_float_t *risc_probe_dist;
@@ -385,12 +382,6 @@ typedef struct {
     /* MPG */
     hal_s32_t *mpg_count;
     hal_s32_t *debug[32];
-    /* tick */
-    hal_u32_t *tick[14];
-    /* application parameter*/
-    hal_s32_t *app_param[16];
-    int32_t prev_app_param[16];
-    hal_bit_t *send_app_param; // IO: trigger parameters to be sent
     hal_u32_t *usb_cmd;
     hal_u32_t *last_usb_cmd;
     hal_float_t *usb_cmd_param[4];
@@ -399,9 +390,6 @@ typedef struct {
     hal_bit_t   *teleop_mode;
     hal_bit_t   *coord_mode;
     hal_bit_t   *homing;
-    // uint8_t     motion_mode;
-    // uint8_t     motion_mode_prev;
-    // uint8_t     pid_enable;
 
     uint32_t	prev_machine_ctrl;	// num_joints is not included
     hal_bit_t	*machine_on;
@@ -654,15 +642,6 @@ static void fetchmail(const uint8_t *buf_head)
         {
             *machine_control->update_pos_req = 0;
         }
-        break;
-
-    case MT_TICK:
-        p = (uint32_t *) (buf_head + 4);
-        for (i=0; i<14; i++) {
-            p += 1;
-            *machine_control->tick[i] = *p;
-        }
-        assert (0);
         break;
 
     case MT_PROBED_POS:
@@ -1217,7 +1196,6 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_DBG,
                 "j[%d] max_vel(%d) = %f*%f*%f*%f\n",
                 n, immediate_data, max_vel, pos_scale, dt, FIXED_POINT_SCALE);
-//        max_pulse_tick = immediate_data;
         assert(immediate_data>0);
         write_mot_param (n, (MAX_VELOCITY), immediate_data);
         while(wou_flush(&w_param) == -1);
@@ -1263,11 +1241,6 @@ int rtapi_app_main(void)
         immediate_data = (uint32_t)(ceil(max_following_error * pos_scale));
         rtapi_print_msg(RTAPI_MSG_DBG, "max ferror(%d)\n", immediate_data);
         write_mot_param (n, (MAXFOLLWING_ERR), immediate_data);
-        while(wou_flush(&w_param) == -1);
-
-        /* set default jog velocity as 0*/
-        immediate_data = 0;
-        write_mot_param (n, (JOG_VEL), immediate_data);
         while(wou_flush(&w_param) == -1);
     }
 
@@ -1633,19 +1606,6 @@ static void update_freq(void *arg, long period)
     machine_control->prev_out = sync_out_data;
     /* end: process motion synchronized output */
 
-    /* begin: send application parameters */
-    // use carefully
-    for (i=0; i<16; i++) {
-        // PARAM0 to PARAM15
-        if (machine_control->prev_app_param[i] != (*machine_control->app_param[i])) {
-            fprintf(stderr, "send application parameters PARAM%d (%d) \n", i, (*machine_control->app_param[i]));
-            write_machine_param(PARAM0+i, (*machine_control->app_param[i]));
-            machine_control->prev_app_param[i] = *machine_control->app_param[i];
-        }
-    }
-    /* end: send application parameters */
-
-
     /* point at stepgen data */
     stepgen = arg;
 
@@ -1670,33 +1630,9 @@ static void update_freq(void *arg, long period)
 
         if (*stepgen->enable != stepgen->prev_enable) {
             stepgen->prev_enable = *stepgen->enable;
-//            write_mot_param (n, (ENABLE), (int32_t) *stepgen->enable);
         }
 
         *(stepgen->rawcount32) = (int32_t) (stepgen->rawcount >> FRACTION_BITS);
-
-        /* begin: RISC-Jogging */
-        if (*stepgen->risc_jog_vel != stepgen->prev_risc_jog_vel) {
-            /* config jog setting */
-            // this do happens: assert (fabs(*stepgen->risc_jog_vel) < stepgen->maxvel);
-            if (fabs(*stepgen->risc_jog_vel) > stepgen->maxvel) {
-                rtapi_print_msg(RTAPI_MSG_ERR,
-                        "fabs(stepgen.%02d.risc-jog-vel(%f)) should be less than maxvel(%f)\n",
-                        n, *stepgen->risc_jog_vel, stepgen->maxvel);
-                if (*stepgen->risc_jog_vel < 0) {
-                    *stepgen->risc_jog_vel = -stepgen->maxvel;
-                } else {
-                    *stepgen->risc_jog_vel = stepgen->maxvel;
-                }
-            }
-
-            /* JOG_VEL: 16.16 format */
-            immediate_data = (int32_t)((*stepgen->risc_jog_vel) * stepgen->pos_scale * dt * FIXED_POINT_SCALE);
-            DP("Update j[%d]->risc_jog_vel(0x%08X)\n", n, immediate_data);
-            write_mot_param (n, (JOG_VEL), immediate_data);
-            stepgen->prev_risc_jog_vel = *stepgen->risc_jog_vel;
-        }
-        /* end: RISC-Jogging */
 
         if (*stepgen->uu_per_rev != stepgen->prev_uu_per_rev)
         {   // pass compensation scale
@@ -2180,11 +2116,6 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
-    retval = hal_pin_float_newf(HAL_IN, &(addr->risc_jog_vel), comp_id, "wou.stepgen.%d.risc-jog-vel", num);
-    if (retval != 0) {
-        return retval;
-    }
-
     retval = hal_pin_float_newf(HAL_OUT, &(addr->rpm), comp_id,
             "wou.stepgen.%d.rpm", num);
     if (retval != 0) {
@@ -2271,9 +2202,6 @@ static int export_stepgen(int num, stepgen_t * addr,
     addr->pulse_vel = 0;
     addr->pulse_accel = 0;
     addr->pulse_jerk = 0;
-
-    addr->prev_risc_jog_vel = 0;
-    *addr->risc_jog_vel = 0;
 
     /* restore saved message level */
     rtapi_set_msg_level(msg);
@@ -2481,15 +2409,6 @@ static int export_machine_control(machine_control_t * machine_control)
     }
     *(machine_control->test_pattern) = 0;
 
-    for (i=0; i<14; i++) {
-        retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->tick[i]), comp_id,
-                "wou.risc.tick.count-%d", i);
-        if (retval != 0) {
-            return retval;
-        }
-        *(machine_control->tick[i]) = 0;
-    }
-
     for (i=0; i<32; i++) {
         retval = hal_pin_s32_newf(HAL_OUT, &(machine_control->debug[i]), comp_id,
                 "wou.debug.value-%d", i);
@@ -2520,16 +2439,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->crc_error_counter) = 0;
-
-    /* application parameters */
-    for (i=0; i<16; i++) {
-        retval = hal_pin_s32_newf(HAL_IN, &(machine_control->app_param[i]), comp_id,
-                "wou.risc.param.%02d", i);
-        if (retval != 0) {
-            return retval;
-        }
-        *(machine_control->app_param[i]) = 0;
-    }
 
     machine_control->prev_out = 0;
     machine_control->usb_busy_s = 0;

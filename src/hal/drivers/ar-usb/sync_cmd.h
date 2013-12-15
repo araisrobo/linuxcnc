@@ -196,45 +196,27 @@ enum machine_parameter_addr {
     USB_STATUS,             // report status response to usb commands
     AHC_STATE,
     AHC_LEVEL,
-    // parameters specified by machine
-    PARAM0,
-    PARAM1,
-    PARAM2,
-    PARAM3,
-    PARAM4,
-    PARAM5,
-    PARAM6,
-    PARAM7,
-    PARAM8,
-    PARAM9,
-    PARAM10,
-    PARAM11,
-    PARAM12,
-    PARAM13,
-    PARAM14,
-    PARAM15,
+    GANTRY_CTRL,            // [31]     GANTRY_EN
+                            // [30]     GANTRY_LOCK
+                            // [7:0]    GANTRY_BRAKE_GPIO_PIN
+                            
+    JOINT_LSP_LSN,          // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
+    ALR_OUTPUT,             // output value when ESTOP is pressed
+    ALR_EN_BITS,            // the enable bitmap of ALARM input bits
 
-    GANTRY_CTRL,    // [31]     GANTRY_EN
-                    // [30]     GANTRY_LOCK
-                    // [7:0]    GANTRY_BRAKE_GPIO_PIN
-                    
-    JOINT_LSP_LSN,  // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
-    ALR_OUTPUT,     // output value when ESTOP is pressed
-    ALR_EN_BITS,    // the enable bitmap of ALARM input bits
-
-    MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
-                    // [27:24]  SPINDLE_JOINT_ID
-                    // [23:16]  NUM_JOINTS
-                    // [15: 8]  JOG_SEL
-                    // [ 7: 4]  ACCEL_STATE
-                    // [ 3: 1]  MOTION_MODE: 
-                    // [    0]  MACHINE_ON
+    MACHINE_CTRL,           // [31:28]  JOG_VEL_SCALE
+                            // [27:24]  SPINDLE_JOINT_ID
+                            // [23:16]  NUM_JOINTS
+                            // [15: 8]  JOG_SEL
+                            // [ 7: 4]  ACCEL_STATE
+                            // [ 3: 1]  MOTION_MODE: 
+                            // [    0]  MACHINE_ON
     MACHINE_PARAM_ITEM
 };
 
 // accel_state enum for MACHINE_CTRL judgement
 enum accel_state_type {
-  MACH_ACCEL_S0 = (0 << 4), // 0
+  MACH_ACCEL_S0 = (0 << 4),     // 0
   MACH_ACCEL_S1 = (1 << 4),     // 1
   MACH_ACCEL_S2 = (2 << 4),     // 2
   MACH_ACCEL_S3 = (3 << 4),     // 3
@@ -280,7 +262,6 @@ enum motion_parameter_addr {
     SCALE             ,     // unit_pulses/servo_period : 16.16 format, 
     ENC_SCALE         ,     // encoder scale: 16.16 format
     SSYNC_SCALE       ,     // spindle sync compensation scale: 16.16 format
-    JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
     MAX_PARAM_ITEM
 };
 
