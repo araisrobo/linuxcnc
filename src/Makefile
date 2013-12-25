@@ -192,13 +192,17 @@ DEBUG := -g -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
-UNAME_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
-ifeq ($(UNAME_M),armv7l)
-# need -fPIC for arm with -O0
+# UNAME_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
+# ifeq ($(UNAME_M),armv7l)
+# # need -fPIC for arm with -O0
+# CFLAGS += -fPIC
+# CXXFLAGS += -fPIC
+# OPT += -fPIC
+# endif
+
 CFLAGS += -fPIC
 CXXFLAGS += -fPIC
 OPT += -fPIC
-endif
 
 ifeq ($(RUN_IN_PLACE),yes)
 LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR)
