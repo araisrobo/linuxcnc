@@ -538,7 +538,7 @@ static void fetchmail(const uint8_t *buf_head)
         if (machine_control->prev_in2 != din[2]) {
             // avoid for-loop to save CPU cycles
             machine_control->prev_in2 = din[2];
-            for (i = 64; i < 79; i++) {
+            for (i = 64; i < 80; i++) {
                 *(machine_control->in[i]) = ((machine_control->prev_in2) >> (i-64)) & 0x01;
                 *(machine_control->in_n[i]) = (~(*(machine_control->in[i]))) & 0x01;
             }
