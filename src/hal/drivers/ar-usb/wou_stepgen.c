@@ -270,8 +270,6 @@ typedef struct {
     hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
     hal_float_t pulse_per_rev;	/* param: number of pulse per revolution */
 
-    hal_float_t *index_pos;	/* pin: scaled index position in absolute motor position */
-    hal_bit_t *index_enable;	/* pin for index_enable */
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
     hal_float_t *vel_cmd;	/* pin: velocity command (pos units/cycle_time) */
@@ -2009,20 +2007,6 @@ static int export_stepgen(int num, stepgen_t * addr,
         return retval;
     }
 
-    /* export pin for scaled index position (absolute motor position) */
-    retval = hal_pin_float_newf(HAL_OUT, &(addr->index_pos), comp_id,
-            "wou.stepgen.%d.index-pos", num);
-    if (retval != 0) {
-        return retval;
-    }
-
-    /* export pin for index_enable */
-    retval = hal_pin_bit_newf(HAL_IO, &(addr->index_enable), comp_id,
-            "wou.stepgen.%d.index-enable", num);
-    if (retval != 0) {
-        return retval;
-    }
-
     /* export parameter for position scaling */
     retval = hal_param_float_newf(HAL_RW, &(addr->pos_scale), comp_id, "wou.stepgen.%d.position-scale", num);
     if (retval != 0) {
@@ -2195,7 +2179,6 @@ static int export_stepgen(int num, stepgen_t * addr,
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
     *(addr->vel_fb) = 0;
-    *(addr->index_pos) = 0.0;
     *(addr->pos_cmd) = 0.0;
     *(addr->vel_cmd) = 0.0;
     (addr->prev_vel_cmd) = 0.0;
