@@ -1,5 +1,5 @@
 /********************************************************************
-* Description: gantry_xyzc_kins.c
+* Description: gantry_xyzcs_kins.c
 *   Simple example kinematics for thita alignment in software
 *
 *   Derived from a work by Fred Proctor & Will Shackleford
@@ -55,11 +55,12 @@ int kinematicsForward(const double *joints,
     pos->tran.x = joints[0];
     pos->tran.y = joints[1];
     pos->tran.z = joints[3];
-    pos->c = joints[5];
+    pos->c = joints[4];
+    pos->s = joints[5];
 
     DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f),POLARITY(%f)\n",
         pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
-    DP("kFWD: c(%f), j5(%f)\n", pos->c, joints[5]);
+    DP("kFWD: s(%f), j5(%f)\n", pos->s, joints[5]);
 
     return 0;
 }
@@ -73,10 +74,11 @@ int kinematicsInverse(const EmcPose * pos,
     joints[1] = pos->tran.y;
     joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
     joints[3] = pos->tran.z;
-    joints[5] = pos->c;
+    joints[4] = pos->c;
+    joints[5] = pos->s;
     DP("kINV: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f)\n",
        pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET);
-    DP("kINV: c(%f), j5(%f)\n", pos->c, joints[5]);
+    DP("kINV: s(%f), j5(%f)\n", pos->s, joints[5]);
 
     return 0;
 }
@@ -109,7 +111,7 @@ int rtapi_app_main(void)
 #endif
     
     DP("begin\n");
-    comp_id = hal_init("gantry_xyzc_kins");
+    comp_id = hal_init("gantry_xyzcs_kins");
     if (comp_id < 0) {
         // ERROR
         DP("ABORT\n");
@@ -118,11 +120,11 @@ int rtapi_app_main(void)
     
     align_pins = hal_malloc(sizeof(align_pins_t));
     if (!align_pins) goto error;
-    if ((res = hal_pin_float_new("gantry-xyzc-kins.yy-offset", HAL_IN, &(align_pins->yy_offset), comp_id)) < 0) goto error;
+    if ((res = hal_pin_float_new("gantry-xyzcs-kins.yy-offset", HAL_IN, &(align_pins->yy_offset), comp_id)) < 0) goto error;
     YY_OFFSET = 0;
 
     /* export param for scaled velocity (frequency in Hz) */
-    res = hal_pin_float_new("gantry-xyzc-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
+    res = hal_pin_float_new("gantry-xyzcs-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
     if (res != 0) {
         goto error;
     }
