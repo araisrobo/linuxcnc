@@ -24,11 +24,16 @@
 /* number of axes defined by the interp */ //FIXME: shouldn't be here..
 #define EMCMOT_MAX_AXIS 10
 
-#define EMCMOT_MAX_DIO 64
+#define EMCMOT_MAX_DIO 96
 #define EMCMOT_MAX_AIO 64
-#define EMCMOT_MAX_SYNC_INPUT 64
+#define EMCMOT_MAX_SYNC_INPUT 96
 
-#if (EMCMOT_MAX_DIO > 64) || (EMCMOT_MAX_AIO > 64)
+//#if (EMCMOT_MAX_DIO > 64) || (EMCMOT_MAX_AIO > 64)
+//#error A 64 bit bitmask is used in the planner.  Don't increase these until that's fixed.
+//#endif
+
+// 2014-01-15, ysli: dio_mask is REMOVED
+#if (EMCMOT_MAX_AIO > 64)
 #error A 64 bit bitmask is used in the planner.  Don't increase these until that's fixed.
 #endif
 
