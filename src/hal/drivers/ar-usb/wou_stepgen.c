@@ -1433,7 +1433,7 @@ static void update_freq(void *arg, long period)
         // sleep(1);
         // usleep(10000);  // usleep for 10ms will suspend too long to keep usb-link alive
         // usleep(1000);  // suspend for 1ms
-        usleep(10);  // suspend for 0.01ms
+        // usleep(10);  // suspend for 0.01ms
         return;
     } else {
         *(machine_control->usb_busy) = 0;
