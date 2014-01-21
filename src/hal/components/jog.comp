@@ -82,14 +82,15 @@ FUNCTION(_)
             wheel_jog_enable(0) = 1;
         } else if (mpg_joint_code == 2) {
             // Y => gantry
-            wheel_jog_enable(master_gantry_id) = 1;
-            wheel_jog_enable(slave_gantry_id) = 1;
+            // wheel_jog_enable(master_gantry_id) = 1;
+            // wheel_jog_enable(slave_gantry_id) = 1;
+            wheel_jog_enable(1) = 1;
         } else if (mpg_joint_code == 3) {
             // Z 
             wheel_jog_enable(3) = 1;
         } else if (mpg_joint_code == 4) {
             // W 
-            wheel_jog_enable(4) = 1;
+            wheel_jog_enable(2) = 1;
         } else if (mpg_joint_code == 5) {
             // S
             wheel_jog_enable(5) = 1;
