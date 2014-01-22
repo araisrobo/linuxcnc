@@ -114,10 +114,10 @@ net Zpos-fb   wou.stepgen.3.position-fb => joint.3.motor-pos-fb
 net Wpos-fb   wou.stepgen.4.position-fb => joint.4.motor-pos-fb
 net Spos-fb   wou.stepgen.5.position-fb => joint.5.motor-pos-fb
 
-# TODO: motor_index positions
-net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
-net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
-net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
+# # TODO: motor_index positions
+# net J0_index-pos wou.stepgen.0.index-pos => joint.0.index-pos
+# net J1_index-pos wou.stepgen.1.index-pos => joint.1.index-pos
+# net J3_index-pos wou.stepgen.3.index-pos => joint.3.index-pos
 
 # estop loopback
 # net estop-loop iocontrol.0.user-enable-out iocontrol.0.emc-enable-in
@@ -132,7 +132,7 @@ net tool-change-loop iocontrol.0.tool-change iocontrol.0.tool-changed
 
 # digital sync I/O signals
 net sync_in_trigger     motion.sync-in-trigger =>  wou.sync.in.trigger
-net sync_in_index       motion.sync-in-index =>  wou.sync.in.index
+# net sync_in_index       motion.sync-in-index =>  wou.sync.in.index
 net sync_in_wait_type   motion.sync-in-wait-type =>  wou.sync.in.wait_type
 net sync_in_timeout     motion.sync-in-timeout =>  wou.sync.in.timeout
 
@@ -398,11 +398,11 @@ net dout_09     wou.gpio.out.09
 
 net analog_07   wou.analog.in.07
 
-net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
-net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
-net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
-net j3_index_en   joint.3.index-enable => wou.stepgen.3.index-enable
-net j4_index_en   joint.4.index-enable => wou.stepgen.4.index-enable
+# net j0_index_en   joint.0.index-enable => wou.stepgen.0.index-enable
+# net j1_index_en   joint.1.index-enable => wou.stepgen.1.index-enable
+# net j2_index_en   joint.2.index-enable => wou.stepgen.2.index-enable
+# net j3_index_en   joint.3.index-enable => wou.stepgen.3.index-enable
+# net j4_index_en   joint.4.index-enable => wou.stepgen.4.index-enable
 
 # emcrsh
 # loadusr linuxcncrsh -ini xyz.ini
