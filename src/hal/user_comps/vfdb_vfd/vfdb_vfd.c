@@ -163,6 +163,7 @@
 typedef struct {
     hal_s32_t   *error_code;
     hal_s32_t 	*status;
+    hal_u32_t 	*bp_tick;       // bp_tick: for judging if system is alive
     hal_float_t	*freq_cmd;	// frequency command
     hal_float_t	*freq_out;	// actual output frequency
     hal_float_t	*output_volt;	// output voltage
@@ -479,6 +480,8 @@ int write_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     hal_float_t hzcalc;
     int cmd1_reg;
     int freq_reg, freq_cap;
+    int system_alive;
+    static uint32_t prev_bp_tick;
 
     if (!*(haldata->enabled)) {
         // send 0 to 0x2000 register - no bus control
@@ -488,6 +491,7 @@ int write_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
             p->last_errno = errno;
             return errno;
         }
+        prev_bp_tick = *(haldata->bp_tick);
         return 0;
     }
 
@@ -502,10 +506,14 @@ retry:
         freq_reg = freq_cap;
 
     *(haldata->freq_cmd)  =  freq_reg / 100.0;
+    
+    // judge if system is alive
+    system_alive = (*haldata->bp_tick != prev_bp_tick); 
+    prev_bp_tick = *(haldata->bp_tick);
 
     // prepare command register
     cmd1_reg = 0;
-    if (*haldata->spindle_on){
+    if ((*haldata->spindle_on) && system_alive) {
         cmd1_reg |= (*haldata->jog_mode) ? CMD_JOG_RUN : CMD_RUN;
     } else {
         cmd1_reg |= CMD_STOP;
@@ -714,6 +722,7 @@ int hal_setup(int id, haldata_t *h, const char *name)
     PIN(hal_pin_bit_newf(HAL_IN, &(h->max_speed), id, "%s.max-speed", name));
     PIN(hal_pin_s32_newf(HAL_OUT, &(h->errorcount), id, "%s.error-count", name));
     PIN(hal_pin_float_newf(HAL_OUT, &(h->upper_limit_hz), id, "%s.frequency-limit", name));
+    PIN(hal_pin_u32_newf(HAL_IN, &(h->bp_tick), id, "%s.bp-tick", name));
 
     // the following limit must be set manually from the panel since its in EEPROM
     PIN(hal_param_float_newf(HAL_RW, &(h->looptime), id, "%s.loop-time", name));
