@@ -670,6 +670,7 @@ typedef struct emcmot_status_t {
     uint32_t usb_status;
     int sync_pos_cmd;
     int sync_risc_pos;
+    uint32_t update_pos_ack;    /* for RCMD_FSM inside RISC */
 
     unsigned char head;	/* flag count for mutex detect */
     /* these three are updated only when a new command is handled */
