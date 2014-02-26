@@ -745,7 +745,7 @@ static void process_probe_inputs(void)
 
     case USB_STATUS_READY: // PROBE STATUS Clean
         // deal with PROBE related status only
-        if ((emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) /*(*emcmot_hal_data->update_pos_req)*/ && emcmotStatus->probing)
+        if ((emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) && emcmotStatus->probing)
         {
             if (emcmotStatus->probeTripped == 1)
             {
@@ -830,8 +830,6 @@ static void handle_special_cmd(void)
         int joint_num;
         emcmot_joint_t *joint;
         double positions[EMCMOT_MAX_JOINTS];
-
-//        *emcmot_hal_data->rcmd_seq_num_ack = *emcmot_hal_data->rcmd_seq_num_req;
 
         for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
             /* point to joint struct */
