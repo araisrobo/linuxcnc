@@ -807,25 +807,31 @@ static void handle_special_cmd(void)
         emcmotStatus->sync_pos_cmd = 0;
     }
 
+    /* must not be homing */
+    if (emcmotStatus->homing_active) {
+        // let usb_homing.c control the "update_pos_req" and "rcmd_seq_num_ack"
+        return;
+    }
+
     if (emcmotStatus->depth == 0)
     {   // not at EMCMOT_MOTION_COORD mode
-        *emcmot_hal_data->update_pos_ack = *emcmot_hal_data->update_pos_req;
+        emcmotStatus->update_pos_ack = *emcmot_hal_data->update_pos_req;
     }
     else
     {   // block update_pos_ack to RISC when
         // ((emcmotStatus->motion_state == EMCMOT_MOTION_COORD)
         //   and there are pending TP commands)
-        *emcmot_hal_data->update_pos_ack = 0;
+        emcmotStatus->update_pos_ack = 0;
     }
 
     emcmotStatus->update_current_pos_flag = 0;  // prevent emcTaskPlanSynch() at emcTask.cc
-    if (*emcmot_hal_data->update_pos_ack != 0)
+    if (emcmotStatus->update_pos_ack != 0)
     {
         int joint_num;
         emcmot_joint_t *joint;
         double positions[EMCMOT_MAX_JOINTS];
 
-        *emcmot_hal_data->rcmd_seq_num_ack = *emcmot_hal_data->rcmd_seq_num_req;
+//        *emcmot_hal_data->rcmd_seq_num_ack = *emcmot_hal_data->rcmd_seq_num_req;
 
         for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
             /* point to joint struct */
@@ -841,7 +847,16 @@ static void handle_special_cmd(void)
             cubicAddPoint(&(joint->cubic), joint->coarse_pos);
             /* copy coarse command */
             positions[joint_num] = joint->coarse_pos;
+//            rtapi_print (
+//                    _("handle_special_cmd: j[%d] risc_pos_cmd(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"),
+//                    joint_num,
+//                    joint->risc_pos_cmd,
+//                    joint->pos_cmd,
+//                    joint->pos_fb,
+//                    joint->free_tp.curr_pos,
+//                    joint->motor_offset);
         }
+
         /* if less than a full complement of joints, zero out the rest */
         while ( joint_num < EMCMOT_MAX_JOINTS ) {
             positions[joint_num] = 0.0;
@@ -2168,6 +2183,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->tooloffset_v) = emcmotStatus->tool_offset.v;
     *(emcmot_hal_data->tooloffset_w) = emcmotStatus->tool_offset.w;
 
+    *(emcmot_hal_data->update_pos_ack) = emcmotStatus->update_pos_ack;
     /* output joint info to HAL for scoping, etc */
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint struct */
