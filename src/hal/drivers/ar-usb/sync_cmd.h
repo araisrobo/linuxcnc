@@ -167,11 +167,11 @@ typedef enum {
 
 typedef enum {
     // naming: RISC_...CMD..._REQ
-    RCMD_IDLE = 0,
-    RCMD_UPDATE_POS_REQ = 1,
-    RCMD_UPDATE_POS_ACK = 2,
-    RCMD_PROBE_REQ,
-    RCMD_DONE
+    RCMD_IDLE = 0,              // RCMD_FSM, set by RISC
+    RCMD_ALIGNING,              // RCMD_FSM, joint is aligning
+    RCMD_UPDATE_POS_REQ,        // RCMD_FSM, request HOST to update position
+    RCMD_UPDATE_POS_ACK,        // RCMD set by HOST 
+    RCMD_PROBE_REQ,             // RCMD set by HOST 
 } rsic_cmd_t;
 
 typedef enum {
