@@ -2181,7 +2181,6 @@ static void output_to_hal(void)
     *(emcmot_hal_data->tooloffset_v) = emcmotStatus->tool_offset.v;
     *(emcmot_hal_data->tooloffset_w) = emcmotStatus->tool_offset.w;
 
-    *(emcmot_hal_data->update_pos_ack) = emcmotStatus->update_pos_ack;
     /* output joint info to HAL for scoping, etc */
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint struct */
@@ -2229,6 +2228,9 @@ static void output_to_hal(void)
         *(joint_data->risc_probe_type) = joint->risc_probe_type;
 
     }
+
+    // modify update_pos_ack after all joints data are updated
+    *(emcmot_hal_data->update_pos_ack) = emcmotStatus->update_pos_ack;
 
     /* output axis info to HAL for scoping, etc */
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
