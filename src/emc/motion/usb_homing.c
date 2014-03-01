@@ -197,6 +197,13 @@ void do_homing(void)
         /* can't home unless in free mode */
         return;
     }
+
+    if (emcmotStatus->homing_active == 1)
+    {
+        // default value of update_pos_ack for all joints
+        emcmotStatus->update_pos_ack = 0;
+    }
+
     /* loop thru joints, treat each one individually */
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
         /* point to joint struct */
@@ -312,7 +319,16 @@ void do_homing(void)
                 } else {
                     if (joint->home_latch_vel != 0.0) {
                         /* need to find home switch */
-                        joint->home_state = HOME_INITIAL_SEARCH_START;
+                        if (home_sw_active)
+                        {
+                            /* already on switch, need to back off it first */
+                            joint->home_state = HOME_INITIAL_BACKOFF_START;
+                        }
+                        else
+                        {
+                            /* we aren't already on home switch */
+                            joint->home_state = HOME_INITIAL_SEARCH_START;
+                        }
                         immediate_state = 1;
                     } else {
                         reportError(_("invalid homing config: non-zero SEARCH_VEL needs LATCH_VEL"));
@@ -327,7 +343,7 @@ void do_homing(void)
 		   starts a move away from the switch. */
                 /* set up a move at '-search_vel' to back off of switch */
                 home_start_move(joint, -joint->home_search_vel, RISC_PROBE_LOW);
-                if(*emcmot_hal_data->update_pos_req == 1)
+                if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
                     home_stop_move(joint);
@@ -341,10 +357,11 @@ void do_homing(void)
 		   the home switch.  It terminates when the switch is cleared
 		   successfully.  If the move ends or hits a limit before it
 		   clears the switch, the home is aborted. */
-                if (*emcmot_hal_data->update_pos_req == 0) {
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
+                if ((home_sw_active == 0) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                {
                     /* begin initial search */
                     joint->home_state = HOME_INITIAL_SEARCH_START;
-                    immediate_state = 1;
                     break;
                 }
                 break;
@@ -354,16 +371,10 @@ void do_homing(void)
 		   home switch.  This move is at 'search_vel', which can be
 		   fairly fast, because once the switch is found another
 		   slower move will be used to set the exact home position. */
-                /* make sure we aren't already on home switch */
-                if (home_sw_active) {
-                    /* already on switch, need to back off it first */
-                    joint->home_state = HOME_INITIAL_BACKOFF_START;
-                    immediate_state = 1;
-                    break;
-                }
+
                 /* set up a move at 'search_vel' to find switch */
                 home_start_move(joint, joint->home_search_vel, RISC_PROBE_HIGH);
-                if(*emcmot_hal_data->update_pos_req == 1)
+                if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
                     home_stop_move(joint);
@@ -372,18 +383,18 @@ void do_homing(void)
                 }
                 break;
 
-
             case HOME_INITIAL_SEARCH_WAIT:
                 /* This state is called while the machine is looking for the
 		   home switch.  It terminates when the switch is found.  If
 		   the move ends or hits a limit before it finds the switch,
 		   the home is aborted. */
+
                 /* have we hit home switch yet? */
-                if (*emcmot_hal_data->update_pos_req == 0) {
-                    assert (home_sw_active);
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
+                if ((home_sw_active) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                {
                     /* go to next step */
                     joint->home_state = HOME_SET_COARSE_POSITION;
-                    immediate_state = 1;
                     break;
                 }
                 break;
@@ -404,6 +415,8 @@ void do_homing(void)
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
                 joint->motor_offset -= offset;
+                emcmotStatus->update_pos_ack = 1; // to synchronize pos_cmd and prev_pos_cmd
+
                 /* The next state depends on the signs of 'search_vel' and
 		   'latch_vel'.  If they are the same, that means we must
 		   back up, then do the final homing moving the same
@@ -418,18 +431,17 @@ void do_homing(void)
                     /* search and latch vel are opposite directions */
                     joint->home_state = HOME_FALL_SEARCH_START;
                 }
-                immediate_state = 1;
-                // // DEBUG ysli:
-                // rtapi_print (
-                //         _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) risc_pos_cmd(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"),
-                //         joint_num,
-                //         offset,
-                //         joint->risc_pos_cmd,
-                //         joint->pos_cmd,
-                //         joint->pos_fb,
-                //         joint->free_tp.curr_pos,
-                //         joint->motor_offset);
-                // // DEBUG ysli:
+                // DEBUG ysli:
+//                rtapi_print (
+//                        _("HOME_SET_COARSE_POSITION: j[%d] offset(%f) risc_pos_cmd(%f) pos_cmd(%f) pos_fb(%f) curr_pos(%f) motor_offset(%f)\n"),
+//                        joint_num,
+//                        offset,
+//                        joint->risc_pos_cmd,
+//                        joint->pos_cmd,
+//                        joint->pos_fb,
+//                        joint->free_tp.curr_pos,
+//                        joint->motor_offset);
+                // DEBUG ysli:
                 break;
 
             case HOME_FINAL_BACKOFF_START:
@@ -437,20 +449,12 @@ void do_homing(void)
 		   switch has been found.  It is responsible for starting a
 		   move that will back off of the switch in preparation for a
 		   final slow move that captures the exact switch location. */
-                /* we should still be on the switch */
-                if (! home_sw_active) {
-                    reportError(
-                            _("Home switch inactive before start of backoff move"));
-                    joint->home_state = HOME_IDLE;
-                    break;
-                }
                 /* set up a move at '-search_vel' to back off of switch */
                 home_start_move(joint, -joint->home_search_vel, RISC_PROBE_LOW);
-                /* next state */
-                if(*emcmot_hal_data->update_pos_req == 1)
-                {
-                    /* stop issue risc-probe-command */
+                if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
+                {   /* stop issue risc-probe-command */
                     home_stop_move(joint);
+                    /* next state */
                     joint->home_state = HOME_FINAL_BACKOFF_WAIT;
                 }
                 break;
@@ -461,37 +465,28 @@ void do_homing(void)
 		   It terminates when the switch is cleared successfully.  If
 		   the move ends or hits a limit before it clears the switch,
 		   the home is aborted. */
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
                 /* are we off home switch yet? */
-                if(*emcmot_hal_data->update_pos_req == 0)
+                if ((home_sw_active == 0) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
-                    assert (! home_sw_active);
                     /* begin final search */
                     joint->home_state = HOME_RISE_SEARCH_START;
-                    immediate_state = 1;
                     break;
                 }
-
-
                 break;
 
             case HOME_RISE_SEARCH_START:
                 /* This state is called to start the final search for the
 		   point where the home switch trips.  It moves at
 		   'latch_vel' and looks for a rising edge on the switch */
-                /* we should still be off of the switch */
-                if (home_sw_active) {
-                    reportError(
-                            _("Home switch active before start of latch move"));
-                    joint->home_state = HOME_IDLE;
-                    break;
-                }
+
                 /* set up a move at 'latch_vel' to locate the switch */
                 home_start_move(joint, joint->home_latch_vel, RISC_PROBE_HIGH);
-                /* next state */
-                if(*emcmot_hal_data->update_pos_req == 1)
+                if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
                     home_stop_move(joint);
+                    /* next state */
                     joint->home_state = HOME_RISE_SEARCH_WAIT;
                 }
                 break;
@@ -502,41 +497,35 @@ void do_homing(void)
 		   terminates when the switch is detected. If the move ends
 		   or hits a limit before it hits the switch, the home is
 		   aborted. */
-                if(*emcmot_hal_data->update_pos_req == 0)
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
+                if ((home_sw_active) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
+
                     /* have we hit the home switch yet? */
-                    // TODO: confirm why failed for VBC#2: assert (home_sw_active);
                     /* yes, where do we go next? */
                     if (joint->home_flags & HOME_USE_INDEX) {
                         /* look for index pulse */
                         joint->home_state = HOME_INDEX_SEARCH_START;
-                        immediate_state = 1;
                         break;
                     } else {
                         /* no index pulse, stop motion */
                         /* go to next step */
                         joint->home_state = HOME_SET_SWITCH_POSITION;
-                        immediate_state = 1;
                         break;
                     }
                 }
-
                 break;
 
             case HOME_FALL_SEARCH_START:
                 /* This state is called to start the final search for the
 		   point where the home switch releases.  It moves at
 		   'latch_vel' and looks for a falling edge on the switch */
-                /* we should still be on the switch */
-                if (!home_sw_active) {
-                    reportError(
-                            _("Home switch inactive before start of latch move"));
-                    joint->home_state = HOME_IDLE;
-                    break;
-                }
+
                 /* set up a move at 'latch_vel' to locate the switch */
                 home_start_move(joint, joint->home_latch_vel, RISC_PROBE_LOW);
-                if(*emcmot_hal_data->update_pos_req == 1)
+                if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
                     home_stop_move(joint);
@@ -551,21 +540,19 @@ void do_homing(void)
 		   terminates when the switch is cleared. If the move ends or
 		   hits a limit before it clears the switch, the home is
 		   aborted. */
-                if(*emcmot_hal_data->update_pos_req == 0)
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state != RCMD_IDLE);
+                if ((home_sw_active == 0) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
                     /* have we cleared the home switch yet? */
-                    assert (!home_sw_active);
                     /* yes, where do we go next? */
                     if (joint->home_flags & HOME_USE_INDEX) {
                         /* look for index pulse */
                         joint->home_state = HOME_INDEX_SEARCH_START;
-                        immediate_state = 1;
                         break;
                     } else {
                         /* no index pulse, stop motion */
                         /* go to next step */
                         joint->home_state = HOME_SET_SWITCH_POSITION;
-                        immediate_state = 1;
                         break;
                     }
                 }
@@ -576,19 +563,15 @@ void do_homing(void)
 		   switch position as accurately as possible.  It sets the
 		   current joint position to 'home_offset', which is the
 		   location of the home switch in joint coordinates. */
-                /* set the current position to 'home_offset' */
-                offset = joint->home_offset -
-                         (joint->probed_pos - joint->motor_offset);
-                /* this moves the internal position but does not affect the
-		   motor position */
 
-                joint->pos_cmd += offset;
-                joint->pos_fb += offset;
-                joint->free_tp.curr_pos += offset;
-                joint->motor_offset -= offset;
-                /* next state */
-                joint->home_state = HOME_FINAL_MOVE_START;
-                immediate_state = 1;
+                /* set the current position to 'home_offset' */
+                joint->motor_offset =  (-joint->home_offset + joint->probed_pos);
+                /* this moves the internal position but does not affect the
+                   motor position */
+                joint->pos_cmd = joint->risc_pos_cmd - joint->motor_offset;
+                joint->free_tp.curr_pos = joint->pos_cmd;
+                emcmotStatus->update_pos_ack = 1; // to synchronize prev_pos_cmd with new pos_cmd
+
                 // DEBUG ysli:
 //                rtapi_print (
 //                         _("HOME_SET_SWITCH_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
@@ -602,6 +585,23 @@ void do_homing(void)
 //                         joint->free_tp.curr_pos,
 //                         joint->motor_offset);
                 // DEBUG ysli:
+
+                if (joint->home_flags & HOME_GANTRY_JOINT)
+                {
+                    // SLAVE HOMING 會先做，所以 SLAVE 要等 MASTER 做完再 FINAL_MOVE
+                    if (joint == slave_gantry_joint)
+                    {
+                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT)
+                        {
+                            // wait until master_gantry_joint found its home switch
+                            break;
+                        }
+                    }
+                }
+
+                /* next state */
+                joint->home_state = HOME_FINAL_MOVE_START;
+
                 break;
 
             case HOME_INDEX_ONLY_START:
@@ -611,19 +611,7 @@ void do_homing(void)
 		   sets index-enable, which tells the encoder driver to
 		   reset its counter to zero and clear the enable when the
 		   next index pulse arrives. */
-                /* is the joint already moving? */
-                if (joint->free_tp.active) {
-                    /* yes, reset delay, wait until joint stops */
-                    joint->home_pause_timer = 0;
-                    break;
-                }
-                /* has delay timed out? */
-                if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
-                    /* no, update timer and wait some more */
-                    joint->home_pause_timer++;
-                    break;
-                }
-                joint->home_pause_timer = 0;
+
                 /* Although we don't know the exact home position yet, we
 		   we reset the joint coordinates now so that screw error
 		   comp will be appropriate for this portion of the screw
@@ -638,6 +626,9 @@ void do_homing(void)
                 joint->pos_fb += offset;
                 joint->free_tp.curr_pos += offset;
                 joint->motor_offset -= offset;
+
+                emcmotStatus->update_pos_ack = 1; // to synchronize prev_pos_cmd with new pos_cmd
+
                 // rtapi_print (
                 //          _("HOME_INDEX_ONLY_START: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
                 //          joint_num,
@@ -664,15 +655,21 @@ void do_homing(void)
 		   next index pulse arrives. */
 
                 /* set up a move at 'latch_vel' to find the index LOCK signal */
-                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_INDEX);
-                if(*emcmot_hal_data->update_pos_req == 1)
+                if ((joint->home_search_vel * joint->home_latch_vel) > 0.0) {
+                    /* search and latch vel are same direction */
+                    home_start_move(joint, joint->home_latch_vel, RISC_PROBE_INDEX);
+                } else {
+                    /* search and latch vel are opposite directions */
+                    home_start_move(joint, -joint->home_latch_vel, RISC_PROBE_INDEX);
+                }
+
+                if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
                     home_stop_move(joint);
                     /* next state */
                     joint->home_state = HOME_INDEX_SEARCH_WAIT;
                 }
-
                 break;
 
             case HOME_INDEX_SEARCH_WAIT:
@@ -682,11 +679,13 @@ void do_homing(void)
 		   an index pulse is detected, at which point it sets the
 		   final home position.  If the move ends or hits a limit
 		   before an index pulse occurs, the home is aborted. */
-                if(*emcmot_hal_data->update_pos_req == 0)
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state != RCMD_IDLE);
+                if (*emcmot_hal_data->rcmd_state == RCMD_IDLE)
                 {
+                    /* stop issue risc-probe-command */
+                    home_stop_move(joint);
                     /* yes, where do we go next? */
                     joint->home_state = HOME_SET_INDEX_POSITION;
-                    immediate_state = 1;
                 }
                 break;
 
@@ -695,27 +694,34 @@ void do_homing(void)
 		   the index pulse position.  It sets the current joint
 		   position to 'home_offset', which is the location of the
 		   index pulse in joint coordinates. */
+//                /* set the current position to 'home_offset' */
+//                offset = joint->home_offset;
+//                /* this moves the internal position but does not affect the
+//                   motor position */
+//                joint->pos_cmd = (joint->risc_pos_cmd - joint->probed_pos) + offset;
+//                joint->free_tp.curr_pos = joint->pos_cmd;
+//                joint->motor_offset = joint->risc_pos_cmd - ((joint->risc_pos_cmd - joint->probed_pos) + offset);
+
                 /* set the current position to 'home_offset' */
-                offset = joint->home_offset -
-                         (joint->probed_pos - joint->motor_offset);
+                joint->motor_offset =  (-joint->home_offset + joint->probed_pos);
                 /* this moves the internal position but does not affect the
                    motor position */
-                joint->pos_cmd += offset;
-                joint->pos_fb += offset;
-                joint->free_tp.curr_pos += offset;
-                joint->motor_offset -= offset;
+                joint->pos_cmd = joint->risc_pos_cmd - joint->motor_offset;
+                joint->free_tp.curr_pos = joint->pos_cmd;
 
-                // rtapi_print (
-                //          _("HOME_SET_INDEX_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
-                //          joint_num,
-                //          joint->home_offset,
-                //          offset,
-                //          joint->risc_pos_cmd,
-                //          joint->probed_pos,
-                //          joint->pos_cmd,
-                //          joint->pos_fb,
-                //          joint->free_tp.curr_pos,
-                //          joint->motor_offset);
+                emcmotStatus->update_pos_ack = 1; // to synchronize prev_pos_cmd with new pos_cmd
+
+//                 rtapi_print (
+//                          _("HOME_SET_INDEX_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+//                          joint_num,
+//                          joint->home_offset,
+//                          offset,
+//                          joint->risc_pos_cmd,
+//                          joint->probed_pos,
+//                          joint->pos_cmd,
+//                          joint->pos_fb,
+//                          joint->free_tp.curr_pos,
+//                          joint->motor_offset);
                 // if (joint->home_flags & HOME_GANTRY_JOINT) {
                 //     if (joint == master_gantry_joint) {
                 //         rtapi_print ("DEBUG\n");
@@ -735,7 +741,7 @@ void do_homing(void)
 
                 /* next state */
                 joint->home_state = HOME_FINAL_MOVE_START;
-                immediate_state = 1;
+//                immediate_state = 1;
                 break;
 
             case HOME_FINAL_MOVE_START:
@@ -744,31 +750,30 @@ void do_homing(void)
 		   which is not neccessarily the position of the home switch
 		   or index pulse. */
 
-                /* is the joint already moving? */
-                if (joint->free_tp.active) {
-                    /* yes, reset delay, wait until joint stops */
-                    joint->home_pause_timer = 0;
-                    break;
-                }
-
-                /* has delay timed out? */
-                if (joint->home_pause_timer < (HOME_DELAY * servo_freq)) {
-                    /* no, update timer and wait some more */
-                    joint->home_pause_timer++;
-                    break;
-                }
-
-                if (joint->home_flags & HOME_GANTRY_JOINT) {
-                    // SLAVE HOMING 會先做，所以要等 MASTER 做完再 FINAL_MOVE
-                    if (joint == slave_gantry_joint) {
-                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT) {
+                if (joint->home_flags & HOME_GANTRY_JOINT)
+                {
+                    // SLAVE HOMING 會先做，所以 SLAVE 要等 MASTER 做完再 FINAL_MOVE
+                    if (joint == slave_gantry_joint)
+                    {
+                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT)
+                        {
                             // wait until master_gantry_joint found its home switch
                             break;
+                        } else
+                        {   // update new pos_cmd for SLAVE-GANTRY-JOINT
+                            joint->pos_cmd = joint->risc_pos_cmd - joint->motor_offset;
+                            joint->free_tp.curr_pos = joint->pos_cmd;
+                            emcmotStatus->update_pos_ack = 1; // to synchronize prev_pos_cmd with new pos_cmd
                         }
                     }
                 }
 
-                joint->home_pause_timer = 0;
+                if ((*emcmot_hal_data->rcmd_state) != RCMD_IDLE)
+                {   // wait for RCMD_IDLE
+                    emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
+                    break;
+                }
+
                 /* plan a move to home position */
                 joint->free_tp.pos_cmd = joint->home;
                 /* if home_vel is set (>0) then we use that, otherwise we rapid there */
@@ -794,6 +799,8 @@ void do_homing(void)
 		   arrives at the final location. If the move hits a limit
 		   before it arrives, the home is aborted. */
                 /* have we arrived (and stopped) at home? */
+//                printf("HOME_FINAL_MOVE_WAIT: j[%d] active(%d) curr_pos(%f) curr_vel(%f)\n", joint_num, joint->free_tp.active, joint->free_tp.curr_pos, joint->free_tp.curr_vel);
+
                 if (!joint->free_tp.active) {
                     /* yes, stop motion */
                     joint->free_tp.enable = 0;
@@ -868,6 +875,8 @@ void do_homing(void)
     if ( homing_flag ) {
         /* at least one joint is homing, set global flag */
         emcmotStatus->homing_active = 1;
+//        printf ("941: homing... rcmd_state(%d) j0.hs(%d) j1.home_state(%d) j2.home_state(%d)\n",
+//                *(emcmot_hal_data->rcmd_state), joints[0].home_state, joints[1].home_state, joints[2].home_state);
 
     } else {
         /* is a homing sequence in progress? */
