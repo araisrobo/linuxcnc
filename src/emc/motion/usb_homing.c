@@ -253,15 +253,20 @@ void do_homing(void)
                     // 先做 SLAVE JOINT HOMING
                     // 再做 MASTER JOINT HOMING
                     if (joint->home_flags & HOME_GANTRY_MASTER) {
-                        if (slave_gantry_joint->home_state != HOME_FINAL_MOVE_START) {
+                        if (slave_gantry_joint->home_state == HOME_FINAL_MOVE_START)
+                        {
+                            // slave_gantry_joint has finished its homing process
+                            // ("j[%d] Begin HOME_GANTRY_MASTER\n", joint_num);
+                            // 做 MASTER JOINT HOMING 時，被同步的軸是 SLAVE
+                            sync_gantry_joint = slave_gantry_joint;
+                        } else
+                        {
+                            // ("j[%d] we are doing slave-gantry-joint-homing\n", joint_num);
                             if (slave_gantry_joint->home_state == HOME_IDLE) {
                                 slave_gantry_joint->home_state = HOME_START;
                             }
                             break;
                         }
-                        // 做 MASTER JOINT HOMING 時，被同步的軸是 SLAVE
-                        sync_gantry_joint = slave_gantry_joint;
-                        // ("Begin HOME_GANTRY_MASTER\n");
                     } else {
                         if (master_gantry_joint->home_state != HOME_START) {
                             if (master_gantry_joint->home_state == HOME_IDLE) {
@@ -584,20 +589,7 @@ void do_homing(void)
 //                         joint->pos_fb,
 //                         joint->free_tp.curr_pos,
 //                         joint->motor_offset);
-                // DEBUG ysli:
-
-                if (joint->home_flags & HOME_GANTRY_JOINT)
-                {
-                    // SLAVE HOMING 會先做，所以 SLAVE 要等 MASTER 做完再 FINAL_MOVE
-                    if (joint == slave_gantry_joint)
-                    {
-                        if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT)
-                        {
-                            // wait until master_gantry_joint found its home switch
-                            break;
-                        }
-                    }
-                }
+                // DEBUG ysli
 
                 /* next state */
                 joint->home_state = HOME_FINAL_MOVE_START;
@@ -806,7 +798,6 @@ void do_homing(void)
                     joint->free_tp.enable = 0;
                     /* we're finally done */
                     joint->home_state = HOME_LOCK;
-                    immediate_state = 1;
                     break;
                 }
                 if (joint->on_pos_limit || joint->on_neg_limit) {
@@ -816,7 +807,6 @@ void do_homing(void)
                         reportError(_("hit limit in home state %d"),
                                 joint->home_state);
                         joint->home_state = HOME_ABORT;
-                        immediate_state = 1;
                         break;
                     }
                 }
@@ -875,8 +865,8 @@ void do_homing(void)
     if ( homing_flag ) {
         /* at least one joint is homing, set global flag */
         emcmotStatus->homing_active = 1;
-//        printf ("941: homing... rcmd_state(%d) j0.hs(%d) j1.home_state(%d) j2.home_state(%d)\n",
-//                *(emcmot_hal_data->rcmd_state), joints[0].home_state, joints[1].home_state, joints[2].home_state);
+//        printf ("881: homing... rcmd_state(%d) j0.hs(%d) j1.home_state(%d) j2.home_state(%d) j3.hs(%d) \n",
+//                *(emcmot_hal_data->rcmd_state), joints[0].home_state, joints[1].home_state, joints[2].home_state, joints[3].home_state);
 
     } else {
         /* is a homing sequence in progress? */
