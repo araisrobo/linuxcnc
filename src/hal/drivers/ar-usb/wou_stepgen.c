@@ -410,6 +410,16 @@ typedef struct {
     uint32_t    gantry_ctrl;
     uint32_t    prev_gantry_ctrl;
 
+    uint32_t    *trigger_din;
+    uint32_t    *trigger_ain;
+    uint32_t    *trigger_type;
+    uint32_t    *trigger_cond;
+    uint32_t    *trigger_level;
+    hal_bit_t   *trigger_enable;     // 0: disable 1:enable
+
+    uint32_t     prev_trigger_enable;
+//    hal_float_t  *ahc_level;
+    double      prev_trigger_level;
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1559,6 +1569,27 @@ static void update_freq(void *arg, long period)
     }
     /* end: handle AHC state, AHC level */
 
+    /* begin: handle Trigger state, Trigger level */
+    if (*machine_control->trigger_level != machine_control->prev_trigger_level) {
+        immediate_data = (uint32_t)(*(machine_control->trigger_level));
+        immediate_data *= 65536; //coonvert from 32.0 to 16.16
+//        write_machine_param(AHC_LEVEL, immediate_data);
+        machine_control->prev_trigger_level = *(machine_control->trigger_level);
+        fprintf(stderr,"wou_stepgen.c: trigger_level(%d)\n",
+                (uint32_t) *(machine_control->trigger_level));
+        machine_control->prev_trigger_level = *(machine_control->trigger_level);
+    }
+
+    if ((*machine_control->trigger_enable) !=
+            (machine_control->prev_trigger_enable)) {
+//        immediate_data = (*(machine_control->ahc_state));
+//        write_machine_param(AHC_STATE, immediate_data);
+        fprintf(stderr,"wou_stepgen.c: trigger_enable(%d)\n",
+                *(machine_control->trigger_enable));
+        machine_control->prev_trigger_enable = *machine_control->trigger_enable;
+    }
+    /* end: handle Trigger state, Trigger level */
+
     /* begin: setup sync wait timeout */
     if (*machine_control->timeout != machine_control->prev_timeout) {
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
@@ -2474,6 +2505,30 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->spindle_joint_id), comp_id, "wou.motion.spindle-joint-id");
     if (retval != 0) { return retval; }
     *(machine_control->spindle_joint_id) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->trigger_din), comp_id, "wou.trigger.din");
+    if (retval != 0) { return retval; }
+    *(machine_control->trigger_din) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->trigger_ain), comp_id, "wou.trigger.ain");
+    if (retval != 0) { return retval; }
+    *(machine_control->trigger_ain) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->trigger_type), comp_id, "wou.trigger.type");
+    if (retval != 0) { return retval; }
+    *(machine_control->trigger_type) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->trigger_cond), comp_id, "wou.trigger.cond");
+    if (retval != 0) { return retval; }
+    *(machine_control->trigger_cond) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->trigger_level), comp_id, "wou.trigger.level");
+    if (retval != 0) { return retval; }
+    *(machine_control->trigger_level) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->trigger_enable), comp_id, "wou.trigger.enable");
+    if (retval != 0) { return retval; }
+    *(machine_control->trigger_enable) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
