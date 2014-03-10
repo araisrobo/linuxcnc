@@ -22,10 +22,12 @@ FUNCTION(_) {
 		olddown=countdown;
 		first=0;
 	}
-	if ((!oldup) && (countup)) { // positive edge, count up
+//	if ((!oldup) && (countup)) { // positive edge, count up
+    if (countup) { // positive edge, count up
 		temp_count++;
 	}
-        if ((!olddown) && (countdown)) { // positive edge, count down
+//  if ((!olddown) && (countdown)) { // positive edge, count down
+    if (countdown) { // positive edge, count down
 		temp_count--;
 	}
 	if (reset) {
