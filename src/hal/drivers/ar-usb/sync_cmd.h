@@ -172,6 +172,7 @@ typedef enum {
     RCMD_UPDATE_POS_REQ,        // RCMD_FSM, request HOST to update position
     RCMD_UPDATE_POS_ACK,        // RCMD set by HOST 
     RCMD_PROBE_REQ,             // RCMD set by HOST 
+    RCMD_GMCODE_PROBE,             // RCMD set by HOST
 } rsic_cmd_t;
 
 typedef enum {
