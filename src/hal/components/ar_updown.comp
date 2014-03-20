@@ -1,4 +1,4 @@
-component updown "Counts up or down, with optional limits and wraparound behavior";
+component ar_updown "Counts up or down, with optional limits and wraparound behavior";
 pin in bit countup "Increment count when this pin goes from 0 to 1";
 pin in bit countdown "Decrement count when this pin goes from 0 to 1";
 pin in bit reset "Reset count when this pin goes from 0 to 1";
