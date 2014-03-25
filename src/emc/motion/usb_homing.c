@@ -239,7 +239,12 @@ void do_homing(void)
                 /* This state is responsible for getting the homing process
 		   started.  It doesn't actually do anything, it simply
 		   determines what state is next */
-
+                if (*emcmot_hal_data->rcmd_state != RCMD_IDLE)
+                {
+                    // wait until RISC is finishing UPDATE_POS_REQ after ESTOP-RST and MACHINE-ON
+                    emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
+                    break;
+                }
                 /* set flags that communicate with the rest of EMC */
                 SET_JOINT_HOMING_FLAG(joint, 1);
                 SET_JOINT_HOMED_FLAG(joint, 0);
@@ -865,8 +870,11 @@ void do_homing(void)
     if ( homing_flag ) {
         /* at least one joint is homing, set global flag */
         emcmotStatus->homing_active = 1;
-//        printf ("881: homing... rcmd_state(%d) j0.hs(%d) j1.home_state(%d) j2.home_state(%d) j3.hs(%d) \n",
-//                *(emcmot_hal_data->rcmd_state), joints[0].home_state, joints[1].home_state, joints[2].home_state, joints[3].home_state);
+//        printf ("homing... rcmd_state(%d) j0.hs(%d) j1.hs(%d) j2.hs(%d) j3.hs(%d) j4.hs(%d) j5.hs(%d)\n",
+//                *(emcmot_hal_data->rcmd_state),
+//                joints[0].home_state, joints[1].home_state,
+//                joints[2].home_state, joints[3].home_state,
+//                joints[4].home_state, joints[5].home_state);
 
     } else {
         /* is a homing sequence in progress? */
