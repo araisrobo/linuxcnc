@@ -1756,30 +1756,33 @@ static void update_freq(void *arg, long period)
 
             // maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
             {
-                /* step_len is for electron characteristic: pulse duration. */
-                double min_ns_per_step = stepgen->step_len;
-                double max_steps_per_s = 1.0e9 / min_ns_per_step;
+                if (stepgen->pulse_type != 'P') {
+                    /* AB-PHASE or STEP-DIR */
+                    /* step_len is for electron characteristic: pulse duration. */
+                    double min_ns_per_step = stepgen->step_len;
+                    double max_steps_per_s = 1.0e9 / min_ns_per_step;
 
-                physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
-                physical_maxvel = force_precision(physical_maxvel);
+                    physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
+                    physical_maxvel = force_precision(physical_maxvel);
 
-                if (stepgen->maxvel < 0.0) {
-                    rtapi_print_msg(RTAPI_MSG_ERR,
-                            "stepgen.%02d.maxvel < 0, setting to its absolute value\n",
-                            n);
-                    stepgen->maxvel = fabs(stepgen->maxvel);
-                }
+                    if (stepgen->maxvel < 0.0) {
+                        rtapi_print_msg(RTAPI_MSG_ERR,
+                                "stepgen.%02d.maxvel < 0, setting to its absolute value\n",
+                                n);
+                        stepgen->maxvel = fabs(stepgen->maxvel);
+                    }
 
-                if (stepgen->maxvel > physical_maxvel) {
-                    rtapi_print_msg(RTAPI_MSG_ERR,
-                            "stepgen.%02d.maxvel is too big for current step timings & position-scale, clipping to max possible\n",
-                            n);
-                    stepgen->maxvel = physical_maxvel;
-                }
-
-                if (stepgen->pulse_type == 'P') {
-                    // PWM
-                    stepgen->maxvel = 100.0 * fabs(stepgen->pos_scale) * FIXED_POINT_SCALE;
+                    if (stepgen->maxvel > physical_maxvel) {
+                        rtapi_print_msg(RTAPI_MSG_ERR,
+                                "stepgen.%02d.maxvel is too big for current step timings & position-scale, clipping to max possible\n",
+                                n);
+                        stepgen->maxvel = physical_maxvel;
+                    }
+                } else {
+                    /* PWM-DIR */
+                    if (stepgen->pulse_type == 'P') {
+                        stepgen->maxvel = 100.0 * fabs(stepgen->pos_scale) * FIXED_POINT_SCALE;
+                    }
                 }
 
             }
