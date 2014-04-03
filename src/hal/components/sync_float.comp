@@ -1,0 +1,7 @@
+component sync_float "Synchronize float HAL from userspace app to realtime threads";
+pin in float in;
+pin out float out;
+function _ fp;
+license "GPL";
+;;
+FUNCTION(_) { out = in; }

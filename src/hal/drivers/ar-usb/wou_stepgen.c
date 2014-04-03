@@ -75,11 +75,6 @@ MODULE_AUTHOR("Yishin Li");
 MODULE_DESCRIPTION("Wishbone Over USB for EMC HAL");
 MODULE_LICENSE("GPL");
 
-const char *ctrl_type[MAX_CHAN] =
-{ " ", " ", " ", " ", " ", " ", " ", " " };
-RTAPI_MP_ARRAY_STRING(ctrl_type, MAX_CHAN,
-        "control type (pos or vel) for up to 8 channels");
-
 const char *pulse_type[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(pulse_type, MAX_CHAN,
@@ -264,7 +259,7 @@ typedef struct {
     uint32_t    son_delay;      /* eanble delay tick for svo-on of ac-servo drivers */
     hal_bit_t   *enable;		/* pin for enable stepgen */
     hal_u32_t   step_len;		/* parameter: step pulse length */
-    int pos_mode;		/* 1 = position command mode, 0 = velocity command mode */
+    char        pulse_type;     /* A(AB-PHASE), S(STEP-DIR), P(PWM) */
     hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
 //    hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
@@ -444,8 +439,7 @@ static double recip_dt;		/* reciprocal of period, avoids divides */
  *                  LOCAL FUNCTION DECLARATIONS                         *
  ************************************************************************/
 
-static int export_stepgen(int num, stepgen_t * addr,
-        int pos_mode);
+static int export_stepgen(int num, stepgen_t * addr, char pulse_type);
 static int export_analog(analog_t * addr);
 static int export_machine_control(machine_control_t * machine_control);
 static void update_freq(void *arg, long period);
@@ -893,6 +887,7 @@ int rtapi_app_main(void)
     // "pulse type (AB-PHASE(a) or STEP-DIR(s) or PWM-DIR(p)) for up to 8 channels")
     data[0] = 0;
     data[1] = 0;
+    num_joints = 0;
     for (n = 0; n < MAX_CHAN && (pulse_type[n][0] != ' ') ; n++) {
         if (toupper(pulse_type[n][0]) == 'A') {
             // PULSE_TYPE(0): ab-phase
@@ -916,6 +911,7 @@ int rtapi_app_main(void)
                     pulse_type[n], n);
             return -1;
         }
+        num_joints++;
     }
     if(n > 0) {
         wou_cmd (&w_param, WB_WR_CMD,
@@ -1070,22 +1066,8 @@ int rtapi_app_main(void)
     }
     while(wou_flush(&w_param) == -1);
 
-    num_joints = 0;
-    for (n = 0; n < MAX_CHAN && (ctrl_type[n][0] != ' ') ; n++) {
-        if ((ctrl_type[n][0] == 'p') || (ctrl_type[n][0] == 'P')) {
-            ctrl_type[n] = "p";
-        } else if ((ctrl_type[n][0] == 'v') || (ctrl_type[n][0] == 'V')) {
-            ctrl_type[n] = "v";
-        } else {
-            rtapi_print_msg(RTAPI_MSG_ERR,
-                    "STEPGEN: ERROR: bad control type '%s' for joint %i (must be 'p' or 'v')\n",
-                    ctrl_type[n], n);
-            return -1;
-        }
-        num_joints++;
-    }
-
-    assert (num_joints <=6);  // support up to 6 joints for USB/7i43 
+    // Update num_joints while checking pulse_type[]
+    assert (num_joints <= 6);  // support up to 6 joints for USB/7i43
     if (num_joints == 0) {
         rtapi_print_msg(RTAPI_MSG_ERR,
                 "STEPGEN: ERROR: no channels configured\n");
@@ -1311,8 +1293,7 @@ int rtapi_app_main(void)
     /* export all the variables for each pulse generator */
     for (n = 0; n < num_joints; n++) {
         /* export all vars */
-        retval = export_stepgen(n, &(stepgen_array[n]),
-                /* step_type[n],*/ (ctrl_type[n][0] == 'p'));
+        retval = export_stepgen(n, &(stepgen_array[n]), toupper(pulse_type[n][0]));
         if (retval != 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
                     "STEPGEN: ERROR: stepgen %d var export failed\n",
@@ -1778,25 +1759,33 @@ static void update_freq(void *arg, long period)
 
             // maxvel must be >= 0.0, and may not be faster than 1 step per (steplen+stepspace) seconds
             {
-                /* step_len is for electron characteristic: pulse duration. */
-                double min_ns_per_step = stepgen->step_len;
-                double max_steps_per_s = 1.0e9 / min_ns_per_step;
+                if (stepgen->pulse_type != 'P') {
+                    /* AB-PHASE or STEP-DIR */
+                    /* step_len is for electron characteristic: pulse duration. */
+                    double min_ns_per_step = stepgen->step_len;
+                    double max_steps_per_s = 1.0e9 / min_ns_per_step;
 
-                physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
-                physical_maxvel = force_precision(physical_maxvel);
+                    physical_maxvel = max_steps_per_s / fabs(stepgen->pos_scale);
+                    physical_maxvel = force_precision(physical_maxvel);
 
-                if (stepgen->maxvel < 0.0) {
-                    rtapi_print_msg(RTAPI_MSG_ERR,
-                            "stepgen.%02d.maxvel < 0, setting to its absolute value\n",
-                            n);
-                    stepgen->maxvel = fabs(stepgen->maxvel);
-                }
+                    if (stepgen->maxvel < 0.0) {
+                        rtapi_print_msg(RTAPI_MSG_ERR,
+                                "stepgen.%02d.maxvel < 0, setting to its absolute value\n",
+                                n);
+                        stepgen->maxvel = fabs(stepgen->maxvel);
+                    }
 
-                if (stepgen->maxvel > physical_maxvel) {
-                    rtapi_print_msg(RTAPI_MSG_ERR,
-                            "stepgen.%02d.maxvel is too big for current step timings & position-scale, clipping to max possible\n",
-                            n);
-                    stepgen->maxvel = physical_maxvel;
+                    if (stepgen->maxvel > physical_maxvel) {
+                        rtapi_print_msg(RTAPI_MSG_ERR,
+                                "stepgen.%02d.maxvel is too big for current step timings & position-scale, clipping to max possible\n",
+                                n);
+                        stepgen->maxvel = physical_maxvel;
+                    }
+                } else {
+                    /* PWM-DIR */
+                    if (stepgen->pulse_type == 'P') {
+                        stepgen->maxvel = 100.0 * fabs(stepgen->pos_scale) * FIXED_POINT_SCALE;
+                    }
                 }
 
             }
@@ -1853,8 +1842,11 @@ static void update_freq(void *arg, long period)
         // first sanity-check our maxaccel and maxvel params
         //
 
-        if (stepgen->pos_mode) {
-            /* position command mode */
+        if (stepgen->pulse_type != 'P') {
+            /* pulse_type is either A(AB-PHASE) or S(STEP-DIR) */
+            int32_t pulse_accel;
+            int32_t pulse_jerk;
+
             if (*(machine_control->update_pos_ack))
             {
                 (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
@@ -1864,23 +1856,6 @@ static void update_freq(void *arg, long period)
                         n, (*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
             }
             *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
-        } else {
-            assert(0);
-            /* velocity command mode */
-            /* NB: has to wire *pos_cmd-pin to velocity command input */
-            if (fabs(*stepgen->pos_cmd) > stepgen->maxvel) {
-                *stepgen->vel_cmd = (stepgen->maxvel) * dt ; 
-                if (*stepgen->pos_cmd < 0) {
-                    *stepgen->vel_cmd *= -1.0;
-                }
-            } else {
-                *stepgen->vel_cmd = (*stepgen->pos_cmd) * dt ; // notice: has to wire *pos_cmd-pin to velocity command input
-            }
-        }
-
-        {
-            int32_t pulse_accel; 
-            int32_t pulse_jerk; 
 
             integer_pos_cmd = (int32_t)(*stepgen->vel_cmd * (stepgen->pos_scale) * FIXED_POINT_SCALE);
 
@@ -1900,27 +1875,31 @@ static void update_freq(void *arg, long period)
             }
             assert (abs(integer_pos_cmd) <= stepgen->pulse_maxv);
             pulse_accel = integer_pos_cmd - stepgen->pulse_vel;
-            /* TODO: there's S-CURVE decel bug in tp.c; enable the
-             * pulse_maxa assertion after resolving that bug */
-            // TODO: assert (abs(pulse_accel) <= stepgen->pulse_maxa);
             pulse_jerk = pulse_accel - stepgen->pulse_accel;
-            //pulse_maxj: if (abs(pulse_jerk) > stepgen->pulse_maxj) {
-            //pulse_maxj:     DP("j[%d], vel_cmd(%f)\n",
-            //pulse_maxj:             n, *stepgen->vel_cmd);
-            //pulse_maxj:     DP("j[%d], pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
-            //pulse_maxj:             n, integer_pos_cmd, pulse_accel, pulse_jerk);
-            //pulse_maxj:     DP("j[%d], PREV pulse_vel(%d), pulse_accel(%d), pulse_jerk(%d)\n",
-            //pulse_maxj:             n, stepgen->pulse_vel, stepgen->pulse_accel, stepgen->pulse_jerk);
-            //pulse_maxj:     DP("j[%d], pulse_maxv(%d), pulse_maxa(%d), pulse_maxj(%d)\n",
-            //pulse_maxj:             n, stepgen->pulse_maxv, stepgen->pulse_maxa, stepgen->pulse_maxj);
-            //pulse_maxj: }
-            /* TODO: there's S-CURVE decel bug in tp.c; enable the
-             * pulse_maxj assertion after resolving that bug */
+            /* TODO: there's S-CURVE decel bug in tp.c; enable maxa, maxj assertions after resolving it */
+            // TODO: assert (abs(pulse_accel) <= stepgen->pulse_maxa);
             // TODO: assert (abs(pulse_jerk) <= stepgen->pulse_maxj);
             stepgen->pulse_vel = integer_pos_cmd;
             stepgen->pulse_accel = pulse_accel;
             stepgen->pulse_jerk = pulse_jerk;
+        } else
+        {
+            /* pulse_type is P(PWM) */
+            /* pos_cmd is PWM duty ratio, +/- 0~100 */
+            integer_pos_cmd = (int32_t)((*stepgen->pos_cmd * (stepgen->pos_scale)) * FIXED_POINT_SCALE); // 16.16 precision
+            if (abs(integer_pos_cmd) > ((int32_t) stepgen->maxvel))
+            {
+                if (integer_pos_cmd > 0)
+                {
+                    integer_pos_cmd = (int32_t) stepgen->maxvel;
+                } else
+                {
+                    integer_pos_cmd = (int32_t) -stepgen->maxvel;
+                }
+            }
+        }
 
+        {
             /* extract integer part of command */
             wou_pos_cmd = abs(integer_pos_cmd) >> FRACTION_BITS;
 
@@ -1938,6 +1917,9 @@ static void update_freq(void *arg, long period)
             // DIR_P: Direction, (positive(1), negative(0))
             // POS_MASK: relative position mask
 
+            // TODO: pack sync_cmd into single-32-bit-word for each joint
+
+            /* packing integer part of position command (16-bit) */
             if (integer_pos_cmd >= 0) {
                 sync_cmd = SYNC_JNT | DIR_P | (POS_MASK & wou_pos_cmd);
             } else {
@@ -1945,7 +1927,7 @@ static void update_freq(void *arg, long period)
             }
             memcpy(data + (2 * n * sizeof(uint16_t)), &sync_cmd, sizeof(uint16_t));
 
-            /* packing fraction part */
+            /* packing fraction part (16-bit) */
             wou_pos_cmd = (abs(integer_pos_cmd)) & FRACTION_MASK;
             sync_cmd = (uint16_t) wou_pos_cmd;
             memcpy(data + (2*n+1) * sizeof(uint16_t), &sync_cmd, sizeof(uint16_t));
@@ -2020,8 +2002,7 @@ static int export_analog(analog_t * addr)
 } // export_analog ()
 
 
-static int export_stepgen(int num, stepgen_t * addr,
-        int pos_mode)
+static int export_stepgen(int num, stepgen_t * addr, char pulse_type)
 {
     int retval, msg;
 
@@ -2199,7 +2180,7 @@ static int export_stepgen(int num, stepgen_t * addr,
     addr->freq = 0.0;
     addr->maxvel = 0.0;
     addr->maxaccel = 0.0;
-    addr->pos_mode = pos_mode;
+    addr->pulse_type = pulse_type;
     addr->pos_cmd_s = 0;
     /* timing parameter defaults depend on step type */
     addr->step_len = 1;

@@ -114,6 +114,12 @@ void do_homing_sequence(void)
                 emcmotStatus->homingSequenceState = HOME_SEQUENCE_IDLE;
                 return;
             }
+            if (*emcmot_hal_data->rcmd_state != RCMD_IDLE)
+            {
+                // wait until RISC is finishing UPDATE_POS_REQ after ESTOP-RST and MACHINE-ON
+                emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
+                return;
+            }
         }
         /* ok to start the sequence, start at zero */
         home_sequence = 0;
@@ -239,12 +245,7 @@ void do_homing(void)
                 /* This state is responsible for getting the homing process
 		   started.  It doesn't actually do anything, it simply
 		   determines what state is next */
-                if (*emcmot_hal_data->rcmd_state != RCMD_IDLE)
-                {
-                    // wait until RISC is finishing UPDATE_POS_REQ after ESTOP-RST and MACHINE-ON
-                    emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
-                    break;
-                }
+
                 /* set flags that communicate with the rest of EMC */
                 SET_JOINT_HOMING_FLAG(joint, 1);
                 SET_JOINT_HOMED_FLAG(joint, 0);
