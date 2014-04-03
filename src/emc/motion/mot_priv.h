@@ -99,6 +99,8 @@ typedef struct {
 
 typedef struct {
     hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_bit_t *trigger_result;
+    hal_bit_t *prev_trigger_result;
     hal_bit_t *req_cmd_sync;
     hal_u32_t *usb_cmd;         /* usb command output */
     hal_u32_t *last_usb_cmd;

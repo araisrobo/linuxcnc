@@ -416,6 +416,7 @@ typedef struct {
     hal_u32_t    *trigger_cond;
     hal_u32_t    *trigger_level;
     hal_bit_t   *trigger_enable;     // 0: disable 1:enable
+    hal_bit_t   *trigger_result;     // 0: disable 1:enable
 
     uint32_t     prev_trigger_enable;
 //    hal_float_t  *ahc_level;
@@ -664,6 +665,8 @@ static void fetchmail(const uint8_t *buf_head)
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
             stepgen += 1;   // point to next joint
         }
+        p += 1;
+        *machine_control->trigger_result = ((uint8_t)*p);
         break;
 
     default:
@@ -1831,14 +1834,19 @@ static void update_freq(void *arg, long period)
         {
             // do GMCODE_PROBE
             uint32_t dbuf[4];
+
             dbuf[0] = RCMD_GMCODE_PROBE;
-            dbuf[1] = n |   // joint_num
-                        (*machine_control->trigger_din << 8) |
-                        (*machine_control->trigger_ain << 16);
-            dbuf[2] = (*machine_control->trigger_type) |
-            			(*machine_control->trigger_cond << 8);
-            dbuf[3] = *machine_control->trigger_level;                               // distance in pulse
-            send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 4);
+            dbuf[1] = *machine_control->trigger_level |
+                        (*machine_control->trigger_din << 14) |
+                        (*machine_control->trigger_ain << 22) |
+                        (*machine_control->trigger_type << 28) |
+                        (*machine_control->trigger_cond << 30) |
+                        (*machine_control->trigger_enable << 31);
+                            // distance in pulse
+            send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
+        }
+        if((*machine_control->trigger_enable) == 0){
+        	*machine_control->trigger_result = 0;
         }
 
         //
@@ -2544,6 +2552,11 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->trigger_enable), comp_id, "wou.trigger.enable");
     if (retval != 0) { return retval; }
     *(machine_control->trigger_enable) = 0;
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->trigger_result), comp_id, "wou.trigger.result");
+    if (retval != 0) {
+        return retval;
+    }
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);

@@ -172,7 +172,7 @@ typedef enum {
     RCMD_UPDATE_POS_REQ,        // RCMD_FSM, request HOST to update position
     RCMD_UPDATE_POS_ACK,        // RCMD set by HOST 
     RCMD_PROBE_REQ,             // RCMD set by HOST 
-    RCMD_GMCODE_PROBE,             // RCMD set by HOST
+    RCMD_GMCODE_PROBE,          // RCMD set by HOST
 } rsic_cmd_t;
 
 typedef enum {
@@ -180,6 +180,13 @@ typedef enum {
     RISC_PROBE_HIGH,
     RISC_PROBE_INDEX,
 } rsic_probe_type_t;
+
+typedef enum {
+    OR = 0,
+    AONLY,
+    DONLY,
+    AND,
+} host_probe_type_t;
 
 // memory map for machine config
 enum machine_parameter_addr {

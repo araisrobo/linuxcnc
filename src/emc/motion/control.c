@@ -703,95 +703,103 @@ static void do_forward_kins(void)
 #define PROBE_CMD_TYPE 0x0001
 static void process_probe_inputs(void)
 {
-    unsigned char probe_type = emcmotStatus->probe_type;
 
-    // interp_convert.cc: probe_type = g_code - G_38_2;
-    // G38.2: probe_type = 0, stop on contact, signal error if failure
-    // G38.3: probe_type = 1, stop on contact
-    // G38.4: probe_type = 2, stop on loss of contact, signal error if failure
-    // G38.5: probe_type = 3, stop on loss of contact
+	if (*(emcmot_hal_data->trigger_result) != 0 && (*(emcmot_hal_data->trigger_result) != *(emcmot_hal_data->prev_trigger_result)))
+	{
+		printf("TODO: tpabort\n");
+		tpAbort(&emcmotDebug->coord_tp);
+	}
+	*(emcmot_hal_data->prev_trigger_result) = *(emcmot_hal_data->trigger_result);
 
-    // don't error
-    char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
+//    unsigned char probe_type = emcmotStatus->probe_type;
+//
+//    // interp_convert.cc: probe_type = g_code - G_38_2;
+//    // G38.2: probe_type = 0, stop on contact, signal error if failure
+//    // G38.3: probe_type = 1, stop on contact
+//    // G38.4: probe_type = 2, stop on loss of contact, signal error if failure
+//    // G38.5: probe_type = 3, stop on loss of contact
+//
+//    // don't error
+//    char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
+//
+//    // trigger when the probe clears, instead of the usual case of triggering when it trips
+//    char probe_whenclears = (probe_type & 2);
+//
+//    /* read probe input */
+//    emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
+//    switch ( emcmotStatus->usb_status & 0x0000000F) // probe status mask
+//    {
+//    case USB_STATUS_PROBING:
+//        DP("probe: USB_STATUS_PROBING begin\n");
+//        if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0)
+//        {
+//            emcmotStatus->probeTripped = 0;
+//            // ack risc to stop probing
+//            emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+//            emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
+//            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//        }
+//        break;
+//
+//    case USB_STATUS_PROBE_HIT:
+//        DP("probe: USB_STATUS_PROBE_HIT begin\n");
+//        emcmotStatus->probeTripped = 1;
+//        /* tell USB that we've got the status */
+//        DP("sending USB_CMD_STATUS_ACK\n");
+//        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
+//        emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
+//        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
+//        break;
+//
+//    case USB_STATUS_READY: // PROBE STATUS Clean
+//        // deal with PROBE related status only
+//        if ((emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) && emcmotStatus->probing)
+//        {
+//            if (emcmotStatus->probeTripped == 1)
+//            {
+//                int32_t joint_num;
+//                emcmot_joint_t *joint;
+//                /* update probed pos */
+//                double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
+//                for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
+//                {
+//                    joint = &joints[joint_num];
+//                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
+//                }
+//                kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
+//            } else
+//            {
+//                /* remember the current position */
+//                emcmotStatus->probedPos = emcmotStatus->carte_pos_cmd;
+//                if (probe_suppress == 0)
+//                {
+//                    if(probe_whenclears)
+//                    {
+//                        reportError(_("G38.4 move finished without breaking contact."));
+//                        SET_MOTION_ERROR_FLAG(1);
+//                    } else
+//                    {
+//                        reportError(_("G38.2 move finished without making contact."));
+//                        SET_MOTION_ERROR_FLAG(1);
+//                    }
+//                }
+//            }
+//            DP("emcmotStatus->depth(%d) paused(%d) probe_cmd(%d)\n", emcmotStatus->depth, emcmotStatus->paused, emcmotStatus->probe_cmd);
+//            tpAbort(&emcmotDebug->coord_tp);
+//            emcmotStatus->probing = 0;
+//        }
+//
+//        if ((*emcmot_hal_data->update_pos_req == 0) &&
+//            (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK))
+//        {
+//            DP("to issue USB_CMD_NOOP\n");
+//            emcmotStatus->probe_cmd = USB_CMD_NOOP;
+//        }
 
-    // trigger when the probe clears, instead of the usual case of triggering when it trips
-    char probe_whenclears = (probe_type & 2);
-
-    /* read probe input */
-    emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
-    switch ( emcmotStatus->usb_status & 0x0000000F) // probe status mask
-    {
-    case USB_STATUS_PROBING:
-        DP("probe: USB_STATUS_PROBING begin\n");
-        if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0)
-        {
-            emcmotStatus->probeTripped = 0;
-            // ack risc to stop probing
-            emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-            emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
-            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-        }
-        break;
-
-    case USB_STATUS_PROBE_HIT:
-        DP("probe: USB_STATUS_PROBE_HIT begin\n");
-        emcmotStatus->probeTripped = 1;
-        /* tell USB that we've got the status */
-        DP("sending USB_CMD_STATUS_ACK\n");
-        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-        emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
-        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-        break;
-
-    case USB_STATUS_READY: // PROBE STATUS Clean
-        // deal with PROBE related status only
-        if ((emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) && emcmotStatus->probing)
-        {
-            if (emcmotStatus->probeTripped == 1)
-            {
-                int32_t joint_num;
-                emcmot_joint_t *joint;
-                /* update probed pos */
-                double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
-                for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
-                {
-                    joint = &joints[joint_num];
-                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
-                }
-                kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
-            } else
-            {
-                /* remember the current position */
-                emcmotStatus->probedPos = emcmotStatus->carte_pos_cmd;
-                if (probe_suppress == 0)
-                {
-                    if(probe_whenclears) 
-                    {
-                        reportError(_("G38.4 move finished without breaking contact."));
-                        SET_MOTION_ERROR_FLAG(1);
-                    } else 
-                    {
-                        reportError(_("G38.2 move finished without making contact."));
-                        SET_MOTION_ERROR_FLAG(1);
-                    }
-                }
-            }
-            DP("emcmotStatus->depth(%d) paused(%d) probe_cmd(%d)\n", emcmotStatus->depth, emcmotStatus->paused, emcmotStatus->probe_cmd);
-            tpAbort(&emcmotDebug->coord_tp);
-            emcmotStatus->probing = 0;
-        }
-
-        if ((*emcmot_hal_data->update_pos_req == 0) &&
-            (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK))
-        {
-            DP("to issue USB_CMD_NOOP\n");
-            emcmotStatus->probe_cmd = USB_CMD_NOOP;
-        }
-
-        break;
-    default:
-        break;
-    }
+//        break;
+//    default:
+//        break;
+//    }
 }
 
 static int update_current_pos = 0;
