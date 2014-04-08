@@ -704,12 +704,16 @@ static void do_forward_kins(void)
 static void process_probe_inputs(void)
 {
 
-	if (*(emcmot_hal_data->trigger_result) != 0 && (*(emcmot_hal_data->trigger_result) != *(emcmot_hal_data->prev_trigger_result)))
+//	if (*(emcmot_hal_data->trigger_result) != 0 && (*(emcmot_hal_data->trigger_result) != *(emcmot_hal_data->prev_trigger_result)))
+	if ((emcmotStatus->probing) && (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ))
+
+//	if (*(emcmot_hal_data->trigger_result) != 0 && (emcmotStatus->probing) && (*emcmot_hal_data->rcmd_state != RCMD_IDLE))
 	{
 		printf("TODO: tpabort\n");
 		tpAbort(&emcmotDebug->coord_tp);
+		emcmotStatus->probing = 0;
 	}
-	*(emcmot_hal_data->prev_trigger_result) = *(emcmot_hal_data->trigger_result);
+//	*(emcmot_hal_data->prev_trigger_result) = *(emcmot_hal_data->trigger_result);
 
 //    unsigned char probe_type = emcmotStatus->probe_type;
 //

@@ -413,7 +413,7 @@ typedef struct {
     hal_bit_t   *trigger_enable;     // 0: disable 1:enable
     hal_bit_t   *trigger_result;     // 0: disable 1:enable
 
-    uint32_t     prev_trigger_enable;
+    hal_bit_t     prev_trigger_enable;
 //    hal_float_t  *ahc_level;
     double      prev_trigger_level;
 } machine_control_t;
@@ -1553,27 +1553,6 @@ static void update_freq(void *arg, long period)
     }
     /* end: handle AHC state, AHC level */
 
-//    /* begin: handle Trigger state, Trigger level */
-//    if (*machine_control->trigger_level != machine_control->prev_trigger_level) {
-//        immediate_data = (uint32_t)(*(machine_control->trigger_level));
-//        immediate_data *= 65536; //coonvert from 32.0 to 16.16
-////        write_machine_param(AHC_LEVEL, immediate_data);
-//        machine_control->prev_trigger_level = *(machine_control->trigger_level);
-//        fprintf(stderr,"wou_stepgen.c: trigger_level(%d)\n",
-//                (uint32_t) *(machine_control->trigger_level));
-//        machine_control->prev_trigger_level = *(machine_control->trigger_level);
-//    }
-//
-//    if ((*machine_control->trigger_enable) !=
-//            (machine_control->prev_trigger_enable)) {
-////        immediate_data = (*(machine_control->ahc_state));
-////        write_machine_param(AHC_STATE, immediate_data);
-//        fprintf(stderr,"wou_stepgen.c: trigger_enable(%d)\n",
-//                *(machine_control->trigger_enable));
-//        machine_control->prev_trigger_enable = *machine_control->trigger_enable;
-//    }
-    /* end: handle Trigger state, Trigger level */
-
     /* begin: setup sync wait timeout */
     if (*machine_control->timeout != machine_control->prev_timeout) {
         immediate_data = (uint32_t)(*(machine_control->timeout)/(servo_period_ns * 0.000000001)); // ?? sec timeout / one tick interval
@@ -1818,12 +1797,11 @@ static void update_freq(void *arg, long period)
             DP ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
-        if((*machine_control->trigger_enable) &&
+        if((*machine_control->trigger_enable != machine_control->prev_trigger_enable) &&
            (*machine_control->rcmd_state == RCMD_IDLE))
         {
             // do GMCODE_PROBE
             uint32_t dbuf[4];
-
             dbuf[0] = RCMD_GMCODE_PROBE;
             dbuf[1] = *machine_control->trigger_level |
                         (*machine_control->trigger_din << 14) |
@@ -1833,9 +1811,7 @@ static void update_freq(void *arg, long period)
                         (*machine_control->trigger_enable << 31);
                             // distance in pulse
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
-        }
-        if((*machine_control->trigger_enable) == 0){
-        	*machine_control->trigger_result = 0;
+            machine_control->prev_trigger_enable = *machine_control->trigger_enable;
         }
 
         //
@@ -2533,6 +2509,7 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->trigger_enable), comp_id, "wou.trigger.enable");
     if (retval != 0) { return retval; }
     *(machine_control->trigger_enable) = 0;
+    (machine_control->prev_trigger_enable) = 0;
 
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->trigger_result), comp_id, "wou.trigger.result");
     if (retval != 0) {
