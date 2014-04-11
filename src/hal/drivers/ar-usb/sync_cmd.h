@@ -273,18 +273,18 @@ enum motion_parameter_addr {
     MAX_PARAM_ITEM
 };
 
-/* usb to risc: similar to usb_cmd in hal/usb.h */
-typedef enum {
-    PROBE_STOP_REPORT = 1,
-    PROBE_END = 2,   // an ack from host to acknowledge risc when the probing is finish or abort
-    PROBE_HIGH = 3,
-    PROBE_LOW = 4,
-    PROBE_ACK = 6,
-    PROBE_DECEL=0xF000,
-    PROBE_LOCK_MOVE=0xF001,
-    PROBE_FINAL_MOVE=0xF002,
-    PROBE_REPORT_RISC_ERROR=0xF003, // used by risc probing
-} probe_state_t;
+///* usb to risc: similar to usb_cmd in hal/usb.h */
+//typedef enum {
+//    PROBE_STOP_REPORT = 1,
+//    PROBE_END = 2,   // an ack from host to acknowledge risc when the probing is finish or abort
+//    PROBE_HIGH = 3,
+//    PROBE_LOW = 4,
+//    PROBE_ACK = 6,
+//    PROBE_DECEL=0xF000,
+//    PROBE_LOCK_MOVE=0xF001,
+//    PROBE_FINAL_MOVE=0xF002,
+//    PROBE_REPORT_RISC_ERROR=0xF003, // used by risc probing
+//} probe_state_t;
 
 
 enum probe_pin_type {

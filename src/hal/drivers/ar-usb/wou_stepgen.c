@@ -411,9 +411,11 @@ typedef struct {
     hal_bit_t    *trigger_cond;
     hal_u32_t    *trigger_level;
     hal_bit_t   *trigger_enable;     // 0: disable 1:enable
+    hal_bit_t   *probing;
     hal_bit_t   *trigger_result;     // 0: disable 1:enable
 
     hal_bit_t     prev_trigger_enable;
+    hal_bit_t     prev_probing;
 //    hal_float_t  *ahc_level;
     double      prev_trigger_level;
 } machine_control_t;
@@ -657,6 +659,7 @@ static void fetchmail(const uint8_t *buf_head)
         for (i=0; i<num_joints; i++) {
             p += 1;
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
+//            printf("joint[%d] probed_pos(%f)\n", i, *(stepgen->probed_pos));
             stepgen += 1;   // point to next joint
         }
         p += 1;
@@ -1797,8 +1800,11 @@ static void update_freq(void *arg, long period)
             DP ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
-        if((*machine_control->trigger_enable != machine_control->prev_trigger_enable) &&
-           (*machine_control->rcmd_state == RCMD_IDLE))
+//        if((*machine_control->trigger_enable != machine_control->prev_trigger_enable) &&
+//           (*machine_control->rcmd_state == RCMD_IDLE))
+        if((*machine_control->probing != machine_control->prev_probing))
+//        		&&
+//                   (*machine_control->rcmd_state == RCMD_IDLE))
         {
             // do GMCODE_PROBE
             uint32_t dbuf[4];
@@ -1808,14 +1814,14 @@ static void update_freq(void *arg, long period)
                         ((*machine_control->trigger_ain & 0x3F) << 22) |
                         ((*machine_control->trigger_type & 0x3) << 28) |
                         ((*machine_control->trigger_cond & 0x1) << 30) |
-                        ((*machine_control->trigger_enable & 0x1) << 31);
+                        ((*machine_control->probing & 0x1) << 31);
                             // distance in pulse
 //            printf("level(%d) din(%d) ain(%d)\n type(%d) cond(%d) enable(%d)",
 //            		*machine_control->trigger_level, *machine_control->trigger_din,
 //            		*machine_control->trigger_ain, *machine_control->trigger_type,
 //            		*machine_control->trigger_cond, *machine_control->trigger_enable);
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
-            machine_control->prev_trigger_enable = *machine_control->trigger_enable;
+            machine_control->prev_probing = *machine_control->probing;
         }
 
         //
@@ -2515,7 +2521,12 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->trigger_enable) = 0;
     (machine_control->prev_trigger_enable) = 0;
 
-    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->trigger_result), comp_id, "wou.trigger.result");
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->probing), comp_id, "wou.motion.probing");
+    if (retval != 0) { return retval; }
+    *(machine_control->probing) = 0;
+    (machine_control->prev_probing) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IO, &(machine_control->trigger_result), comp_id, "wou.trigger.result");
     if (retval != 0) {
         return retval;
     }

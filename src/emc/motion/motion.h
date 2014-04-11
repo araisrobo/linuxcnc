@@ -131,8 +131,8 @@ typedef enum {
     EMCMOT_SET_TELEOP_VECTOR,	/* Move at a given velocity but in
 					   world cartesian coordinates, not
 					   in joint space like EMCMOT_JOG_* */
-
     EMCMOT_CLEAR_PROBE_FLAGS,	/* clears probeTripped flag */
+    EMCMOT_END_PROBE,	/* after probe*/
     EMCMOT_PROBE,		/* go to pos, stop if probe trips, record
 				   trip pos */
     EMCMOT_SPINDLE_SYNC_MOTION,	/* for G33 and G33.1, motion with sync to spindle speed*/

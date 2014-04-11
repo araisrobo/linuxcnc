@@ -2625,6 +2625,9 @@ void PALLET_SHUTTLE()
 void TURN_PROBE_OFF()
 {
     // don't do anything-- this is called when the probing is done
+    EMC_TRAJ_END_OF_PROBE endMsg;
+
+    interp_list.append(endMsg);
 }
 
 void TURN_PROBE_ON()

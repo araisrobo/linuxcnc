@@ -142,6 +142,7 @@ class PM_CARTESIAN;
 #define EMC_TRAJ_SET_FH_ENABLE_TYPE                  ((NMLTYPE) 236)
 #define EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE            ((NMLTYPE) 237)
 #define EMC_TRAJ_NURBS_MOVE_TYPE                     ((NMLTYPE) 238)
+#define EMC_TRAJ_END_OF_PROBE_TYPE     				  ((NMLTYPE) 239)
 
 
 #define EMC_TRAJ_STAT_TYPE                           ((NMLTYPE) 299)
@@ -501,6 +502,7 @@ extern int emcTrajSetOrigin(EmcPose origin);
 extern int emcTrajSetRotation(double rotation);
 extern int emcTrajSetHome(EmcPose home);
 extern int emcTrajClearProbeTrippedFlag();
+extern int emcTrajEndProbe();
 extern int emcTrajProbe(EmcPose pos, int type, double vel,
                         double ini_maxvel, double acc, double ini_maxjerk, unsigned char probe_type);
 extern int emcAuxInputWait(int index, int input_type, int wait_type, int timeout);

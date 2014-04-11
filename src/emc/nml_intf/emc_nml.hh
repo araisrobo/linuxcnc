@@ -970,6 +970,17 @@ class EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG:public EMC_TRAJ_CMD_MSG {
     void update(CMS * cms);
 };
 
+class EMC_TRAJ_END_OF_PROBE:public EMC_TRAJ_CMD_MSG {
+  public:
+	EMC_TRAJ_END_OF_PROBE():EMC_TRAJ_CMD_MSG
+	(EMC_TRAJ_END_OF_PROBE_TYPE,
+	 sizeof(EMC_TRAJ_END_OF_PROBE)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+};
+
 class EMC_TRAJ_SET_TELEOP_ENABLE:public EMC_TRAJ_CMD_MSG {
   public:
     EMC_TRAJ_SET_TELEOP_ENABLE():EMC_TRAJ_CMD_MSG

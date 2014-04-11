@@ -99,8 +99,14 @@ typedef struct {
 
 typedef struct {
     hal_bit_t *probe_input;	/* RPI: probe switch input */
-    hal_bit_t *trigger_result;
-    hal_bit_t *prev_trigger_result;
+	hal_bit_t *probing;
+    hal_u32_t    *trigger_din;
+    hal_u32_t    *trigger_ain;
+    hal_u32_t    *trigger_type;
+    hal_bit_t    *trigger_cond;
+    hal_u32_t    *trigger_level;
+	hal_bit_t *trigger_result;
+//    hal_bit_t *prev_trigger_result;
     hal_bit_t *req_cmd_sync;
     hal_u32_t *usb_cmd;         /* usb command output */
     hal_u32_t *last_usb_cmd;
@@ -158,7 +164,7 @@ typedef struct {
     
     hal_bit_t *synch_do[EMCMOT_MAX_DIO]; /* WPI array: output pins for motion synched IO */
     hal_bit_t *synch_di[EMCMOT_MAX_DIO]; /* RPI array: input pins for motion synched IO */
-    hal_float_t *analog_input[EMCMOT_MAX_AIO]; /* RPI array: input pins for analog Inputs */
+    hal_s32_t *analog_input[EMCMOT_MAX_AIO]; /* RPI array: input pins for analog Inputs */
     hal_float_t *analog_output[EMCMOT_MAX_AIO]; /* RPI array: output pins for analog Inputs */
 
     //hal_bit_t *sync_in[EMCMOT_MAX_SYNC_INPUT];

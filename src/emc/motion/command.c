@@ -458,6 +458,12 @@ void emcmotCommandHandler(void *arg, long period)
 		SET_JOINT_FAULT_FLAG(joint, 0);
 	    }
 	    emcmotStatus->paused = 0;
+	    if (emcmotStatus->probing){
+	    	emcmotStatus->probing = 0;
+	    	emcmotStatus->probeTripped = 0;
+			emcmotStatus->probedPos = emcmotStatus->carte_pos_cmd;
+
+	    }
 	    break;
 
 	case EMCMOT_JOINT_ABORT:
@@ -1411,102 +1417,152 @@ void emcmotCommandHandler(void *arg, long period)
             emcmotStatus->probeTripped = 0;
 	    break;
 
+	case EMCMOT_END_PROBE:
+            rtapi_print_msg(RTAPI_MSG_DBG, "END_PROBE");
+            printf("\nEMCMOT_END_PROBE and CLEAR FLAG\n");
+            if (emcmotStatus->probeTripped == 0)
+            {
+            	reportError(_("move finished without making contact"));
+            	emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
+            	tpAbort(&emcmotDebug->coord_tp);
+            	SET_MOTION_ERROR_FLAG(1);
+
+            }
+			emcmotStatus->probing = 0;
+			emcmotStatus->probeTripped = 0;
+	    break;
+
 	case EMCMOT_PROBE:
-	    /* most of this is taken from EMCMOT_SET_LINE */
-	    /* emcmotDebug->coord_tp up a linear move */
-	    /* requires coordinated mode, enable off, not on limits */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "PROBE");
-	    if (!GET_MOTION_COORD_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
-		reportError(_("need to be enabled, in coord mode for probe move"));
-		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Probe")) {
-		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
-		tpAbort(&emcmotDebug->coord_tp);
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-	    } else if (!limits_ok()) {
-		reportError(_("can't do probe move with limits exceeded"));
-		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
-		tpAbort(&emcmotDebug->coord_tp);
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-	    } else {
-                int probeval = *(emcmot_hal_data->probe_input);
-                int probe_whenclears = !!(emcmotCommand->probe_type & 2);
+		/* most of this is taken from EMCMOT_SET_LINE */
+		/* emcmotDebug->coord_tp up a linear move */
+		/* requires coordinated mode, enable off, not on limits */
+		rtapi_print_msg(RTAPI_MSG_DBG, "PROBE");
+		if (!GET_MOTION_COORD_FLAG() || !GET_MOTION_ENABLE_FLAG()) {
+			reportError(_("need to be enabled, in coord mode for probe move"));
+			emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
+			SET_MOTION_ERROR_FLAG(1);
+			break;
+		} else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Probe")) {
+			emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
+			tpAbort(&emcmotDebug->coord_tp);
+			SET_MOTION_ERROR_FLAG(1);
+			break;
+		} else if (!limits_ok()) {
+			reportError(_("can't do probe move with limits exceeded"));
+			emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
+			tpAbort(&emcmotDebug->coord_tp);
+			SET_MOTION_ERROR_FLAG(1);
+			break;
+		} else {
+			int n, result, amode, dmode,din_value;
+			float ain_value;
+			//			int probeval = *(emcmot_hal_data->probe_input);
+			//			int probe_whenclears = !!(emcmotCommand->probe_type & 2);
+			//
+			//			if (probeval != probe_whenclears) {
+			//				// the probe is already in the state we're seeking.
+			//				if (!(emcmotCommand->probe_type & 1))
+			//				{
+			//					// if suppress errors = off...
+			//					if(probe_whenclears)
+			//						reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));
+			//					else
+			//						reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+			//
+			//					emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+			//					SET_MOTION_ERROR_FLAG(1);
+			//				}
+			//				emcmotStatus->probing = 0;
+			//				emcmotStatus->probeTripped = 0;
+			//				emcmotStatus->probeVal = probeval;
+			//				tpAbort(&emcmotDebug->coord_tp);
+			//				break;
 
-                if (probeval != probe_whenclears) {
-                    // the probe is already in the state we're seeking.
-                    if (!(emcmotCommand->probe_type & 1))
-                    {
-                        // if suppress errors = off...
-                        if(probe_whenclears)
-                            reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));
-                        else
-                            reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+			n = *(emcmot_hal_data->trigger_din);
 
-                        emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-                        SET_MOTION_ERROR_FLAG(1);
-                    }
-                    emcmotStatus->probing = 0;
-                    emcmotStatus->probeTripped = 0;
-                    emcmotStatus->probeVal = probeval;
-                    tpAbort(&emcmotDebug->coord_tp);
-                    break;
-                }
-	    }
+			din_value = *(emcmot_hal_data->synch_di[n]);
+			n = *(emcmot_hal_data->trigger_ain);
+			ain_value= *(emcmot_hal_data->analog_input[n]);
+			amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
+			dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
+//			printf("TODO: if probe condition already true need abort\n");
+//			printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
+//			printf("amode(%d) dmode(%d)\n", amode, dmode);
+			switch(*(emcmot_hal_data->trigger_type))
+			{
+			case OR:
+				result = amode | dmode;
+				break;
+			case AONLY:
+				result = amode;
+				break;
+			case DONLY:
+				result = dmode;
+				break;
+			case AND:
+				result = amode & dmode;
+				break;
+			}
+			if (result != 0){
+				reportError(_("Probe condition is already true when starting move"));
+				emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
+				tpAbort(&emcmotDebug->coord_tp);
+				SET_MOTION_ERROR_FLAG(1);
+
+			}
+//			}
+		}
 
 
-	    /* append it to the emcmotDebug->coord_tp */
-	    tpSetId(&emcmotDebug->coord_tp, emcmotCommand->id);
-            if (-1 == tpAddLine(&emcmotDebug->coord_tp, emcmotCommand->pos,
-                                emcmotCommand->motion_type, emcmotCommand->vel,
-                                emcmotCommand->ini_maxvel,
-                                emcmotCommand->acc,
-                                emcmotCommand->ini_maxjerk,
-                                emcmotStatus->enables_new, 0, -1)) {
-		reportError(_("can't add probe move"));
-		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-		tpAbort(&emcmotDebug->coord_tp);
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-	    } else {
-		emcmotStatus->probing = 1;
-                emcmotStatus->probe_type = emcmotCommand->probe_type;
-		SET_MOTION_ERROR_FLAG(0);
-		/* set flag that indicates all joints need rehoming, if any
+		/* append it to the emcmotDebug->coord_tp */
+		tpSetId(&emcmotDebug->coord_tp, emcmotCommand->id);
+		if (-1 == tpAddLine(&emcmotDebug->coord_tp, emcmotCommand->pos,
+				emcmotCommand->motion_type, emcmotCommand->vel,
+				emcmotCommand->ini_maxvel,
+				emcmotCommand->acc,
+				emcmotCommand->ini_maxjerk,
+				emcmotStatus->enables_new, 0, -1)) {
+			reportError(_("can't add probe move"));
+			emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+			tpAbort(&emcmotDebug->coord_tp);
+			SET_MOTION_ERROR_FLAG(1);
+			break;
+		} else {
+			emcmotStatus->probing = 1;
+			emcmotStatus->probe_type = emcmotCommand->probe_type;
+			SET_MOTION_ERROR_FLAG(0);
+			/* set flag that indicates all joints need rehoming, if any
 		   joint is moved in joint mode, for machines with no forward
 		   kins */
-		rehomeAll = 1;
+			rehomeAll = 1;
 
-		// interp_convert.cc: probe_type = g_code - G_38_2;
-		// G38.2: probe_type = 0, stop on contact, signal error if failure
-                // G38.3: probe_type = 1, stop on contact
-                // G38.4: probe_type = 2, stop on loss of contact, signal error if failure
-                // G38.5: probe_type = 3, stop on loss of contact
-		if (emcmotCommand->probe_type & 2)
-		{
-                    // G38.4, G38.5
-                    emcmotStatus->probe_cmd = USB_CMD_PROBE_LOW;
-                    emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-                    emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
-                    rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_LOW");
-                    printf("USB_CMD_PROBE_LOW\n");
+			// interp_convert.cc: probe_type = g_code - G_38_2;
+			// G38.2: probe_type = 0, stop on contact, signal error if failure
+			// G38.3: probe_type = 1, stop on contact
+			// G38.4: probe_type = 2, stop on loss of contact, signal error if failure
+			// G38.5: probe_type = 3, stop on loss of contact
+			if (emcmotCommand->probe_type & 2)
+			{
+				// G38.4, G38.5
+				emcmotStatus->probe_cmd = USB_CMD_PROBE_LOW;
+				emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+				emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_LOW;
+				rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_LOW");
+				printf("USB_CMD_PROBE_LOW\n");
 
-		} else
-		{
-		    // G38.2, G38.3
-		    emcmotStatus->probe_cmd = USB_CMD_PROBE_HIGH;
-		    emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
-		    emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
-		    rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_HIGH");
-		    printf("USB_CMD_PROBE_HIGH\n");
+			} else
+			{
+				// G38.2, G38.3
+				emcmotStatus->probe_cmd = USB_CMD_PROBE_HIGH;
+				emcmotStatus->usb_cmd |= PROBE_CMD_TYPE;
+				emcmotStatus->usb_cmd_param[0] = (double) USB_CMD_PROBE_HIGH;
+				rtapi_print_msg(RTAPI_MSG_INFO, "USB_CMD_PROBE_HIGH");
+				printf("USB_CMD_PROBE_HIGH\n");
+			}
+			rtapi_print_msg(RTAPI_MSG_DBG, "usb_cmd(0x%0x) usb_cmd_param(%f)\n",
+					emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
 		}
-		rtapi_print_msg(RTAPI_MSG_DBG, "usb_cmd(0x%0x) usb_cmd_param(%f)\n",
-		                emcmotStatus->usb_cmd, emcmotStatus->usb_cmd_param[0]);
-	    }
-	    break;
+		break;
 
 	case EMCMOT_SPINDLE_SYNC_MOTION:
 	    /* most of this is taken from EMCMOT_SET_LINE */
