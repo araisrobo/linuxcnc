@@ -213,14 +213,6 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
         "indicate test pattern type");
 
-const char *probe_config= "0x00010000";         // probing input channel
-RTAPI_MP_STRING(probe_config,
-        "probe config for RISC");
-
-const char *probe_analog_ref_level= "2048";
-RTAPI_MP_STRING(probe_analog_ref_level,
-        "indicate probing level used by analog probing");
-
 // int alr_output = 0x00000000;
 // RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
 const char *alr_output= "0";
@@ -1008,14 +1000,7 @@ int rtapi_app_main(void)
     write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
     fprintf(stderr, "ALR_OUTPUT(%08X)",(uint32_t) strtoul(alr_output, NULL, 16));
     while(wou_flush(&w_param) == -1);
-    // config probe parameters
-    // probe_decel_cmd
-    write_machine_param(PROBE_CONFIG, (uint32_t) strtoul(probe_config, NULL, 16));
-    fprintf(stderr, "PROBE_CONFIG(%08X)",(uint32_t) strtoul(probe_config, NULL, 16));
-    while(wou_flush(&w_param) == -1);
-    immediate_data = atoi(probe_analog_ref_level);
-    write_machine_param(PROBE_ANALOG_REF_LEVEL, immediate_data);
-    while(wou_flush(&w_param) == -1);
+
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
     write_machine_param(AHC_ANALOG_CH, immediate_data);
