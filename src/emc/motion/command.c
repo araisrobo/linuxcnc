@@ -1434,11 +1434,11 @@ void emcmotCommandHandler(void *arg, long period)
             	emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
             	tpAbort(&emcmotDebug->coord_tp);
             	SET_MOTION_ERROR_FLAG(1);
+    			emcmotStatus->probeTripped = 0;
 
             }
 
 			emcmotStatus->probing = 0;
-			emcmotStatus->probeTripped = 0;
 	    break;
 
 	case EMCMOT_PROBE:
