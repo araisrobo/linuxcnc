@@ -425,9 +425,6 @@ static void process_inputs(void)
     emcmot_joint_t *joint;
     unsigned char enables;
 
-    /* read usb status */
-    emcmotStatus->usb_status = *emcmot_hal_data->usb_status;
-
     /* read spindle angle (for threading, etc) */
     emcmotStatus->spindleSpeedIn = *emcmot_hal_data->spindle_speed_in;
     emcmotStatus->spindle.at_speed = *emcmot_hal_data->spindle_is_atspeed;
@@ -437,7 +434,6 @@ static void process_inputs(void)
     emcmotStatus->spindle.on = *emcmot_hal_data->spindle_on;
     emcmotStatus->spindle.dynamic_speed_mode = *emcmot_hal_data->spindle_dynamic_speed_mode;
     emcmotStatus->spindle.const_speed_radius = *emcmot_hal_data->spindle_const_speed_radius;
-
 
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
@@ -700,177 +696,36 @@ static void do_forward_kins(void)
     }
 }
 
-//typedef enum {
-//    // naming: RISC_...CMD..._REQ
-//    PROBE_IDLE = 0,              // RCMD_FSM, set by RISC
-//    PROBE_WAIT            // RCMD_FSM, joint is aligning
-//} probe_state_t;
-
 static void process_probe_inputs(void)
 {
-//	static int probe_state = PROBE_IDLE;
-//	if (emcmotStatus->probing)
-//	{
-//		if (probe_state == PROBE_IDLE)
-//		{
-//			if (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
-//			{
-//				//				tpAbort(&emcmotDebug->coord_tp);]
-//				tpPause(&emcmotDebug->coord_tp);
-//				probe_state = PROBE_WAIT;
-//			}
-//		} else if (probe_state == PROBE_WAIT)
-//		{
-////	        emcmotStatus->update_pos_ack = *emcmot_hal_data->update_pos_req;
-//
-//			if (*emcmot_hal_data->rcmd_state == RCMD_IDLE)
-//			{
-//				int32_t joint_num;
-//				emcmot_joint_t *joint;
-//				double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
-//
-//				/* update probed pos */
-//				for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
-//				{
-//					joint = &joints[joint_num];
-//					joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
-//					printf("joint[%d]:joint_pos(%f) = joint->probed_pos(%f) - (joint->backlash_filt(%f) + joint->motor_offset(%f) + joint->blender_offset(%f))\n",
-//							joint_num, joint_pos[joint_num], joint->probed_pos, joint->backlash_filt, joint->motor_offset, joint->blender_offset);
-//				}
-//				kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
-//				emcmotStatus->probeTripped = 1; // interp_internal.cc: Interp::set_probe_data() #[5070]
-//				emcmotStatus->probing = 0;
-//				tpAbort(&emcmotDebug->coord_tp);
-////		        emcmotStatus->update_pos_ack = *emcmot_hal_data->update_pos_req;
-//				probe_state = PROBE_IDLE;
-//			}
-//		} else {
-//			assert(0);
-//		}
-//	}
+    // interp_convert.cc: probe_type = g_code - G_38_2;
+    // G38.2: probe_type = 0, stop on contact, signal error if failure
+    // G38.3: probe_type = 1, stop on contact
+    // G38.4: probe_type = 2, stop on loss of contact, signal error if failure
+    // G38.5: probe_type = 3, stop on loss of contact
+    if (emcmotStatus->probing)
+    {
+        if ((*emcmot_hal_data->trigger_result) && (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ))
+        {
+            int32_t joint_num;
+            emcmot_joint_t *joint;
+            double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
 
-//	printf("*emcmot_hal_data->rcmd_state(%d) probe_state(%d)\n", *emcmot_hal_data->rcmd_state, probe_state);
-//	*(emcmot_hal_data->prev_trigger_result) = *(emcmot_hal_data->trigger_result);
-//	if ((emcmotStatus->probing && (*emcmot_hal_data->coord_mode ==0)))
-//	{
-//		printf("*emcmot_hal_data->coord_mode (%d)\n",*emcmot_hal_data->coord_mode);
-//		emcmotStatus->probing = 0;
-//	}
-	if (emcmotStatus->probing){
-		if ((*emcmot_hal_data->trigger_result) && (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)){
-
-			int32_t joint_num;
-			emcmot_joint_t *joint;
-			double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
-			emcmotStatus->probeTripped = 1; // interp_internal.cc: Interp::set_probe_data() #[5070]
-
-			/* update probed pos */
-			for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
-			{
-				joint = &joints[joint_num];
-				joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
-				printf("joint[%d]:joint_pos(%f) = joint->probed_pos(%f) - (joint->backlash_filt(%f) + joint->motor_offset(%f) + joint->blender_offset(%f))\n",
-						joint_num, joint_pos[joint_num], joint->probed_pos, joint->backlash_filt, joint->motor_offset, joint->blender_offset);
-			}
-			kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
-
-//			emcmotStatus->probedPos = emcmotStatus->carte_pos_cmd;
-
-			tpAbort(&emcmotDebug->coord_tp);
-			emcmotStatus->probing = 0;
-		}
-		*emcmot_hal_data->trigger_result = 0;
-	}
-
-//    unsigned char probe_type = emcmotStatus->probe_type;
-
-//    // interp_convert.cc: probe_type = g_code - G_38_2;
-//    // G38.2: probe_type = 0, stop on contact, signal error if failure
-//    // G38.3: probe_type = 1, stop on contact
-//    // G38.4: probe_type = 2, stop on loss of contact, signal error if failure
-//    // G38.5: probe_type = 3, stop on loss of contact
-//
-//    // don't error
-//    char probe_suppress = probe_type & 1;  // suppressed: G38.2, G38.4
-//
-//    // trigger when the probe clears, instead of the usual case of triggering when it trips
-//    char probe_whenclears = (probe_type & 2);
-//
-//    /* read probe input */
-//    emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
-//    switch ( emcmotStatus->usb_status & 0x0000000F) // probe status mask
-//    {
-//    case USB_STATUS_PROBING:
-//        DP("probe: USB_STATUS_PROBING begin\n");
-//        if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->coord_tp) == 0)
-//        {
-//            emcmotStatus->probeTripped = 0;
-//            // ack risc to stop probing
-//            emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-//            emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
-//            emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-//        }
-//        break;
-//
-//    case USB_STATUS_PROBE_HIT:
-//        DP("probe: USB_STATUS_PROBE_HIT begin\n");
-//        emcmotStatus->probeTripped = 1;
-//        /* tell USB that we've got the status */
-//        DP("sending USB_CMD_STATUS_ACK\n");
-//        emcmotStatus->probe_cmd = USB_CMD_STATUS_ACK;
-//        emcmotStatus->usb_cmd = PROBE_CMD_TYPE;
-//        emcmotStatus->usb_cmd_param[0] = emcmotStatus->probe_cmd;
-//        break;
-//
-//    case USB_STATUS_READY: // PROBE STATUS Clean
-//        // deal with PROBE related status only
-//        if ((emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK) && emcmotStatus->probing)
-//        {
-//            if (emcmotStatus->probeTripped == 1)
-//            {
-//                int32_t joint_num;
-//                emcmot_joint_t *joint;
-//                /* update probed pos */
-//                double joint_pos[EMCMOT_MAX_JOINTS] = {0,};
-//                for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
-//                {
-//                    joint = &joints[joint_num];
-//                    joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
-//                }
-//                kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
-//            } else
-//            {
-//                /* remember the current position */
-//                emcmotStatus->probedPos = emcmotStatus->carte_pos_cmd;
-//                if (probe_suppress == 0)
-//                {
-//                    if(probe_whenclears)
-//                    {
-//                        reportError(_("G38.4 move finished without breaking contact."));
-//                        SET_MOTION_ERROR_FLAG(1);
-//                    } else
-//                    {
-//                        reportError(_("G38.2 move finished without making contact."));
-//                        SET_MOTION_ERROR_FLAG(1);
-//                    }
-//                }
-//            }
-//            DP("emcmotStatus->depth(%d) paused(%d) probe_cmd(%d)\n", emcmotStatus->depth, emcmotStatus->paused, emcmotStatus->probe_cmd);
-//            tpAbort(&emcmotDebug->coord_tp);
-//            emcmotStatus->probing = 0;
-//        }
-//
-//        if ((*emcmot_hal_data->update_pos_req == 0) &&
-//            (emcmotStatus->probe_cmd == USB_CMD_STATUS_ACK))
-//        {
-//            DP("to issue USB_CMD_NOOP\n");
-//            emcmotStatus->probe_cmd = USB_CMD_NOOP;
-//        }
-
-//        break;
-//    default:
-//        break;
-//    }
+            emcmotStatus->probeTripped = 1; // interp_internal.cc: Interp::set_probe_data() #[5070]
+            /* update probed pos */
+            for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
+            {
+                joint = &joints[joint_num];
+                joint_pos[joint_num] =  joint->probed_pos - (joint->backlash_filt + joint->motor_offset + joint->blender_offset);
+//                printf("joint[%d]:joint_pos(%f) = joint->probed_pos(%f) - (joint->backlash_filt(%f) + joint->motor_offset(%f) + joint->blender_offset(%f))\n",
+//                        joint_num, joint_pos[joint_num], joint->probed_pos, joint->backlash_filt, joint->motor_offset, joint->blender_offset);
+            }
+            kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
+            tpAbort(&emcmotDebug->coord_tp);
+            emcmotStatus->probing = 0;
+        }
+        *emcmot_hal_data->trigger_result = 0;
+    }
 }
 
 static int update_current_pos = 0;
@@ -1646,9 +1501,6 @@ static void get_pos_cmds(long period)
                     /* spline joints up-- note that we may be adding points
                            that fail soft limits, but we'll abort at the end of
                            this cycle so it doesn't really matter */
-                    if (emcmotStatus->usb_cmd == USB_CMD_WOU_CMD_SYNC) { // drain cubic so that assigned position won't be changed
-                        cubicDrain(&(joint->cubic));
-                    }
                     cubicAddPoint(&(joint->cubic), joint->coarse_pos);
                 }
                 /* END OF OUTPUT KINS */
@@ -2159,25 +2011,13 @@ static void compute_screw_comp(void)
 
 static void output_to_hal(void)
 {
-    int joint_num, axis_num, i;
+    int joint_num, axis_num;
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
     joint_hal_t *joint_data;
     axis_hal_t *axis_data;
     static int old_motion_index=0, old_hal_index=0;
 
-    /* output USB command to HAL */
-
-    for (i=0; i<4;i++) {
-        *(emcmot_hal_data->usb_cmd_param[i]) = emcmotStatus->usb_cmd_param[i];
-        emcmotStatus->last_usb_cmd_param[i] = *(emcmot_hal_data->last_usb_cmd_param[i]);
-    }
-    *(emcmot_hal_data->usb_cmd) = emcmotStatus->usb_cmd;
-    emcmotStatus->last_usb_cmd = *(emcmot_hal_data->last_usb_cmd);
-    // WORKAROUND: raise align pos cmd flag at least 3 cycles to
-    //             make sure the pos_cmd is aligned with pos_fb
-
-    emcmotStatus->usb_cmd = 0;
     /* output machine info to HAL for scoping, etc */
     *(emcmot_hal_data->probing) = emcmotStatus->probing;
     *(emcmot_hal_data->motion_enabled) = GET_MOTION_ENABLE_FLAG();

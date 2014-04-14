@@ -360,17 +360,12 @@ typedef struct {
     /* command channel for emc2 */
     hal_u32_t *wou_cmd;
     uint32_t prev_wou_cmd;
-    hal_u32_t *wou_status;
     uint32_t a_cmd_on_going;
     /* test pattern  */
     hal_s32_t *test_pattern;
     /* MPG */
     hal_s32_t *mpg_count;
     hal_s32_t *debug[32];
-    hal_u32_t *usb_cmd;
-    hal_u32_t *last_usb_cmd;
-    hal_float_t *usb_cmd_param[4];
-    hal_float_t *last_usb_cmd_param[4];
 
     hal_bit_t   *teleop_mode;
     hal_bit_t   *coord_mode;
@@ -568,15 +563,12 @@ static void fetchmail(const uint8_t *buf_head)
         *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
         *machine_control->machine_moving = (machine_status >> MACHINE_MOVING_BIT) & 1;
         *machine_control->ahc_doing = (machine_status >> AHC_DOING_BIT) & 1;
-        p += 1;
-        *machine_control->wou_status = *p;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
 
         p += 1;
         *machine_control->rcmd_state = *p;
-
 
 #if (MBOX_LOG)
         dsize = sprintf (dmsg, "%10d  ", bp_tick);  // #0
@@ -614,12 +606,6 @@ static void fetchmail(const uint8_t *buf_head)
         bp_tick = *p;                      
         p += 1;
 //        printf ("MT_ERROR_CODE: code(%d) bp_tick(%d) \n", *p, bp_tick);
-        break;
-
-    case MT_USB_STATUS:
-        p = (uint32_t *) (buf_head + 4);
-        p += 1;
-        *machine_control->wou_status = *p;
         break;
 
     case MT_DEBUG:
@@ -706,50 +692,6 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
     while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
     DP ("end of send_sync_cmd\n");
 
-    return;
-}
-
-static void write_usb_cmd(machine_control_t *mc)
-{
-    /* write parameters */
-    int32_t i, j, data;
-    uint8_t buf[MAX_DSIZE];
-    uint16_t sync_cmd;
-
-    switch(*mc->usb_cmd) {
-    case PROBE_CMD_TYPE:
-        *mc->last_usb_cmd = *mc->usb_cmd;
-
-        for (i=0; i<4; i++) {
-            *mc->last_usb_cmd_param[i] =
-                    *mc->usb_cmd_param[i];
-        }
-
-        for (i=0; i<4; i++) {
-            DP("get probe command (%d)(%d)\n", i, (int32_t)(*mc->usb_cmd_param[i]));
-            data = (int32_t)(*mc->usb_cmd_param[i]);
-            for(j=0; j<sizeof(int32_t); j++) {
-                sync_cmd = SYNC_DATA | ((uint8_t *)&data)[j];
-                memcpy(buf, &sync_cmd, sizeof(uint16_t));
-                wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                        sizeof(uint16_t), buf);
-            }
-        }
-
-        /* write command */
-        sync_cmd = SYNC_USB_CMD | *mc->usb_cmd; // TODO: set in control.c or do homing.c
-        memcpy(buf, &sync_cmd, sizeof(uint16_t));
-        wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
-                sizeof(uint16_t), buf);
-        break;
-
-    default:
-        // do nothing, don't write command if it is invalid.
-        break;
-    }
-    *mc->usb_cmd = 0;
-    while(wou_flush(&w_param) == -1);
-    DP("end of write_usb_cmd\n");
     return;
 }
 
@@ -1501,12 +1443,6 @@ static void update_freq(void *arg, long period)
     }
     /* end: */
 
-    /* begin: handle usb cmd */
-    if (*machine_control->usb_cmd != 0) {
-        write_usb_cmd(machine_control);
-        *machine_control->usb_cmd = 0; // reset usb_cmd
-    }
-
     if (*machine_control->update_pos_ack)
     {
         uint32_t dbuf[2];
@@ -1518,7 +1454,6 @@ static void update_freq(void *arg, long period)
         *machine_control->update_pos_req = 0;
         DP("update_pos_ack(%d) rcmd_seq_num_ack(%d)\n", *machine_control->update_pos_ack, dbuf[1]);
     }
-    /* end: handle usb cmd */
 
     /* begin: handle AHC state, AHC level */
     if (*machine_control->ahc_level != machine_control->prev_ahc_level) {
@@ -2316,42 +2251,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    /* usb command */
-    retval = hal_pin_u32_newf(HAL_IO, &(machine_control->usb_cmd), comp_id, "wou.usb.cmd");
-    *(machine_control->usb_cmd) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->last_usb_cmd), comp_id,
-            "wou.usb.last-cmd");
-    *(machine_control->last_usb_cmd) = 0;    // pin index must not beyond index
-    if (retval != 0) {
-        return retval;
-    }
-    for (i = 0; i < 4; i++) {
-        retval =
-                hal_pin_float_newf(HAL_IN, &(machine_control->usb_cmd_param[i]), comp_id, "wou.usb.param-%02d", i);
-        if (retval != 0) {
-            return retval;
-        }
-        *(machine_control->usb_cmd_param[i]) = 0;
-
-        retval =
-                hal_pin_float_newf(HAL_OUT, &(machine_control->last_usb_cmd_param[i]), comp_id,
-                        "wou.usb.last-param-%02d", i);
-        if (retval != 0) {
-            return retval;
-        }
-        *(machine_control->last_usb_cmd_param[i]) = 0;
-    }
-
-    retval = hal_pin_u32_newf(HAL_OUT, &(machine_control->wou_status), comp_id, "wou.motion.status");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->wou_status) = 0;
-
     retval = hal_pin_s32_newf(HAL_IN, &(machine_control->motion_state), comp_id, "wou.motion-state");
     if (retval != 0) {
         return retval;
@@ -2520,6 +2419,5 @@ static int export_machine_control(machine_control_t * machine_control)
     rtapi_set_msg_level(msg);
     return 0;
 }
-
 
 // vim:sw=4:sts=4:et:

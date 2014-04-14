@@ -99,20 +99,14 @@ typedef struct {
 
 typedef struct {
     hal_bit_t *probe_input;	/* RPI: probe switch input */
-	hal_bit_t *probing;
-    hal_u32_t    *trigger_din;
-    hal_u32_t    *trigger_ain;
-    hal_u32_t    *trigger_type;
-    hal_bit_t    *trigger_cond;
-    hal_u32_t    *trigger_level;
-	hal_bit_t *trigger_result;
-//    hal_bit_t *prev_trigger_result;
+    hal_bit_t *probing;
+    hal_u32_t *trigger_din;
+    hal_u32_t *trigger_ain;
+    hal_u32_t *trigger_type;
+    hal_bit_t *trigger_cond;
+    hal_u32_t *trigger_level;
+    hal_bit_t *trigger_result;
     hal_bit_t *req_cmd_sync;
-    hal_u32_t *usb_cmd;         /* usb command output */
-    hal_u32_t *last_usb_cmd;
-    hal_float_t *usb_cmd_param[4];
-    hal_float_t *last_usb_cmd_param[4];
-    hal_u32_t *usb_status;      /* usb status input */
     hal_bit_t *usb_busy;
     hal_bit_t *mpg_scale_x1;    /* is MPG scale at x1 mode? */
     hal_bit_t *mpg_scale_x10;    /* is MPG scale at x10 mode? */

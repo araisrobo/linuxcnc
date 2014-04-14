@@ -98,20 +98,7 @@
 #define PACK_MACH_PARAM_ADDR(t)         ((t) & SYNC_MACH_PARAM_ADDR_MASK)
 #define PACK_USB_CMD_TYPE(t)            ((t) & SYNC_USB_CMD_TYPE_MASK)
 
-#define PROBE_CMD_TYPE                  0x0001  // for SYNC_USB_CMD
 #define RISC_CMD_TYPE                   0x0004  // for SYNC_USB_CMD
-// USB commands for PROBE_CMD_TYPE:
-#define USB_CMD_NOOP  			1     /* no-operation */
-#define USB_CMD_ABORT  			2     /* abort current command */
-#define USB_CMD_PROBE_HIGH 		3     /* probing for probe.input changes from 0->1 */
-#define USB_CMD_PROBE_LOW  		4     /* probing for probe.input changes from 1->0 */
-#define USB_CMD_WOU_CMD_SYNC 	        5
-#define USB_CMD_STATUS_ACK 		6     /* ack to usb ater receiving USB_STATUS */
-#define USB_CMD_PROBE_DECEL             7     // innear cmd
-#define USB_CMD_PROBE_LOCK_MOVE         8
-#define USB_CMD_PROBE_FINAL_MOVE        9
-#define USB_CMD_PROBE_PROBE_REPORT_RISC_ERROR 10 // used by risc probing
-
 
 /* bit index for machine_status[31:0] */
 #define FERROR_MASK                     0x000000FF  // machine_status[7:0]
@@ -157,15 +144,6 @@
 #define GCTRL_BRAKE_GPIO_MASK           0x000000FF  // GPIO pin ID for Brake Signal
 
 typedef enum {
-    // 0'b 0000     0000     0000     0000     0000     0000        0000   0000
-    //     reserved reserved reserved reserved reserved req_to_host homing probing
-    USB_STATUS_READY = 1,
-    USB_STATUS_PROBE_HIT = 2,// 2
-    USB_STATUS_PROBING = 3,//3
-    USB_STATUS_ERROR = 5, // 5
-} usb_status_t;
-
-typedef enum {
     // naming: RISC_...CMD..._REQ
     RCMD_IDLE = 0,              // RCMD_FSM, set by RISC
     RCMD_ALIGNING,              // RCMD_FSM, joint is aligning
@@ -199,9 +177,6 @@ enum machine_parameter_addr {
     AHC_MAX_OFFSET,
     AHC_ANALOG_CH,
     WAIT_TIMEOUT,
-    PROBE_CONFIG,           // setup while initializing
-    PROBE_ANALOG_REF_LEVEL, // setup while initializing
-    USB_STATUS,             // report status response to usb commands
     AHC_STATE,
     AHC_LEVEL,
     GANTRY_CTRL,            // [31]     GANTRY_EN
@@ -273,22 +248,4 @@ enum motion_parameter_addr {
     MAX_PARAM_ITEM
 };
 
-///* usb to risc: similar to usb_cmd in hal/usb.h */
-//typedef enum {
-//    PROBE_STOP_REPORT = 1,
-//    PROBE_END = 2,   // an ack from host to acknowledge risc when the probing is finish or abort
-//    PROBE_HIGH = 3,
-//    PROBE_LOW = 4,
-//    PROBE_ACK = 6,
-//    PROBE_DECEL=0xF000,
-//    PROBE_LOCK_MOVE=0xF001,
-//    PROBE_FINAL_MOVE=0xF002,
-//    PROBE_REPORT_RISC_ERROR=0xF003, // used by risc probing
-//} probe_state_t;
-
-
-enum probe_pin_type {
-    DIGITAL_PIN,
-    ANALOG_PIN,
-};
 #endif // __sync_cmd_h__

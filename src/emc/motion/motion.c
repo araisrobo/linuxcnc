@@ -329,20 +329,6 @@ static int init_hal_io(void)
     *emcmot_hal_data->mpg_scale_x100 = 0;
     *emcmot_hal_data->usb_busy = 0;
 
-    if ((retval = hal_pin_u32_newf(HAL_IO, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.usb.cmd")) < 0) goto error;
-    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->last_usb_cmd), mot_comp_id, "motion.usb.last-cmd")) < 0) goto error;
-    for (n=0;n<4;n++) {
-        if ((retval = hal_pin_float_newf(HAL_OUT,
-                &(emcmot_hal_data->usb_cmd_param[n]),
-                mot_comp_id, "motion.usb.param-%02d", n)) < 0) goto error;
-
-        if ((retval = hal_pin_float_newf(HAL_IN,
-                &(emcmot_hal_data->last_usb_cmd_param[n]),
-                mot_comp_id, "motion.usb.last-param-%02d", n)) < 0) goto error;
-
-    }
-    //    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.wou.cmd")) < 0) goto error;
-    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->usb_status), mot_comp_id, "motion.wou.status")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) != 0) goto error;
     if ((retval = hal_param_u32_newf(HAL_RW, &(emcmot_hal_data->spindle_joint_id), mot_comp_id, "motion.spindle-joint-id")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_on), mot_comp_id, "motion.spindle-on")) != 0) goto error;
@@ -481,9 +467,6 @@ static int init_hal_io(void)
     *emcmot_hal_data->xuu_per_rev = 0;
     *emcmot_hal_data->yuu_per_rev = 0;
     *emcmot_hal_data->zuu_per_rev = 0;
-
-    *(emcmot_hal_data->usb_cmd) = USB_CMD_NOOP;
-    *(emcmot_hal_data->usb_status) = USB_STATUS_READY;
 
     /* default value of enable is TRUE, so simple machines
        can leave it disconnected */
