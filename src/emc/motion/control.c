@@ -932,6 +932,14 @@ static void handle_special_cmd(void)
 //                    joint->pos_fb,
 //                    joint->free_tp.curr_pos,
 //                    joint->motor_offset);
+//            rtapi_print(
+//            		_("enable(%d) result(%d) rcmd_fbs(%d) req_vel(%d) cur_acc(%d) cur_vel(%d)\n"),
+//            		*(emcmot_hal_data->debug_s32_2),
+//            		*(emcmot_hal_data->debug_s32_3),
+//            		*(emcmot_hal_data->debug_s32_4),
+//            		*(emcmot_hal_data->debug_s32_5),
+//            		*(emcmot_hal_data->debug_s32_6),
+//            		*(emcmot_hal_data->debug_s32_7));
         }
 
         /* if less than a full complement of joints, zero out the rest */
@@ -2234,8 +2242,6 @@ static void output_to_hal(void)
     emcmot_hal_data->debug_float_1 = emcmotStatus->carte_pos_cmd.s; // spindle position command
     emcmot_hal_data->debug_float_2 = emcmotStatus->spindleSpeedIn;
     emcmot_hal_data->debug_float_3 = emcmotStatus->net_spindle_scale;
-    emcmot_hal_data->debug_s32_0 = emcmotStatus->overrideLimitMask;
-    emcmot_hal_data->debug_s32_1 = emcmotStatus->tcqlen;
 
     /* two way handshaking for the spindle encoder */
     if(emcmotStatus->spindle_index_enable && !old_motion_index) {

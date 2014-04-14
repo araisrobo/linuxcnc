@@ -376,11 +376,19 @@ void emcmotCommandHandler(void *arg, long period)
     counter = counter+1;
     check_stuff ( "before command_handler()" );
 
-    /* check for split read */
-    if (emcmotCommand->head != emcmotCommand->tail) {
-	emcmotDebug->split++;
-	return;			/* not really an error */
+
+    if (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ) {
+    	// prevent execute EMCMOT_END_PROBE for G38.x
+    	return;
     }
+
+    /* check for split read */
+    if (emcmotCommand->head != emcmotCommand->tail)
+    {
+    	emcmotDebug->split++;
+    	return;			/* not really an error */
+    }
+
     if (emcmotCommand->commandNum != emcmotStatus->commandNumEcho) {
 	/* increment head count-- we'll be modifying emcmotStatus */
 	emcmotStatus->head++;
@@ -1428,6 +1436,7 @@ void emcmotCommandHandler(void *arg, long period)
             	SET_MOTION_ERROR_FLAG(1);
 
             }
+
 			emcmotStatus->probing = 0;
 			emcmotStatus->probeTripped = 0;
 	    break;
