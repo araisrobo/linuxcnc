@@ -747,8 +747,8 @@ static void handle_special_cmd(void)
         return;
     }
 
-    if (emcmotStatus->depth == 0)
-    {   // not at EMCMOT_MOTION_COORD mode
+    if ((emcmotStatus->depth == 0) && (*(emcmot_hal_data->machine_is_moving) == 0))
+    {   // ACK when no more EMCMOT motion commands, and machine is STOPPING
         emcmotStatus->update_pos_ack = *emcmot_hal_data->update_pos_req;
     }
     else
