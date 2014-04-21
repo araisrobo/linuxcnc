@@ -459,6 +459,7 @@ static void fetchmail(const uint8_t *buf_head)
     stepgen_t   *stepgen;
     uint32_t    bp_tick;    // served as previous-bp-tick
     uint32_t    machine_status;
+    uint32_t    joints_vel;
 #if (MBOX_LOG)
     char        dmsg[1024];
     int         dsize;
@@ -481,6 +482,7 @@ static void fetchmail(const uint8_t *buf_head)
         /* for PLASMA with ADC_SPI */
         //redundant: p = (uint32_t *) (buf_head + 4); // BP_TICK
         stepgen = stepgen_array;
+        joints_vel = 0;
         for (i=0; i<num_joints; i++) {
             p += 1;
             *(stepgen->pulse_pos) = (int32_t)*p;
@@ -490,8 +492,10 @@ static void fetchmail(const uint8_t *buf_head)
             *(stepgen->cmd_fbs) = (int32_t)*p;
             p += 1;
             *(stepgen->enc_vel_p)  = (int32_t)*p; // encoder velocity in pulses per servo-period
+            joints_vel |= *(stepgen->enc_vel_p);
             stepgen += 1;   // point to next joint
         }
+        *machine_control->machine_moving = (joints_vel != 0);
 
         // digital input
         p += 1;
@@ -561,7 +565,6 @@ static void fetchmail(const uint8_t *buf_head)
             stepgen += 1;   // point to next joint
         }
         *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
-        *machine_control->machine_moving = (machine_status >> MACHINE_MOVING_BIT) & 1;
         *machine_control->ahc_doing = (machine_status >> AHC_DOING_BIT) & 1;
 
         p += 1;
