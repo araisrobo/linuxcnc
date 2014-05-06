@@ -46,6 +46,10 @@ import gladevcp.makepins
 from gladevcp.gladebuilder import GladeBuilder
 from gladevcp import xembed
 
+import gettext
+
+
+
 options = [ Option( '-c', dest='component', metavar='NAME'
                   , help="Set component name to NAME. Default is basename of UI file")
           , Option( '-d', action='store_true', dest='debug'
@@ -90,6 +94,7 @@ class Trampoline(object):
 
 def load_handlers(usermod,halcomp,builder,useropts):
     hdl_func = 'get_handlers'
+
 
     def add_handler(method, f):
         if method in handlers:
@@ -171,7 +176,13 @@ def main():
     if not args:
         parser.print_help()
         sys.exit(1)
-
+    
+    BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
+    libdir = os.path.join(BASE, "lib", "python")
+    sys.path.append(libdir)
+    arhmidir = os.path.join(BASE, "lib", "python", "arhmi")
+    sys.path.append(arhmidir)
+    
     gladevcp_debug = debug = opts.debug
     xmlname = args[0]
 
@@ -179,18 +190,30 @@ def main():
     if opts.component is None:
         opts.component = os.path.splitext(os.path.basename(xmlname))[0]
 
+    builder = gtk.Builder()
     # try loading as a gtk.builder project
     try:
-        builder = gtk.Builder()
         builder.add_from_file(xmlname)
     except:
-        #try loading as a libglade project
+#         #try loading as a libglade project
+#         try:
+#             dbg("**** GLADE VCP INFO:    Not a GtkBuilder project, trying to load as a GTK builder project")
+#             builder = gtk.glade.XML(xmlname)
+#             builder = GladeBuilder(builder)
         try:
-            dbg("**** GLADE VCP INFO:    Not a GtkBuilder project, trying to load as a GTK builder project")
-            builder = gtk.glade.XML(xmlname)
-            builder = GladeBuilder(builder)
+            # for arhmi applications
+            LOCALEDIR = os.path.join(BASE, "share", "locale")
+            o = "plasma"
+            gettext.install(o, localedir=LOCALEDIR, unicode=True)
+            gtk.glade.bindtextdomain(o, LOCALEDIR)
+            gtk.glade.textdomain(o)
+            
+            base = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
+            sharedir = os.path.join(base, "share", "linuxcnc")
+            gladefile = os.path.join(sharedir, xmlname)
+            builder.add_from_file(gladefile)
         except Exception,e:
-            print >> sys.stderr, "**** GLADE VCP ERROR:    With xml file: %s : %s" % (xmlname,e)
+            print >> sys.stderr, "**** GLADE VCP ERROR:    With xml file: %s : %s" % (xmlname, e)
             sys.exit(0)
 
     window = builder.get_object("window1")
