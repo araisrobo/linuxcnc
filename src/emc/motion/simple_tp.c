@@ -10,12 +10,16 @@
 * Copyright (c) 2004 All rights reserved.
 ********************************************************************/
 
+#ifdef RTAPI_SIM
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
+#else
+#define assert(args...)		do {} while(0)
+#endif
 
 #include "simple_tp.h"
 #include "rtapi_math.h"
