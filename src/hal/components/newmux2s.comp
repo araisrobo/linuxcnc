@@ -1,0 +1,12 @@
+component newmux2s "Select from one of two input values";
+pin out s32   out "Follows the value of in0 if sel is FALSE, or in1 if sel is TRUE";
+pin in bit   sel;
+pin in s32   in1;
+pin in s32   in2;
+function _;
+license "GPL";
+;;
+FUNCTION(_) {
+    if(sel) out = in1;
+    else out = in2;
+}

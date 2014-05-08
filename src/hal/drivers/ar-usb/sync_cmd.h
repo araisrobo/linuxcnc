@@ -17,7 +17,7 @@
  *    SYNC_MOT_PARM      4'b0111  {ADDR}{ID}      ADDR[11:4]
  *                                                ID[3:0]:
  *                                                VAL: from immediate data
- *    SYNC_AHC           4'b1000  ... TODO        auto height control
+ *    SYNC_AHC           4'b1000  ... RESERVED    auto height control
  *    SYNC_VEL           4'b1001  {VEL, VAL}      VEL: velocity in mm/s
  *                                                VAL[0]: 1: velocity sync'd
  *                                                        0: velocity not sync'd
@@ -39,14 +39,14 @@
 #define SYNC_DIN            0x5000
 #define SYNC_MOT_POS_CMD    0x6000
 #define SYNC_MOT_PARAM      0x7000
-#define SYNC_AHC            0x8000         // auto height control
+// RESERVED #define SYNC_AHC            0x8000         // auto height control
 #define SYNC_VEL            0x9000
 #define SYNC_USB_CMD        0xA000
 #define SYNC_MACH_PARAM     0xB000
 #define SYNC_DATA           0xC000
 #define SYNC_EOF            0xD000
-// 0xe000 command not available
-// 0xf000 command not available
+// RESERVED  0xe000
+// RESERVED  0xf000
 
 //  timeout type
 #define WAIT_LEVEL_LOWER    0x0   // wait analog input to be lower than specified value
@@ -98,41 +98,23 @@
 #define PACK_MACH_PARAM_ADDR(t)         ((t) & SYNC_MACH_PARAM_ADDR_MASK)
 #define PACK_USB_CMD_TYPE(t)            ((t) & SYNC_USB_CMD_TYPE_MASK)
 
-#define PROBE_CMD_TYPE                  0x0001  // for GET_USB_CMD_TYPE
-// command for probing   (usb.param-00)
-#define USB_CMD_NOOP  			1     /* no-operation */
-#define USB_CMD_ABORT  			2     /* abort current command */
-#define USB_CMD_PROBE_HIGH 		3     /* probing for probe.input changes from 0->1 */
-#define USB_CMD_PROBE_LOW  		4     /* probing for probe.input changes from 1->0 */
-#define USB_CMD_WOU_CMD_SYNC 	        5
-#define USB_CMD_STATUS_ACK 		6     /* ack to usb ater receiving USB_STATUS */
-#define USB_CMD_PROBE_DECEL             7     // innear cmd
-#define USB_CMD_PROBE_LOCK_MOVE         8
-#define USB_CMD_PROBE_FINAL_MOVE        9
-#define USB_CMD_PROBE_PROBE_REPORT_RISC_ERROR 10 // used by risc probing
-
-#define HOME_CMD_TYPE                   0x0002
-// command for homig              (usb.param-00 [11:8] )
-#define HOME_ACK                        0x00000100
-#define HOME_NACK                       0x00000200
-#define HOME_ABORT_NOW                  0x00000400
-
 #define RISC_CMD_TYPE                   0x0004  // for SYNC_USB_CMD
 
-#define SPECIAL_CMD_TYPE                0x0008
-#define SPEC_CMD_ACK                    0x00001000
-#define SPEC_CMD_REQ_SYNC               0x00002000
-
 /* bit index for machine_status[31:0] */
-#define FERROR_MASK                     0xFFFF0000  // machine_status[15:0]
+#define FERROR_MASK                     0x000000FF  // machine_status[7:0]
+#define ALARM_MASK                      0x00000100  // machine_status[8]
 #define PROBE_RESULT_BIT                16
 #define MACHINE_MOVING_BIT              17
 #define AHC_DOING_BIT                   18
 
 /**
- *  MACHINE_CTRL,   // [31:24]  RESERVED
+ *  MACHINE_CTRL,   // [31:28]  JOG_VEL_SCALE
+ *                  // [27:24]  SPINDLE_JOINT_ID
  *                  // [23:16]  NUM_JOINTS
- *                  // [15: 8]  RESERVED
+ *                  // [l5: 8]  JOG_SEL
+ *                                  [15]: MPG(1), CONT(0)
+ *                                  [14]: RESERVED
+ *                                  [13:8]: J[5:0], EN(1), DISABLE(0)
  *                  // [ 7: 4]  ACCEL_STATE
  *                  // [ 3: 1]  MOTION_MODE: 
  *                                  FREE    (0) 
@@ -145,91 +127,85 @@
 #define MCTRL_MOTION_TYPE_MASK          0x0000000E  // MOTION_TYPE mask for MACHINE_CTRL
 #define MCTRL_HOMING_MASK               0x00000008  // HOMING_MASK for MACHINE_CTRL
 #define MCTRL_ACCEL_STATE_MASK          0x000000F0  // ACCEL_STATE mask for MACHINE_CTRL
+//obsolete: #define MCTRL_TAPPING_MASK              0x0000FF00  // TAPPING mask for MACHINE_CTRL
 #define MCTRL_NUM_JOINTS_MASK           0x00FF0000  // NUM_JOINTS mask for MACHINE_CTRL
+#define MCTRL_SPINDLE_ID_MASK           0x0F000000  // SPINDLE_JOINT_ID mask for MACHINE_CTRL
+#define MCTRL_JOG_SEL_MASK              0x0000FF00  // JOG_SEL mask for MACHINE_CTRL
+#define MCTRL_JOG_VEL_SCALE_VALUE_MASK  0x70000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
+#define MCTRL_JOG_VEL_SCALE_SIGN_MASK   0x80000000  // JOG_VEL_SCALE mask for MACHINE_CTRL
 
-typedef enum {
-    // 0'b 0000     0000     0000     0000     0000     0000        0000   0000
-    //     reserved reserved reserved reserved reserved req_to_host homing probing
-    USB_STATUS_READY = 1,
-    USB_STATUS_PROBE_HIT = 2,// 2
-    USB_STATUS_PROBING = 3,//3
-    USB_STATUS_ERROR = 5, // 5
-} usb_status_t;
+/**
+ *  GANTRY_CTRL,    // [31]     GANTRY_EN
+ *                  // [30]     GANTRY_LOCK, SET to lock gantry joints with BRAKEs
+ *                  // [7:0]    GANTRY_BRAKE_GPIO
+ **/                  
+#define GCTRL_EN_MASK                   0x80000000  // Gantry Enable Bit
+#define GCTRL_LOCK_MASK                 0x40000000  // Gantry Lock Bit
+#define GCTRL_BRAKE_GPIO_MASK           0x000000FF  // GPIO pin ID for Brake Signal
 
 typedef enum {
     // naming: RISC_...CMD..._REQ
-    RCMD_IDLE = 0,
-    RCMD_UPDATE_POS_REQ = 1,
-    RCMD_UPDATE_POS_ACK = 2,
-    RCMD_PROBE_REQ,
-    RCMD_DONE
+    RCMD_IDLE = 0,              // RCMD_FSM, set by RISC
+    RCMD_ALIGNING,              // RCMD_FSM, joint is aligning
+    RCMD_UPDATE_POS_REQ,        // RCMD_FSM, request HOST to update position
+    RCMD_UPDATE_POS_ACK,        // RCMD set by HOST 
+    RCMD_PROBE_REQ,             // RCMD set by HOST 
+    RCMD_GMCODE_PROBE,          // RCMD set by HOST
 } rsic_cmd_t;
 
 typedef enum {
     RISC_PROBE_LOW = 0,
     RISC_PROBE_HIGH,
-    RISC_PROBE_FALLING,
-    RISC_PROBE_RISING,
+    RISC_PROBE_INDEX,
 } rsic_probe_type_t;
+
+typedef enum {
+    OR = 0,
+    AONLY,
+    DONLY,
+    AND,
+} host_probe_type_t;
 
 // memory map for machine config
 enum machine_parameter_addr {
     AHC_JNT,
     AHC_POLARITY,
+    GANTRY_POLARITY,
     TEST_PATTERN_TYPE,
     TEST_PATTERN,
-    ANALOG_REF_LEVEL,   // wait analog signal: M110
+    ANALOG_REF_LEVEL,       // wait analog signal: M110
     AHC_MAX_OFFSET,
-    AHC_LEVEL_MAX,
-    AHC_LEVEL_MIN,
     AHC_ANALOG_CH,
     WAIT_TIMEOUT,
-    PROBE_CONFIG,     // setup while initializing
-    PROBE_ANALOG_REF_LEVEL,     // setup while initializing
-    USB_STATUS,         // report status response to usb commands
     AHC_STATE,
     AHC_LEVEL,
-    // parameters specified by machine
-    PARAM0,
-    PARAM1,
-    PARAM2,
-    PARAM3,
-    PARAM4,
-    PARAM5,
-    PARAM6,
-    PARAM7,
-    PARAM8,
-    PARAM9,
-    PARAM10,
-    PARAM11,
-    PARAM12,
-    PARAM13,
-    PARAM14,
-    PARAM15,
-    ALR_OUTPUT, 
-    MACHINE_CTRL,   // [31:24]  RESERVED
-                    // [23:16]  NUM_JOINTS
-                    // [15: 8]  RESERVED
-                    // [ 7: 4]  ACCEL_STATE
-                    // [ 3: 1]  MOTION_MODE: FREE(0) TELEOP(1) COORD(2) HOMING(4)
-                    // [    0]  MACHINE_ON
+    GANTRY_CTRL,            // [31]     GANTRY_EN
+                            // [30]     GANTRY_LOCK
+                            // [7:0]    GANTRY_BRAKE_GPIO_PIN
+                            
+    JOINT_LSP_LSN,          // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
+    ALR_OUTPUT,             // output value when ESTOP is pressed
+    ALR_EN_BITS,            // the enable bitmap of ALARM input bits
+
+    MACHINE_CTRL,           // [31:28]  JOG_VEL_SCALE
+                            // [27:24]  SPINDLE_JOINT_ID
+                            // [23:16]  NUM_JOINTS
+                            // [15: 8]  JOG_SEL
+                            // [ 7: 4]  ACCEL_STATE
+                            // [ 3: 1]  MOTION_MODE: 
+                            // [    0]  MACHINE_ON
     MACHINE_PARAM_ITEM
 };
 
 // accel_state enum for MACHINE_CTRL judgement
 enum accel_state_type {
-  MACH_ACCEL_S0 = (0 << 4), // 0
+  MACH_ACCEL_S0 = (0 << 4),     // 0
   MACH_ACCEL_S1 = (1 << 4),     // 1
   MACH_ACCEL_S2 = (2 << 4),     // 2
   MACH_ACCEL_S3 = (3 << 4),     // 3
   MACH_ACCEL_S4 = (4 << 4),     // 4
   MACH_ACCEL_S5 = (5 << 4),     // 5
   MACH_ACCEL_S6 = (6 << 4)      // 6
-};
-
-enum ahc_polarity_enum {
-    AHC_POSITIVE,        // positive command to lift up axis z
-    AHC_NEGATIVE,       // positive command to lay down axis z
 };
 
 enum test_pattern_type_enum {
@@ -248,9 +224,9 @@ enum ahc_state_enum {
 enum motion_parameter_addr {
     MAX_VELOCITY      ,
     MAX_ACCEL         ,
-    MAX_ACCEL_RECIP   ,
+    MAX_JERK	      ,
     MAXFOLLWING_ERR   ,
-                            // PID section: begin
+    // PID section: begin
     P_GAIN            ,     // (unit: 1/65536)
     I_GAIN            ,     // (unit: 1/65536)
     D_GAIN            ,     // (unit: 1/65536)
@@ -265,31 +241,11 @@ enum motion_parameter_addr {
     MAXCMD_D          ,
     MAXCMD_DD         ,
     MAXOUTPUT         ,     
-                            // PID section: end
-    ENABLE            ,     // set to 1 to enable joint motion
-    MAX_JERK	      ,
-    MAX_JERK_RECIP    ,
-    JOG_VEL           ,     // [31:0] jog-vel: pulse/tick
-
+    // PID section: end
+    SCALE             ,     // unit_pulses/servo_period : 16.16 format, 
+    ENC_SCALE         ,     // encoder scale: 16.16 format
+    SSYNC_SCALE       ,     // spindle sync compensation scale: 16.16 format
     MAX_PARAM_ITEM
 };
 
-/* usb to risc: similar to usb_cmd in hal/usb.h */
-typedef enum {
-    PROBE_STOP_REPORT = 1,
-    PROBE_END = 2,   // an ack from host to acknowledge risc when the probing is finish or abort
-    PROBE_HIGH = 3,
-    PROBE_LOW = 4,
-    PROBE_ACK = 6,
-    PROBE_DECEL=0xF000,
-    PROBE_LOCK_MOVE=0xF001,
-    PROBE_FINAL_MOVE=0xF002,
-    PROBE_REPORT_RISC_ERROR=0xF003, // used by risc probing
-} probe_state_t;
-
-
-enum probe_pin_type {
-    DIGITAL_PIN,
-    ANALOG_PIN,
-};
 #endif // __sync_cmd_h__

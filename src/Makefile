@@ -102,7 +102,8 @@ SUBDIRS := \
     rtapi/examples/extint rtapi/examples/fifo rtapi/examples rtapi \
     \
     hal/components hal/drivers hal/user_comps/devices \
-    hal/user_comps hal/user_comps/vismach hal/user_comps/vfs11_vfd hal/classicladder hal/utils hal \
+    hal/user_comps/vfs11_vfd hal/user_comps/vfdb_vfd \
+    hal/user_comps hal/user_comps/vismach hal/classicladder hal/utils hal \
     \
     emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
     emc/usr_intf/gremlin \ emc/usr_intf/gscreen \
@@ -191,13 +192,17 @@ DEBUG := -g -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(call cc-option, -Wdeclaration-after-statement) $(BITOPS_DEFINE)
 CXXFLAGS := $(INCLUDE) $(OPT) $(DEBUG) -DULAPI $(BITOPS_DEFINE)
 
-UNAME_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
-ifeq ($(UNAME_M),armv7l)
-# need -fPIC for arm with -O0
+# UNAME_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
+# ifeq ($(UNAME_M),armv7l)
+# # need -fPIC for arm with -O0
+# CFLAGS += -fPIC
+# CXXFLAGS += -fPIC
+# OPT += -fPIC
+# endif
+
 CFLAGS += -fPIC
 CXXFLAGS += -fPIC
 OPT += -fPIC
-endif
 
 ifeq ($(RUN_IN_PLACE),yes)
 LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR)
@@ -722,8 +727,8 @@ stepgen-objs := hal/components/stepgen.o $(MATHSTUB)
 # wou.o is composed of (multiple) wou-objs
 obj-$(CONFIG_WOU) += wou.o
 wou-objs := hal/drivers/ar-usb/wou_stepgen.o $(MATHSTUB)
-obj-$(CONFIG_WOU_SIM) += wou_sim.o
-wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
+# obj-$(CONFIG_WOU_SIM) += wou_sim.o
+# wou_sim-objs := hal/drivers/ar-usb/wou_sim.o $(MATHSTUB)
 obj-$(CONFIG_FREQGEN) += freqgen.o
 freqgen-objs := hal/components/freqgen.o $(MATHSTUB)
 obj-$(CONFIG_PWMGEN) += pwmgen.o
@@ -892,8 +897,20 @@ alignmentkins-objs := emc/kinematics/alignmentkins.o
 obj-m += align_gantry_kins.o
 align_gantry_kins-objs := emc/kinematics/align_gantry_kins.o
 
+obj-m += gantry_xyzc_kins.o
+gantry_xyzc_kins-objs := emc/kinematics/gantry_xyzc_kins.o
+
+obj-m += gantry_xyzcs_kins.o
+gantry_xyzcs_kins-objs := emc/kinematics/gantry_xyzcs_kins.o
+
+obj-m += ar_tap_kins.o
+ar_tap_kins-objs := emc/kinematics/ar_tap_kins.o
+
 obj-m += yyzzkins.o
 yyzzkins-objs := emc/kinematics/yyzzkins.o
+
+obj-m += miller_kins.o
+miller_kins-objs := emc/kinematics/miller_kins.o
 
 obj-$(CONFIG_MOTMOD) += motmod.o
 motmod-objs := emc/kinematics/cubic.o
@@ -980,7 +997,7 @@ endif
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
 ../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
-../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
+# ../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
@@ -1023,7 +1040,11 @@ endif
 ../rtlib/art_scarakins$(MODULE_EXT): $(addprefix objects/rt,$(art_scarakins-objs))
 ../rtlib/alignmentkins$(MODULE_EXT): $(addprefix objects/rt,$(alignmentkins-objs))
 ../rtlib/align_gantry_kins$(MODULE_EXT): $(addprefix objects/rt,$(align_gantry_kins-objs))
+../rtlib/gantry_xyzc_kins$(MODULE_EXT): $(addprefix objects/rt,$(gantry_xyzc_kins-objs))
+../rtlib/gantry_xyzcs_kins$(MODULE_EXT): $(addprefix objects/rt,$(gantry_xyzcs_kins-objs))
+../rtlib/ar_tap_kins$(MODULE_EXT): $(addprefix objects/rt,$(ar_tap_kins-objs))
 ../rtlib/yyzzkins$(MODULE_EXT): $(addprefix objects/rt,$(yyzzkins-objs))
+../rtlib/miller_kins$(MODULE_EXT): $(addprefix objects/rt,$(miller_kins-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d,$(RTOBJS)))

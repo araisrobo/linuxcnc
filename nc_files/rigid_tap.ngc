@@ -1,4 +1,4 @@
 g0z0
-s60m3 ; 1rpm
-g33.1 z5 k1 ; 1 thread per second
+s60m3 ; 1rps
+g33.1 z5 k1 ; 1 thread per second, k - distance per revolution
 m2

@@ -13,9 +13,6 @@ setp limit2.0.maxv 500.0 # rpm/second
 # hook up motion controller's sync output
 net spindle-index-enable motion.spindle-index-enable <=> sim-spindle.0.index-enable
 
-# report our revolution count to the motion controller
-net spindle-pos sim-spindle.0.position-fb => motion.spindle-revs
-
 # simulate spindle mass
 setp lowpass.0.gain .07
 

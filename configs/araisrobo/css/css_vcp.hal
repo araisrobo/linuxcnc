@@ -1,0 +1,73 @@
+# we want:
+
+# the status table and children: always on
+# the settings table to be active as soon as we are out of estop
+
+#setp css_vcp.status 1
+
+# create a 'estop-is-deactivated' signal
+loadrt not names=estop-not
+addf estop-not servo-thread
+net estop halui.estop.is-activated => estop-not.in
+
+# and activate the settings box when estop is off
+net estop-inactive estop-not.out => css_vcp.settings
+
+# show the current spindle speed in the top hoizontal bar
+# net spindle-speed-rpm spindle_s.speed-rpm => css_vcp.spindle-rpm-hbar
+
+# net laser_distance  => css_vcp.laser-dist-meter
+# net laser_distance  => css_vcp.laser-dist-label
+# net adc_7s          => css_vcp.laser-volt-label
+
+# the first and second labels show prepared and current tool
+# unlinkp iocontrol.0.tool-prep-number
+# unlinkp hal_manualtoolchange.number
+
+# net tool-prepared iocontrol.0.tool-prep-number => css_vcp.prepared-tool hal_manualtoolchange.number
+net tool-prepared iocontrol.0.tool-prep-number => css_vcp.prepared-tool
+net tool-number   iocontrol.0.tool-number      => css_vcp.current-tool
+
+#net dout1       css_vcp.do1    => css_vcp.led1 
+#net dout2       css_vcp.do2    => css_vcp.led2
+# net dout1       css_vcp.do1    => css_vcp.led1  wou.gpio.out.01
+# net dout2       css_vcp.do2    => css_vcp.led2  wou.gpio.out.02
+# net dout3       css_vcp.do3    => css_vcp.led3  wou.gpio.out.03
+# net dout4       css_vcp.do4    => css_vcp.led4  wou.gpio.out.04
+# net dout5       css_vcp.do5    => css_vcp.led5  wou.gpio.out.05
+# net dout6       css_vcp.do6    => css_vcp.led6  wou.gpio.out.06
+# net machine_is_on               => css_vcp.led7  wou.gpio.out.07
+
+#net tool_change                 => css_vcp.led7    #dout8 is for tool chang
+#net din_32                      => css_vcp.led8    # tool cylinder upper limit
+#net din_33                      => css_vcp.led9    # tool cylinder lower limit
+#net vcp_spindle_brake   css_vcp.spindle.brake => css_vcp.led10
+# the MDI Toggle action is called with the values of some of the HAL pins
+# as parameters like so:
+
+# O<oword> call [${spin-f}] [${check}] [${toggle}] [${scale}] [${spin-f}]  [${combo-s}]
+
+# joint related signals
+
+net j0-rpm          wou.stepgen.0.rpm          => css_vcp.j0-rpm-meter
+net j1-rpm          wou.stepgen.1.rpm          => css_vcp.j1-rpm-meter
+net j3-rpm          wou.stepgen.3.rpm          => css_vcp.j3-rpm-meter
+net j5-rpm          wou.stepgen.5.rpm          => css_vcp.j5-rpm-meter
+
+net cmd-pos-j0                                 => css_vcp.j0-rawcount32-label
+net cmd-pos-j1                                 => css_vcp.j1-rawcount32-label
+net cmd-pos-j3                                 => css_vcp.j3-rawcount32-label
+net cmd-pos-j5                                 => css_vcp.j5-rawcount32-label
+
+net pulse-pos-j0                               => css_vcp.j0-pulse_pos-label
+net pulse-pos-j1                               => css_vcp.j1-pulse_pos-label
+net pulse-pos-j3                               => css_vcp.j3-pulse_pos-label
+net pulse-pos-j5                               => css_vcp.j5-pulse_pos-label
+
+net enc-pos-j0                                 => css_vcp.j0-enc_pos-label
+net enc-pos-j1                                 => css_vcp.j1-enc_pos-label
+net enc-pos-j3                                 => css_vcp.j3-enc_pos-label
+net enc-pos-j4                                 => css_vcp.j4-enc_pos-label
+net enc-pos-j5                                 => css_vcp.j5-enc_pos-label
+
+net analog_07                                  => css_vcp.analog_07

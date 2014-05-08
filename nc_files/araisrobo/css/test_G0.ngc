@@ -1,0 +1,15 @@
+G90
+G53 G0 X0 Y99 Z0
+G04 P10
+G10L20P1 X0 Y99 Z0
+#<loop> = 0
+o100 while [#<loop> LT 999]
+	G90
+        G0 X575 Y575
+        G04 P10
+	G0 X0 Y99
+        G04 P10
+	#<loop> = [#<loop>+1]
+o100 endwhile
+M2
+%

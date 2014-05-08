@@ -26,9 +26,7 @@ class preferences(cp):
 
     def __init__(self):
         cp.__init__(self)
-        ini_dir  = os.environ['INI_DIR']
-        # self.fn = os.path.expanduser("~/.touchy_preferences")
-        self.fn = os.path.join(ini_dir,'.touchy_preferences')
+        self.fn = os.path.expanduser("~/.touchy_preferences")
         self.read(self.fn)
 
     def getpref(self, option, default=False, type=bool):

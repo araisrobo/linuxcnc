@@ -445,6 +445,7 @@ static int comp_id;
         print >>f, "    r = hal_export_funct(buf, (void(*)(void *inst, long))%s, inst, %s, 0, comp_id);" % (
             to_c(name), int(fp))
         print >>f, "    if(r != 0) return r;"
+    print >>f, "    __comp_inst = inst;"
     print >>f, "    if(__comp_last_inst) __comp_last_inst->_next = inst;"
     print >>f, "    __comp_last_inst = inst;"
     print >>f, "    if(!__comp_first_inst) __comp_first_inst = inst;"

@@ -296,46 +296,56 @@ static int init_hal_io(void)
 
     /* export machine wide hal pins */
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probing), mot_comp_id, "motion.probing")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->trigger_result), mot_comp_id, "motion.trigger-result")) != 0) goto error;
+//    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->prev_trigger_result), mot_comp_id, "motion.prev-trigger-result")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->trigger_din), mot_comp_id, "motion.trigger.din")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->trigger_ain), mot_comp_id, "motion.trigger.ain")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->trigger_type), mot_comp_id, "motion.trigger.type")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->trigger_cond), mot_comp_id, "motion.trigger.cond")) != 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->trigger_level), mot_comp_id, "motion.trigger.level")) != 0) goto error;
+
 
     // RISC_CMD REQ and ACK
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->update_pos_req), mot_comp_id, "motion.update-pos-req")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->update_pos_ack), mot_comp_id, "motion.update-pos-ack")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->rcmd_seq_num_req), mot_comp_id, "motion.rcmd-seq-num-req")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->rcmd_seq_num_ack), mot_comp_id, "motion.rcmd-seq-num-ack")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->rcmd_state), mot_comp_id, "motion.rcmd-state")) < 0) goto error;
     *emcmot_hal_data->update_pos_req = 0;
     *emcmot_hal_data->update_pos_ack = 0;
     *emcmot_hal_data->rcmd_seq_num_req = 0;
     *emcmot_hal_data->rcmd_seq_num_ack = 0;
+    *emcmot_hal_data->rcmd_state = RCMD_IDLE;
 
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->usb_busy), mot_comp_id, "motion.usb-busy")) < 0) goto error;
-    if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->align_pos_cmd), mot_comp_id, "motion.align-pos-cmd")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->machine_is_moving), mot_comp_id, "motion.machine-is-moving")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x1), mot_comp_id, "motion.mpg-scale-x1")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x10), mot_comp_id, "motion.mpg-scale-x10")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x100), mot_comp_id, "motion.mpg-scale-x100")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->req_cmd_sync), mot_comp_id, "motion.req-cmd-syn")) < 0) goto error;
     *emcmot_hal_data->req_cmd_sync = 0;
+    *emcmot_hal_data->mpg_scale_x1 = 0;
+    *emcmot_hal_data->mpg_scale_x10 = 0;
+    *emcmot_hal_data->mpg_scale_x100 = 0;
+    *emcmot_hal_data->usb_busy = 0;
+    *emcmot_hal_data->machine_is_moving = 0;
 
-    if ((retval = hal_pin_u32_newf(HAL_IO, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.usb.cmd")) < 0) goto error;
-    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->last_usb_cmd), mot_comp_id, "motion.usb.last-cmd")) < 0) goto error;
-    for (n=0;n<4;n++) {
-        if ((retval = hal_pin_float_newf(HAL_OUT,
-                &(emcmot_hal_data->usb_cmd_param[n]),
-                mot_comp_id, "motion.usb.param-%02d", n)) < 0) goto error;
-
-        if ((retval = hal_pin_float_newf(HAL_IN,
-                &(emcmot_hal_data->last_usb_cmd_param[n]),
-                mot_comp_id, "motion.usb.last-param-%02d", n)) < 0) goto error;
-
-    }
-    //    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->usb_cmd), mot_comp_id, "motion.wou.cmd")) < 0) goto error;
-    if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->usb_status), mot_comp_id, "motion.wou.status")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) != 0) goto error;
-
+    if ((retval = hal_param_u32_newf(HAL_RW, &(emcmot_hal_data->spindle_joint_id), mot_comp_id, "motion.spindle-joint-id")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_on), mot_comp_id, "motion.spindle-on")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_dynamic_speed_mode), mot_comp_id, "motion.spindle-dynamic-speed-mode")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_const_speed_radius), mot_comp_id, "motion.spindle-const-speed-radius")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_velocity_mode), mot_comp_id, "motion.spindle-velocity-mode")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_forward), mot_comp_id, "motion.spindle-forward")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_reverse), mot_comp_id, "motion.spindle-reverse")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_brake), mot_comp_id, "motion.spindle-brake")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out), mot_comp_id, "motion.spindle-speed-out")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out_rps), mot_comp_id, "motion.spindle-speed-out-rps")) != 0) goto error;
-    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_cmd_rps), mot_comp_id, "motion.spindle-speed-cmd-rps")) != 0) goto error;
-    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_css), mot_comp_id, "motion.spindle-surface-speed")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_css_error), mot_comp_id, "motion.spindle-css-error")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_css_factor), mot_comp_id, "motion.spindle-css-factor")) < 0) goto error;
+    *(emcmot_hal_data->spindle_dynamic_speed_mode) = 0;
+    *(emcmot_hal_data->spindle_const_speed_radius) = 1.0;
 
     // spindle orient pins
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_orient_angle), mot_comp_id, "motion.spindle-orient-angle")) < 0) goto error;
@@ -347,19 +357,12 @@ static int init_hal_io(void)
     *(emcmot_hal_data->spindle_orient_angle) = 0.0;
     *(emcmot_hal_data->spindle_orient_mode) = 0;
     *(emcmot_hal_data->spindle_orient) = 0;
-
-    // before merge:     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_revs), mot_comp_id, "motion.spindle-revs")) < 0) goto error;
-    // before merge:     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_speed_in), mot_comp_id, "motion.spindle-speed-in")) < 0) goto error;
-    // before merge:     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_is_atspeed), mot_comp_id, "motion.spindle-at-speed")) < 0) goto error;
-    // before merge:     *emcmot_hal_data->spindle_is_atspeed = 1;
-    // before merge:     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->adaptive_feed), mot_comp_id, "motion.adaptive-feed")) < 0) goto error;
-    // before merge:     *(emcmot_hal_data->adaptive_feed) = 1.0;
-    // before merge:     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->feed_hold), mot_comp_id, "motion.feed-hold")) < 0) goto error;
-    // before merge:     *(emcmot_hal_data->feed_hold) = 0;
-
-    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_revs), mot_comp_id, "motion.spindle-revs")) != 0) goto error;
+    emcmot_hal_data->spindle_joint_id = 0;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_curr_pos_cmd), mot_comp_id, "motion.spindle-curr-pos-cmd")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_curr_vel_rps), mot_comp_id, "motion.spindle-curr-vel-rps")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_speed_in), mot_comp_id, "motion.spindle-speed-in")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_is_atspeed), mot_comp_id, "motion.spindle-at-speed")) != 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_update_pos_req), mot_comp_id, "motion.spindle-update-pos-req")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->adaptive_feed), mot_comp_id, "motion.adaptive-feed")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->feed_hold), mot_comp_id, "motion.feed-hold")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->enable), mot_comp_id, "motion.enable")) != 0) goto error;
@@ -375,7 +378,7 @@ static int init_hal_io(void)
     /* export motion analog input pins */
     for (n = 0; n < num_aio; n++) {
         if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->analog_output[n]), mot_comp_id, "motion.analog-out-%02d", n)) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->analog_input[n]), mot_comp_id, "motion.analog-in-%02d", n)) != 0) goto error;
+        if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->analog_input[n]), mot_comp_id, "motion.analog-in-%02d", n)) != 0) goto error;
     }
 
     /* export motion-synched input for 7i43 pins */
@@ -402,6 +405,11 @@ static int init_hal_io(void)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->feed_scale), mot_comp_id, "motion.feed-scale")) != 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->program_line), mot_comp_id, "motion.program-line")) != 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->motion_state), mot_comp_id, "motion.motion-state")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->motion_type), mot_comp_id, "motion.motion-type")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->rigid_tapping), mot_comp_id, "motion.rigid-tapping")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->xuu_per_rev), mot_comp_id, "motion.xuu-per-rev")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->yuu_per_rev), mot_comp_id, "motion.yuu-per-rev")) != 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->zuu_per_rev), mot_comp_id, "motion.zuu-per-rev")) != 0) goto error;
 
     /* export debug parameters */
     /* these can be used to view any internal variable, simply change a line
@@ -412,8 +420,14 @@ static int init_hal_io(void)
     if ((retval = hal_param_float_newf(HAL_RO, &(emcmot_hal_data->debug_float_1), mot_comp_id, "motion.debug-float-1")) != 0) goto error;
     if ((retval = hal_param_float_newf(HAL_RO, &(emcmot_hal_data->debug_float_2), mot_comp_id, "motion.debug-float-2")) != 0) goto error;
     if ((retval = hal_param_float_newf(HAL_RO, &(emcmot_hal_data->debug_float_3), mot_comp_id, "motion.debug-float-3")) != 0) goto error;
-    if ((retval = hal_param_s32_newf(HAL_RO, &(emcmot_hal_data->debug_s32_0), mot_comp_id, "motion.debug-s32-0")) != 0) goto error;
-    if ((retval = hal_param_s32_newf(HAL_RO, &(emcmot_hal_data->debug_s32_1), mot_comp_id, "motion.debug-s32-1")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_0), mot_comp_id, "motion.debug-s32-0")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_1), mot_comp_id, "motion.debug-s32-1")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_2), mot_comp_id, "motion.debug-s32-2")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_3), mot_comp_id, "motion.debug-s32-3")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_4), mot_comp_id, "motion.debug-s32-4")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_5), mot_comp_id, "motion.debug-s32-5")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_6), mot_comp_id, "motion.debug-s32-6")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_7), mot_comp_id, "motion.debug-s32-7")) != 0) goto error;
 
     // FIXME - debug only, remove later
     // export HAL parameters for some trajectory planner internal variables
@@ -448,12 +462,13 @@ static int init_hal_io(void)
 
     /* initialize machine wide pins and parameters */
     *emcmot_hal_data->spindle_is_atspeed = 1;
+    *emcmot_hal_data->spindle_update_pos_req = 0;
     *(emcmot_hal_data->adaptive_feed) = 1.0;
     *(emcmot_hal_data->feed_hold) = 0;
-
-    //obsolete on arais-emc2-usb: *(emcmot_hal_data->probe_input) = 0;
-    *(emcmot_hal_data->usb_cmd) = USB_CMD_NOOP;
-    *(emcmot_hal_data->usb_status) = USB_STATUS_READY;
+    *emcmot_hal_data->rigid_tapping = 0;
+    *emcmot_hal_data->xuu_per_rev = 0;
+    *emcmot_hal_data->yuu_per_rev = 0;
+    *emcmot_hal_data->zuu_per_rev = 0;
 
     /* default value of enable is TRUE, so simple machines
        can leave it disconnected */
@@ -517,11 +532,11 @@ static int init_hal_io(void)
 
     /* export axis pins and parameters */
     for (n = 0; n < EMCMOT_MAX_AXIS; n++) {
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].pos_cmd), mot_comp_id, "axis.%c.pos-cmd", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].vel_cmd), mot_comp_id, "axis.%c.vel-cmd", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_pos_cmd), mot_comp_id, "axis.%c.teleop-pos-cmd", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_vel_lim), mot_comp_id, "axis.%c.teleop-vel-lim", "xyzabcuvw"[n])) != 0) goto error;
-        if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_tp_enable), mot_comp_id, "axis.%c.teleop-tp-enable", "xyzabcuvw"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].pos_cmd), mot_comp_id, "axis.%c.pos-cmd", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].vel_cmd), mot_comp_id, "axis.%c.vel-cmd", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_pos_cmd), mot_comp_id, "axis.%c.teleop-pos-cmd", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_vel_lim), mot_comp_id, "axis.%c.teleop-vel-lim", "xyzabcuvws"[n])) != 0) goto error;
+        if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->axis[n].teleop_tp_enable), mot_comp_id, "axis.%c.teleop-tp-enable", "xyzabcuvws"[n])) != 0) goto error;
     }
     /* Done! */
     rtapi_print_msg(RTAPI_MSG_INFO,
@@ -551,6 +566,7 @@ static int export_joint(int num, joint_hal_t * addr)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->motor_pos_cmd), mot_comp_id, "joint.%d.motor-pos-cmd", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_IN, &(addr->motor_pos_fb), mot_comp_id, "joint.%d.motor-pos-fb", num)) != 0) return retval;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(addr->motor_offset), mot_comp_id, "joint.%d.motor-offset", num)) != 0) return retval;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(addr->blender_offset), mot_comp_id, "joint.%d.blender-offset", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->pos_lim_sw), mot_comp_id, "joint.%d.pos-lim-sw-in", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->neg_lim_sw), mot_comp_id, "joint.%d.neg-lim-sw-in", num)) != 0) return retval;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(addr->home_sw), mot_comp_id, "joint.%d.home-sw-in", num)) != 0) return retval;
@@ -714,6 +730,7 @@ static int init_comm_buffers(void)
         joint = &joints[joint_num];
 
         /* init the config fields with some "reasonable" defaults" */
+        joint->id = joint_num;
         joint->type = 0;
         joint->max_pos_limit = 1.0;
         joint->min_pos_limit = -1.0;
@@ -762,6 +779,7 @@ static int init_comm_buffers(void)
         joint->backlash_corr = 0.0;
         joint->backlash_filt = 0.0;
         joint->backlash_vel = 0.0;
+        joint->blender_offset = 0.0;
         joint->motor_pos_cmd = 0.0;
         joint->motor_pos_fb = 0.0;
         joint->pos_fb = 0.0;
@@ -799,6 +817,7 @@ static int init_comm_buffers(void)
     //obsolete: tpSetAmax(&emcmotDebug->coord_tp, emcmotStatus->acc);
 
     emcmotStatus->tail = 0;
+    emcmotStatus->update_pos_ack = 0;
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_comm_buffers() complete\n");
     return 0;

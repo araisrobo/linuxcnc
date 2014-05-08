@@ -76,6 +76,7 @@ typedef struct JointConfig_t {
     double MaxJerk;
     double MinLimit;
     double MaxLimit;
+    int SyncJogId;              // synchronized jog joint id
 } JointConfig_t;
 
 typedef struct AxisConfig_t {

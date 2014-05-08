@@ -1,0 +1,35 @@
+#<safe_height> = 30
+#<drill_height> = -18.625
+#<tap_height> = -28.176 
+
+G21
+M6 T6
+; safe height
+G90 G53 G0 Z[#<safe_height>]
+G10 L20 P1 X0 Y0 Z[#<safe_height>]
+F3000
+; goto laser point and z work_height
+G1 X-6.33 Y-70.182 Z[#<drill_height>]
+M3 S2025.000000
+F107.000000
+G91
+G1 Z-12.000000
+G90 G53 G0 Z[#<safe_height>]
+M5
+
+M6 T7
+;goto drill point and rigidtap
+G90
+F3000
+; goto safe height
+G1 Z[#<safe_height>]    
+G0 X-6.33
+G0 Y-70.182
+G1 Z[#<tap_height>]
+G91 
+M3 S800
+G33.1 Z-10 K0.7
+M5
+G90 G53 G0 Z[#<safe_height>]
+M6 T5
+M2

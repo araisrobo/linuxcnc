@@ -152,17 +152,92 @@ Below is the original implementation from the NURBS Book
   return(mid);
 }
 */
+
+static int
+ON_SearchMonotoneArray(const double* array, int length, double t)
+/*****************************************************************************
+Find interval in an increasing array of doubles
+
+INPUT:
+  array
+    A monotone increasing (array[i] <= array[i+1]) array of length doubles.
+  length (>=1)
+    number of doubles in array
+  t
+    parameter
+OUTPUT:
+  ON_GetdblArrayIndex()
+    -1:         t < array[0]
+     i:         (0 <= i <= length-2) array[i] <= t < array[i+1]
+     length-1:  t == array[length-1]
+     length:    t  > array[length-1]
+COMMENTS:
+  If length < 1 or array is not monotone increasing, you will get a meaningless
+  answer and may crash your program.
+EXAMPLE:
+  // Given a "t", find the knots that define the span used to evaluate a
+  // nurb at t; i.e., find "i" so that
+  // knot[i] <= ... <= knot[i+order-2]
+  //   <= t < knot[i+order-1] <= ... <= knot[i+2*(order-1)-1]
+  i = ON_GetdblArrayIndex(knot+order-2,cv_count-order+2,t);
+  if (i < 0) i = 0; else if (i > cv_count - order) i = cv_count - order;
+RELATED FUNCTIONS:
+  ON_
+  ON_
+*****************************************************************************/
+
+{
+  int
+    i, i0, i1;
+
+  length--;
+
+  /* Since t is frequently near the ends and bisection takes the
+   * longest near the ends, trap those cases here.
+   */
+  if (t < array[0])
+    return -1;
+  if (t >= array[length])
+    return (t > array[length]) ? length+1 : length;
+  if (t < array[1])
+    return 0;
+  if (t >= array[length-1])
+    return (length-1);
+
+
+  i0 = 0;
+  i1 = length;
+  while (array[i0] == array[i0+1]) i0++;
+  while (array[i1] == array[i1-1]) i1--;
+  /* From now on we have
+   *  1.) array[i0] <= t < array[i1]
+   *  2.) i0 <= i < i1.
+   * When i0+1 == i1, we have array[i0] <= t < array[i0+1]
+   * and i0 is the answer we seek.
+   */
+  while (i0+1 < i1) {
+    i = (i0+i1)>>1;
+    if (t < array[i]) {
+      i1 = i;
+      while (array[i1] == array[i1-1]) i1--;
+    }
+    else {
+      i0 = i;
+      while (array[i0] == array[i0+1]) i0++;
+    }
+  }
+  return i0;
+}
+
 //   n - number of control points - 1
 //   p - spline degree
 //   u - parametric point
 //   U - knot sequence
 int nurbs_findspan (int n, int p, double u, double *U)
 {
-  // FIXME : this implementation has linear, rather than log complexity
-  int ret = 0;
-  while ((ret++ < n) && (U[ret] <= u)) {
-  };
-  return (ret-1);
+    int span;
+    span = ON_SearchMonotoneArray(U, (n+p), u);
+    return (span);
 }
 
 /*
@@ -170,9 +245,7 @@ void nurbs_basisfun(int i, double u, int p,
               const std::vector<double> & U, 
               std::vector<double> & N)
 */
-void nurbs_basisfun(int i, double u, int p,
-              double *U,
-              double *N)
+void nurbs_basisfun(int i, double u, int p, double *U, double *N)
 // Basis Function. 
 //
 // INPUT:
@@ -188,37 +261,38 @@ void nurbs_basisfun(int i, double u, int p,
 //
 // Algorithm A2.2 from 'The NURBS BOOK' pg70.
 {
-  int j,r;
-  double saved, temp;
+    int j, r, id;
+    double saved, temp, denom;
 
-  // work space
-  //std::vector<double> left(p+1);
-  //std::vector<double> right(p+1);
+    // work space
+    //std::vector<double> left(p+1);
+    //std::vector<double> right(p+1);
 
-  double *left = (double*)malloc(sizeof(double)*(p+1));
-  double *right = (double*)malloc(sizeof(double)*(p+1));
+    double *left = (double*)malloc(sizeof(double)*(p+1));
+    double *right = (double*)malloc(sizeof(double)*(p+1));
 
-  
-
-  N[0] = 1.0;
-  for (j = 1; j <= p; j++)
+    N[0] = 1.0;
+    for (j = 1; j <= p; j++)
     {
-      left[j]  = u - U[i+1-j];
-      right[j] = U[i+j] - u;
-      saved = 0.0;
-      
-      for (r = 0; r < j; r++)
-	{
-	  temp = N[r] / (right[r+1] + left[j-r]);
-	  N[r] = saved + right[r+1] * temp;
-	  saved = left[j-r] * temp;
-	} 
-      
-      N[j] = saved;
+        id = i+1-j;
+        if (id < 0) id = 0;
+        left[j]  = u - U[id];
+        right[j] = U[i+j] - u;
+        saved = 0.0;
+        for (r = 0; r < j; r++)
+        {
+            denom = (right[r+1] + left[j-r]);
+            if (denom != 0)
+            {
+                temp = N[r] / denom;
+                N[r] = saved + right[r+1] * temp;
+                saved = left[j-r] * temp;
+            }
+        } 
+        N[j] = saved;
     }
-  free(left);
-  free(right);
-
+    free(left);
+    free(right);
 }
 
 // vim:sw=4:sts=4:et:

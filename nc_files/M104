@@ -1,0 +1,25 @@
+#!/bin/bash
+
+sleep 0.5
+
+# release sampler for next M103
+halcmd unloadusr halsampler
+
+# unlink sampler.0 pins for next M103 (net signals with pins)
+halcmd unlinkp sampler.0.pin.0
+halcmd unlinkp sampler.0.pin.1
+halcmd unlinkp sampler.0.pin.2  
+halcmd unlinkp sampler.0.pin.3
+halcmd unlinkp sampler.0.pin.4
+halcmd unlinkp sampler.0.pin.5
+halcmd unlinkp sampler.0.pin.6
+halcmd unlinkp sampler.0.pin.7
+halcmd unlinkp sampler.0.pin.8  
+halcmd unlinkp sampler.0.pin.9
+halcmd unlinkp sampler.0.pin.10
+halcmd unlinkp sampler.0.pin.11
+halcmd unlinkp sampler.0.pin.12
+
+# release sampler for next M103
+halcmd delf sampler.0 servo-thread
+halcmd unloadrt sampler

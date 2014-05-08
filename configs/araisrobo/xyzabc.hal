@@ -18,7 +18,6 @@ addf not.0  servo-thread
 
 # link usb command and status
 # (MUST add the following lines for USB-MOTION protocol)
-net align-cmd wou.align-pos-cmd <=> motion.align-pos-cmd
 net usb-cmd wou.usb.cmd <= motion.usb.cmd
 net usb-cmd-param0 wou.usb.param-00 <= motion.usb.param-00
 net usb-cmd-param1 wou.usb.param-01 <= motion.usb.param-01
@@ -112,13 +111,6 @@ setp wou.stepgen.3.position-scale [JOINT_3]INPUT_SCALE
 setp wou.stepgen.4.position-scale [JOINT_4]INPUT_SCALE
 setp wou.stepgen.5.position-scale [JOINT_5]INPUT_SCALE
 
-# export pos-scale
-net j0_pos_scale wou.stepgen.0.position-scale-pin 
-net j1_pos_scale wou.stepgen.1.position-scale-pin 
-net j2_pos_scale wou.stepgen.2.position-scale-pin 
-net j3_pos_scale wou.stepgen.3.position-scale-pin 
-net j4_pos_scale wou.stepgen.4.position-scale-pin 
-net j5_pos_scale wou.stepgen.5.position-scale-pin 
 
 # set wou module pulse_per_rev - get values from ini file
 setp wou.stepgen.0.pulse_per_rev [JOINT_0]PULSE_PER_REV
@@ -159,7 +151,6 @@ net j4-probed-pos   wou.stepgen.4.probed-pos => joint.4.probed-pos
 net j5-probed-pos   wou.stepgen.5.probed-pos => joint.5.probed-pos
 
 net rt-abort  => wou.rt.abort
-net cl-abort  => wou.cl.abort
 net vel-sync wou.motion.vel-sync
 net usb-busy wou.usb-busy => motion.usb-busy
 
@@ -231,6 +222,7 @@ net teleop_mode         wou.motion.teleop-mode <= motion.teleop-mode
 net coord_mode          wou.motion.coord-mode <= motion.coord-mode
 net homing              wou.motion.homing <= motion.homing
 net probe_result        wou.motion.probe-result => motion.probe-input
+net machine_is_moving   <= wou.motion.machine-is-moving
 
 # mapping wou.gpio to motion.synch_di[]
 net din_00	wou.gpio.in.00    => motion.digital-in-00

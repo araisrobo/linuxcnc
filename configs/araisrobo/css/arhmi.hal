@@ -1,0 +1,151 @@
+# net prog-run halui.program.is-running => arhmi.program-running
+
+# some pin are from injector
+setp arhmi.joint-for-x     0
+setp arhmi.joint-for-y     1
+setp arhmi.joint-for-z     3
+net CycleStart              arhmi.cycle-start
+# net start-toggle            wou.gpio.in.30
+
+# FOR INJECTOR
+#
+net sm-mode-control    <= arhmi.mode-control
+net ahc-level          <= arhmi.voltage
+net transfer-hi        <= arhmi.transfer-hi # upper bound transfer voltage
+net transfer-lo        <= arhmi.transfer-lo # lower bound transfer voltage
+net sm-probe-dist      <= arhmi.probe-dist
+net sm-probe-vel       <= arhmi.probe-vel
+net sm-safe-height     <= arhmi.safe-height
+net sm-vel-safe-height <= arhmi.vel-safe-height
+#net sm-time-param      <= arhmi.time-param
+ 
+net din_32_d           => arhmi.start-toggle   # debounced start signal
+net din_33             => arhmi.key-5     # REMOTE.KEY.5 for cabot stop
+
+# net led_switch         => arhmi.hal_led
+net transfer-dbc       => arhmi.transfer-in
+#net plasma-on-0        arhmi.plasma-on => or2.0.in0
+# plasma-is-on: connect to wou.gpio.out.09
+net plasma-is-on       arhmi.plasma-is-on
+net force-start         arhmi.force-start
+
+net alignment-theta     arhmi.theta
+
+# torch_voltage: input of torch voltage
+net torch_voltage       => arhmi.torch-voltage
+
+net gui-ahc-en          arhmi.ahc.state # ahc.state == 1: enable ahc
+net rt-abort            <= arhmi.rt-abort
+
+net vel-sync-scale      <= arhmi.vel-sync-scale
+
+#For servo alarm and reset
+net j0_alm              => arhmi.j0_alm
+net j1_alm              => arhmi.j1_alm
+net j2_alm              => arhmi.j2_alm
+net j3_alm              => arhmi.j3_alm
+net dout_01             <= arhmi.alm_reset
+net dout_02             => arhmi.brake         
+
+net lsp_j0              => arhmi.lsp_j0
+net lsn_j0              => arhmi.lsn_j0
+net lsp_j1              => arhmi.lsp_j1
+net lsn_j1              => arhmi.lsn_j1
+net lsp_j3              => arhmi.lsp_j3
+net lsn_j3              => arhmi.lsn_j3
+# for risc jogging
+# net ignore-host-cmd   <= arhmi.ignore-host-cmd
+# net req-cmd-sync      arhmi.req-cmd-syn => motion.req-cmd-syn
+
+# for I/O status
+#
+net din_00          => arhmi.hal_led_ESTOP
+net lsp_j0          => arhmi.hal_led_lsp_j0
+net lsp_j1          => arhmi.hal_led_lsp_j1
+net lsp_j3          => arhmi.hal_led_lsp_j3
+net lsn_j0          => arhmi.hal_led_lsn_j0
+net lsn_j1          => arhmi.hal_led_lsn_j1
+net lsn_j3          => arhmi.hal_led_lsn_j3
+net j0_alm          => arhmi.hal_led_j0_alm
+net j1_alm          => arhmi.hal_led_j1_alm
+net j2_alm          => arhmi.hal_led_j2_alm
+net j3_alm          => arhmi.hal_led_j3_alm
+net transfer-dbc    => arhmi.hal_led_transfer 
+net probe_din       => arhmi.hal_led_probe_din
+# net din_36          => arhmi.hal_led_key_3     # REMOTE.KEY.3
+# net din_37          => arhmi.hal_led_key_4     # REMOTE.KEY.4 
+# net din_38          => arhmi.hal_led_key_1     # REMOTE.KEY.1
+# net din_39          => arhmi.hal_led_key_2     # REMOTE.KEY.2 
+# net din_40          => arhmi.hal_led_East
+# net din_41          => arhmi.hal_led_Western
+# net din_42          => arhmi.hal_led_North
+# net din_43          => arhmi.hal_led_South
+# net din_44          => arhmi.hal_led_up
+# net din_45          => arhmi.hal_led_down
+# net din_47          => arhmi.hal_led_STOP
+net din_32_d        => arhmi.hal_led_START     # debounced start signal
+
+net dout_00         => arhmi.hal_led_SVO-ON
+net dout_01         => arhmi.hal_led_ALM-RST
+net dout_02         => arhmi.hal_led_BRAKE       
+net led_switch      => arhmi.hal_led_switch    # laser-marker
+net plasma-is-on    => arhmi.hal_led_PLASMA-IS-ON
+net m14-ahc-disable => arhmi.hal_led_M14
+net ahc-doing       => arhmi.hal_led_AHC-DOING <= wou.ahc.doing
+
+net pulse_pos_j3    => arhmi.hal_label_z_pulse-pos
+net pulse_pos_j2    => arhmi.hal_label_yy_pulse-pos
+net pulse_pos_j1    => arhmi.hal_label_y_pulse-pos
+net pulse_pos_j0    => arhmi.hal_label_x_pulse-pos
+net enc_pos_j3      => arhmi.hal_label_z_enc-pos
+net enc_pos_j2      => arhmi.hal_label_yy_enc-pos
+net enc_pos_j1      => arhmi.hal_label_y_enc-pos
+net enc_pos_j0      => arhmi.hal_label_x_enc-pos
+net vx-cmd          => arhmi.vx-cmd
+net vy-cmd          => arhmi.vy-cmd
+net vz-cmd          => arhmi.vz-cmd
+
+net din_00          => arhmi.estop
+net machine_is_on   => arhmi.machine-is-on
+net estop-all-ok    => arhmi.estop-all-ok
+
+net homing          => arhmi.homing
+net XYvel           => arhmi.XYvel
+net machine_is_moving   => arhmi.machine-is-moving
+
+
+# net din_36          => arhmi.key-3     # REMOTE.KEY.3
+# net din_37          => arhmi.key-1     # REMOTE.KEY.1
+# net din_38          => arhmi.key-2     # REMOTE.KEY.2 
+# net din_47          => arhmi.key-5     # REMOTE.KEY.5
+# net din_40          => arhmi.key-east
+# net din_41          => arhmi.key-west
+# net din_42          => arhmi.key-north
+# net din_43          => arhmi.key-south
+# net din_44          => arhmi.key-up
+# net din_45          => arhmi.key-down
+
+net xy_risc_jog_vel wou.stepgen.0.risc-jog-vel  <= arhmi.xy.risc-jog-vel
+net xy_risc_jog_vel wou.stepgen.1.risc-jog-vel
+net z_risc_jog_vel  wou.stepgen.3.risc-jog-vel  <= arhmi.z.risc-jog-vel
+net h2-dist         <= arhmi.h2-dist
+net h3-dist         <= arhmi.h3-dist
+net h2-vel          <= arhmi.h2-vel
+net h3-vel          <= arhmi.h3-vel
+net blending-o      => arhmi.blending-o
+net enable          => arhmi.enable
+net pos-cmd-id      <= arhmi.pos-cmd-id
+net update-pos-ack => arhmi.update-pos-ack
+net no_update_dtg      motion.digital-out-18       => arhmi.no_update_dtg
+
+net user_id         arhmi.user-id   # =>touchy-gremlin.user-id
+net change_mot_state    arhmi.change-mot-state # <=touchy-gremlin.change-mot-state
+
+net Svel-fb         => arhmi.s-vel-fb-rps
+net spindle-t-speed-feedback     => arhmi.t-vel-fb-rps
+net spindle-t-aux-radius         => arhmi.aux-radius    
+net surface_speed   <= arhmi.surface-speed
+net Svel-fb-rpm     <= arhmi.s-vel-fb-rpm
+net Tvel-fb-rpm     <= arhmi.t-vel-fb-rpm
+net w-pvc           => arhmi.w-pvc 
+net w-pad           => arhmi.w-pad 

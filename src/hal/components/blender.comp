@@ -1,0 +1,108 @@
+component blender "Blend requested motion with joint command";
+
+description 
+"""
+
+TODO: remove vel_req_1, pos_cmd_1, nu_of_cmd, and pos_cmd_id
+
+""";
+ 
+author "Yishin Li";
+
+license "GPLv2 or greater";
+
+// Input Pins
+pin in bit enable "Enable the blender if not enabled motor-pos-cmd is passed through";
+pin in u32 nu_of_cmd "Number of distance commands to blend for";
+pin in float vel_req_0 "Request velocity for pos-cmd-0";
+pin in float pos_cmd_0 "Relative Position Command 0";
+pin in float vel_req_1 "Request velocity for pos-cmd-1";
+pin in float pos_cmd_1 "Relative Position Command 1";
+pin in u32 pos_cmd_id "0: exec 2 blending commands, 1: exec 1 blending command";
+
+// Output Pins
+pin out float offset_o "Motor Position Command Out";
+pin out bit blending_o "Set to 1 while blending";
+
+// Parameters
+param rw float max_vel "Max velocity";
+param rw float max_acc "Max acceleration";
+param rw float max_jerk "Max jerk";
+
+function _;
+
+;;
+#include <stdio.h>
+
+#include "rtapi_math.h"
+
+FUNCTION(_) 
+{
+    double max_dv, tiny_dp, pos_err, vel_req, pos_cmd, vel_limit;
+    static double curr_pos = 0;
+    static double curr_vel = 0;
+    max_dv = max_acc * fperiod;
+    tiny_dp = max_dv * fperiod * 0.001;
+    if (!enable)
+    {
+        pos_cmd = curr_pos;    // prevent from moving
+        blending_o = 0;
+    } else 
+    {
+        blending_o = 1;        
+        if (vel_req_0 > max_vel)
+        {   
+            vel_limit = max_vel;
+        } 
+        else
+        {
+            vel_limit = vel_req_0;
+        }
+        pos_cmd = pos_cmd_0;    // set offset value
+    }
+
+    /* planner enabled, request a velocity that tends to drive
+       pos_err to zero, but allows for stopping without position
+       overshoot */
+    pos_err = pos_cmd - curr_pos;
+    /* positive and negative errors require some sign flipping to
+       avoid sqrt(negative) */
+    if (pos_err > tiny_dp) {
+        vel_req = -max_dv +
+                   sqrt(2.0 * max_acc * pos_err + max_dv * max_dv);
+    } else if (pos_err < -tiny_dp) {
+        vel_req =  max_dv -
+                   sqrt(-2.0 * max_acc * pos_err + max_dv * max_dv);
+    } else {
+        /* within 'tiny_dp' of desired pos, no need to move */
+        vel_req = pos_err;
+        blending_o = 0;
+    }
+    /* limit velocity request */
+    if (vel_req > vel_limit) {
+        vel_req = vel_limit;
+    } else if (vel_req < -vel_limit) {
+        vel_req = -vel_limit;
+    }
+    
+    /* ramp velocity toward request at accel limit */
+
+    if (vel_req > (curr_vel + max_dv)) {
+        curr_vel += max_dv;
+    } else if (vel_req < (curr_vel - max_dv)) {
+        curr_vel -= max_dv;
+    } else {
+        curr_vel = vel_req;
+    }
+
+    /* integrate velocity to get new position */
+    curr_pos += curr_vel * fperiod;
+
+    if (blending_o == 0)
+    {
+        curr_pos = pos_cmd;
+    }
+    
+    offset_o = curr_pos;
+}
+

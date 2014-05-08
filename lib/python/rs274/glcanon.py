@@ -217,24 +217,52 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             length_vector.append(l[i] - self.lo[i])
         length = LA.norm(length_vector)
 
-        if not self.first_move:
-            self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+        self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
             
         self.all_traverse_append([self.lineno, self.lo, l, self.feedrate, length])
         self.path.append(('traverse', self.lineno, self.lo, l, self.feedrate, length))
         
         self.lo = l
         
-    def rigid_tap(self, x, y, z):
+    def spindle_sync_motion(self, x, y, z, ssm_mode):
         if self.suppress > 0: return
         self.first_move = False
-        l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
-        l += [self.lo[3], self.lo[4], self.lo[5],
+        
+        if (ssm_mode < 2):
+            """ G33 CSS(w/ G96) """
+            """ G33.1 RIGID_TAP """
+            l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
+            l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
-        self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
-#        self.dwells_append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
-        self.feed_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
+        elif (ssm_mode == 2):
+            """ G33.2 Spindle Positioning """
+            l = self.lo
 
+        self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        # calculate length
+        length_vector = []
+        length = 0.0
+        for i in range (0, (len(l)-1)):
+            length_vector.append(l[i] - self.lo[i])
+        length = LA.norm(length_vector)
+        self.feed_info_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo], length))
+        self.path.append(('feed', self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo], length))
+        
+        if (ssm_mode == 0):
+            """ G33 CSS(w/ G96) """
+            self.lo = l
+        elif (ssm_mode == 1):
+            """ G33.1 RIGID_TAP """
+            self.feed_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
+            self.feed_info_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo], length))
+            self.path.append(('feed', self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo], length))
+        elif (ssm_mode == 2):
+            """ G33.2 Spindle Positioning """
+            pass
+        else:
+            print ("Unknown SSM_MODE for G33.X")
+            assert(0)
+            
     def arc_feed(self, *args):
         if self.suppress > 0: return
         self.first_move = False
@@ -313,6 +341,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # print "self.feed_info", self.feed_info
 
         self.lo = l
+        
     straight_probe = straight_feed
 
     def user_defined_function(self, i, p, q):
@@ -1634,7 +1663,10 @@ class GlCanonDraw:
                 glRotatef(90, 0, 1, 0)
             else:
                 if self.fix_tool_size == True:
+                    # self.distance: the distance to your eye (unit: mm)
                     dia = 4 * math.sqrt((self.distance / 10))
+                    if (self.get_show_metric() == False):
+                        dia = dia/25.4
                 else:
                     dia = current_tool.diameter 
                 r = self.to_internal_linear_unit(dia) / 2.
@@ -2018,7 +2050,6 @@ class GlCanonDraw:
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=""):
         self.set_canon(canon)
-        #debug:
         result, seq = gcode.parse(f, canon, unitcode, initcode, interpname)
         canon.ofeed = canon.feed
 

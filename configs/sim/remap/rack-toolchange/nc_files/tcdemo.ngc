@@ -1,7 +1,7 @@
 (change tools 1 through 6)
 F100
-#1 = 1
-O101 while [#1 lt 7]
+#1 = 0
+O101 while [#1 lt 3]
 
 T#1 M6
 

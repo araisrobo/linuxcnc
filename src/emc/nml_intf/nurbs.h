@@ -20,7 +20,7 @@ typedef struct {          /* type for NURBS control points */
              V,
              W,
              R,
-             F,         // for dynamic feed rate
+//             F,         // for dynamic feed rate
              D;         // curvature: radius of a curve
       } CONTROL_POINT;
 
@@ -28,6 +28,7 @@ typedef struct {
       double X,
              Y;
       } PLANE_POINT;
+
 /*typedef struct  {
     double              uofl_knot;
     uint32_t            uofl_knot_flag;
@@ -36,21 +37,21 @@ typedef struct {
     double              uofl_ctrl_pt;
     uint32_t            uofl_ctrl_pt_flag;
 } uofl_block_t;*/
+
 typedef struct
 {
     // NURBS curve paramters
     CONTROL_POINT               *ctrl_pts_ptr;
     uint32_t                    nr_of_ctrl_pts;
-    double                      *knots_ptr;
+    double                     *knots_ptr;
     uint32_t                    nr_of_knots;
     uint32_t                    order;
-    double                      curve_len;
-    double                      curvature;
-    double                      knot;
-    double                      weight;
-
-    double                      *N; // basis function buffer
-//    double                      *NL; // basis function buffer for U(L)
+    double                     curve_len;
+    double                     curvature;
+    double                     reqvel; // request velocity (unit/sec)
+    double                     knot;
+    double                     weight;
+    double                     *N; // basis function buffer
     int 		        axis_mask;
 } nurbs_block_t;
 

@@ -1,0 +1,159 @@
+[WOU] WISHBONE Over USB Application Layer Protocol
+  + Refer to 802.3 MAC Frame (http://en.wikipedia.org/wiki/Ethernet)
+  + take its Preamble and Start-of-Frame-Delimiter from 802.3 MAC Frame
+  + take its 16-bit CRC
+  + The WOU messages is organized as the following sequence:
+            +---> [WOU_FRAME][WOU_FRAME][...] --->+
+    HOST <==>                                     <==> FPGA Tranceiver
+            +<--- [WOU_FRAME][WOU_FRAME][...] <---+
+  + drop a WOU_FRAME if it's CRC is incorrect
+  + adopt GO-BACK-N ARQ for WOU_FRAME
+  + for JOINT command:
+    - HOST send DIFFERENTIATE_JOINT_POSITION_COMMAND to FPGA.RISC
+    - FPGA.RISC do close-loop control based on received position commands
+  + for GPIO.OUTPUT:
+    - HOST send GPIO.OUTPUT command to FPGA.RISC
+    - FPGA.RISC update corresponding GPIO REGISTER
+  + for GPIO.INPUT:
+    - FPGA.RISC drop GPIO REGISTER to mailbox
+    - HOST parse GPIO REGISTER from fetchmail
+  + for the other FPGA.RISC STATUS:
+    - FPGA.RISC drop STATUS to mailbox
+    - HOST parse STATUS from fetchmail
+    - STATUS includes joint-encoder-position, joint-velocity, analog-channel ... etc.
+
+WOU_FRAME Format
+===================
+    PLOAD_SIZE_TX: 
+        + (host-to-target): 0x03 ~ 0xFF bytes for {WOUF_COMMAND, TID, PLOAD_SIZE_RX, WOU_PAYLOAD}
+        + (target-to-host): 0x02 ~ 0xFF bytes for Responsed payload (not include the size of CRC-16)
+    WOUF_COMMAND:
+        + 00, TYP_WOUF  : typical WOU_FRAME packet; need at least TID.
+        + 01, RST_TID   : reset Expected TID of receiver to 0
+        + 02, MAILBOX   : MAIL from OR32; need at least MAIL_TAG.
+        + 03, REALTIME  : real-time WOUF command. 
+    TID:
+        + Transaction ID for GO-BACK-N protocol
+    PLOAD_SIZE_RX: 
+        + 0x02 ~ 0xFF bytes for Responsing WOU_FRAME
+        + initiated by WOU Read commands from this frame.
+        + there would be no PAYLOAD in response WOU_FRAME;
+          in this case, the PLOAD_SIZE_RX should be 2 
+          {WOUF_COMMAND, TID/MAIL_TAG}.
+    WOU_PAYLOAD is composed of multiple WOU packets. 
+        + WOU_PAYLOAD{[WOU][WOU][WOU]...}
+    CRC-16: 
+        + covers the PLOAD_SIZE_TX, PLOAD_SIZE_RX, and WOU_PAYLOAD.
+        + it's little endian
+
+WOU Frame (TX)
+===================
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+     |Preamble (2 octets of 10101010)|SOFD (10101011)| PLOAD_SIZE_TX | HEADER
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ -------- 
+     |  WOUF_COMMAND |     TID       | PLOAD_SIZE_RX |               | 
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               |  
+     |                   WOU_PAYLOAD                                 |  
+     |               Byte[6] to Byte[6+PLOAD_SIZE_TX]                | PAYLOAD
+     |                                                               |
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |        CRC-16                 |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+
+WOU Frame (RX) (for TYP_WOUF)
+=============================
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+     |Preamble (2 octets of 10101010)|SOFD (10101011)| PLOAD_SIZE_TX | HEADER
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ -------- 
+     |  WOUF_COMMAND |     TID       |                               | 
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |  
+     |                   WOU_PAYLOAD                                 |  
+     |               Byte[6] to Byte[6+PLOAD_SIZE_TX]                | PAYLOAD
+     |                                                               |
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |        CRC-16                 |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+
+WOU Frame (RX) (for MAILBOX messages)
+=====================================
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+     |Preamble (2 octets of 10101010)|SOFD (10101011)| PLOAD_SIZE_TX | HEADER
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ -------- 
+     |  WOUF_COMMAND |            MAIL_TAG           |               | 
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ -------- 
+     |  BP_TICK                                      |               | 
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               |  
+     |                   MAIL_PAYLOAD                                |  
+     |               Byte[10] to Byte[10+PLOAD_SIZE_TX]              | PAYLOAD
+     |                                                               |
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |        CRC-16                 |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+
+WOU Frame (TX - REALTIME)
+=========================
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+     |Preamble (2 octets of 10101010)|SOFD (10101011)| PLOAD_SIZE_TX | HEADER
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ -------- 
+     |  WOUF_COMMAND | PLOAD_SIZE_RX |                               | 
+     +-+-+-+-+-+-+-+-+- - - - - - - -                                |  
+     |                   WOU_PAYLOAD                                 |  
+     |               Byte[5] to Byte[5+PLOAD_SIZE_TX]                | PAYLOAD
+     |                                                               |
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |        CRC-16                 |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+
+WOU Frame (RX - REALTIME)
+=========================
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+     |Preamble (2 octets of 10101010)|SOFD (10101011)| PLOAD_SIZE_TX | HEADER
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ -------- 
+     |  WOUF_COMMAND |                                               | 
+     +-+-+-+-+-+-+-+-+                                               |  
+     |                   WOU_PAYLOAD                                 |  
+     |               Byte[5] to Byte[5+PLOAD_SIZE_TX]                | PAYLOAD
+     |                                                               |
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |        CRC-16                 |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+
+WOU packet Format
+===================
+    (WOU_PAYLOAD is composed of multiple WOU packets)
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ --------
+     |F|  DATA_SIZE  |            WB_ADDR            |               |  HEADER
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               | -------- 
+     |                                                               |  DATA
+     |                        DATA                                   |  
+     |               Byte[4] to Byte[4+DATA_SIZE]                    |
+     |                                                               |
+     |                                     +-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                                     |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    FUNCTION(F):
+        0: READ from wishbone
+        1: WRITE to wishbone
+    DATA_SIZE[6:0]: 
+        support up to 128bytes of burst access
+        1(7'h01) ~ 128(7'h00) bytes
+    WB_ADDR[15:0]: WishBone Address; little endian
+    WB Addressing Mode: Automatic Increment mode
+        the WB_ADDR increments by one for each DATA byte
+
+HOST:
+  + send [WOU_FRAME] messages, then recv [WOU_FRAME] messages if any
+  + TODO: HOST.Tx thread: send [WOU_FRAME] messages
+  + TODO: HOST.Rx thread: recv [WOU_FRAME] messages

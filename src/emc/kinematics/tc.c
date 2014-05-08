@@ -24,6 +24,10 @@
 #include "emcpos.h"
 #include "tc.h"
 #include "nurbs.h"
+#include "../motion/motion.h"
+//#include "hal.h"
+//#include "../motion/mot_priv.h"
+//#include "motion_debug.h"
 
 #define TRACE 0
 #include "dptrace.h"
@@ -32,13 +36,97 @@
     static FILE *dptrace = NULL;
     static uint32_t _dt = 0;
 #endif
+
+extern emcmot_status_t *emcmotStatus;
+
+
+static int
+ON_SearchMonotoneArray(const double* array, int length, double t)
+/*****************************************************************************
+Find interval in an increasing array of doubles
+
+INPUT:
+  array
+    A monotone increasing (array[i] <= array[i+1]) array of length doubles.
+  length (>=1)
+    number of doubles in array
+  t
+    parameter
+OUTPUT:
+  ON_GetdblArrayIndex()
+    -1:         t < array[0]
+     i:         (0 <= i <= length-2) array[i] <= t < array[i+1]
+     length-1:  t == array[length-1]
+     length:    t  > array[length-1]
+COMMENTS:
+  If length < 1 or array is not monotone increasing, you will get a meaningless
+  answer and may crash your program.
+EXAMPLE:
+  // Given a "t", find the knots that define the span used to evaluate a
+  // nurb at t; i.e., find "i" so that
+  // knot[i] <= ... <= knot[i+order-2]
+  //   <= t < knot[i+order-1] <= ... <= knot[i+2*(order-1)-1]
+  i = ON_GetdblArrayIndex(knot+order-2,cv_count-order+2,t);
+  if (i < 0) i = 0; else if (i > cv_count - order) i = cv_count - order;
+RELATED FUNCTIONS:
+  ON_
+  ON_
+*****************************************************************************/
+
+{
+  int
+    i, i0, i1;
+
+  length--;
+
+  /* Since t is frequently near the ends and bisection takes the
+   * longest near the ends, trap those cases here.
+   */
+  if (t < array[0])
+    return -1;
+  if (t >= array[length])
+    return (t > array[length]) ? length+1 : length;
+  if (t < array[1])
+    return 0;
+  if (t >= array[length-1])
+    return (length-1);
+
+
+  i0 = 0;
+  i1 = length;
+  while (array[i0] == array[i0+1]) i0++;
+  while (array[i1] == array[i1-1]) i1--;
+  /* From now on we have
+   *  1.) array[i0] <= t < array[i1]
+   *  2.) i0 <= i < i1.
+   * When i0+1 == i1, we have array[i0] <= t < array[i0+1]
+   * and i0 is the answer we seek.
+   */
+  while (i0+1 < i1) {
+    i = (i0+i1)>>1;
+    if (t < array[i]) {
+      i1 = i;
+      while (array[i1] == array[i1-1]) i1--;
+    }
+    else {
+      i0 = i;
+      while (array[i0] == array[i0+1]) i0++;
+    }
+  }
+  return i0;
+}
+
+/**
+ * n - number of control points - 1
+ * p - order - 1 (degree)
+ * u - parametric point
+ * U - knot sequence
+ **/
 int nurbs_findspan (int n, int p, double u, double *U)
 {
-  // FIXME : this implementation has linear, rather than log complexity
-  int ret = 0;
-  while ((ret++ < n) && (U[ret] <= u)) {
-  };
-  return (ret-1);
+    int span;
+    span = ON_SearchMonotoneArray(U, (n+p), u);
+    return (span);
 }
 
 // Basis Function.
@@ -59,8 +147,8 @@ void nurbs_basisfun(int i, double u, int p,
               double *U,
               double *N)
 {
-  int j,r;
-  double saved, temp;
+  int j,r, id;
+  double saved, temp, denom;
 
   double *left = (double*)malloc(sizeof(double)*(p+1));
   double *right = (double*)malloc(sizeof(double)*(p+1));
@@ -68,15 +156,21 @@ void nurbs_basisfun(int i, double u, int p,
   N[0] = 1.0;
   for (j = 1; j <= p; j++)
     {
-      left[j]  = u - U[i+1-j];
+      id = i+1-j;
+      if (id < 0) id = 0;
+      left[j]  = u - U[id];
       right[j] = U[i+j] - u;
       saved = 0.0;
 
       for (r = 0; r < j; r++)
         {
-          temp = N[r] / (right[r+1] + left[j-r]);
-          N[r] = saved + right[r+1] * temp;
-          saved = left[j-r] * temp;
+          denom = (right[r+1] + left[j-r]);
+          if (denom != 0)
+          {
+              temp = N[r] / denom;
+              N[r] = saved + right[r+1] * temp;
+              saved = left[j-r] * temp;
+          }
         }
 
       N[j] = saved;
@@ -87,10 +181,12 @@ void nurbs_basisfun(int i, double u, int p,
 
 }
 
+#if 0
+// was used for blending; need to review for S-curve velocity blending
 PmCartesian tcGetStartingUnitVector(TC_STRUCT *tc) {
     PmCartesian v;
 
-    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_RIGIDTAP) {
+    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
         pmCartCartSub(tc->coords.line.xyz.end.tran, tc->coords.line.xyz.start.tran, &v);
     } else {
         PmPose startpoint;
@@ -113,14 +209,12 @@ PmCartesian tcGetStartingUnitVector(TC_STRUCT *tc) {
     return v;
 }
 
+// was used for blending; need to review for S-curve velocity blending
 PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
     PmCartesian v;
 
-    if(tc->motion_type == TC_LINEAR) {
+    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
         pmCartCartSub(tc->coords.line.xyz.end.tran, tc->coords.line.xyz.start.tran, &v);
-    } else if(tc->motion_type == TC_RIGIDTAP) {
-        // comes out the other way
-        pmCartCartSub(tc->coords.line.xyz.start.tran, tc->coords.line.xyz.end.tran, &v);
     } else {
         PmPose endpoint;
         PmCartesian radius;
@@ -132,6 +226,7 @@ PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
     pmCartUnit(v, &v);
     return v;
 }
+#endif
 
 /*! tcGetPos() function
  *
@@ -163,21 +258,25 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     PmPose xyz;
     PmPose abc;
     PmPose uvw;
+    double s;
     
     double progress = of_endpoint? tc->target: tc->progress;
 #if(TRACE != 0)
     static double last_l, last_u,last_x = 0 , last_y = 0, last_z = 0, last_a = 0;
 #endif
 
-    if (tc->motion_type == TC_RIGIDTAP) {
-        if(tc->coords.rigidtap.state > REVERSING) {
-            pmLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
-        } else {
-            pmLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
-        }
+    // update spindle position
+    s = emcmotStatus->carte_pos_cmd.s;
+    if (tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
+        // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
+        pmLinePoint(&tc->coords.spindle_sync.xyz, tc->coords.spindle_sync.xyz.tmag * (progress / tc->target) , &xyz);
         // no rotary move allowed while tapping
-        abc.tran = tc->coords.rigidtap.abc;
-        uvw.tran = tc->coords.rigidtap.uvw;
+        abc.tran = tc->coords.spindle_sync.abc;
+        uvw.tran = tc->coords.spindle_sync.uvw;
+        if (!of_endpoint)
+        {
+            s = tc->coords.spindle_sync.spindle_start_pos + tc->coords.spindle_sync.spindle_dir * progress;
+        }
     } else if (tc->motion_type == TC_LINEAR) {
 
         if (tc->coords.line.xyz.tmag > 0.) {
@@ -222,8 +321,8 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
                     &uvw);
 
     } else {
-        int s, tmp1,i;
-        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, F, D;
+        int          s, tmp1, i, id;
+        double       u,*N,R, X, Y, Z, A, B, C, U, V, W, D;
         double       curve_accel;
 #if(TRACE != 0)
         double delta_l, delta_u, delta_d, delta_x, delta_y, delta_z, delta_a;
@@ -233,7 +332,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
         assert(tc->motion_type == TC_NURBS);
 
         u = progress / tc->target;
-        if (u<1) {
+        if (u < 1.0) {
 
             s = nurbs_findspan(tc->nurbs_block.nr_of_ctrl_pts-1,  tc->nurbs_block.order - 1,
                                 u, tc->nurbs_block.knots_ptr);  //return span index of u_i
@@ -250,136 +349,70 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
             //    NURBS geometry, it automatically adds and removes these
             //    two superfluous knots as the situation requires.
             tmp1 = s - tc->nurbs_block.order + 1;
-            assert(tmp1 >= 0);
-            assert(tmp1 < tc->nurbs_block.nr_of_ctrl_pts);
 
             R = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1 ; i++) {
-
-                R += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].R;
-            }
-
             X = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    X += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].X;
-
+            Y = 0.0;
+            Z = 0.0;
+            A = 0.0;
+            B = 0.0;
+            C = 0.0;
+            U = 0.0;
+            V = 0.0;
+            W = 0.0;
+            D = 0.0;
+            for (i = 0; i < tc->nurbs_block.order; i++) {
+                id = tmp1 + i;
+                if (id < 0) id = 0;
+                else if (id >= tc->nurbs_block.nr_of_ctrl_pts) id = tc->nurbs_block.nr_of_ctrl_pts - 1;
+                R += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].R;
+                X += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].X;
+                Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].Y;
+                Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].Z;
+                A += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].A;
+                B += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].B;
+                C += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].C;
+                U += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].U;
+                V += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].V;
+                W += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].W;
+                D += N[i]*tc->nurbs_block.ctrl_pts_ptr[id].D;
             }
+
             X = X/R;
             xyz.tran.x = X;
-
-            Y = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    Y += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Y;
-            }
             Y = Y/R;
             xyz.tran.y = Y;
-
-            Z = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    Z += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].Z;
-            }
             Z = Z/R;
             xyz.tran.z = Z;
-
-            A = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    A += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].A;
-            }
             A = A/R;
             abc.tran.x = A;
-
-            B = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    B += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].B;
-            }
             B = B/R;
             abc.tran.y = B;
-
-            C = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    C += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].C;
-            }
             C = C/R;
             abc.tran.z = C;
-
-            U = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    U += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].U;
-            }
             U = U/R;
             uvw.tran.x = U;
-
-            V = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    V += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].V;
-            }
             V = V/R;
             uvw.tran.y = V;
-
-            W = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    W += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].W;
-            }
             W = W/R;
             uvw.tran.z = W;
 
-            F = 0.0;
-            F = tc->nurbs_block.ctrl_pts_ptr[tmp1].F;
-            tc->reqvel = F;
-
-            D = 0.0;
-            for (i=0; i<=tc->nurbs_block.order -1; i++) {
-                    D += N[i]*tc->nurbs_block.ctrl_pts_ptr[tmp1+i].D;
-            }
+            tc->reqvel = tc->nurbs_block.reqvel; // restore reqvel of this curve
             D = D/R;
-
             // compute allowed feed
             if(!of_endpoint) {
                 curve_accel = (tc->cur_vel * tc->cur_vel)/D;
+
                 if(curve_accel > tc->maxaccel) {
                     // modify req_vel
-                    tc->reqvel = pmSqrt((tc->maxaccel * D));
+                    // tc->reqvel: unit/s
+                    // tc->maxaccel: unit/s * cycle_time * cycle_time
+                    DPS ("tc.c: reqvel(%f) cur_vel(%f) curve_accel(%f) maxaccel(%f)\n",
+                            tc->reqvel, tc->cur_vel, curve_accel, tc->maxaccel);
+                    tc->reqvel = pmSqrt((tc->maxaccel * D)) / tc->cycle_time;
+                    DPS ("curvature limited reqvel(%f)\n", tc->reqvel);
                 }
             }
-
-#if (TRACE != 0)
-                if(l == 0 && _dt == 0) {
-                    last_l = 0;
-                    last_u = 0;
-                    last_x = xyz.tran.x;
-                    last_y = xyz.tran.y;
-                    last_z = xyz.tran.z;
-                    last_a = 0;
-                    _dt+=1;
-                }
-                delta_l = l - last_l;
-                last_l = l;
-                delta_u = u - last_u;
-                last_u = u;
-                delta_x = xyz.tran.x - last_x;
-                delta_y = xyz.tran.y - last_y;
-                delta_z = xyz.tran.z - last_z;
-                delta_a = abc.tran.x - last_a;
-                delta_d = pmSqrt(pmSq(delta_x)+pmSq(delta_y)+pmSq(delta_z));
-                last_x = xyz.tran.x;
-                last_y = xyz.tran.y;
-                last_z = xyz.tran.z;
-                last_a = abc.tran.x;
-                if( delta_d > 0)
-                {
-                    if(_dt == 1){
-                      /* prepare header for gnuplot */
-                        DPS ("%11s%15s%15s%15s%15s%15s%15s%15s%15s\n",
-                           "#dt", "u", "l","x","y","z","delta_d", "delta_l","a");
-                    }
-
-                    DPS("%11u%15.10f%15.10f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-                           _dt, u, l,last_x, last_y, last_z, delta_d, delta_l, last_a);
-
-                    _dt+=1;
-                }
-#endif // (TRACE != 0)
-
         }else {
             xyz.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].X;
             xyz.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].Y;
@@ -390,19 +423,9 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
             abc.tran.x = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].A;
             abc.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].B;
             abc.tran.z = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].C;
-           // R = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].R;
         }
     }
     //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
-    // TODO-eric if R going to show ?
-//#if (TRACE != 0)
-//    if(_dt == 0){
-//        /* prepare header for gnuplot */
-//        DPS ("%11s%15s%15s%15s\n", "#dt", "x", "y", "z");
-//    }
-//    DPS("%11u%15.5f%15.5f%15.5f\n", _dt, xyz.tran.x, xyz.tran.y, xyz.tran.z);
-//    _dt+=1;
-//#endif // (TRACE != 0)
 #if (TRACE != 1)
     if( of_endpoint != 1) {
 
@@ -415,9 +438,10 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
     pos.u = uvw.tran.x;
     pos.v = uvw.tran.y;
     pos.w = uvw.tran.z;
-//    DP ("GetEndPoint?(%d) tc->id %d MotionType %d X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",
-//    		of_endpoint,tc->id,tc->motion_type, pos.tran.x,
-//    		pos.tran.y, pos.tran.z, pos.a);
+    pos.s = s;
+    DP ("of_endpoint(%d) tc->id(%d) MotionType(%d) X(%.2f) Y(%.2f) Z(%.2f) W(%.2f)\n",
+    		of_endpoint, tc->id, tc->motion_type, pos.tran.x,
+    		pos.tran.y, pos.tran.z, pos.w);
     return pos;
 }
 

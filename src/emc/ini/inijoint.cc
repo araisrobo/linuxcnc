@@ -85,6 +85,8 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
     bool use_index;
     bool ignore_limits;
     bool is_shared;
+    bool gantry_master;
+    bool gantry_slave;
     bool disable_jog;
     int sequence;
     int volatile_home;
@@ -162,6 +164,7 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
         jointIniFile->Find(&latch_vel, "HOME_LATCH_VEL", jointString); 
         final_vel = -1;	                // default (rapid)
         jointIniFile->Find(&final_vel, "HOME_FINAL_VEL", jointString);
+
         is_shared = false;	        // default
         jointIniFile->Find(&is_shared, "HOME_IS_SHARED", jointString);
         use_index = false;	        // default
@@ -174,10 +177,15 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
         jointIniFile->Find(&volatile_home, "VOLATILE_HOME", jointString);
         locking_indexer = false;
         jointIniFile->Find(&locking_indexer, "LOCKING_INDEXER", jointString);
+        gantry_master = false;      // default
+        jointIniFile->Find(&gantry_master, "GANTRY_MASTER", jointString);
+        gantry_slave = false;       // default
+        jointIniFile->Find(&gantry_slave, "GANTRY_SLAVE", jointString);
         // issue NML message to set all params
         if (0 != emcJointSetHomingParams(joint, home, offset, final_vel, search_vel,
                                         latch_vel, (int)use_index, (int)ignore_limits,
-                                        (int)is_shared, sequence, volatile_home, locking_indexer)) {
+                                        (int)is_shared, sequence, volatile_home, locking_indexer,
+                                        (int)gantry_master, (int)gantry_slave)) {
             return -1;
         }
 

@@ -1,0 +1,24 @@
+G21 
+
+G90
+G53 G0 X22.662 Y30.116
+; G53 G0 Z -57.7 (5.0mm plate)
+G53 G0 Z -53.5 (aluminum plate)
+; G53 G0 Z -27.7 (dry run)
+
+M1
+
+G91
+; G0 Z-10
+
+; M3: pitch 0.5
+; M4: pitch 0.7
+M3 S2200
+F119.5 G1 z-15
+G1 z15
+M5
+
+G90
+G53 G0 Z0
+M2
+%

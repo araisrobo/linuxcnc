@@ -72,9 +72,9 @@ extern int tpSetId(TP_STRUCT * tp, int id);
 extern int tpGetExecId(TP_STRUCT * tp);
 extern int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance);
 extern int tpSetPos(TP_STRUCT * tp, EmcPose pos);
-extern int tpAddRigidTap(TP_STRUCT * tp, EmcPose end, double vel, 
+extern int tpAddSpindleSyncMotion(TP_STRUCT * tp, EmcPose end, double vel,
                          double ini_maxvel, double acc, double jerk, 
-                         unsigned char enables);
+                         int ssm_mode, unsigned char enables);
 extern int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double
                      ini_maxvel, double acc, double jerk, unsigned char enables, char atspeed, int indexrotary);
 extern int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
@@ -91,7 +91,7 @@ extern int tpIsDone(TP_STRUCT * tp);
 extern int tpQueueDepth(TP_STRUCT * tp);
 extern int tpActiveDepth(TP_STRUCT * tp);
 extern int tpGetMotionType(TP_STRUCT * tp);
-extern int tpSetSpindleSync(TP_STRUCT * tp, double sync, int wait);
+extern int tpSetSpindleSync(TP_STRUCT * tp, double spindlesync, int wait_for_index, int synchronized);
 extern void tpToggleDIOs(TC_STRUCT * tc); //gets called when a new tc is taken from the queue. it checks and toggles all needed DIO's
 
 extern int tpSetAout(TP_STRUCT * tp, unsigned char index, double start, double end);

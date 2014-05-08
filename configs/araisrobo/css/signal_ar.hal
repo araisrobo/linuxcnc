@@ -1,0 +1,56 @@
+net din_00          => signal_ar.hal_led_ESTOP
+net lsp_j0          => signal_ar.hal_led_lsp_j0
+net lsp_j1          => signal_ar.hal_led_lsp_j1
+net lsp_j2          => signal_ar.hal_led_lsp_j2
+net lsp_j3          => signal_ar.hal_led_lsp_j3
+net lsp_j4          => signal_ar.hal_led_lsp_j4
+net lsn_j0          => signal_ar.hal_led_lsn_j0
+net lsn_j1          => signal_ar.hal_led_lsn_j1
+net lsn_j2          => signal_ar.hal_led_lsn_j2
+net lsn_j3          => signal_ar.hal_led_lsn_j3
+net lsn_j4          => signal_ar.hal_led_lsn_j4
+net j0_alm          => signal_ar.hal_led_j0_alm
+net j1_alm          => signal_ar.hal_led_j1_alm
+net j2_alm          => signal_ar.hal_led_j2_alm
+net j3_alm          => signal_ar.hal_led_j3_alm
+net j4_alm          => signal_ar.hal_led_j4_alm
+net j5_alm          => signal_ar.hal_led_j5_alm
+net din_33_d        => signal_ar.hal_led_STOP
+net din_32_d        => signal_ar.hal_led_START     # debounced start signal_ar
+
+net din_19          => signal_ar.hal_led_index_j0
+net din_20          => signal_ar.hal_led_index_j1
+net din_21          => signal_ar.hal_led_index_j2
+net din_22          => signal_ar.hal_led_index_j3
+net din_23          => signal_ar.hal_led_index_j4
+net din_24          => signal_ar.hal_led_index_j5
+
+net dout_00         => signal_ar.hal_led_SVO-ON
+net dout_01         => signal_ar.hal_led_ALM-RST
+net dout_02         => signal_ar.hal_led_BRAKE       
+net led_switch      => signal_ar.hal_led_switch    # laser-marker
+net plasma-is-on    => signal_ar.hal_led_PLASMA-IS-ON
+net m14-ahc-disable => signal_ar.hal_led_M14
+
+net pulse-pos-j5    => signal_ar.hal_label_s_pulse-pos
+net pulse-pos-j4    => signal_ar.hal_label_w_pulse-pos
+net pulse-pos-j3    => signal_ar.hal_label_z_pulse-pos
+net pulse-pos-j2    => signal_ar.hal_label_yy_pulse-pos
+net pulse-pos-j1    => signal_ar.hal_label_y_pulse-pos
+net pulse-pos-j0    => signal_ar.hal_label_x_pulse-pos
+net enc-pos-j5      => signal_ar.hal_label_s_enc-pos
+net enc-pos-j4      => signal_ar.hal_label_w_enc-pos
+net enc-pos-j3      => signal_ar.hal_label_z_enc-pos
+net enc-pos-j2      => signal_ar.hal_label_yy_enc-pos
+net enc-pos-j1      => signal_ar.hal_label_y_enc-pos
+net enc-pos-j0      => signal_ar.hal_label_x_enc-pos
+
+net torch_voltage   => signal_ar.analog_00
+net analog_01       => signal_ar.analog_01
+net analog_02       => signal_ar.analog_02
+net analog_03       => signal_ar.analog_03
+net analog_04       => signal_ar.analog_04
+net analog_05       => signal_ar.analog_05
+net analog_06       => signal_ar.analog_06
+net adc_7s          => signal_ar.analog_07
+

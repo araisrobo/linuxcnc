@@ -23,10 +23,6 @@ class filechooser:
         self.emccommand = emc.command()
         self.fileoffset = 0
         self.dir = os.path.join(os.getenv('HOME'), 'linuxcnc', 'nc_files')
-	# TODO: remove touchy while using injector
-        if os.path.isdir(self.dir) == False:
-	    print 'userhome/linuxcnc is not valid'
-	    self.dir = os.path.join(os.getenv('HOME'), 'emc2', 'nc_files')
         self.reload(0)
 
     def populate(self):
