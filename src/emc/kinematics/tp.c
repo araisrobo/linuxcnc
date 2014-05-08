@@ -10,6 +10,17 @@
  *
  * Copyright (c) 2004 All rights reserved.
  ********************************************************************/
+#include "config.h"
+
+#ifdef RTAPI_SIM
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
+#else
+#define assert(args...)		do {} while(0)
+#endif
 
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "rtapi_string.h"       /* NULL */
@@ -21,16 +32,12 @@
 #include "hal.h"
 #include "../motion/mot_priv.h"
 #include "motion_debug.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 // #undef SMLBLND       // turn off seamless blending
 #define SMLBLND         // to evaluate seamless blending
 
 // to disable DP(): #define TRACE 0
 #define TRACE 0
-#include <stdint.h>
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE* dptrace = 0;
@@ -712,6 +719,12 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
 // allowed; we are guaranteed to have a move in xyz so target is
 // always the circle/arc/helical length.
 
+#ifndef RTAPI_SIM
+#warning "implement rtai_kmalloc() for nurbs"
+static CONTROL_POINT ctrl_pts_array[8192];
+static double knots_array[8192];
+static double N_array[8192];
+#endif
 
 int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         unsigned char enables, double vel, double ini_maxvel,
@@ -742,14 +755,23 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         nr_of_ctrl_pts = nurbs_block.nr_of_ctrl_pts;
         nr_of_knots = nurbs_block.nr_of_knots;
 
-
+#ifndef RTAPI_SIM
+#warning "implement rtai_kmalloc() for nurbs"
+	nurbs_to_tc->ctrl_pts_ptr = ctrl_pts_array;
+	nurbs_to_tc->knots_ptr = knots_array;
+	nurbs_to_tc->N = N_array;
+#else
+	// SIM
         nurbs_to_tc->ctrl_pts_ptr = (CONTROL_POINT*) malloc(
                 sizeof(CONTROL_POINT) * nurbs_block.nr_of_ctrl_pts);
         /* knots array: allocate 'order' of extra knots for THE-NURBS-BOOK-Algorithm */
         nurbs_to_tc->knots_ptr = (double*) malloc(sizeof(double)
                 * (nurbs_block.nr_of_knots + nurbs_block.order));
         nurbs_to_tc->N = (double*) malloc(sizeof(double) * (order + 1));
+#endif
         nurbs_to_tc->axis_mask = nurbs_block.axis_mask;
+
+
 
     }
 

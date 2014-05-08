@@ -10,10 +10,20 @@
  *
  * Last change:
  ********************************************************************/
+#include "config.h"
 
-#ifndef RTAPI
-#error This is a realtime component only!
-#endif
+#ifndef RTAPI_SIM
+#error "this module for user space simulator only"
+#else
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
@@ -22,16 +32,8 @@
 #include <math.h>
 #include <string.h>
 #include <float.h>
-#include <assert.h>
-#include <stdio.h>
 #include "rtapi_math.h"
 #include "motion.h"
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-#include <unistd.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -2422,5 +2424,7 @@ static int export_machine_control(machine_control_t * machine_control)
     rtapi_set_msg_level(msg);
     return 0;
 }
+
+#endif	// RTAPI_SIM
 
 // vim:sw=4:sts=4:et:

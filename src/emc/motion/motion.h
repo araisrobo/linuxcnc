@@ -71,6 +71,7 @@ to another.
 #ifndef MOTION_H
 #define MOTION_H
 
+#include "config.h"
 #include "posemath.h"		/* PmCartesian, PmPose, pmCartMag() */
 #include "emcpos.h"		/* EmcPose */
 #include "cubic.h"		/* CUBIC_STRUCT, CUBIC_COEFF */
@@ -80,6 +81,12 @@ to another.
 #include "nurbs.h"
 #include "rtapi_limits.h"
 #include <stdarg.h>
+
+#ifdef RTAPI_SIM
+#include <stdint.h>
+#else
+#define uint32_t __u32
+#endif
 
 
 // define a special value to denote an invalid motion ID 

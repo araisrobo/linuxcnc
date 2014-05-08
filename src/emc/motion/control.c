@@ -12,7 +12,17 @@
  *
  * Copyright (c) 2004 All rights reserved.
  ********************************************************************/
+#include "config.h"
+
+#ifndef RTAPI_SIM
+#define assert(args...)		do {} while(0)
+#else
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 #include <stdint.h>
+#endif
 
 #include "posemath.h"
 #include "rtapi.h"
@@ -25,9 +35,7 @@
 #include "tc.h"
 #include "simple_tp.h"
 #include "motion_debug.h"
-#include "config.h"
-#include "assert.h"
-#include <sync_cmd.h>
+#include "sync_cmd.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -747,7 +755,8 @@ static void handle_special_cmd(void)
         return;
     }
 
-    if ((emcmotStatus->depth == 0) && (*(emcmot_hal_data->machine_is_moving) == 0))
+//    if ((emcmotStatus->depth == 0) && (*(emcmot_hal_data->machine_is_moving) == 0))
+	if ((emcmotStatus->depth == 0))
     {   // ACK when no more EMCMOT motion commands, and machine is STOPPING
         emcmotStatus->update_pos_ack = *emcmot_hal_data->update_pos_req;
     }
