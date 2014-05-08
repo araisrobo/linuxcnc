@@ -184,8 +184,9 @@ enum machine_parameter_addr {
                             // [7:0]    GANTRY_BRAKE_GPIO_PIN
                             
     JOINT_LSP_LSN,          // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
-    ALR_OUTPUT,             // output value when ESTOP is pressed
-    ALR_EN_BITS,            // the enable bitmap of ALARM input bits
+    ALR_OUTPUT_0,           // DOUT_0 value, dout[31:0], when ESTOP is pressed
+    ALR_OUTPUT_1,           // DOUT_1 value, dout[63:32], when ESTOP is pressed
+    ALR_EN_BITS,            // the enable bitmap of ALARM input bits (
 
     MACHINE_CTRL,           // [31:28]  JOG_VEL_SCALE
                             // [27:24]  SPINDLE_JOINT_ID
