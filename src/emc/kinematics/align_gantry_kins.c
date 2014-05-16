@@ -152,7 +152,8 @@ int kinematicsInverse(const EmcPose * pos,
     //             (pos->tran.y - y_cent - Y_OFFSET) * cos(rad) + Y_OFFSET + y_cent;
     joints[0] = pos->tran.x;
     joints[1] = pos->tran.y;
-    joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
+//    joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
+    joints[2] = pos->tran.y;  // YY
     joints[3] = pos->tran.z;
     joints[4] = pos->w;
     joints[5] = pos->s;
