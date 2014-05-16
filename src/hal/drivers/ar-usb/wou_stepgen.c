@@ -215,11 +215,10 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
         "indicate test pattern type");
 
-// int alr_output = 0x00000000;
-// RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
-const char *alr_output= "0";
-RTAPI_MP_STRING(alr_output,
-        "Digital Output when E-Stop presents");
+const char *alr_output_0= "0";
+RTAPI_MP_STRING(alr_output_0, "DOUT[31:0] while E-Stop is pressed");
+const char *alr_output_1= "0";
+RTAPI_MP_STRING(alr_output_1, "DOUT[63:32] while E-Stop is pressed");
 
 int gantry_polarity = 0;
 RTAPI_MP_INT(gantry_polarity, "gantry polarity");
@@ -944,9 +943,13 @@ int rtapi_app_main(void)
     while(wou_flush(&w_param) == -1);
 
     // configure alarm output (for E-Stop)
-    write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
-    fprintf(stderr, "ALR_OUTPUT(%08X)",(uint32_t) strtoul(alr_output, NULL, 16));
+    write_machine_param(ALR_OUTPUT_0, (uint32_t) strtoul(alr_output_0, NULL, 16));
     while(wou_flush(&w_param) == -1);
+    fprintf(stderr, "ALR_OUTPUT_0(%08X)",(uint32_t) strtoul(alr_output_0, NULL, 16));
+
+    write_machine_param(ALR_OUTPUT_1, (uint32_t) strtoul(alr_output_1, NULL, 16));
+    while(wou_flush(&w_param) == -1);
+    fprintf(stderr, "ALR_OUTPUT_1(%08X)",(uint32_t) strtoul(alr_output_1, NULL, 16));
 
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
