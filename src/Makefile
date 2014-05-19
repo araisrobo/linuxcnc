@@ -683,12 +683,9 @@ endif
 
 # for libwou
 ifneq ($(WOU_VERSION),)
-EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB
+EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB -I$(BASEPWD)/hal/drivers/ar-usb
 ifeq ($(BUILD_SYS),sim)
 LDFLAGS += $(WOU_LIBS)
-else
-# for kernel module build:
-EXTRA_CFLAGS += -I$(BASEPWD)/hal/drivers/ar-usb
 endif
 endif
 
@@ -924,7 +921,6 @@ motmod-objs += emc/kinematics/tp.o
 motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/command.o
 motmod-objs += emc/motion/control.o
-# motmod-objs += emc/motion/homing.o
 motmod-objs += emc/motion/simple_tp.o
 motmod-objs += emc/motion/emcmotglb.o
 motmod-objs += emc/motion/emcmotutil.o
@@ -1002,7 +998,6 @@ endif
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
 ../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
-# ../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))
