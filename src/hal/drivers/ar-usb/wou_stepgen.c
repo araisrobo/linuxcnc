@@ -495,7 +495,8 @@ static void fetchmail(const uint8_t *buf_head)
             joints_vel |= *(stepgen->enc_vel_p);
             stepgen += 1;   // point to next joint
         }
-        *machine_control->machine_moving = (joints_vel != 0);
+        *machine_control->machine_moving = (joints_vel > 300); // In IDLE, enc_vel drift range in -255 ~ 258
+//        printf("machine_moving:(%d) joints_vel:(%d)\n",*machine_control->machine_moving, joints_vel);
 
         // digital input
         p += 1;
