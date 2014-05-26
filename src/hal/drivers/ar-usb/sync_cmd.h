@@ -26,6 +26,9 @@
  *    SYNC_DATA          4'b1100  ... TODO:       {VAL} Send immediate data
  *                                                VAL[7:0]: one byte data
  *    SYNC_EOF           4'b1101                  End of frame                                            
+ *    SYNC_DAC           4'b1110  {ID, ADDR}      write into DAC register with {ID[11:8], ADDR[7:0]}
+ *                                                ADDR: 0x01 ... Data register
+ *                                                ADDR: 0x55 ... Control register
  *    Write 2nd byte of SYNC_CMD[] will push it into SFIFO.
  *    The WB_WRITE got stalled if SFIFO is full.
  */
@@ -45,7 +48,7 @@
 #define SYNC_MACH_PARAM     0xB000
 #define SYNC_DATA           0xC000
 #define SYNC_EOF            0xD000
-// RESERVED  0xe000
+#define SYNC_DAC            0xE000      // 1st 16-bit for ID and ADDR, 2nd 32-bit for VALUE
 // RESERVED  0xf000
 
 //  timeout type
@@ -74,11 +77,19 @@
 #define SYNC_MOT_PARAM_ID_MASK          0x000F
 #define SYNC_MACH_PARAM_ADDR_MASK       0x0FFF
 #define SYNC_USB_CMD_TYPE_MASK 		0x0FFF
+
 // SYNC VEL CMD masks
 #define VEL_MASK                        0x0FFE
 #define VEL_SYNC_MASK                   0x0001
+
 // PROBE mask
 #define SYNC_PROBE_MASK                 0x0FFF
+
+// SYNC_DAC masks
+#define SYNC_DAC_ID_MASK                0x0F00
+#define SYNC_DAC_ADDR_MASK              0x00FF
+#define SYNC_DAC_VAL_MASK               0xFFFF
+
 //      SFIFO DATA MACROS
 #define GET_IO_ID(i)                    (((i) & SYNC_DI_DO_PIN_MASK) >> 6)
 #define GET_DO_VAL(v)                   (((v) & SYNC_DOUT_VAL_MASK))
@@ -88,6 +99,9 @@
 #define GET_MOT_PARAM_ID(t)             (((t) & SYNC_MOT_PARAM_ID_MASK))
 #define GET_MACH_PARAM_ADDR(t)          ((t) & SYNC_MACH_PARAM_ADDR_MASK)
 #define GET_USB_CMD_TYPE(t)             ((t) & SYNC_USB_CMD_TYPE_MASK)
+#define GET_DAC_ID(i)                   (((i) & SYNC_DAC_ID_MASK) >> 8)
+#define GET_DAC_ADDR(a)                 ((a) & SYNC_DAC_ADDR_MASK)
+#define GET_DAC_VAL(v)                  ((v) & SYNC_DAC_VAL_MASK)
 
 #define PACK_SYNC_DATA(t)               ((t & 0xFF))
 #define PACK_IO_ID(i)                   (((i) & 0x3F) << 6)

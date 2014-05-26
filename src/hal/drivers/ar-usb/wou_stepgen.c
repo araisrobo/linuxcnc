@@ -247,16 +247,14 @@ typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
     int64_t     rawcount;       /* precision: 64.16; accumulated pulse sent to FPGA */
-    hal_s32_t   *rawcount32;	/* 32-bit integer part of rawcount */
+    hal_s32_t   *rawcount32;    /* 32-bit integer part of rawcount */
     hal_bit_t   prev_enable;
     uint32_t    son_delay;      /* eanble delay tick for svo-on of ac-servo drivers */
-    hal_bit_t   *enable;		/* pin for enable stepgen */
-    hal_u32_t   step_len;		/* parameter: step pulse length */
+    hal_bit_t   *enable;        /* pin for enable stepgen */
+    hal_u32_t   step_len;       /* parameter: step pulse length */
     char        pulse_type;     /* A(AB-PHASE), S(STEP-DIR), P(PWM) */
-    hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
-    hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
-//    hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
-//    hal_float_t pulse_per_rev;	/* param: number of pulse per revolution */
+    hal_s32_t   *pulse_pos;     /* pin: pulse_pos to servo drive, captured from FPGA */
+    hal_s32_t   *enc_pos;       /* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
@@ -308,7 +306,8 @@ typedef struct {
 typedef struct {
     // Analog input: 0~4.096VDC, up to 16 channel
     hal_s32_t *in[16];
-    // TODO: may add *out[] here
+    hal_s32_t *out[4];
+    hal_s32_t prev_out[4];
 } analog_t;
 
 // machine_control_t:
@@ -346,8 +345,8 @@ typedef struct {
     hal_u32_t   *crc_error_counter;
 
     /* sync output pins (output from motmod) */
-    hal_bit_t *out[32];
-    uint32_t prev_out;		//ON or OFF
+    hal_bit_t   *out[32];
+    uint32_t    prev_out;		//ON or OFF
 
     uint32_t     prev_ahc_state;
     hal_bit_t    *ahc_state;     // 0: disable 1:enable
@@ -404,8 +403,8 @@ typedef struct {
 
     hal_bit_t     prev_trigger_enable;
     hal_bit_t     prev_probing;
-//    hal_float_t  *ahc_level;
     double      prev_trigger_level;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -1533,6 +1532,16 @@ static void update_freq(void *arg, long period)
     machine_control->prev_out = sync_out_data;
     /* end: process motion synchronized output */
 
+    /* DAC: fixed as 4 dac channels */
+    for (i = 0; i < 4; i++) {
+        if(analog->prev_out[i] != *(analog->out[i]))
+        {
+            analog->prev_out[i] = *(analog->out[i]);
+            sync_cmd = SYNC_DAC | (i << 8) | (0x01);    /* DAC, ID:i, ADDR: 0x01 */
+            send_sync_cmd (sync_cmd, &(analog->prev_out[i]), 1);
+        }
+    }
+
     /* point at stepgen data */
     stepgen = arg;
 
@@ -1908,6 +1917,17 @@ static int export_analog(analog_t * addr)
             return retval;
         }
         *(addr->in[i]) = 0;
+    }
+
+    // export Analog OUT
+    for (i = 0; i < 4; i++) {
+        retval = hal_pin_s32_newf(HAL_IN, &(addr->in[i]), comp_id,
+                "wou.analog.out.%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(addr->out[i]) = 0;
+        addr->prev_out[i] = 0;
     }
 
     /* restore saved message level */
