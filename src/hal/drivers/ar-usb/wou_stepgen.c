@@ -693,8 +693,8 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
 
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&sync_cmd);
     while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
-    DP ("end of send_sync_cmd\n");
 
+    DP ("end of send_sync_cmd\n");
     return;
 }
 
@@ -735,6 +735,9 @@ int rtapi_app_main(void)
     double max_jerk;
     int msg;
     int lsp, lsn, alr;
+    uint16_t sync_cmd;
+    uint32_t dac_ctrl_reg;
+
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     // rtapi_set_msg_level(RTAPI_MSG_INFO);
@@ -949,6 +952,13 @@ int rtapi_app_main(void)
     write_machine_param(ALR_OUTPUT_1, (uint32_t) strtoul(alr_output_1, NULL, 16));
     while(wou_flush(&w_param) == -1);
     fprintf(stderr, "ALR_OUTPUT_1(%08X)",(uint32_t) strtoul(alr_output_1, NULL, 16));
+
+    for (i = 0; i < 4; i++) {
+        sync_cmd = SYNC_DAC | (i << 8) | (0x55);    /* DAC, ID:i, ADDR: 0x55(Control Register) */
+        printf ("TODO: write DAC_CTRL_REG through config/ini\n");
+        dac_ctrl_reg = 0x1001;
+        send_sync_cmd (sync_cmd, &dac_ctrl_reg, 1);
+    }
 
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
@@ -1539,6 +1549,7 @@ static void update_freq(void *arg, long period)
             analog->prev_out[i] = *(analog->out[i]);
             sync_cmd = SYNC_DAC | (i << 8) | (0x01);    /* DAC, ID:i, ADDR: 0x01 */
             send_sync_cmd (sync_cmd, (uint32_t *)analog->out[i], 1);
+            // printf("analog->out[%d]\n", *(analog->out[i]));
         }
     }
 
@@ -1900,8 +1911,6 @@ static void update_freq(void *arg, long period)
 static int export_analog(analog_t * addr)
 {
     int i, retval, msg;
-    uint16_t sync_cmd;
-    uint32_t dac_ctrl_reg;
 
     /* This function exports a lot of stuff, which results in a lot of
        logging if msg_level is at INFO or ALL. So we save the current value
@@ -1930,10 +1939,6 @@ static int export_analog(analog_t * addr)
         }
         *(addr->out[i]) = 0;
         addr->prev_out[i] = 0;
-
-        sync_cmd = SYNC_DAC | (i << 8) | (0x55);    /* DAC, ID:i, ADDR: 0x55(Control Register) */
-        dac_ctrl_reg = 1;
-        send_sync_cmd (sync_cmd, &(dac_ctrl_reg), 1);
     }
 
     /* restore saved message level */
