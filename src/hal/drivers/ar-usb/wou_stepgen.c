@@ -1923,7 +1923,7 @@ static int export_analog(analog_t * addr)
 
     // export Analog OUT
     for (i = 0; i < 4; i++) {
-        retval = hal_pin_s32_newf(HAL_IN, &(addr->in[i]), comp_id,
+        retval = hal_pin_s32_newf(HAL_IN, &(addr->out[i]), comp_id,
                 "wou.analog.out.%02d", i);
         if (retval != 0) {
             return retval;
