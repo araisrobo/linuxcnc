@@ -1538,7 +1538,7 @@ static void update_freq(void *arg, long period)
         {
             analog->prev_out[i] = *(analog->out[i]);
             sync_cmd = SYNC_DAC | (i << 8) | (0x01);    /* DAC, ID:i, ADDR: 0x01 */
-            send_sync_cmd (sync_cmd, &(analog->prev_out[i]), 1);
+            send_sync_cmd (sync_cmd, (uint32_t *)analog->out[i], 1);
         }
     }
 
@@ -1900,6 +1900,8 @@ static void update_freq(void *arg, long period)
 static int export_analog(analog_t * addr)
 {
     int i, retval, msg;
+    uint16_t sync_cmd;
+    uint32_t dac_ctrl_reg;
 
     /* This function exports a lot of stuff, which results in a lot of
        logging if msg_level is at INFO or ALL. So we save the current value
@@ -1928,6 +1930,10 @@ static int export_analog(analog_t * addr)
         }
         *(addr->out[i]) = 0;
         addr->prev_out[i] = 0;
+
+        sync_cmd = SYNC_DAC | (i << 8) | (0x55);    /* DAC, ID:i, ADDR: 0x55(Control Register) */
+        dac_ctrl_reg = 1;
+        send_sync_cmd (sync_cmd, &(dac_ctrl_reg), 1);
     }
 
     /* restore saved message level */
