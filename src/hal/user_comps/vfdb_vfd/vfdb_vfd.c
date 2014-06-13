@@ -488,6 +488,7 @@ int write_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
         if (modbus_write_register(ctx, REG_COMMAND1, 0) < 0) {
             p->failed_reg = REG_COMMAND1;
             (*haldata->errorcount)++;
+            printf("vbdb_vfd.c(491): modbus_write_register() fail\n");
             p->last_errno = errno;
             return errno;
         }
@@ -550,6 +551,7 @@ retry:
         }
         p->failed_reg = REG_COMMAND1;
         (*haldata->errorcount)++;
+        printf("vbdb_vfd.c(554): modbus_write_register() fail\n");
         p->last_errno = errno;
         return errno;
     } 
@@ -561,6 +563,7 @@ retry:
     if ((modbus_write_register(ctx, REG_FREQUENCY, freq_reg)) < 0) {
         p->failed_reg = REG_FREQUENCY;
         (*haldata->errorcount)++;
+        printf("vbdb_vfd.c(566): modbus_write_register() fail\n");
         p->last_errno = errno;
         return errno;
     } 
@@ -605,6 +608,7 @@ int read_initial(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     p->failed_reg = curr_reg;
     p->last_errno = errno;
     (*haldata->errorcount)++;
+    printf("vbdb_vfd.c(611): GETREG() fail\n");
     if (p->debug)
         fprintf(stderr, "%s: read_initial: modbus_read_registers(0x%4.4x): %s\n",
                 p->progname, curr_reg, modbus_strerror(errno));
@@ -675,6 +679,7 @@ int read_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     p->failed_reg = curr_reg;
     p->last_errno = errno;
     (*haldata->errorcount)++;
+    printf("vbdb_vfd.c(682): GETREG() fail\n");
     if (p->debug)
         fprintf(stderr, "%s: read_data: modbus_read_registers(0x%4.4x): %s\n",
                 p->progname, curr_reg, modbus_strerror(errno));
