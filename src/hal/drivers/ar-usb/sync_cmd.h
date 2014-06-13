@@ -150,12 +150,8 @@
 
 /**
  *  GANTRY_CTRL,    // [31]     GANTRY_EN
- *                  // [30]     GANTRY_LOCK, SET to lock gantry joints with BRAKEs
- *                  // [7:0]    GANTRY_BRAKE_GPIO
  **/                  
 #define GCTRL_EN_MASK                   0x80000000  // Gantry Enable Bit
-#define GCTRL_LOCK_MASK                 0x40000000  // Gantry Lock Bit
-#define GCTRL_BRAKE_GPIO_MASK           0x000000FF  // GPIO pin ID for Brake Signal
 
 typedef enum {
     // naming: RISC_...CMD..._REQ
@@ -194,8 +190,6 @@ enum machine_parameter_addr {
     AHC_STATE,
     AHC_LEVEL,
     GANTRY_CTRL,            // [31]     GANTRY_EN
-                            // [30]     GANTRY_LOCK
-                            // [7:0]    GANTRY_BRAKE_GPIO_PIN
                             
     JOINT_LSP_LSN,          // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
     ALR_OUTPUT_0,           // DOUT_0 value, dout[31:0], when ESTOP is pressed
@@ -230,9 +224,8 @@ enum test_pattern_type_enum {
 };
 
 enum ahc_state_enum {
-    AHC_DISABLE,  // clear offset
-    AHC_ENABLE,   // ahc start
-    AHC_SUSPEND,  // ahc stop
+    AHC_DISABLE,
+    AHC_ENABLE,
 };
 
 // memory map for motion parameter for each joint

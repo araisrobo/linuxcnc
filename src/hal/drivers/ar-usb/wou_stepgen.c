@@ -223,9 +223,6 @@ RTAPI_MP_STRING(alr_output_1, "DOUT[63:32] while E-Stop is pressed");
 int gantry_polarity = 0;
 RTAPI_MP_INT(gantry_polarity, "gantry polarity");
 
-int gantry_brake_gpio = -1;
-RTAPI_MP_INT(gantry_brake_gpio, "gantry brake_gpio");
-
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
 static const char *board = "7i43u";
@@ -388,7 +385,6 @@ typedef struct {
     hal_u32_t   *spindle_joint_id;
 
     hal_bit_t   *gantry_en;
-    hal_bit_t   *gantry_lock;
     uint32_t    gantry_ctrl;
     uint32_t    prev_gantry_ctrl;
 
@@ -1448,13 +1444,12 @@ static void update_freq(void *arg, long period)
         write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
     }
 
-    tmp = (*machine_control->gantry_en << 31)
-          | (*machine_control->gantry_lock << 30);
+    tmp = (*machine_control->gantry_en << 31);
     if (tmp != machine_control->prev_gantry_ctrl) {
         machine_control->prev_gantry_ctrl = tmp;
         if (*machine_control->machine_on)
         {   // only Lock/Release gantry brake after servo-on to prevent dropping
-            immediate_data = tmp | (gantry_brake_gpio & GCTRL_BRAKE_GPIO_MASK);
+            immediate_data = tmp;
             write_machine_param(GANTRY_CTRL, (uint32_t) immediate_data);
         }
     }
@@ -2197,10 +2192,6 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->gantry_en), comp_id, "wou.gantry-en");
     if (retval != 0) { return retval; }
     *(machine_control->gantry_en) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->gantry_lock), comp_id, "wou.gantry-lock");
-    if (retval != 0) { return retval; }
-    *(machine_control->gantry_lock) = 0;
 
     // rt_abort: realtime abort command to FPGA
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id, "wou.rt.abort");
