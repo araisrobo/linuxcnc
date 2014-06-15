@@ -94,51 +94,52 @@
 
 // command registers for DELTA VFD-B Inverter
 #define REG_COMMAND1                    0x2000  // "Communication command" - start/stop, fwd/reverse, DC break, fault reset, panel override
-#define REG_COMMAND2                    0xFA20
-#define REG_COMMAND3                    0xFA26
+//#define REG_COMMAND2                    0xFA20
+//#define REG_COMMAND3                    0xFA26
 #define REG_FREQUENCY                   0x2001  // Set frequency in 0.01Hz steps
-#define REG_TERMINAL_OUTPUT             0xFA50
-#define REG_ANALOG_OUTPUT               0xFA51
-#define REG_UPPERLIMIT                  0x0100  // limit on output frequency in VFD
+//#define REG_TERMINAL_OUTPUT             0xFA50
+//#define REG_ANALOG_OUTPUT               0xFA51
+#define REG_UPPERLIMIT                  0x0100  // REG 01-00, limit on output frequency in VFD
 
-// bits in register FA00 - main command register
-#define CMD_COMMAND_PRIORITY 	0x8000
-#define CMD_FREQUENCY_PRIORITY	0x4000
-#define CMD_FAULT_RESET		0x2000
-#define CMD_EMERGENCY_STOP	0x1000
-#define CMD_COAST_STOP		0x0800
-#define CMD_RUN			0x0002
+// bits in register 2000H (CH 5-3.00) - main command register
 #define CMD_STOP               0x0001
-#define CMD_REVERSE		0x0020
+#define CMD_RUN                0x0002
+#define CMD_JOG_RUN            0x0003
 #define CMD_FORWARD            0x0010
-#define CMD_JOG_RUN		0x0003
-#define CMD_DC_BRAKE		0x0080
-#define CMD_ACCEL_PATTERN_2	0x0040
-#define CMD_DISABLE_PI_CONTROL	0x0020
-#define CMD_SELECT_MOTOR1_2	0x0010
-#define CMD_SPEED_PRESET1	0x0008
-#define CMD_SPEED_PRESET2	0x0004
-#define CMD_SPEED_PRESET3	0x0002
-#define CMD_SPEED_PRESET4	0x0001
+#define CMD_REVERSE            0x0020
+#define CMD_CHANGE_DIRECTION   0x0030
+
+//#define CMD_COMMAND_PRIORITY 	0x8000
+//#define CMD_FREQUENCY_PRIORITY	0x4000
+//#define CMD_FAULT_RESET		0x2000
+//#define CMD_EMERGENCY_STOP	0x1000
+//#define CMD_COAST_STOP		0x0800
+//#define CMD_DC_BRAKE		0x0080
+//#define CMD_ACCEL_PATTERN_2	0x0040
+//#define CMD_DISABLE_PI_CONTROL	0x0020
+//#define CMD_SELECT_MOTOR1_2	0x0010
+//#define CMD_SPEED_PRESET1	0x0008
+//#define CMD_SPEED_PRESET2	0x0004
+//#define CMD_SPEED_PRESET3	0x0002
+//#define CMD_SPEED_PRESET4	0x0001
 
 // status registers for DELTA VFD-B Inverter
-#define SR_ERROR_CODE           0x2100                  //
-#define SR_INV_OPSTATUS         0x2101                   //
-#define SR_OUTPUT_FREQ          0x2103                   // 0.01Hz units
-#define SR_TRIPCODE_PAST1       0x0608          // last 4 trips
+#define SR_ERROR_CODE           0x2100          //
+#define SR_INV_OPSTATUS         0x2101          //
+#define SR_OUTPUT_FREQ          0x2103          // 0.01Hz units
+#define SR_TRIPCODE_PAST1       0x0608          // PARAM 06-08, last 4 trips
 #define SR_TRIPCODE_PAST2       0x0609
 #define SR_TRIPCODE_PAST3       0x0610
 #define SR_TRIPCODE_PAST4       0x0611
-#define ST_EMERGENCY_STOPPED    0x0021          // EF1/ESTOP
-
+//#define ST_EMERGENCY_STOPPED    0x0021          // EF1/ESTOP
 #define SR_MOTOR_SPEED          0x210C          // RPM
 #define SR_TORQUE_RATIO         0x210B          // %
 #define SR_OUTPUT_CURRENT       0x2104          // output curr
 #define SR_OUTPUT_VOLTAGE       0x2106          // %
-#define SR_INVERTER_MODEL	0x0000
-#define SR_RATED_CURRENT	0x0001		// 0.1A
-#define SR_RATED_VOLTAGE	0x0102		// 0.1V
-#define SR_EEPROM_VERSION	0x0006
+#define SR_INVERTER_MODEL       0x0000          // PARAM 00-00
+#define SR_RATED_CURRENT        0x0001          // PARAM 00-01, unit: 0.1A
+#define SR_RATED_VOLTAGE        0x0102          // PARAM 01-02, unit: 0.1V
+#define SR_EEPROM_VERSION       0x0006
 
 /* There's an assumption in the gs2_vfd code, namely that the interesting registers
  * are contiguous and all of them can be read with a single read_holding_registers()
@@ -488,7 +489,7 @@ int write_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
         if (modbus_write_register(ctx, REG_COMMAND1, 0) < 0) {
             p->failed_reg = REG_COMMAND1;
             (*haldata->errorcount)++;
-            printf("vbdb_vfd.c(491): modbus_write_register() fail\n");
+            DBG("modbus_write_register() fail, errno(%d)\n", errno);
             p->last_errno = errno;
             return errno;
         }
@@ -496,7 +497,6 @@ int write_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
         return 0;
     }
 
-retry:
     // set frequency register
     hzcalc = haldata->motor_nameplate_hz / haldata->motor_nameplate_RPM;
     freq_reg =  (int)round(fabs((*(haldata->speed_command) * hzcalc * 100.0)));
@@ -539,19 +539,9 @@ retry:
     DBG("write_data: cmd1_reg=0x%4.4X old cmd1_reg=0x%4.4X\n", cmd1_reg,p->old_cmd1_reg);
 
     if (modbus_write_register(ctx, REG_COMMAND1, cmd1_reg) < 0) {
-        // modbus transaction timed out. This may happen if VFD is in E-Stop.
-        // if VFD was in E-Stop, and a fault reset was sent, wait about 2 seconds for recovery
-        // we must assume that any command and frequency values sent were cleared, so we restart
-        // the operation.
-        // note that sending the CMD_EMERGENCY_STOP bit in cmd1_reg causes an immediate reboot
-        // without a Modbus reply (if the VFD actually was in e-stop) so we ignore this error.
-        if (cmd1_reg & CMD_EMERGENCY_STOP) {
-            sleep(2);
-            goto retry;
-        }
         p->failed_reg = REG_COMMAND1;
         (*haldata->errorcount)++;
-        printf("vbdb_vfd.c(554): modbus_write_register() fail\n");
+        DBG("modbus_write_register() fail, errno(%d)\n", errno);
         p->last_errno = errno;
         return errno;
     } 
@@ -563,7 +553,7 @@ retry:
     if ((modbus_write_register(ctx, REG_FREQUENCY, freq_reg)) < 0) {
         p->failed_reg = REG_FREQUENCY;
         (*haldata->errorcount)++;
-        printf("vbdb_vfd.c(566): modbus_write_register() fail\n");
+        DBG("modbus_write_register() fail, errno(%d)\n", errno);
         p->last_errno = errno;
         return errno;
     } 
@@ -608,7 +598,7 @@ int read_initial(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     p->failed_reg = curr_reg;
     p->last_errno = errno;
     (*haldata->errorcount)++;
-    printf("vbdb_vfd.c(611): GETREG() fail\n");
+    DBG("modbus_read_registers() fail, errno(%d)\n", errno);
     if (p->debug)
         fprintf(stderr, "%s: read_initial: modbus_read_registers(0x%4.4x): %s\n",
                 p->progname, curr_reg, modbus_strerror(errno));
@@ -644,11 +634,11 @@ int read_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     // JET if freq out is 0 then the drive is stopped
     *(haldata->is_stopped) = (freq_reg == 0);
 
-    if (status_reg == ST_EMERGENCY_STOPPED) {	// set e-stop status.
-        *(haldata->is_e_stopped) = 1;
-    } else {
-        *(haldata->is_e_stopped) = 0;
-    }
+//    if (status_reg == ST_EMERGENCY_STOPPED) {	// set e-stop status.
+//        *(haldata->is_e_stopped) = 1;
+//    } else {
+//        *(haldata->is_e_stopped) = 0;
+//    }
 
     if ((pollcount == 0) && !*(haldata->max_speed)) {
         // less urgent registers
@@ -679,7 +669,7 @@ int read_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     p->failed_reg = curr_reg;
     p->last_errno = errno;
     (*haldata->errorcount)++;
-    printf("vbdb_vfd.c(682): GETREG() fail\n");
+    DBG("modbus_read_registers() fail, errno(%d)\n", errno);
     if (p->debug)
         fprintf(stderr, "%s: read_data: modbus_read_registers(0x%4.4x): %s\n",
                 p->progname, curr_reg, modbus_strerror(errno));
@@ -908,9 +898,11 @@ int main(int argc, char **argv)
             }
             if ((retval = write_data(p->ctx, p->haldata, p))) {
                 p->modbus_ok = 0;
-                if ((retval == EBADF || retval == ECONNRESET || retval == EPIPE)) {
-                    connection_state = RECOVER;
-                }
+//                if ((retval == EBADF || retval == ECONNRESET || retval == EPIPE)) {
+//                    connection_state = RECOVER;
+//                }
+                DBG("ERROR: write_data(), errno(%d): %s\n", retval, modbus_strerror(errno));
+                connection_state = RECOVER;
             } else {
                 p->modbus_ok++;
             }
