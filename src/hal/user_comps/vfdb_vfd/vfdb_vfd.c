@@ -591,6 +591,7 @@ int read_initial(modbus_t *ctx, haldata_t *haldata, param_pointer p)
                 p->progname, voltage/10.0, current/10.0, max_freq/100.0);
         printf("%s: versions: eeprom=%d/0x%4.4x\n",
                 p->progname, eeprom, eeprom);
+        *(haldata->enabled) = 1;
     }
     return 0;
 
