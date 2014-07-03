@@ -393,11 +393,9 @@ typedef struct {
     hal_u32_t    *trigger_type;
     hal_bit_t    *trigger_cond;
     hal_u32_t    *trigger_level;
-    hal_bit_t   *trigger_enable;     // 0: disable 1:enable
     hal_bit_t   *probing;
     hal_bit_t   *trigger_result;     // 0: disable 1:enable
 
-    hal_bit_t     prev_trigger_enable;
     hal_bit_t     prev_probing;
     double      prev_trigger_level;
 
@@ -1743,13 +1741,10 @@ static void update_freq(void *arg, long period)
             DP ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
-//        if((*machine_control->trigger_enable != machine_control->prev_trigger_enable) &&
-//           (*machine_control->rcmd_state == RCMD_IDLE))
+
         if((*machine_control->probing != machine_control->prev_probing))
-//        		&&
-//                   (*machine_control->rcmd_state == RCMD_IDLE))
         {
-            // do GMCODE_PROBE
+            // HOST_PROBING G38.X
             uint32_t dbuf[4];
             dbuf[0] = RCMD_GMCODE_PROBE;
             dbuf[1] = (*machine_control->trigger_level & 0x3FFF) |
@@ -1759,10 +1754,10 @@ static void update_freq(void *arg, long period)
                         ((*machine_control->trigger_cond & 0x1) << 30) |
                         ((*machine_control->probing & 0x1) << 31);
                             // distance in pulse
-//            printf("level(%d) din(%d) ain(%d)\n type(%d) cond(%d) enable(%d)",
+//            printf("level(%d) din(%d) ain(%d)\n type(%d) cond(%d) probing(%d)\n",
 //            		*machine_control->trigger_level, *machine_control->trigger_din,
 //            		*machine_control->trigger_ain, *machine_control->trigger_type,
-//            		*machine_control->trigger_cond, *machine_control->trigger_enable);
+//            		*machine_control->trigger_cond, *machine_control->probing);
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
             machine_control->prev_probing = *machine_control->probing;
         }
@@ -2429,11 +2424,6 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->trigger_level), comp_id, "wou.trigger.level");
     if (retval != 0) { return retval; }
     *(machine_control->trigger_level) = 0;
-
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->trigger_enable), comp_id, "wou.trigger.enable");
-    if (retval != 0) { return retval; }
-    *(machine_control->trigger_enable) = 0;
-    (machine_control->prev_trigger_enable) = 0;
 
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->probing), comp_id, "wou.motion.probing");
     if (retval != 0) { return retval; }

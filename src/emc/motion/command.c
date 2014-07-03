@@ -1432,6 +1432,7 @@ void emcmotCommandHandler(void *arg, long period)
             {
                 reportError(_("move finished without making contact"));
                 emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
+                printf("command.c 1435: TODO: DO WE NEED tpAbort? \n");
                 tpAbort(&emcmotDebug->coord_tp);
                 SET_MOTION_ERROR_FLAG(1);
             }
@@ -1470,8 +1471,9 @@ void emcmotCommandHandler(void *arg, long period)
                 amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
                 dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
                 //			printf("TODO: if probe condition already true need abort\n");
-                //			printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
-                //			printf("amode(%d) dmode(%d)\n", amode, dmode);
+//                			printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
+//                			printf("amode(%d) dmode(%d)\n", amode, dmode);
+
                 switch(*(emcmot_hal_data->trigger_type))
                 {
                 case OR:

@@ -729,8 +729,7 @@ static void process_probe_inputs(void)
 //                        joint_num, joint_pos[joint_num], joint->probed_pos, joint->backlash_filt, joint->motor_offset, joint->blender_offset);
             }
             kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
-            tpAbort(&emcmotDebug->coord_tp);
-            emcmotStatus->probing = 0;
+            tpAbort(&emcmotDebug->coord_tp); // Let command.c to process EMCMOT_END_PROBE
         }
         *emcmot_hal_data->trigger_result = 0;
     }
