@@ -1792,6 +1792,11 @@ void emcmotCommandHandler(void *arg, long period)
             emcmotStatus->tool_offset = emcmotCommand->tool_offset;
             break;
 
+        case EMCMOT_SET_G5X_OFFSET:
+        		emcmotStatus->g5x_offset = emcmotCommand->pos;
+        		break;
+
+
         case EMCMOT_SET_AXIS_POSITION_LIMITS:
             /* set the position limits for axis */
             /* can be done at any time */

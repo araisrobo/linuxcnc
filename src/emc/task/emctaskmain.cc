@@ -1862,10 +1862,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         break;
 
     case EMC_TRAJ_SET_G5X_TYPE:
-	// struct-copy program origin
-	emcStatus->task.g5x_offset = ((EMC_TRAJ_SET_G5X *) cmd)->origin;
-        emcStatus->task.g5x_index = ((EMC_TRAJ_SET_G5X *) cmd)->g5x_index;
-	retval = 0;
+    	// struct-copy program origin
+    	emcStatus->task.g5x_offset = ((EMC_TRAJ_SET_G5X *) cmd)->origin;
+    	emcStatus->task.g5x_index = ((EMC_TRAJ_SET_G5X *) cmd)->g5x_index;
+    	emcTrajSetG5xOffset(emcStatus->task.g5x_offset);
+    	retval = 0;
 	break;
     case EMC_TRAJ_SET_G92_TYPE:
 	// struct-copy program origin

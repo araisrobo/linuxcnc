@@ -1360,6 +1360,14 @@ double emcTrajGetAngularUnits()
     return TrajConfig.AngularUnits;
 }
 
+int emcTrajSetG5xOffset(EmcPose g5x_offset)
+{
+    emcmotCommand.command = EMCMOT_SET_G5X_OFFSET;
+    emcmotCommand.pos = g5x_offset;
+
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 int emcTrajSetOffset(EmcPose tool_offset)
 {
     emcmotCommand.command = EMCMOT_SET_OFFSET;

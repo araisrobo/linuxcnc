@@ -1252,7 +1252,8 @@ static void get_spindle_cmds (double cycle_time)
     if(emcmotStatus->spindle.css_factor && emcmotStatus->spindle.on)
     {
         // for G96
-        double denom = emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x;
+        double denom =  sqrt(pow(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x, 2) +
+        					pow(emcmotStatus->g5x_offset.tran.y - emcmotStatus->carte_pos_cmd.tran.y, 2));
         double speed;       // speed for major spindle (spindle-s)
         double maxpositive;
 
