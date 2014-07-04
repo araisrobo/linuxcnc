@@ -155,6 +155,7 @@ typedef enum {
     EMCMOT_SET_TERM_COND,	/* set termination condition (stop, blend) */
     EMCMOT_SET_NUM_JOINTS,	/* set the number of joints */
     EMCMOT_SET_WORLD_HOME,	/* set pose for world home */
+    EMCMOT_SET_G5X_OFFSET,	/* set G5X_OFFSET */
 
     EMCMOT_SET_DEBUG,       /* sets the debug level */
     EMCMOT_SET_DOUT,        /* sets or unsets a DIO, this can be imediate or synched with motion */
@@ -697,6 +698,7 @@ typedef struct emcmot_status_t {
     EmcPose carte_pos_fb;	/* actual Cartesian position */
     int carte_pos_fb_ok;	/* non-zero if feedback is valid */
     EmcPose world_home;	/* cartesean coords of home position */
+    EmcPose g5x_offset;	/* offset position for G54, G55, G56 ... */
     int homing_active;	/* non-zero if any joint is homing */
     home_sequence_state_t homingSequenceState;
     emcmot_joint_status_t joint_status[EMCMOT_MAX_JOINTS];	/* all joint status data */
