@@ -295,7 +295,6 @@ static int init_hal_io(void)
     }
 
     /* export machine wide hal pins */
-    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probing), mot_comp_id, "motion.probing")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->trigger_result), mot_comp_id, "motion.trigger-result")) != 0) goto error;
 //    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->prev_trigger_result), mot_comp_id, "motion.prev-trigger-result")) != 0) goto error;
@@ -320,6 +319,7 @@ static int init_hal_io(void)
 
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->usb_busy), mot_comp_id, "motion.usb-busy")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->machine_is_moving), mot_comp_id, "motion.machine-is-moving")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->rtp_running), mot_comp_id, "motion.rtp-running")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x1), mot_comp_id, "motion.mpg-scale-x1")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x10), mot_comp_id, "motion.mpg-scale-x10")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->mpg_scale_x100), mot_comp_id, "motion.mpg-scale-x100")) < 0) goto error;
@@ -330,6 +330,7 @@ static int init_hal_io(void)
     *emcmot_hal_data->mpg_scale_x100 = 0;
     *emcmot_hal_data->usb_busy = 0;
     *emcmot_hal_data->machine_is_moving = 0;
+    *emcmot_hal_data->rtp_running = 0;
 
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) != 0) goto error;
     if ((retval = hal_param_u32_newf(HAL_RW, &(emcmot_hal_data->spindle_joint_id), mot_comp_id, "motion.spindle-joint-id")) != 0) goto error;

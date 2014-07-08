@@ -377,9 +377,9 @@ typedef struct {
     hal_u32_t   *rcmd_state;
 
     hal_u32_t   *max_tick_time;
-    hal_bit_t   *probe_result;
     hal_bit_t   *machine_moving;
     hal_bit_t   *ahc_doing;
+    hal_bit_t 	*rtp_running; // risc/remote tp running
 
     hal_u32_t   *spindle_joint_id;
 
@@ -557,8 +557,8 @@ static void fetchmail(const uint8_t *buf_head)
             *stepgen->ferror_flag = machine_status & (1 << i);
             stepgen += 1;   // point to next joint
         }
-        *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
         *machine_control->ahc_doing = (machine_status >> AHC_DOING_BIT) & 1;
+        *machine_control->rtp_running = (machine_status >> TP_RUNNING_BIT) & 1;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -2388,10 +2388,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_result), comp_id, "wou.motion.probe-result");
-    if (retval != 0) { return retval; }
-    *(machine_control->probe_result) = 0;
-
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->machine_moving), comp_id, "wou.motion.machine-is-moving");
     if (retval != 0) { return retval; }
     *(machine_control->machine_moving) = 0;
@@ -2399,6 +2395,10 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->ahc_doing), comp_id, "wou.ahc.doing");
     if (retval != 0) { return retval; }
     *(machine_control->ahc_doing) = 0;
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->rtp_running), comp_id, "wou.motion.rtp-running");
+	if (retval != 0) { return retval; }
+	*(machine_control->rtp_running) = 0;
 
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->spindle_joint_id), comp_id, "wou.motion.spindle-joint-id");
     if (retval != 0) { return retval; }

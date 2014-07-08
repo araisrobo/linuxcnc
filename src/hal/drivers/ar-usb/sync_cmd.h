@@ -117,8 +117,7 @@
 /* bit index for machine_status[31:0] */
 #define FERROR_MASK                     0x000000FF  // machine_status[7:0]
 #define ALARM_MASK                      0x00000100  // machine_status[8]
-#define PROBE_RESULT_BIT                16
-#define MACHINE_MOVING_BIT              17
+#define TP_RUNNING_BIT                  17
 #define AHC_DOING_BIT                   18
 
 /**
@@ -152,6 +151,7 @@
  *  GANTRY_CTRL,    // [31]     GANTRY_EN
  **/                  
 #define GCTRL_EN_MASK                   0x80000000  // Gantry Enable Bit
+// TODO: add GANTRY_MASTER_ID and GANTRY_SLAVE_ID to GANTRY_CTRL register
 
 typedef enum {
     // naming: RISC_...CMD..._REQ

@@ -67,18 +67,18 @@ syncdio_t syncdio; //record tpSetDout's here
 int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
 
     if (_queueSize <= 0) {
-	tp->queueSize = TP_DEFAULT_QUEUE_SIZE;
+        tp->queueSize = TP_DEFAULT_QUEUE_SIZE;
     } else {
-	tp->queueSize = _queueSize;
+        tp->queueSize = _queueSize;
     }
 
     /* create the queue */
     if (-1 == tcqCreate(&tp->queue, tp->queueSize, tcSpace)) {
-	return -1;
+        return -1;
     }
 
 #if (TRACE!=0)
@@ -109,13 +109,13 @@ int tpClearDIOs() {
     //XXX: All IO's will be flushed on next synced aio/dio! Is it ok?
     int i;
     syncdio.anychanged = 0;
-//    syncdio.dio_mask = 0;
+    //    syncdio.dio_mask = 0;
     syncdio.aio_mask = 0;
     for (i = 0; i < emcmotConfig->numDIO; i++)
-	syncdio.dios[i] = 0;
+        syncdio.dios[i] = 0;
     for (i = 0; i < emcmotConfig->numAIO; i++)
-	syncdio.aios[i] = 0;
-    
+        syncdio.aios[i] = 0;
+
     syncdio.sync_input_triggered = 0;
     syncdio.sync_in = 255;
     syncdio.wait_type = 0;
@@ -172,14 +172,14 @@ int tpInit(TP_STRUCT * tp)
     tp->wDotMax = 0.0;
 
     ZERO_EMC_POSE(tp->currentPos);
-    
+
     return tpClear(tp);
 }
 
 int tpSetCycleTime(TP_STRUCT * tp, double secs)
 {
     if (0 == tp || secs <= 0.0) {
-	return -1;
+        return -1;
     }
 
     tp->cycleTime = secs;
@@ -198,7 +198,7 @@ int tpSetCycleTime(TP_STRUCT * tp, double secs)
 int tpSetVmax(TP_STRUCT * tp, double vMax, double ini_maxvel)
 {
     if (0 == tp || vMax <= 0.0 || ini_maxvel <= 0.0) {
-	return -1;
+        return -1;
     }
 
     tp->vMax = vMax;
@@ -231,17 +231,17 @@ int tpSetVlimit(TP_STRUCT * tp, double vLimit)
   will be one more than the previous one, modulo a signed int. If
   you want your own ids for each motion, call this before each motion
   you append and stick what you want in here.
-  */
+ */
 int tpSetId(TP_STRUCT * tp, int id)
 {
 
     if (!MOTION_ID_VALID(id)) {
-	rtapi_print_msg(RTAPI_MSG_ERR, "tpSetId: invalid motion id %d\n", id);
-	return -1;
+        rtapi_print_msg(RTAPI_MSG_ERR, "tpSetId: invalid motion id %d\n", id);
+        return -1;
     }
-	
+
     if (0 == tp) {
-	return -1;
+        return -1;
     }
 
     tp->nextId = id;
@@ -252,11 +252,11 @@ int tpSetId(TP_STRUCT * tp, int id)
 /*
   tpGetExecId() returns the id of the last motion that is currently
   executing.
-  */
+ */
 int tpGetExecId(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
 
     return tp->execId;
@@ -267,15 +267,15 @@ int tpGetExecId(TP_STRUCT * tp)
   queued moves. If cond is TC_TERM_STOP, motion comes to a stop before
   a subsequent move begins. If cond is TC_TERM_BLEND, the following move
   is begun when the current move decelerates.
-  */
+ */
 int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
 
     if (cond != TC_TERM_COND_STOP && cond != TC_TERM_COND_BLEND) {
-	return -1;
+        return -1;
     }
 
     tp->termCond = cond;
@@ -291,7 +291,7 @@ int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance)
 int tpSetPos(TP_STRUCT * tp, EmcPose pos)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
 
     tp->currentPos = pos;
@@ -307,8 +307,8 @@ int tpSetPos(TP_STRUCT * tp, EmcPose pos)
  *      -- THREADING(G33 w/ G97)
  */
 int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
-                  double ini_maxvel, double acc, double jerk,
-                  int ssm_mode, unsigned char enables)
+        double ini_maxvel, double acc, double jerk,
+        int ssm_mode, unsigned char enables)
 {
     TC_STRUCT tc;
     PmLine line_xyz;
@@ -322,7 +322,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     }
     if (tp->aborting) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is aborting\n");
-	return -1;
+        return -1;
     }
 
     start_xyz.tran = tp->goalPos.tran;
@@ -330,7 +330,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
 
     start_xyz.rot = identity_quat;
     end_xyz.rot = identity_quat;
-    
+
     // abc cannot move
     abc.x = tp->goalPos.a;
     abc.y = tp->goalPos.b;
@@ -359,7 +359,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     // tc.target: set as revolutions of spindle
     tc.target = line_xyz.tmag / tp->uu_per_rev;
     DP("jerk(%f) req_vel(%f) req_acc(%f) ini_maxvel(%f)\n",
-        jerk, vel, acc, ini_maxvel);
+            jerk, vel, acc, ini_maxvel);
     DP("target(%f) uu_per_rev(%f)\n", tc.target, tp->uu_per_rev);
 
     tc.progress = 0.0;
@@ -409,10 +409,10 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.coords.spindle_sync.mode = ssm_mode;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
-	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-	tc.syncdio.anychanged = 0;
+        tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
 
@@ -449,7 +449,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     else if (ssm_mode == 0)
     {   // for G33
         tp->goalPos = end;      // remember the end of this move, as it's
-                                // the start of the next one.
+        // the start of the next one.
     }
     else if (ssm_mode == 2)
     {   // for G33.2
@@ -470,9 +470,9 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
 // currently-active accel and vel settings from the tp struct.
 // EMC_MOTION_TYPE_FEED
 int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, 
-              double ini_maxvel, double acc, 
-              double ini_maxjerk, unsigned char enables, 
-              char atspeed, int indexrotary)
+        double ini_maxvel, double acc,
+        double ini_maxjerk, unsigned char enables,
+        char atspeed, int indexrotary)
 {
     TC_STRUCT tc;
     PmLine line_xyz, line_uvw, line_abc;
@@ -491,7 +491,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     }
     if (tp->aborting) {
         rtapi_print_msg(RTAPI_MSG_ERR, "TP is aborting\n");
-	return -1;
+        return -1;
     }
 
     start_xyz.tran = tp->goalPos.tran;
@@ -566,23 +566,23 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.indexrotary = indexrotary;
 
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
-	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-	tc.syncdio.anychanged = 0;
+        tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
-    
+
     tc.utvIn = line_xyz.uVec;
     tc.utvOut = line_xyz.uVec;
-    
+
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
-	return -1;
+        return -1;
     }
 
     tp->goalPos = end;      // remember the end of this move, as it's
-                            // the start of the next one.
+    // the start of the next one.
     tp->done = 0;
     tp->depth = tcqLen(&tp->queue);
     tp->nextId++;
@@ -650,7 +650,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     // find helix length
     pmCartMag(circle.rHelix, &helix_z_component);
     helix_length = pmSqrt(pmSq(circle.angle * circle.radius) +
-                          pmSq(helix_z_component));
+            pmSq(helix_z_component));
 
     tc.sync_accel = 0;
     tc.cycle_time = tp->cycleTime;
@@ -687,20 +687,20 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.css_progress_cmd = 0;
     tc.enables = enables;
     tc.indexrotary = -1;
-    
+
     if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
-	tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
-	tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
+        tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
+        tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
-	tc.syncdio.anychanged = 0;
+        tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
 
     tc.utvIn = circle.utvIn;
     tc.utvOut = circle.utvOut;
-    
+
     if (tcqPut(&tp->queue, tc) == -1) {
-	return -1;
+        return -1;
     }
 
     tp->goalPos = end;
@@ -757,11 +757,11 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
 
 #ifndef RTAPI_SIM
 #warning "implement rtai_kmalloc() for nurbs"
-	nurbs_to_tc->ctrl_pts_ptr = ctrl_pts_array;
-	nurbs_to_tc->knots_ptr = knots_array;
-	nurbs_to_tc->N = N_array;
+        nurbs_to_tc->ctrl_pts_ptr = ctrl_pts_array;
+        nurbs_to_tc->knots_ptr = knots_array;
+        nurbs_to_tc->N = N_array;
 #else
-	// SIM
+        // SIM
         nurbs_to_tc->ctrl_pts_ptr = (CONTROL_POINT*) malloc(
                 sizeof(CONTROL_POINT) * nurbs_block.nr_of_ctrl_pts);
         /* knots array: allocate 'order' of extra knots for THE-NURBS-BOOK-Algorithm */
@@ -871,10 +871,10 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
             tc.syncdio.anychanged = 0;
             tc.syncdio.sync_input_triggered = 0;
         }
-    
+
         //TODO: tc.utvIn = nurbs...;
         //TODO: tc.utvOut = nurbs...;
-        
+
         if (tcqPut(&tp->queue, tc) == -1) {
             rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
             return -1;
@@ -910,7 +910,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
     double t, t1, vel, v1, dist, req_vel;
     int immediate_state;
     double tc_target;
-    
+
     if(tc->seamless_blend_mode == SMLBLND_ENABLE) {
         tc_target = tc->target + tc->nexttc_target;
     } else {
@@ -927,14 +927,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             tc->cur_accel = tc->cur_accel + tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
-            
+
             // check if we hit accel limit at next BP
             if ((tc->cur_accel + tc->jerk) >= tc->maxaccel) {
                 tc->cur_accel = tc->maxaccel;
                 tc->accel_state = ACCEL_S1;
                 break;
             }
-            
+
             // check if we will hit velocity limit; 
             // assume we start decel from here to "accel == 0"
             //
@@ -958,15 +958,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // distance for S2
             t = ceil(tc->cur_accel/tc->jerk);
             dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                   - 1.0/6.0 * tc->jerk * t * t * t;
+                    - 1.0/6.0 * tc->jerk * t * t * t;
             vel = tc->cur_vel + tc->cur_accel * t - 0.5 * tc->jerk * t * t;
             // distance for S3
             dist += (vel);
-            
+
             /* 
             0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
             t1 = sqrt(vel/j)
-            */
+             */
             t = ceil(sqrt(vel/tc->jerk));
             // AT = AT + JT
             t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
@@ -990,14 +990,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             }
 
             break;
-        
+
         case ACCEL_S1:
             // jerk is 0 at this state
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
             tc->cur_vel = tc->cur_vel + tc->cur_accel;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel;
-            
+
             // check if we will hit velocity limit; 
             // assume we start decel from here to "accel == 0"
             //
@@ -1014,20 +1014,20 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 tc->accel_state = ACCEL_S2;
                 break;
             }
-            
+
             // check if we will hit progress limit
             // distance for S2
             t = ceil(tc->cur_accel/tc->jerk);
             dist = tc->progress + tc->cur_vel * t + 0.5 * tc->cur_accel * t * t
-                   - 1.0/6.0 * tc->jerk * t * t * t;
+                    - 1.0/6.0 * tc->jerk * t * t * t;
             vel = tc->cur_vel + tc->cur_accel * t - 0.5 * tc->jerk * t * t;
             // distance for S3
             dist += (vel);
-            
+
             /* 
             0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
             t1 = sqrt(vel/j)
-            */
+             */
             t = ceil(sqrt(vel/tc->jerk));
             // AT = AT + JT
             t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
@@ -1050,18 +1050,18 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 break;
             }
             break;
-        
-        
+
+
         case ACCEL_S2: 
             // to DECELERATE to ACCEL==0
-            
+
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
             tc->cur_accel = tc->cur_accel - tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel - 1.0/6.0 * tc->jerk;
-           
+
             // check accel == 0
             if (tc->cur_accel <= 0) {
                 tc->accel_state = ACCEL_S3;
@@ -1080,7 +1080,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 tc->accel_state = ACCEL_S3;
                 break;
             } 
-            
+
             // check if we will hit progress limit
             // refer to 2011-10-17 ysli design note
             // AT = AT + JT
@@ -1089,11 +1089,11 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             vel = tc->cur_vel;
             // distance for S3
             dist = tc->progress + (vel);
-            
+
             /* 
             0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
             t1 = sqrt(vel/j)
-            */
+             */
             t = ceil(sqrt(vel/tc->jerk));
             // AT = AT + JT
             t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
@@ -1117,13 +1117,13 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             }
 
             break;
-        
+
         case ACCEL_S3:
             // PT = PT + VT + 1/2AT + 1/6JT
             // , where (jerk == 0) and (accel == 0)
             tc->cur_accel = 0;
             tc->progress = tc->progress + tc->cur_vel;
-            
+
             // check if we will hit progress limit
             // refer to 2011-10-17 ysli design note
             // AT = AT + JT
@@ -1132,7 +1132,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             /* 
             0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
             t1 = sqrt(vel/j)
-            */
+             */
             vel = tc->cur_vel;
             // t = floor(sqrt(vel/tc->jerk) - 0.5);
             t = sqrt(vel/tc->jerk);
@@ -1198,30 +1198,30 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
             // (accel < 0) and (jerk < 0)
             assert (tc->cur_accel < 0);
-           
+
             // check if we hit accel limit at next BP
             if ((tc->cur_accel - tc->jerk) <= -tc->maxaccel) {
                 tc->cur_accel = -tc->maxaccel;
                 tc->accel_state = ACCEL_S5;
                 break;
             }
-            
+
             // should we stay in S4 and keep decel?
             // calculate dist for S6 -> S4 -> (maybe S5) -> S6
             t = - tc->cur_accel / tc->jerk;
             // target dist after switching to S6 (jerk is positive for S6)
             dist = tc->progress + tc->cur_vel * t 
-                   + 0.5 * tc->cur_accel * t * t
-                   + 1.0 / 6.0 * tc->jerk * t * t * t;
+                    + 0.5 * tc->cur_accel * t * t
+                    + 1.0 / 6.0 * tc->jerk * t * t * t;
             // VT = V0 + A0T + 1/2JT2
             // obtain vel for S6 -> S3
             vel = tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t;
-            
+
             if (vel > 0) {    
                 /* 
                 0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
                 t1 = sqrt(vel/j)
-                */
+                 */
                 t = ceil(sqrt(vel/tc->jerk));
                 // AT = AT + JT
                 t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
@@ -1246,7 +1246,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 DPS("should stay in S4 and keep decel\n");
                 break;
             }
-                    
+
             // check if we will approaching requested velocity
             // vel should not be greater than "request velocity" after
             // starting acceleration to "accel == 0".
@@ -1263,9 +1263,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 DPS("S4: hit velocity rule; move to S6\n");
                 break;
             }
-            
+
             break;
-        
+
         case ACCEL_S5:
             // jerk is 0 at this state
             // accel < 0
@@ -1273,24 +1273,24 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // PT = PT + VT + 1/2AT + 1/6JT
             tc->cur_vel = tc->cur_vel + tc->cur_accel;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel;
-            
+
             // should we stay in S5 and keep decel?
             // calculate dist for S6 -> S4 -> (maybe S5) -> S6
             t = - tc->cur_accel / tc->jerk;
             // target dist after switching to S6 (jerk is positive for S6)
             dist = tc->progress + tc->cur_vel * t 
-                   + 0.5 * tc->cur_accel * t * t
-                   + 1.0 / 6.0 * tc->jerk * t * t * t;
+                    + 0.5 * tc->cur_accel * t * t
+                    + 1.0 / 6.0 * tc->jerk * t * t * t;
             // VT = V0 + A0T + 1/2JT2
             // obtain vel for S6 -> S3
             vel = tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t;
-            
+
             if (vel > 0) { 
                 /* S6 -> S3 -> S4 -> S5(maybe) -> S6 */
                 /* 
                 0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
                 t1 = sqrt(vel/j)
-                */
+                 */
                 t = ceil(sqrt(vel/tc->jerk));
                 // AT = AT + JT
                 t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
@@ -1308,7 +1308,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                     dist += t * vel;    // dist of (S4 + S6)
                 }
             }
-            
+
             // check if dist would be greater than tc_target at next cycle
             if (tc_target < (dist - (tc->cur_vel + 1.5 * tc->cur_accel))) {
                 tc->accel_state = ACCEL_S5;
@@ -1334,7 +1334,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             }
 
             break;
-        
+
         case ACCEL_S6:
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
@@ -1351,14 +1351,14 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             if (tc->cur_accel >= 0) {
                 tc->accel_state = ACCEL_S3;
             }
-            
+
             break;
-        
+
         default:
             assert(0);
         } // switch (tc->accel_state)
     } while (immediate_state);
-    
+
     if (tc->seamless_blend_mode != SMLBLND_ENABLE) {
         if (tc->progress >= tc->target) {
             // finished
@@ -1370,9 +1370,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
     }
 
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
-        _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time, 
-        tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target, 
-        (tc->target - tc->progress), tc_target);
+            _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time,
+            tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target,
+            (tc->target - tc->progress), tc_target);
     tc->distance_to_go = tc->target - tc->progress;
     //TODO: this assert will be triggered with rockman.ini: 
     //      assert (tc->cur_vel >= 0);
@@ -1382,16 +1382,16 @@ void tpToggleDIOs(TC_STRUCT * tc)
 {
     int i = 0;
     if (tc->syncdio.anychanged != 0) { // we have DIO's to turn on or off
-	for (i=0; i < emcmotConfig->numDIO; i++) {
-//            if (!(tc->syncdio.dio_mask & (1 << i))) continue;
-	    if (tc->syncdio.dios[i] > 0) emcmotDioWrite(i, 1); // turn DIO[i] on
-	    if (tc->syncdio.dios[i] < 0) emcmotDioWrite(i, 0); // turn DIO[i] off
-	}
-	for (i=0; i < emcmotConfig->numAIO; i++) {
-            if (!(tc->syncdio.aio_mask & (1 << i))) continue;
-	    emcmotAioWrite(i, tc->syncdio.aios[i]); // set AIO[i]
+        for (i=0; i < emcmotConfig->numDIO; i++) {
+            //            if (!(tc->syncdio.dio_mask & (1 << i))) continue;
+            if (tc->syncdio.dios[i] > 0) emcmotDioWrite(i, 1); // turn DIO[i] on
+            if (tc->syncdio.dios[i] < 0) emcmotDioWrite(i, 0); // turn DIO[i] off
         }
-	tc->syncdio.anychanged = 0; //we have turned them all on/off, nothing else to do for this TC the next time
+        for (i=0; i < emcmotConfig->numAIO; i++) {
+            if (!(tc->syncdio.aio_mask & (1 << i))) continue;
+            emcmotAioWrite(i, tc->syncdio.aios[i]); // set AIO[i]
+        }
+        tc->syncdio.anychanged = 0; //we have turned them all on/off, nothing else to do for this TC the next time
     }
 
     if (tc->syncdio.sync_input_triggered != 0) {
@@ -1446,8 +1446,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         tp->execId = 0;
         tp->motionType = 0;
         tpResume(tp);
-	// when not executing a move, use the current enable flags
-	emcmotStatus->enables_queued = emcmotStatus->enables_new;
+        // when not executing a move, use the current enable flags
+        emcmotStatus->enables_queued = emcmotStatus->enables_new;
         // spindleSync maps to motion.spindle-velocity-mode
         emcmotStatus->spindleSync = 0;
         emcmotStatus->xuu_per_rev = 0;
@@ -1456,11 +1456,17 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         return 0;
     }
 
+
     if (tc->target == tc->progress && waiting_for_atspeed != tc->id) {
+        if (emcmotStatus->probing && *(emcmot_hal_data->rtp_running))
+        {
+            // G38.X: 等待 RISC 處理完所有 TP 命令才結束
+            return 0;
+        }
+
         // if we're synced, and this move is ending, save the
         // spindle position so the next synced move can be in
         // the right place.
-
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
         emcmotStatus->zuu_per_rev = 0;
@@ -1493,14 +1499,14 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         nexttc = NULL;
 
     {
-	int this_synch_pos = tc->synchronized && !tc->velocity_mode;
-	int next_synch_pos = nexttc && nexttc->synchronized && !nexttc->velocity_mode;
-	if(!this_synch_pos && next_synch_pos) {
-	    // we'll have to wait for spindle sync; might as well
-	    // stop at the right place (don't blend)
-	    tc->blend_with_next = 0;
-	    nexttc = NULL;
-	}
+        int this_synch_pos = tc->synchronized && !tc->velocity_mode;
+        int next_synch_pos = nexttc && nexttc->synchronized && !nexttc->velocity_mode;
+        if(!this_synch_pos && next_synch_pos) {
+            // we'll have to wait for spindle sync; might as well
+            // stop at the right place (don't blend)
+            tc->blend_with_next = 0;
+            nexttc = NULL;
+        }
     }
 
     if(nexttc && nexttc->atspeed) {
@@ -1513,9 +1519,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     if(tp->aborting) {
         // an abort message has come
         if( MOTION_ID_VALID(waiting_for_index) ||
-	    MOTION_ID_VALID(waiting_for_atspeed) ||
-            (tc->cur_vel == 0.0 && !nexttc) || 
-            (tc->cur_vel == 0.0 && nexttc && nexttc->cur_vel == 0.0) ) {
+                MOTION_ID_VALID(waiting_for_atspeed) ||
+                (tc->cur_vel == 0.0 && !nexttc) ||
+                (tc->cur_vel == 0.0 && nexttc && nexttc->cur_vel == 0.0) ) {
             tcqInit(&tp->queue);
             tp->goalPos = tp->currentPos;
             tp->done = 1;
@@ -1693,8 +1699,8 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     if(tp->pausing && (!tc->synchronized || tc->velocity_mode)) {
         tc->feed_override = 0.0;
         if(nexttc) {
-	    nexttc->feed_override = 0.0;
-	}
+            nexttc->feed_override = 0.0;
+        }
     }
 
     // calculate the approximate peak velocity the nexttc will hit.
@@ -1732,19 +1738,19 @@ int tpRunCycle(TP_STRUCT * tp, long period)
                 tc->seamless_blend_mode = SMLBLND_DISABLE;
             }
             DPS("tc->utvOut: x(%f) y(%f) z(%f)\n",
-                tc->utvOut.x,
-                tc->utvOut.y,
-                tc->utvOut.z);
+                    tc->utvOut.x,
+                    tc->utvOut.y,
+                    tc->utvOut.z);
             DPS("nexttc->utvIn: x(%f) y(%f) z(%f)\n",
-                nexttc->utvIn.x,
-                nexttc->utvIn.y,
-                nexttc->utvIn.z);
+                    nexttc->utvIn.x,
+                    nexttc->utvIn.y,
+                    nexttc->utvIn.z);
             DPS("k(%f) rv(%f) ca(%f) tc.maxaccel(%f) tc.jerk(%f)\n",
-                 k,
-                 rv * 1000000,
-                 ca * 1000000,
-                 tc->maxaccel * 1000000,
-                 tc->jerk * 1000000);
+                    k,
+                    rv * 1000000,
+                    ca * 1000000,
+                    tc->maxaccel * 1000000,
+                    tc->jerk * 1000000);
             if (tc->seamless_blend_mode == SMLBLND_ENABLE) {
                 DPS("SMLBLND_ENABLE\n");
             } else {
@@ -1753,13 +1759,13 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         }
 #endif // SMLBLND
     }
-        
+
     primary_before = tcGetPos(tc);
     tcRunCycle(tp, tc);
 
 #ifdef SMLBLND
     if ((tc->seamless_blend_mode == SMLBLND_ENABLE) && 
-        (tc->progress >= tc->target)) {
+            (tc->progress >= tc->target)) {
         // update tc with nexttc
         double next_vel;
         double next_accel;
@@ -1770,13 +1776,13 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         next_accel = tc->cur_accel;
         next_accel_state = tc->accel_state;
         next_progress = tc->progress - tc->target;
-        
+
         tcqRemove(&tp->queue, 1);
         tp->depth = tcqLen(&tp->queue);
 
         // so get next move
         tc = tcqItem(&tp->queue, 0, period);
-        
+
         assert(tc); // there must be nexttc in the tcq
         assert(tc->atspeed == 0);
         tc->active = 1;
@@ -1801,14 +1807,14 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     primary_displacement.v = primary_after.v - primary_before.v;
     primary_displacement.w = primary_after.w - primary_before.w;
 
-        
+
     // blend criteria
     if( (tc->blending && nexttc) || 
-        (nexttc && 
-         (tc->seamless_blend_mode == SMLBLND_DISABLE) &&
-         (tc->distance_to_go <= tc->tolerance) &&
-         (nexttc->target >= (tc->distance_to_go * 2)))) {
-        
+            (nexttc &&
+                    (tc->seamless_blend_mode == SMLBLND_DISABLE) &&
+                    (tc->distance_to_go <= tc->tolerance) &&
+                    (nexttc->target >= (tc->distance_to_go * 2)))) {
+
         // make sure we continue to blend this segment even when its 
         // accel reaches 0 (at the very end)
         tc->blending = 1;
@@ -1819,21 +1825,21 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         if(tc->cur_vel > nexttc->cur_vel) {
             target = tcGetEndpoint(tc);
             tp->motionType = tc->canon_motion_type;
-	    emcmotStatus->distance_to_go = tc->target - tc->progress;
+            emcmotStatus->distance_to_go = tc->target - tc->progress;
             emcmotStatus->progress = tc->progress;
-	    emcmotStatus->enables_queued = tc->enables;
-	    // report our line number to the guis
-	    tp->execId = tc->id;
+            emcmotStatus->enables_queued = tc->enables;
+            // report our line number to the guis
+            tp->execId = tc->id;
             emcmotStatus->requested_vel = tc->reqvel;
         } else {
-	    tpToggleDIOs(nexttc); //check and do DIO changes
+            tpToggleDIOs(nexttc); //check and do DIO changes
             target = tcGetEndpoint(nexttc);
             tp->motionType = nexttc->canon_motion_type;
-	    emcmotStatus->distance_to_go = nexttc->target - nexttc->progress;
+            emcmotStatus->distance_to_go = nexttc->target - nexttc->progress;
             emcmotStatus->progress = nexttc->progress;
-	    emcmotStatus->enables_queued = nexttc->enables;
-	    // report our line number to the guis
-	    tp->execId = nexttc->id;
+            emcmotStatus->enables_queued = nexttc->enables;
+            // report our line number to the guis
+            tp->execId = nexttc->id;
             emcmotStatus->requested_vel = nexttc->reqvel;
         }
 
@@ -1866,17 +1872,17 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         tp->currentPos.w += primary_displacement.w + secondary_displacement.w;
     } else {
         // not blending
-	tpToggleDIOs(tc); //check and do DIO changes
+        tpToggleDIOs(tc); //check and do DIO changes
         target = tcGetEndpoint(tc);
         tp->motionType = tc->canon_motion_type;
-	emcmotStatus->distance_to_go = tc->target - tc->progress;
+        emcmotStatus->distance_to_go = tc->target - tc->progress;
         emcmotStatus->progress = tc->progress;
         tp->currentPos = primary_after;
         emcmotStatus->current_vel = (tc->cur_vel) / tc->cycle_time;
         emcmotStatus->requested_vel = tc->reqvel;
-	emcmotStatus->enables_queued = tc->enables;
-	// report our line number to the guis
-	tp->execId = tc->id;
+        emcmotStatus->enables_queued = tc->enables;
+        // report our line number to the guis
+        tp->execId = tc->id;
     }
 
     emcmotStatus->dtg.tran.x = target.tran.x - tp->currentPos.tran.x;
@@ -1907,7 +1913,7 @@ int tpSetSpindleSync(TP_STRUCT * tp, double uu_per_rev, int wait_for_index, int 
 int tpPause(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
     tp->pausing = 1;
     return 0;
@@ -1916,7 +1922,7 @@ int tpPause(TP_STRUCT * tp)
 int tpResume(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
     tp->pausing = 0;
     return 0;
@@ -1925,13 +1931,13 @@ int tpResume(TP_STRUCT * tp)
 int tpAbort(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
 
     if (!tp->aborting) {
-	/* to abort, signal a pause and set our abort flag */
-	tpPause(tp);
-	tp->aborting = 1;
+        /* to abort, signal a pause and set our abort flag */
+        tpPause(tp);
+        tp->aborting = 1;
     }
     return tpClearDIOs(); //clears out any already cached DIOs
 }
@@ -1947,7 +1953,7 @@ EmcPose tpGetPos(TP_STRUCT * tp)
 
     if (0 == tp) {
         ZERO_EMC_POSE(retval);
-	return retval;
+        return retval;
     }
 
     return tp->currentPos;
@@ -1956,7 +1962,7 @@ EmcPose tpGetPos(TP_STRUCT * tp)
 int tpIsDone(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return 0;
+        return 0;
     }
 
     return tp->done;
@@ -1965,7 +1971,7 @@ int tpIsDone(TP_STRUCT * tp)
 int tpQueueDepth(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return 0;
+        return 0;
     }
 
     return tp->depth;
@@ -1974,7 +1980,7 @@ int tpQueueDepth(TP_STRUCT * tp)
 int tpActiveDepth(TP_STRUCT * tp)
 {
     if (0 == tp) {
-	return 0;
+        return 0;
     }
 
     return tp->activeDepth;
@@ -1982,7 +1988,7 @@ int tpActiveDepth(TP_STRUCT * tp)
 
 int tpSetAout(TP_STRUCT *tp, unsigned char index, double start, double end) {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
     syncdio.anychanged = 1; //something has changed
     syncdio.aio_mask |= (1 << index);
@@ -1992,14 +1998,14 @@ int tpSetAout(TP_STRUCT *tp, unsigned char index, double start, double end) {
 
 int tpSetDout(TP_STRUCT *tp, int index, unsigned char start, unsigned char end) {
     if (0 == tp) {
-	return -1;
+        return -1;
     }
     syncdio.anychanged = 1; //something has changed
-//    syncdio.dio_mask |= (1 << index);
+    //    syncdio.dio_mask |= (1 << index);
     if (start > 0)
-	syncdio.dios[index] = 1; // the end value can't be set from canon currently, and has the same value as start
+        syncdio.dios[index] = 1; // the end value can't be set from canon currently, and has the same value as start
     else 
-	syncdio.dios[index] = -1;
+        syncdio.dios[index] = -1;
     return 0;    
 }
 
