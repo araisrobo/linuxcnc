@@ -318,7 +318,6 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
         *(emcmot_hal_data->sync_wait_type) = wait_type;
         *(emcmot_hal_data->timeout) = timeout;
         *(emcmot_hal_data->sync_in_trigger) = 1;
-        //printf("motmod write hal wait_type(%d) timeout(%f) pin(%d)\n",wait_type,timeout,index);
     }
 }
 
@@ -1427,12 +1426,10 @@ void emcmotCommandHandler(void *arg, long period)
 
         case EMCMOT_END_PROBE:
             rtapi_print_msg(RTAPI_MSG_DBG, "END_PROBE");
-            printf("\nEMCMOT_END_PROBE and CLEAR FLAG\n");
             if (emcmotStatus->probeTripped == 0)
             {
                 reportError(_("move finished without making contact"));
                 emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
-                printf("command.c 1435: TODO: DO WE NEED tpAbort? \n");
                 tpAbort(&emcmotDebug->coord_tp);
                 SET_MOTION_ERROR_FLAG(1);
             }
@@ -1470,9 +1467,6 @@ void emcmotCommandHandler(void *arg, long period)
                 ain_value= *(emcmot_hal_data->analog_input[n]);
                 amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
                 dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
-                //			printf("TODO: if probe condition already true need abort\n");
-//                			printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
-//                			printf("amode(%d) dmode(%d)\n", amode, dmode);
 
                 switch(*(emcmot_hal_data->trigger_type))
                 {
