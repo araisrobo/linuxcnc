@@ -70,7 +70,6 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
-#undef  DEBUG
 
 /* module information */
 MODULE_AUTHOR("Yishin Li");
