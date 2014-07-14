@@ -84,7 +84,7 @@ RTAPI_MP_ARRAY_STRING(pulse_type, MAX_CHAN,
 const char *enc_type[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(enc_type, MAX_CHAN,
-        "encoder type (REAL(r) or LOOP-BACK(l)) for up to 8 channels");
+        "encoder type (AB-PHASE(A) or STEP-DIR(S) or LOOP-BACK(l)) for up to 8 channels");
 
 // enc_pol: encoder polarity, default to POSITIVE(p)
 const char *enc_pol[MAX_CHAN] =
@@ -867,13 +867,24 @@ int rtapi_app_main(void)
     data[0] = 0;
     for (n = 0; n < MAX_CHAN && (enc_type[n][0] != ' ') ; n++) {
         if ((enc_type[n][0] == 'l') || (enc_type[n][0] == 'L')) {
-            // ENC_TYPE(0): fake ENCODER counts (loop PULSE_CMD to ENCODER)
-        } else if ((enc_type[n][0] == 'r') || (enc_type[n][0] == 'R')) {
-            // ENC_TYPE(1): real ENCODER counts
-            data[0] |= (1 << n);
+            // ENC_TYPE(00): fake ENCODER counts (loop PULSE_CMD to ENCODER)
+        } else if ((enc_type[n][0] == 'a') || (enc_type[n][0] == 'A')) {
+            // ENC_TYPE(10): real ENCODER counts, AB-Phase
+            if (n < 4) {
+                data[0] |= (2 << (n * 2));
+            } else {
+                data[1] |= (2 << ((n - 4) * 2));
+            }
+        } else if ((enc_type[n][0] == 's') || (enc_type[n][0] == 'S')) {
+            // ENC_TYPE(11): real ENCODER counts, STEP-DIR
+            if (n < 4) {
+                data[0] |= (3 << (n * 2));
+            } else {
+                data[1] |= (3 << ((n - 4) * 2));
+            }
         } else {
             rtapi_print_msg(RTAPI_MSG_ERR,
-                    "STEPGEN: ERROR: bad enc_type '%s' for joint %i (must be 'r' or 'l')\n",
+                    "STEPGEN: ERROR: bad enc_type '%s' for joint %i (must be 'a', 's', or 'l')\n",
                     enc_type[n], n);
             return -1;
         }
@@ -881,9 +892,11 @@ int rtapi_app_main(void)
     if(n > 0) {
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE),
-                (uint8_t) 1, data);
+                (uint8_t) 2, data);
         rtapi_print_msg(RTAPI_MSG_INFO,
-                "STEPGEN: ENC_TYPE: 0x%02X\n", data[0]);
+                "STEPGEN: ENC_TYPE[J3:J0]: 0x%02X\n", data[0]);
+        rtapi_print_msg(RTAPI_MSG_INFO,
+                "STEPGEN: ENC_TYPE[J7:J4]: 0x%02X\n", data[1]);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
                 "WOU: ERROR: no enc_type defined\n");

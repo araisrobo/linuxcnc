@@ -318,7 +318,6 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
         *(emcmot_hal_data->sync_wait_type) = wait_type;
         *(emcmot_hal_data->timeout) = timeout;
         *(emcmot_hal_data->sync_in_trigger) = 1;
-        //printf("motmod write hal wait_type(%d) timeout(%f) pin(%d)\n",wait_type,timeout,index);
     }
 }
 
@@ -1426,12 +1425,10 @@ void emcmotCommandHandler(void *arg, long period)
 
         case EMCMOT_END_PROBE:
             rtapi_print_msg(RTAPI_MSG_DBG, "END_PROBE");
-            printf("\nEMCMOT_END_PROBE and CLEAR FLAG\n");
             if (emcmotStatus->probeTripped == 0)
             {
                 reportError(_("move finished without making contact"));
                 emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
-                printf("command.c 1435: TODO: DO WE NEED tpAbort? \n");
                 tpAbort(&emcmotDebug->coord_tp);
                 SET_MOTION_ERROR_FLAG(1);
             }
