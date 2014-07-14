@@ -416,6 +416,13 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
+    if (syncdio.psochanged != 0) {
+    	emcmotStatus->pso_enable = syncdio.pso_enable;
+    	emcmotStatus->pso_pitch = syncdio.pso_pitch;
+    	printf("wait motion and set pso_enable(%d) pso_pitch(%f)",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
+    	syncdio.psochanged = 0;
+    }
+
     if (vel > 0)        // vel is requested spindle velocity
     {
         tc.coords.spindle_sync.spindle_dir = 1.0;
@@ -573,6 +580,13 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
+    if (syncdio.psochanged != 0) {
+    	emcmotStatus->pso_enable = syncdio.pso_enable;
+    	emcmotStatus->pso_pitch = syncdio.pso_pitch;
+    	printf("wait motion and set pso_enable(%d) pso_pitch(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
+    	syncdio.psochanged = 0;
+    }
+
     tc.utvIn = line_xyz.uVec;
     tc.utvOut = line_xyz.uVec;
 
@@ -694,6 +708,13 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     } else {
         tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
+    }
+
+    if (syncdio.psochanged != 0) {
+    	emcmotStatus->pso_enable = syncdio.pso_enable;
+    	emcmotStatus->pso_pitch = syncdio.pso_pitch;
+    	printf("wait motion and set pso_enable(%d) pso_pitch(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
+    	syncdio.psochanged = 0;
     }
 
     tc.utvIn = circle.utvIn;
@@ -870,6 +891,13 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         } else {
             tc.syncdio.anychanged = 0;
             tc.syncdio.sync_input_triggered = 0;
+        }
+
+        if (syncdio.psochanged != 0) {
+        	emcmotStatus->pso_enable = syncdio.pso_enable;
+        	emcmotStatus->pso_pitch = syncdio.pso_pitch;
+        	printf("wait motion and set pso_enable(%d) pso_pitch(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
+        	syncdio.psochanged = 0;
         }
 
         //TODO: tc.utvIn = nurbs...;
@@ -1984,6 +2012,16 @@ int tpActiveDepth(TP_STRUCT * tp)
     }
 
     return tp->activeDepth;
+}
+
+int tpSetPSO(TP_STRUCT *tp, unsigned char index, double start, double end) {
+    if (0 == tp) {
+        return -1;
+    }
+    syncdio.psochanged = 1; //something has changed
+    syncdio.pso_enable =index;
+    syncdio.pso_pitch = start;
+    return 0;
 }
 
 int tpSetAout(TP_STRUCT *tp, unsigned char index, double start, double end) {

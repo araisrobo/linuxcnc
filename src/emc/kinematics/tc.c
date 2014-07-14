@@ -25,6 +25,7 @@
 #else
 #define assert(args...)		do {} while(0)
 #endif
+#include <math.h>
 
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "posemath.h"
@@ -45,6 +46,7 @@
 #endif
 
 extern emcmot_status_t *emcmotStatus;
+extern emcmot_command_t *emcmotCommand;
 
 
 static int
@@ -261,10 +263,12 @@ PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
  */   
 
 EmcPose tcGetPos(TC_STRUCT * tc) {
+//	printf("tcGetPos\n");
     return tcGetPosReal(tc, 0);
 }
 
 EmcPose tcGetEndpoint(TC_STRUCT * tc) {
+//	printf("tcGetEndpoint\n");
     return tcGetPosReal(tc, 1);
 }
 
@@ -441,6 +445,15 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
             abc.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].B;
             abc.tran.z = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].C;
         }
+
+    }
+    //    printf("emcmotCommand->pso_enable(%d) emcmotCommand->pso_pitch(%f)\n",emcmotCommand->pso_enable,emcmotCommand->pso_pitch);
+    if (!of_endpoint && emcmotStatus->pso_enable){
+    	//    if (!of_endpoint){
+    	//     	if (progress >= emcmotStatus->pso_pitch && fmod(progress,emcmotStatus->pso_pitch)<=tc->cur_vel){
+    	if (fmod(progress,emcmotStatus->pso_pitch)<=(tc->cur_vel/2) || fmod(progress,emcmotStatus->pso_pitch)>=(emcmotStatus->pso_pitch - (tc->cur_vel/2))){
+    		printf("progress(%f) p(%f) tc->target(%f) tc->cur_vel(%f) \n", progress, fmod(progress,emcmotStatus->pso_pitch), tc->target, tc->cur_vel);
+    	}
     }
     //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
 #if (TRACE != 1)

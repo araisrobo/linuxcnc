@@ -3116,6 +3116,14 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
                 (_("Cannot set auxiliary analog output with cutter radius compensation on")));  // XXX
         CHKS((!block->e_flag) || (round_to_int(block->e_number) < 0), (_("Invalid analog index with M68")));
         SET_AUX_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
+    } else if ((block->m_modes[6] == 69)) {
+    	//P-word = pso enable
+    	//K-word = pso pitch
+
+    	//        CHKS((settings->cutter_comp_side),
+    	//                (_("Cannot set auxiliary analog output with cutter radius compensation on")));  // XXX
+    	CHKS((!block->p_flag) || (round_to_int(block->k_number) < 0), (_("Invalid p_flag or k_number parameters with M69")));
+		SET_PSO_VALUE(round_to_int(block->p_number), block->k_number);
     }
 
     if ((block->m_modes[6] != -1)  && ONCE_M(6)){

@@ -813,6 +813,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_PSO_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
@@ -931,6 +932,7 @@ static int emcTaskPlan(void)
 	    case EMC_AUX_INPUT_WAIT_TYPE:
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_PSO_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
@@ -1376,6 +1378,7 @@ static int emcTaskPlan(void)
 	    case EMC_AUX_INPUT_WAIT_TYPE:
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_MOTION_SET_PSO_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
@@ -1546,6 +1549,13 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 
     case EMC_TRAJ_DELAY_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
+	break;
+
+    case EMC_MOTION_SET_PSO_TYPE:
+	if (((EMC_MOTION_SET_PSO *) cmd)->now) {
+    	    return EMC_TASK_EXEC_WAITING_FOR_MOTION;
+	}
+	return EMC_TASK_EXEC_DONE;
 	break;
 
     case EMC_MOTION_SET_AOUT_TYPE:
@@ -1942,6 +1952,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 				  ((EMC_MOTION_SET_AOUT *) cmd)->start,
 				  ((EMC_MOTION_SET_AOUT *) cmd)->end,
 				  ((EMC_MOTION_SET_AOUT *) cmd)->now);
+	break;
+
+    case EMC_MOTION_SET_PSO_TYPE:
+	retval = emcMotionSetPSO(((EMC_MOTION_SET_PSO *) cmd)->index,
+				  ((EMC_MOTION_SET_PSO *) cmd)->start,
+				  ((EMC_MOTION_SET_PSO *) cmd)->end,
+				  ((EMC_MOTION_SET_PSO *) cmd)->now);
 	break;
 
     case EMC_MOTION_SET_DOUT_TYPE:
@@ -2461,6 +2478,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
 	break;
 
     case EMC_MOTION_SET_AOUT_TYPE:
+    case EMC_MOTION_SET_PSO_TYPE:
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:

@@ -158,6 +158,7 @@ typedef enum {
     EMCMOT_SET_G5X_OFFSET,	/* set G5X_OFFSET */
 
     EMCMOT_SET_DEBUG,       /* sets the debug level */
+    EMCMOT_SET_PSO,        /* sets or unsets a PSO, this can be imediate or synched with motion */
     EMCMOT_SET_DOUT,        /* sets or unsets a DIO, this can be imediate or synched with motion */
     EMCMOT_SET_AOUT,	/* sets or unsets a AIO, this can be imediate or synched with motion */
     EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
@@ -280,6 +281,7 @@ typedef struct emcmot_command_t {
     unsigned char tail;	/* flag count for mutex detect */
     int wait_type;          /* wait type for sync_in command */
     int ssm_mode;           /* spindle sync motion mode: G33(0) /rigid_tap G33.1(1) */
+
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -760,7 +762,8 @@ typedef struct emcmot_status_t {
     int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
 // moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
-
+    int pso_enable;
+    double pso_pitch;
 } emcmot_status_t;
 
 /*********************************

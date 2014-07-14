@@ -397,7 +397,6 @@ void emcmotCommandHandler(void *arg, long period)
         /* got a new command-- echo command and number... */
         emcmotStatus->commandEcho = emcmotCommand->command;
         emcmotStatus->commandNumEcho = emcmotCommand->commandNum;
-
         /* clear status value by default */
         emcmotStatus->commandStatus = EMCMOT_COMMAND_OK;
 
@@ -1470,9 +1469,9 @@ void emcmotCommandHandler(void *arg, long period)
                 ain_value= *(emcmot_hal_data->analog_input[n]);
                 amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
                 dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
-                //			printf("TODO: if probe condition already true need abort\n");
-//                			printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
-//                			printf("amode(%d) dmode(%d)\n", amode, dmode);
+//					printf("if probe condition already true need abort\n");
+//					printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
+//					printf("amode(%d) dmode(%d)\n", amode, dmode);
 
                 switch(*(emcmot_hal_data->trigger_type))
                 {
@@ -1625,6 +1624,19 @@ void emcmotCommandHandler(void *arg, long period)
                 tpSetAout(&emcmotDebug->coord_tp, emcmotCommand->out,
                         emcmotCommand->minLimit, emcmotCommand->maxLimit);
             }
+            break;
+
+        case EMCMOT_SET_PSO:
+//        	printf("EMCMOT_SET_PSO: emcmotCommand->now(%d)\n",emcmotCommand->now);
+            rtapi_print_msg(RTAPI_MSG_DBG, "EMCMOT_SET_PSO");
+//            if (emcmotCommand->now) { //we set it right away
+            tpSetPSO(&emcmotDebug->coord_tp, emcmotCommand->out,
+                    emcmotCommand->minLimit, emcmotCommand->maxLimit);
+//            emcmotStatus->pso_enable = emcmotCommand->out;
+//            	emcmotStatus->pso_pitch = emcmotCommand->maxLimit;
+//				printf("enable(%d) pitchmax(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
+//            }
+
             break;
 
         case EMCMOT_SET_DOUT:

@@ -1819,6 +1819,26 @@ int emcMotionSetAout(unsigned char index, double start, double end, unsigned cha
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+/*! \function emcMotionSetAout()
+
+    This function sends a EMCMOT_SET_AOUT message to the motion controller.
+    That one plans a AOUT command when motion starts or right now.
+
+    @parameter	index	which output gets modified
+    @parameter	now	wheather change is imediate or synched with motion
+    @parameter	start	value set at start of motion
+    @parameter	end	value set at end of motion
+*/
+int emcMotionSetPSO(unsigned char index, double start, double end, unsigned char now)
+{
+    emcmotCommand.command = EMCMOT_SET_PSO;
+    emcmotCommand.now = now;
+    emcmotCommand.out = index;
+    emcmotCommand.minLimit = start;
+    emcmotCommand.maxLimit = end;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 /*! \function emcMotionSetDout()
     
     This function sends a EMCMOT_SET_DOUT message to the motion controller.

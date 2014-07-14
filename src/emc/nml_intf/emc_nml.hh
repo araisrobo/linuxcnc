@@ -1156,6 +1156,21 @@ class EMC_MOTION_SET_AOUT:public EMC_MOTION_CMD_MSG {
     unsigned char now;		// wether command is imediate or synched with motion
 };
 
+class EMC_MOTION_SET_PSO:public EMC_MOTION_CMD_MSG {
+  public:
+	EMC_MOTION_SET_PSO():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_PSO_TYPE,
+					     sizeof(EMC_MOTION_SET_PSO)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    unsigned char index;	// which to set
+    double start;		// value at start
+    double end;			// value at end
+    unsigned char now;		// wether command is imediate or synched with motion
+};
+
 class EMC_MOTION_SET_DOUT:public EMC_MOTION_CMD_MSG {
   public:
     EMC_MOTION_SET_DOUT():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_DOUT_TYPE,
