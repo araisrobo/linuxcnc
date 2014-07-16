@@ -322,8 +322,8 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     P1.Y = nurbs_control_points[n].Y;
     STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
     knot_vector.clear();
-    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() end\n",
-            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
+//    printf("%s: (%s:%d): nurbs_control_points.size(%d); NURBS_FEED() end\n",
+//            __FILE__, __FUNCTION__, __LINE__, nurbs_control_points.size());
 }
 
 void ARC_FEED(int line_number,

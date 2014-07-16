@@ -254,17 +254,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                 canon.__init__(self.colors, self.get_geometry(), self.lathe_option, s, random)
             canon.set_highlight_mode(self.highlight_mode)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
-#             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
-#             print "parameter: ",parameter
-#             print "temp_parameter: ",temp_parameter
-#                 
-#             if parameter:
-#                 try:
-#                     shutil.copy(parameter, temp_parameter)
-#                 except:
-#                     print 'gremlin shutil.copy(parameter, temp_parameter) failed'
-#             canon.parameter_file = temp_parameter
-            canon.parameter_file = parameter
+            temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
+                 
+            if parameter:
+                try:
+                    shutil.copy(parameter, temp_parameter)
+                except:
+                    print 'gremlin shutil.copy(parameter, temp_parameter) failed'
+            canon.parameter_file = temp_parameter
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
