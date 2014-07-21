@@ -282,6 +282,15 @@ typedef struct emcmot_command_t {
     int wait_type;          /* wait type for sync_in command */
     int ssm_mode;           /* spindle sync motion mode: G33(0) /rigid_tap G33.1(1) */
 
+    int pso_enable;	/*set pso_enable: enable->1 disable->0 */
+    int pso_mode;		/*(0) switch pso OFF
+							* (1) switch pso ON
+							* (2) switch pso OFF for pso_ticks(x20ns); then ON
+							* (3) switch pso ON  for pso_ticks(x20ns); then OFF
+							*/
+    double pso_pitch;	/*pso_pitch*/
+    double pso_tick;	/*pso_tick*/
+
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -763,7 +772,10 @@ typedef struct emcmot_status_t {
 // moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
     int pso_enable;
-    double pso_pitch;
+    int pso_flag;
+//    int pso_mode;
+//    double pso_pitch;
+//    double pso_tick;
 } emcmot_status_t;
 
 /*********************************

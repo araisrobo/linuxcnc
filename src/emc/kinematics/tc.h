@@ -59,7 +59,9 @@ typedef struct {
     double aios[EMCMOT_MAX_AIO];
     char psochanged;
     int pso_enable;
+    int pso_mode;
     double pso_pitch;
+    double pso_tick;
 } syncdio_t;
 
 typedef struct {

@@ -3441,15 +3441,16 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
   sets a PSO value, not used by the RS274 Interp,
   not fully implemented in the motion controller either
 */
-void SET_PSO_VALUE(int index, double value)
+void SET_PSO_VALUE(int enable, double pitch, int mode, double tick)
 {
   EMC_MOTION_SET_PSO pso_msg;
 
   flush_segments();
 
-  pso_msg.index = index;	// which output
-  pso_msg.start = value;	// start value
-  pso_msg.end = value;		// end value
+  pso_msg.enable = enable;	// which output
+  pso_msg.pitch = pitch;	// start value
+  pso_msg.mode = mode;		// end value
+  pso_msg.tick = tick;		// end value
   pso_msg.now = 1;		// immediate=1, or synched when motion start=0
 
   interp_list.append(pso_msg);

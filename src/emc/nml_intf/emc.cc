@@ -1401,9 +1401,10 @@ void EMC_MOTION_SET_PSO::update(CMS * cms)
 {
 
     EMC_MOTION_CMD_MSG::update(cms);
-    cms->update(index);
-    cms->update(start);
-    cms->update(end);
+    cms->update(enable);
+    cms->update(tick);
+    cms->update(mode);
+    cms->update(pitch);
     cms->update(now);
 
 }

@@ -109,6 +109,7 @@ int tpClearDIOs() {
     //XXX: All IO's will be flushed on next synced aio/dio! Is it ok?
     int i;
     syncdio.anychanged = 0;
+    syncdio.psochanged = 0;
     //    syncdio.dio_mask = 0;
     syncdio.aio_mask = 0;
     for (i = 0; i < emcmotConfig->numDIO; i++)
@@ -120,7 +121,10 @@ int tpClearDIOs() {
     syncdio.sync_in = 255;
     syncdio.wait_type = 0;
     syncdio.timeout = 0.0;
-
+    syncdio.pso_enable = 0;
+	 syncdio.pso_mode = 0;
+	 syncdio.pso_pitch = 0;
+	 syncdio.pso_tick = 0;
     return 0;
 }
 
@@ -408,19 +412,14 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.coords.spindle_sync.spindle_start_pos = 0;
     tc.coords.spindle_sync.mode = ssm_mode;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
+
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
+        tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
-    }
-
-    if (syncdio.psochanged != 0) {
-    	emcmotStatus->pso_enable = syncdio.pso_enable;
-    	emcmotStatus->pso_pitch = syncdio.pso_pitch;
-    	printf("wait motion and set pso_enable(%d) pso_pitch(%f)",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
-    	syncdio.psochanged = 0;
     }
 
     if (vel > 0)        // vel is requested spindle velocity
@@ -572,19 +571,13 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.enables = enables;
     tc.indexrotary = indexrotary;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
+        tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
-    }
-
-    if (syncdio.psochanged != 0) {
-    	emcmotStatus->pso_enable = syncdio.pso_enable;
-    	emcmotStatus->pso_pitch = syncdio.pso_pitch;
-    	printf("wait motion and set pso_enable(%d) pso_pitch(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
-    	syncdio.psochanged = 0;
     }
 
     tc.utvIn = line_xyz.uVec;
@@ -702,19 +695,14 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.enables = enables;
     tc.indexrotary = -1;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
+
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
+        tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
-    }
-
-    if (syncdio.psochanged != 0) {
-    	emcmotStatus->pso_enable = syncdio.pso_enable;
-    	emcmotStatus->pso_pitch = syncdio.pso_pitch;
-    	printf("wait motion and set pso_enable(%d) pso_pitch(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
-    	syncdio.psochanged = 0;
     }
 
     tc.utvIn = circle.utvIn;
@@ -885,19 +873,14 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.css_progress_cmd = 0;
         tc.enables = enables;
         tc.indexrotary = -1;
-        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
+
+        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
             tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
             tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
         } else {
             tc.syncdio.anychanged = 0;
+            tc.syncdio.psochanged = 0;
             tc.syncdio.sync_input_triggered = 0;
-        }
-
-        if (syncdio.psochanged != 0) {
-        	emcmotStatus->pso_enable = syncdio.pso_enable;
-        	emcmotStatus->pso_pitch = syncdio.pso_pitch;
-        	printf("wait motion and set pso_enable(%d) pso_pitch(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
-        	syncdio.psochanged = 0;
         }
 
         //TODO: tc.utvIn = nurbs...;
@@ -1396,6 +1379,16 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             tc->cur_vel = 0;
         }
     }
+    if (emcmotStatus->pso_enable){
+    	if (tc->progress > tc->syncdio.pso_pitch){
+    		printf("--------------take a photo---------\n");
+    		printf("progress(%f) tc->target(%f)\n", tc->progress, tc->target);
+    		printf("emcmotCommand->pso_pitch(%f) tc->syncdio.pso_pitch(%f) pso_mode(%d) pso_tick(%f)\n",
+    				emcmotCommand->pso_pitch,tc->syncdio.pso_pitch, tc->syncdio.pso_mode, tc->syncdio.pso_tick);
+    		tc->syncdio.pso_pitch += emcmotCommand->pso_pitch;
+    		emcmotStatus->pso_flag = 1;
+    	}
+    }
 
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
             _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time,
@@ -1425,6 +1418,9 @@ void tpToggleDIOs(TC_STRUCT * tc)
     if (tc->syncdio.sync_input_triggered != 0) {
         emcmotSyncInputWrite(tc->syncdio.sync_in, tc->syncdio.timeout, tc->syncdio.wait_type);
         tc->syncdio.sync_input_triggered = 0; //we have turned them all on/off, nothing else to do for this TC the next time
+    }
+    if (tc->syncdio.psochanged != 0) { // we have PSO to turn on or off, when tcRunCycle set value from tc to emcmotStatus
+		emcmotStatus->pso_enable = tc->syncdio.pso_enable;
     }
 }
 
@@ -2014,13 +2010,15 @@ int tpActiveDepth(TP_STRUCT * tp)
     return tp->activeDepth;
 }
 
-int tpSetPSO(TP_STRUCT *tp, unsigned char index, double start, double end) {
+int tpSetPSO(TP_STRUCT *tp, int enable, double pitch, int mode, double tick) {
     if (0 == tp) {
         return -1;
     }
     syncdio.psochanged = 1; //something has changed
-    syncdio.pso_enable =index;
-    syncdio.pso_pitch = start;
+    syncdio.pso_enable = enable;
+//    syncdio.pso_pitch = pitch;
+    syncdio.pso_mode = mode;
+    syncdio.pso_tick = tick;
     return 0;
 }
 

@@ -1165,10 +1165,12 @@ class EMC_MOTION_SET_PSO:public EMC_MOTION_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    unsigned char index;	// which to set
-    double start;		// value at start
-    double end;			// value at end
+    int enable;			// which to set pso enable
+    int mode;			// which to set pso mode
+    double pitch;		// value to set pso pitch
+    double tick;		// value to set pso tick
     unsigned char now;		// wether command is imediate or synched with motion
+
 };
 
 class EMC_MOTION_SET_DOUT:public EMC_MOTION_CMD_MSG {

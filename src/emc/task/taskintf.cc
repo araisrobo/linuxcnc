@@ -1829,13 +1829,14 @@ int emcMotionSetAout(unsigned char index, double start, double end, unsigned cha
     @parameter	start	value set at start of motion
     @parameter	end	value set at end of motion
 */
-int emcMotionSetPSO(unsigned char index, double start, double end, unsigned char now)
+int emcMotionSetPSO(int enable, double pitch, int mode, double tick, unsigned char now)
 {
     emcmotCommand.command = EMCMOT_SET_PSO;
     emcmotCommand.now = now;
-    emcmotCommand.out = index;
-    emcmotCommand.minLimit = start;
-    emcmotCommand.maxLimit = end;
+    emcmotCommand.pso_enable = enable;
+    emcmotCommand.pso_pitch = pitch;
+    emcmotCommand.pso_mode = mode;
+    emcmotCommand.pso_tick = tick;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

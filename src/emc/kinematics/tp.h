@@ -95,7 +95,7 @@ extern int tpSetSpindleSync(TP_STRUCT * tp, double spindlesync, int wait_for_ind
 extern void tpToggleDIOs(TC_STRUCT * tc); //gets called when a new tc is taken from the queue. it checks and toggles all needed DIO's
 
 extern int tpSetAout(TP_STRUCT * tp, unsigned char index, double start, double end);
-extern int tpSetPSO(TP_STRUCT * tp, unsigned char index, double start, double end);
+extern int tpSetPSO(TP_STRUCT *tp, int enable, double pitch, int mode, double tick);
 extern int tpSetDout(TP_STRUCT * tp, int index, unsigned char start, unsigned char end); //gets called to place DIO toggles on the TC queue
 extern int tpSetSyncInput(TP_STRUCT *tp, int index, double timeout, int wait_type);
 #endif				/* TP_H */

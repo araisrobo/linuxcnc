@@ -1256,7 +1256,8 @@ static void get_spindle_cmds (double cycle_time)
         					pow(emcmotStatus->g5x_offset.tran.y - emcmotStatus->carte_pos_cmd.tran.y, 2));
         double speed;       // speed for major spindle (spindle-s)
         double maxpositive;
-
+        int positive = ((emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x) > 0)? 1: -1;
+        printf("positive(%d) denom(%f) = old denom(%f)\n", positive, denom, positive*denom);
         // css_factor: unit(mm or inch)/min
         if(emcmotStatus->spindle.dynamic_speed_mode == 0)
         {
@@ -1292,7 +1293,7 @@ static void get_spindle_cmds (double cycle_time)
         emcmotStatus->spindle.speed_req_rps = speed * emcmotStatus->spindle.direction;
         emcmotStatus->spindle.css_error =
                         (emcmotStatus->spindle.css_factor / 60.0
-                         - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
+                         - denom * positive * fabs(emcmotStatus->spindle.curr_vel_rps))
                         * emcmotStatus->spindle.direction; // (unit/(2*PI*sec)
         DP ("css_req(%f)(unit/sec)\n", denom * emcmotStatus->spindle.speed_req_rps * 2 * M_PI);
         DP ("css_cur(%f)\n", denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI);
@@ -1506,11 +1507,17 @@ static void get_pos_cmds(long period)
                     /* point to joint struct */
                     joint = &joints[joint_num];
                     joint->coarse_pos = positions[joint_num];
+                    if(emcmotStatus->pso_flag && joint->vel_cmd != 0){
+                    	printf("j[%d]: joint->coarse_pos(%f) vel_cmd(%f)\n", joint_num, joint->coarse_pos, joint->vel_cmd);
+                    }
 
                     /* spline joints up-- note that we may be adding points
                            that fail soft limits, but we'll abort at the end of
                            this cycle so it doesn't really matter */
                     cubicAddPoint(&(joint->cubic), joint->coarse_pos);
+                }
+                if(emcmotStatus->pso_flag){
+                	emcmotStatus->pso_flag = 0;
                 }
                 /* END OF OUTPUT KINS */
             }

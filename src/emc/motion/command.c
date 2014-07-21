@@ -1627,13 +1627,10 @@ void emcmotCommandHandler(void *arg, long period)
 //        	printf("EMCMOT_SET_PSO: emcmotCommand->now(%d)\n",emcmotCommand->now);
             rtapi_print_msg(RTAPI_MSG_DBG, "EMCMOT_SET_PSO");
 //            if (emcmotCommand->now) { //we set it right away
-            tpSetPSO(&emcmotDebug->coord_tp, emcmotCommand->out,
-                    emcmotCommand->minLimit, emcmotCommand->maxLimit);
-//            emcmotStatus->pso_enable = emcmotCommand->out;
-//            	emcmotStatus->pso_pitch = emcmotCommand->maxLimit;
-//				printf("enable(%d) pitchmax(%f)\n",emcmotStatus->pso_enable,emcmotStatus->pso_pitch);
-//            }
-
+            tpSetPSO(&emcmotDebug->coord_tp, emcmotCommand->pso_enable,
+                    emcmotCommand->pso_pitch, emcmotCommand->pso_mode,
+                    emcmotCommand->pso_tick);
+//        }
             break;
 
         case EMCMOT_SET_DOUT:

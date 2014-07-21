@@ -1955,9 +1955,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_MOTION_SET_PSO_TYPE:
-	retval = emcMotionSetPSO(((EMC_MOTION_SET_PSO *) cmd)->index,
-				  ((EMC_MOTION_SET_PSO *) cmd)->start,
-				  ((EMC_MOTION_SET_PSO *) cmd)->end,
+	retval = emcMotionSetPSO(((EMC_MOTION_SET_PSO *) cmd)->enable,
+				  ((EMC_MOTION_SET_PSO *) cmd)->pitch,
+				  ((EMC_MOTION_SET_PSO *) cmd)->mode,
+				  ((EMC_MOTION_SET_PSO *) cmd)->tick,
 				  ((EMC_MOTION_SET_PSO *) cmd)->now);
 	break;
 

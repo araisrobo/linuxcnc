@@ -520,8 +520,7 @@ extern int emcMotionAbort();
 extern int emcMotionSetDebug(int debug);
 extern int emcMotionSetAout(unsigned char index, double start, double end,
                             unsigned char now);
-extern int emcMotionSetPSO(unsigned char index, double start, double end,
-                            unsigned char now);
+extern int emcMotionSetPSO(int enable, double pitch, int mode, double tick, unsigned char now);
 extern int emcMotionSetDout(unsigned char index, unsigned char start,
                             unsigned char end, unsigned char now);
 extern int emcMotionSetSyncInput(unsigned char index, unsigned char now,

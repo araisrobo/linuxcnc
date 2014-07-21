@@ -1105,7 +1105,7 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
   return;
 }
 
-void SET_PSO_VALUE(int index, double value)
+void SET_PSO_VALUE(int enable, double pitch, int mode, double tick)
 {
   return;
 }
