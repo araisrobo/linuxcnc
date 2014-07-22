@@ -1507,8 +1507,9 @@ static void get_pos_cmds(long period)
                     /* point to joint struct */
                     joint = &joints[joint_num];
                     joint->coarse_pos = positions[joint_num];
-                    if(emcmotStatus->pso_flag && joint->vel_cmd != 0){
-                    	printf("j[%d]: joint->coarse_pos(%f) vel_cmd(%f)\n", joint_num, joint->coarse_pos, joint->vel_cmd);
+                    if(emcmotStatus->pso_req && joint->vel_cmd != 0){
+//                    	printf("j[%d]: joint->coarse_pos(%f) vel_cmd(%f)\n", joint_num, joint->coarse_pos, joint->vel_cmd);
+                    	emcmotStatus->pso_joint = joint_num;
                     }
 
                     /* spline joints up-- note that we may be adding points
@@ -1516,9 +1517,7 @@ static void get_pos_cmds(long period)
                            this cycle so it doesn't really matter */
                     cubicAddPoint(&(joint->cubic), joint->coarse_pos);
                 }
-                if(emcmotStatus->pso_flag){
-                	emcmotStatus->pso_flag = 0;
-                }
+
                 /* END OF OUTPUT KINS */
             }
             /* there is data in the interpolators */
@@ -2173,6 +2172,11 @@ static void output_to_hal(void)
 
     // modify update_pos_ack after all joints data are updated
     *(emcmot_hal_data->update_pos_ack) = emcmotStatus->update_pos_ack;
+
+    *(emcmot_hal_data->pso_req) = emcmotStatus->pso_req;
+    *(emcmot_hal_data->pso_ticks) = emcmotStatus->pso_tick;
+    *(emcmot_hal_data->pso_mode) = emcmotStatus->pso_mode;
+    *(emcmot_hal_data->pso_joint) = emcmotStatus->pso_joint;
 
     /* output axis info to HAL for scoping, etc */
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {

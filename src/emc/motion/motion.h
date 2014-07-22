@@ -772,10 +772,10 @@ typedef struct emcmot_status_t {
 // moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
     int pso_enable;
-    int pso_flag;
-//    int pso_mode;
-//    double pso_pitch;
-//    double pso_tick;
+    int pso_req;
+    int pso_joint;
+    int pso_mode;
+    double pso_tick;
 } emcmot_status_t;
 
 /*********************************

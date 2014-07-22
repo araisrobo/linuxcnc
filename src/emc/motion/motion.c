@@ -295,6 +295,12 @@ static int init_hal_io(void)
     }
 
     /* export machine wide hal pins */
+    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->pso_req), mot_comp_id, "motion.pso_req")) != 0) goto error;
+    *emcmot_hal_data->pso_req = 0;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pso_ticks), mot_comp_id, "motion.pso_ticks")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pso_mode), mot_comp_id, "motion.pso_mode")) < 0) goto error;
+    if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pso_joint), mot_comp_id, "motion.pso_joint")) < 0) goto error;
+
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probing), mot_comp_id, "motion.probing")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->trigger_result), mot_comp_id, "motion.trigger-result")) != 0) goto error;
 //    if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->prev_trigger_result), mot_comp_id, "motion.prev-trigger-result")) != 0) goto error;

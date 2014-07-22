@@ -159,8 +159,9 @@ typedef enum {
     RCMD_ALIGNING,              // RCMD_FSM, joint is aligning
     RCMD_UPDATE_POS_REQ,        // RCMD_FSM, request HOST to update position
     RCMD_UPDATE_POS_ACK,        // RCMD set by HOST 
-    RCMD_PROBE_REQ,             // RCMD set by HOST 
-    RCMD_GMCODE_PROBE,          // RCMD set by HOST
+    RCMD_RISC_PROBE,            // Do risc probe 
+    RCMD_HOST_PROBE,            // Do host probe
+    RCMD_PSO,                   // PSO -- progress synced output
 } rsic_cmd_t;
 
 typedef enum {

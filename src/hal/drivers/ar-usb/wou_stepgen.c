@@ -392,11 +392,16 @@ typedef struct {
     hal_u32_t    *trigger_type;
     hal_bit_t    *trigger_cond;
     hal_u32_t    *trigger_level;
-    hal_bit_t   *probing;
-    hal_bit_t   *trigger_result;     // 0: disable 1:enable
+    hal_bit_t  	 *probing;
+    hal_bit_t  	 *trigger_result;     // 0: disable 1:enable
 
     hal_bit_t     prev_probing;
-    double      prev_trigger_level;
+    double    	  prev_trigger_level;
+
+    hal_bit_t    *pso_req;
+    hal_u32_t    *pso_ticks;
+    hal_u32_t    *pso_mode;
+    hal_u32_t    *pso_joint;
 
 } machine_control_t;
 
@@ -1576,6 +1581,20 @@ static void update_freq(void *arg, long period)
         machine_control->prev_out =  *machine_control->dout0;
     }
 
+    if((*machine_control->pso_req == 1))
+    {	// PSO
+    	uint32_t dbuf[3];
+    	dbuf[0] = RCMD_PSO;
+    	dbuf[1] = 15; // delta PSO position, unit: pulse
+    	dbuf[2] = ((*machine_control->pso_ticks & 0xFFFF) << 16) |	 // dbuf[2][31:16]
+    			(0x1 << 15) | 			 							 // force pso_en to 1
+    			((*machine_control->pso_mode & 0x3 ) << 12) |		 // dbuf[2][15:12]
+    			((*machine_control->pso_joint & 0xF ) << 8);		 // dbuf[2][11: 8]
+    	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 3);
+    	printf("wou_stepgen.c: pso_req(%d) pso_ticks(%d) pso_mode(%d) pso_joint(%d)\n",
+    			*machine_control->pso_req, *machine_control->pso_ticks,
+    			*machine_control->pso_mode, *machine_control->pso_joint);
+    }
     i = 0;
     stepgen = arg;
     for (n = 0; n < num_joints; n++) {
@@ -1740,7 +1759,7 @@ static void update_freq(void *arg, long period)
         {
             // do RISC_PROBE
             uint32_t dbuf[4];
-            dbuf[0] = RCMD_PROBE_REQ;
+            dbuf[0] = RCMD_RISC_PROBE;
             dbuf[1] = n |   // joint_num
                         (*stepgen->risc_probe_type << 8) |
                         (*stepgen->risc_probe_pin << 16);
@@ -1758,7 +1777,7 @@ static void update_freq(void *arg, long period)
         {
             // HOST_PROBING G38.X
             uint32_t dbuf[4];
-            dbuf[0] = RCMD_GMCODE_PROBE;
+            dbuf[0] = RCMD_HOST_PROBE;
             dbuf[1] = (*machine_control->trigger_level & 0x3FFF) |
                         ((*machine_control->trigger_din & 0xFF) << 14) |
                         ((*machine_control->trigger_ain & 0x3F) << 22) |
@@ -2446,6 +2465,22 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->pso_req), comp_id, "wou.motion.pso_req");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_req) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->pso_ticks), comp_id, "wou.motion.pso_ticks");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_ticks) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->pso_mode), comp_id, "wou.motion.pso_mode");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_mode) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->pso_joint), comp_id, "wou.motion.pso_joint");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_joint) = 0;
 
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
