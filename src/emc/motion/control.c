@@ -1486,51 +1486,45 @@ static void get_pos_cmds(long period)
             rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_COORD ++++\n");
 
             /* check joint 0 to see if the interpolators are empty */
-            while (cubicNeedNextPoint(&(joints[0].cubic))) {
-                /* they're empty, pull next point(s) off Cartesian planner */
-                /* run coordinated trajectory planning cycle */
-                tpRunCycle(&emcmotDebug->coord_tp, period);
-                /* gt new commanded traj pos */
-                emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
-                /* OUTPUT KINEMATICS - convert to joints in local array */
-                kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
-                        &iflags, &fflags);
-                /* copy to joint structures and spline them up */
-                DPS("%11u", _dt);
-                DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
-                        emcmotStatus->carte_pos_cmd.tran.x,
-                        emcmotStatus->carte_pos_cmd.tran.y,
-                        emcmotStatus->carte_pos_cmd.tran.z,
-                        emcmotStatus->carte_pos_cmd.a,
-                        emcmotStatus->carte_pos_cmd.s);
-                for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
-                    /* point to joint struct */
-                    joint = &joints[joint_num];
-                    joint->coarse_pos = positions[joint_num];
-                    if(emcmotStatus->pso_req && joint->vel_cmd != 0){
-//                    	printf("j[%d]: joint->coarse_pos(%f) vel_cmd(%f)\n", joint_num, joint->coarse_pos, joint->vel_cmd);
-                    	emcmotStatus->pso_joint = joint_num;
-                    }
+            /* they're empty, pull next point(s) off Cartesian planner */
+            /* run coordinated trajectory planning cycle */
+            tpRunCycle(&emcmotDebug->coord_tp, period);
+            /* gt new commanded traj pos */
+            emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
+            /* OUTPUT KINEMATICS - convert to joints in local array */
+            kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
+            		&iflags, &fflags);
+            /* copy to joint structures and spline them up */
+            DPS("%11u", _dt);
+            DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
+            		emcmotStatus->carte_pos_cmd.tran.x,
+            		emcmotStatus->carte_pos_cmd.tran.y,
+            		emcmotStatus->carte_pos_cmd.tran.z,
+            		emcmotStatus->carte_pos_cmd.a,
+            		emcmotStatus->carte_pos_cmd.s);
 
-                    /* spline joints up-- note that we may be adding points
-                           that fail soft limits, but we'll abort at the end of
-                           this cycle so it doesn't really matter */
-                    cubicAddPoint(&(joint->cubic), joint->coarse_pos);
-                }
-
-                /* END OF OUTPUT KINS */
-            }
+            /* END OF OUTPUT KINS */
+            //            }
             /* there is data in the interpolators */
             /* run interpolation */
             for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
-                /* point to joint struct */
-                joint = &joints[joint_num];
-                /* save old command */
-                old_pos_cmd = joint->pos_cmd;
-                /* interpolate to get new one */
-                joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
-                joint->vel_cmd = (joint->pos_cmd - old_pos_cmd) * servo_freq;
-                DPS ("%17.7f", joint->pos_cmd);
+            	/* point to joint struct */
+            	joint = &joints[joint_num];
+            	joint->coarse_pos = positions[joint_num];
+            	/* interpolate to get new one */
+            	joint->vel_cmd = (joint->coarse_pos - joint->pos_cmd) * servo_freq;
+            	joint->pos_cmd = joint->coarse_pos;
+            	DPS ("%17.7f", joint->pos_cmd);
+            	if(emcmotStatus->pso_req && joint->vel_cmd != 0){
+            		emcmotStatus->pso_joint = joint_num;
+            		assert(joint_num < 3); // just support x, y ,yy
+            		if (joint_num == 0){
+            			emcmotStatus->jpso_pos = emcmotStatus->pso_pos.tran.x;
+            		}
+            		else if (joint_num == 1 || joint_num == 2){
+            			emcmotStatus->jpso_pos = emcmotStatus->pso_pos.tran.y;
+            		}
+            	}
             }
             DPS("\n");
             /* report motion status */
@@ -2177,6 +2171,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->pso_ticks) = emcmotStatus->pso_tick;
     *(emcmot_hal_data->pso_mode) = emcmotStatus->pso_mode;
     *(emcmot_hal_data->pso_joint) = emcmotStatus->pso_joint;
+    *(emcmot_hal_data->pso_pos) = emcmotStatus->jpso_pos;
 
     /* output axis info to HAL for scoping, etc */
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {

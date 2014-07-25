@@ -402,6 +402,7 @@ typedef struct {
     hal_u32_t    *pso_ticks;
     hal_u32_t    *pso_mode;
     hal_u32_t    *pso_joint;
+    hal_float_t  *pso_pos;
 
 } machine_control_t;
 
@@ -1584,16 +1585,22 @@ static void update_freq(void *arg, long period)
     if((*machine_control->pso_req == 1))
     {	// PSO
     	uint32_t dbuf[3];
+    	double delta_pos;
     	dbuf[0] = RCMD_PSO;
-    	dbuf[1] = 15; // delta PSO position, unit: pulse
+    	delta_pos = *machine_control->pso_pos - stepgen[*machine_control->pso_joint].prev_pos_cmd; // delta PSO position, unit: pulse
+    	dbuf[1] = (int32_t)(delta_pos * (stepgen[*machine_control->pso_joint].pos_scale));
     	dbuf[2] = ((*machine_control->pso_ticks & 0xFFFF) << 16) |	 // dbuf[2][31:16]
     			(0x1 << 15) | 			 							 // force pso_en to 1
     			((*machine_control->pso_mode & 0x3 ) << 12) |		 // dbuf[2][15:12]
     			((*machine_control->pso_joint & 0xF ) << 8);		 // dbuf[2][11: 8]
     	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 3);
-    	printf("wou_stepgen.c: pso_req(%d) pso_ticks(%d) pso_mode(%d) pso_joint(%d)\n",
-    			*machine_control->pso_req, *machine_control->pso_ticks,
-    			*machine_control->pso_mode, *machine_control->pso_joint);
+//    	printf("wou_stepgen.c: pso_req(%d) pso_ticks(%d) pso_mode(%d) pso_joint(%d) \n",
+//    			*machine_control->pso_req, *machine_control->pso_ticks,
+//    			*machine_control->pso_mode, *machine_control->pso_joint);
+//    	printf("wou_stepgen.c: pso_pos(%f) dbuf1[%d] delta_pos(%f) prev_pos(%f) pos_cmd(%f)\n",
+//    			*machine_control->pso_pos, dbuf[1], delta_pos,
+//    			stepgen[*machine_control->pso_joint].prev_pos_cmd,
+//    			*stepgen[*machine_control->pso_joint].pos_cmd);
     }
     i = 0;
     stepgen = arg;
@@ -2482,6 +2489,9 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->pso_joint) = 0;
 
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->pso_pos), comp_id, "wou.motion.pso_pos");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_pos) = 0;
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;

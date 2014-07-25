@@ -776,6 +776,8 @@ typedef struct emcmot_status_t {
     int pso_joint;
     int pso_mode;
     double pso_tick;
+    EmcPose pso_pos;
+    double jpso_pos;		// ack one joint psoition which have velocity
 } emcmot_status_t;
 
 /*********************************

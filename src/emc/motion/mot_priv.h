@@ -102,6 +102,7 @@ typedef struct {
     hal_u32_t *pso_ticks;
     hal_u32_t *pso_mode;
     hal_u32_t *pso_joint;
+    hal_float_t *pso_pos;
     hal_bit_t *probing;
     hal_u32_t *trigger_din;
     hal_u32_t *trigger_ain;

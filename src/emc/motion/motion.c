@@ -300,6 +300,7 @@ static int init_hal_io(void)
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pso_ticks), mot_comp_id, "motion.pso_ticks")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pso_mode), mot_comp_id, "motion.pso_mode")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->pso_joint), mot_comp_id, "motion.pso_joint")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pso_pos), mot_comp_id, "motion.pso_pos")) != 0) goto error;
 
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->probing), mot_comp_id, "motion.probing")) != 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->trigger_result), mot_comp_id, "motion.trigger-result")) != 0) goto error;
