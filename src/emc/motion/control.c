@@ -1257,7 +1257,6 @@ static void get_spindle_cmds (double cycle_time)
         double speed;       // speed for major spindle (spindle-s)
         double maxpositive;
         int positive = ((emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x) > 0)? 1: -1;
-        printf("positive(%d) denom(%f) = old denom(%f)\n", positive, denom, positive*denom);
         // css_factor: unit(mm or inch)/min
         if(emcmotStatus->spindle.dynamic_speed_mode == 0)
         {
