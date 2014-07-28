@@ -1381,10 +1381,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
     }
     if (emcmotStatus->pso_enable){
     	if (tc->progress > tc->syncdio.pso_pitch){
-//    		printf("-----------------------------tp.c: take a photo-----------------------------\n");
-//    		printf("progress(%f) tc->target(%f)\n", tc->progress, tc->target);
-//    		printf("emcmotCommand->pso_pitch(%f) tc->syncdio.pso_pitch(%f) pso_mode(%d) pso_tick(%f)\n",
-//    				emcmotCommand->pso_pitch,tc->syncdio.pso_pitch, tc->syncdio.pso_mode, tc->syncdio.pso_tick);
     		double temp_progress = tc->progress;
     		tc->progress = tc->syncdio.pso_pitch;
     		emcmotStatus->pso_pos = tcGetPos(tc);

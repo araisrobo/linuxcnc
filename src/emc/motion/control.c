@@ -1326,12 +1326,14 @@ static void get_pos_cmds(long period)
 {
     int joint_num, result;
     emcmot_joint_t *joint;
-    //obsolete: emcmot_axis_t *axis;
-    double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
+    double positions[EMCMOT_MAX_JOINTS];
     double old_pos_cmd;
     int onlimit = 0;
     int joint_limit[EMCMOT_MAX_JOINTS][2];
     int num_joints;
+
+    int pso_ready;
+    double pso_joint_pos[EMCMOT_MAX_JOINTS];
 
     num_joints = emcmotConfig->numJoints;
 
@@ -1503,27 +1505,22 @@ static void get_pos_cmds(long period)
             		emcmotStatus->carte_pos_cmd.s);
 
             /* END OF OUTPUT KINS */
-            //            }
-            /* there is data in the interpolators */
-            /* run interpolation */
+            pso_ready = 0;
             for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
-            	/* point to joint struct */
-            	joint = &joints[joint_num];
-            	joint->coarse_pos = positions[joint_num];
-            	/* interpolate to get new one */
-            	joint->vel_cmd = (joint->coarse_pos - joint->pos_cmd) * servo_freq;
-            	joint->pos_cmd = joint->coarse_pos;
-            	DPS ("%17.7f", joint->pos_cmd);
-            	if(emcmotStatus->pso_req && joint->vel_cmd != 0){
-            		emcmotStatus->pso_joint = joint_num;
-            		assert(joint_num < 3); // just support x, y ,yy
-            		if (joint_num == 0){
-            			emcmotStatus->jpso_pos = emcmotStatus->pso_pos.tran.x;
-            		}
-            		else if (joint_num == 1 || joint_num == 2){
-            			emcmotStatus->jpso_pos = emcmotStatus->pso_pos.tran.y;
-            		}
-            	}
+                /* point to joint struct */
+                joint = &joints[joint_num];
+                joint->coarse_pos = positions[joint_num];
+                /* interpolate to get new one */
+                joint->vel_cmd = (joint->coarse_pos - joint->pos_cmd) * servo_freq;
+                joint->pos_cmd = joint->coarse_pos;
+                DPS ("%17.7f", joint->pos_cmd);
+                if(emcmotStatus->pso_req && (joint->vel_cmd != 0) && (pso_ready == 0))
+                {   // to calculate PSO parameters
+                    pso_ready = 1;
+                    kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
+                    emcmotStatus->pso_joint = joint_num;
+                    emcmotStatus->jpso_pos = pso_joint_pos[joint_num];
+                }
             }
             DPS("\n");
             /* report motion status */
