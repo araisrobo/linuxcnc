@@ -109,7 +109,6 @@ int tpClearDIOs() {
     //XXX: All IO's will be flushed on next synced aio/dio! Is it ok?
     int i;
     syncdio.anychanged = 0;
-    syncdio.psochanged = 0;
     //    syncdio.dio_mask = 0;
     syncdio.aio_mask = 0;
     for (i = 0; i < emcmotConfig->numDIO; i++)
@@ -121,10 +120,6 @@ int tpClearDIOs() {
     syncdio.sync_in = 255;
     syncdio.wait_type = 0;
     syncdio.timeout = 0.0;
-    syncdio.pso_enable = 0;
-	 syncdio.pso_mode = 0;
-	 syncdio.pso_pitch = 0;
-	 syncdio.pso_tick = 0;
     return 0;
 }
 
@@ -413,14 +408,16 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     tc.coords.spindle_sync.mode = ssm_mode;
 
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
-        tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
-        syncdio.pso_pitch = 0;
+    }
+
+    if (syncdio.psochanged != 0){
+    	tc.syncdio = syncdio;
     }
 
     if (vel > 0)        // vel is requested spindle velocity
@@ -572,16 +569,16 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     tc.enables = enables;
     tc.indexrotary = indexrotary;
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) ) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
-        tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
-        syncdio.pso_pitch = 0;
     }
-
+    if (syncdio.psochanged != 0){
+    	tc.syncdio = syncdio;
+    }
     tc.utvIn = line_xyz.uVec;
     tc.utvOut = line_xyz.uVec;
 
@@ -698,14 +695,16 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     tc.indexrotary = -1;
 
 
-    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
+    if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
         tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
         tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
     } else {
         tc.syncdio.anychanged = 0;
-        tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
-        syncdio.pso_pitch = 0;
+    }
+
+    if (syncdio.psochanged != 0){
+    	tc.syncdio = syncdio;
     }
 
     tc.utvIn = circle.utvIn;
@@ -877,14 +876,16 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         tc.enables = enables;
         tc.indexrotary = -1;
 
-        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0) || syncdio.psochanged != 0) {
+        if ((syncdio.anychanged != 0) || (syncdio.sync_input_triggered != 0)) {
             tc.syncdio = syncdio; //enqueue the list of DIOs that need toggling
             tpClearDIOs(); // clear out the list, in order to prepare for the next time we need to use it
         } else {
             tc.syncdio.anychanged = 0;
-            tc.syncdio.psochanged = 0;
             tc.syncdio.sync_input_triggered = 0;
-            syncdio.pso_pitch = 0;
+        }
+
+        if (syncdio.psochanged != 0){
+        	tc.syncdio = syncdio;
         }
 
         //TODO: tc.utvIn = nurbs...;
@@ -1385,7 +1386,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
     }
     if (emcmotStatus->pso_enable){
     	if (tc->progress > tc->syncdio.pso_pitch){
-    		printf("tc->progress(%f) tc->syncdio.pso_pitch(%f)\n",tc->progress,tc->syncdio.pso_pitch);
     		double temp_progress = tc->progress;
     		tc->progress = tc->syncdio.pso_pitch;
     		emcmotStatus->pso_pos = tcGetPos(tc);
@@ -1972,6 +1972,7 @@ int tpAbort(TP_STRUCT * tp)
         tpPause(tp);
         tp->aborting = 1;
     }
+    syncdio.psochanged = 0;
     return tpClearDIOs(); //clears out any already cached DIOs
 }
 
@@ -2023,6 +2024,7 @@ int tpSetPSO(TP_STRUCT *tp, int enable, double pitch, int mode, double tick) {
     if (0 == tp) {
         return -1;
     }
+
     syncdio.psochanged = 1; //something has changed
     syncdio.pso_enable = enable;
 //    syncdio.pso_pitch = pitch;
