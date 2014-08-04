@@ -420,6 +420,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
         tc.syncdio.anychanged = 0;
         tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
+        syncdio.pso_pitch = 0;
     }
 
     if (vel > 0)        // vel is requested spindle velocity
@@ -578,6 +579,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.anychanged = 0;
         tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
+        syncdio.pso_pitch = 0;
     }
 
     tc.utvIn = line_xyz.uVec;
@@ -703,6 +705,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
         tc.syncdio.anychanged = 0;
         tc.syncdio.psochanged = 0;
         tc.syncdio.sync_input_triggered = 0;
+        syncdio.pso_pitch = 0;
     }
 
     tc.utvIn = circle.utvIn;
@@ -881,6 +884,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
             tc.syncdio.anychanged = 0;
             tc.syncdio.psochanged = 0;
             tc.syncdio.sync_input_triggered = 0;
+            syncdio.pso_pitch = 0;
         }
 
         //TODO: tc.utvIn = nurbs...;
@@ -1381,6 +1385,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
     }
     if (emcmotStatus->pso_enable){
     	if (tc->progress > tc->syncdio.pso_pitch){
+    		printf("tc->progress(%f) tc->syncdio.pso_pitch(%f)\n",tc->progress,tc->syncdio.pso_pitch);
     		double temp_progress = tc->progress;
     		tc->progress = tc->syncdio.pso_pitch;
     		emcmotStatus->pso_pos = tcGetPos(tc);
