@@ -122,7 +122,15 @@ int tpClearDIOs() {
     syncdio.timeout = 0.0;
     return 0;
 }
+int tpClearPSO() {
 
+    syncdio.pso_enable = 0;
+    syncdio.pso_mode = 0;
+    syncdio.pso_pitch = 0;
+    syncdio.pso_tick = 0.0;
+    syncdio.psochanged = 0;
+    return 0;
+}
 /*
   tpClear() is a "soft init" in the sense that the TP_STRUCT configuration
   parameters (cycleTime, vMax, and aMax) are left alone, but the queue is
@@ -417,7 +425,10 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
     }
 
     if (syncdio.psochanged != 0){
-    	tc.syncdio = syncdio;
+        tc.syncdio = syncdio;
+    } else{
+        tpClearPSO();
+        tc.syncdio = syncdio;
     }
 
     if (vel > 0)        // vel is requested spindle velocity
@@ -576,9 +587,14 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.anychanged = 0;
         tc.syncdio.sync_input_triggered = 0;
     }
+
     if (syncdio.psochanged != 0){
     	tc.syncdio = syncdio;
+    } else{
+        tpClearPSO();
+        tc.syncdio = syncdio;
     }
+
     tc.utvIn = line_xyz.uVec;
     tc.utvOut = line_xyz.uVec;
 
@@ -704,7 +720,10 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
     }
 
     if (syncdio.psochanged != 0){
-    	tc.syncdio = syncdio;
+        tc.syncdio = syncdio;
+    } else{
+        tpClearPSO();
+        tc.syncdio = syncdio;
     }
 
     tc.utvIn = circle.utvIn;
@@ -885,7 +904,10 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
         }
 
         if (syncdio.psochanged != 0){
-        	tc.syncdio = syncdio;
+            tc.syncdio = syncdio;
+        } else{
+            tpClearPSO();
+            tc.syncdio = syncdio;
         }
 
         //TODO: tc.utvIn = nurbs...;
