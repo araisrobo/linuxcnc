@@ -1157,9 +1157,9 @@ class EMC_MOTION_SET_AOUT:public EMC_MOTION_CMD_MSG {
 };
 
 class EMC_MOTION_SET_PSO:public EMC_MOTION_CMD_MSG {
-  public:
-	EMC_MOTION_SET_PSO():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_PSO_TYPE,
-					     sizeof(EMC_MOTION_SET_PSO)) {
+    public:
+    EMC_MOTION_SET_PSO():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_PSO_TYPE,
+            sizeof(EMC_MOTION_SET_PSO)) {
     };
 
     // For internal NML/CMS use only.
@@ -1168,9 +1168,8 @@ class EMC_MOTION_SET_PSO:public EMC_MOTION_CMD_MSG {
     int enable;			// which to set pso enable
     int mode;			// which to set pso mode
     double pitch;		// value to set pso pitch
-    double tick;		// value to set pso tick
+    int tick;		        // value to set pso tick
     unsigned char now;		// wether command is imediate or synched with motion
-
 };
 
 class EMC_MOTION_SET_DOUT:public EMC_MOTION_CMD_MSG {

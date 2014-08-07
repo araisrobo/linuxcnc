@@ -49,7 +49,6 @@ typedef unsigned long long iomask_t; // 64 bits on both x86 and x86_64
 
 typedef struct {
     char anychanged;
-//    iomask_t dio_mask;
     iomask_t aio_mask;
     signed char dios[EMCMOT_MAX_DIO];
     char sync_input_triggered;
@@ -57,12 +56,15 @@ typedef struct {
     int wait_type;
     double timeout;
     double aios[EMCMOT_MAX_AIO];
-    char psochanged;
-    int pso_enable;
-    int pso_mode;
-    double pso_pitch;
-    double pso_tick;
 } syncdio_t;
+
+typedef struct {
+    int enable;
+    int mode;
+    int tick;
+    double pitch;
+    double next_progress;
+} pso_t;
 
 typedef struct {
     // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
@@ -149,6 +151,7 @@ typedef struct {
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     char atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
+    pso_t     pso;          // PSO -- progress synchronized output for this move
     int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
 
     PmCartesian utvIn;      // unit tangent vector inward

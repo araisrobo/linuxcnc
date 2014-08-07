@@ -62,7 +62,8 @@ extern emcmot_debug_t *emcmotDebug;
 static const double tiny = 1e-7;
 
 int output_chan = 0;
-syncdio_t syncdio; //record tpSetDout's here
+static syncdio_t syncdio; //record tpSetDout's here
+static pso_t pso;
 
 int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
 {
@@ -122,13 +123,15 @@ int tpClearDIOs() {
     syncdio.timeout = 0.0;
     return 0;
 }
-int tpClearPSO() {
 
-    syncdio.pso_enable = 0;
-    syncdio.pso_mode = 0;
-    syncdio.pso_pitch = 0;
-    syncdio.pso_tick = 0.0;
-    syncdio.psochanged = 0;
+int tpClearPSO()
+{
+    pso.enable = 0;
+    pso.mode = 0;
+    pso.pitch = 0;
+    pso.tick = 0;
+    pso.next_progress = 0;
+    DP("tp.c, tpClearPSO(): TODO: resolve a method to terminate PSO at End Of Program\n");
     return 0;
 }
 /*
@@ -424,12 +427,7 @@ int tpAddSpindleSyncMotion(TP_STRUCT *tp, EmcPose end, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
-    if (syncdio.psochanged != 0){
-        tc.syncdio = syncdio;
-    } else{
-        tpClearPSO();
-        tc.syncdio = syncdio;
-    }
+    tc.pso = pso;
 
     if (vel > 0)        // vel is requested spindle velocity
     {
@@ -588,12 +586,7 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.syncdio.sync_input_triggered = 0;
     }
 
-    if (syncdio.psochanged != 0){
-    	tc.syncdio = syncdio;
-    } else{
-        tpClearPSO();
-        tc.syncdio = syncdio;
-    }
+    tc.pso = pso;
 
     tc.utvIn = line_xyz.uVec;
     tc.utvOut = line_xyz.uVec;
@@ -719,12 +712,7 @@ int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
         tc.syncdio.sync_input_triggered = 0;
     }
 
-    if (syncdio.psochanged != 0){
-        tc.syncdio = syncdio;
-    } else{
-        tpClearPSO();
-        tc.syncdio = syncdio;
-    }
+    tc.pso = pso;
 
     tc.utvIn = circle.utvIn;
     tc.utvOut = circle.utvOut;
@@ -903,12 +891,7 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
             tc.syncdio.sync_input_triggered = 0;
         }
 
-        if (syncdio.psochanged != 0){
-            tc.syncdio = syncdio;
-        } else{
-            tpClearPSO();
-            tc.syncdio = syncdio;
-        }
+        tc.pso = pso;
 
         //TODO: tc.utvIn = nurbs...;
         //TODO: tc.utvOut = nurbs...;
@@ -1406,19 +1389,29 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             tc->cur_vel = 0;
         }
     }
-    if (emcmotStatus->pso_enable){
-    	if (tc->progress > tc->syncdio.pso_pitch){
-    		double temp_progress = tc->progress;
-    		tc->progress = tc->syncdio.pso_pitch;
-    		emcmotStatus->pso_pos = tcGetPos(tc);
-    		tc->progress = temp_progress;
-    		tc->syncdio.pso_pitch += emcmotCommand->pso_pitch;
-    		emcmotStatus->pso_mode = tc->syncdio.pso_mode;
-    		emcmotStatus->pso_tick = tc->syncdio.pso_tick;
-    		emcmotStatus->pso_req = 1;
-    	} else{
-    		emcmotStatus->pso_req = 0;
-    	}
+
+    if (tc->pso.enable)
+    {
+        if (tc->progress >= tc->pso.next_progress)
+        {
+            double temp_progress;
+            DP ("TODO: resolve blending two segments: may cause double entrance of tcRunCycle ()\n");
+            DP ("tc->progress(%f) tc->pso.next_progress(%f)\n", tc->progress, tc->pso.next_progress);
+            temp_progress = tc->progress;
+            tc->progress = tc->pso.next_progress;
+            emcmotStatus->pso_pos = tcGetPos(tc);
+            tc->progress = temp_progress;
+            tc->pso.next_progress += tc->pso.pitch;
+            emcmotStatus->pso_mode = tc->pso.mode;
+            emcmotStatus->pso_tick = tc->pso.tick;
+            emcmotStatus->pso_req = 1;
+            DP("tp.c: pso_pos x(%f) y(%f)\n", emcmotStatus->pso_pos.tran.x, emcmotStatus->pso_pos.tran.y);
+            DP("tp.c: turn pso_req ON, pso_req(%d)\n", emcmotStatus->pso_req);
+        }
+        else
+        {
+            emcmotStatus->pso_req = 0;
+        }
     }
 
     DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
@@ -1449,9 +1442,6 @@ void tpToggleDIOs(TC_STRUCT * tc)
     if (tc->syncdio.sync_input_triggered != 0) {
         emcmotSyncInputWrite(tc->syncdio.sync_in, tc->syncdio.timeout, tc->syncdio.wait_type);
         tc->syncdio.sync_input_triggered = 0; //we have turned them all on/off, nothing else to do for this TC the next time
-    }
-    if (tc->syncdio.psochanged != 0) { // we have PSO to turn on or off, when tcRunCycle set value from tc to emcmotStatus
-		emcmotStatus->pso_enable = tc->syncdio.pso_enable;
     }
 }
 
@@ -1508,6 +1498,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
         emcmotStatus->xuu_per_rev = 0;
         emcmotStatus->yuu_per_rev = 0;
         emcmotStatus->zuu_per_rev = 0;
+        emcmotStatus->pso_req = 0;
         return 0;
     }
 
@@ -1533,7 +1524,9 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             // if it is now locked, fall through and remove the finished move.
             // otherwise, just come back later and check again
             if(tpGetRotaryIsUnlocked(tc->indexrotary))
+            {
                 return 0;
+            }
         }
 
         // done with this move
@@ -1542,7 +1535,11 @@ int tpRunCycle(TP_STRUCT * tp, long period)
 
         // so get next move
         tc = tcqItem(&tp->queue, 0, period);
-        if(!tc) return 0;
+        if(!tc)
+        {
+            emcmotStatus->pso_req = 0;
+            return 0;
+        }
     }
 
     // now we have the active tc.  get the upcoming one, if there is one.
@@ -1994,8 +1991,10 @@ int tpAbort(TP_STRUCT * tp)
         tpPause(tp);
         tp->aborting = 1;
     }
-    syncdio.psochanged = 0;
-    return tpClearDIOs(); //clears out any already cached DIOs
+
+    tpClearPSO();
+    tpClearDIOs(); //clears out any already cached DIOs
+    return 0;
 }
 
 int tpGetMotionType(TP_STRUCT * tp)
@@ -2042,16 +2041,16 @@ int tpActiveDepth(TP_STRUCT * tp)
     return tp->activeDepth;
 }
 
-int tpSetPSO(TP_STRUCT *tp, int enable, double pitch, int mode, double tick) {
+int tpSetPSO(TP_STRUCT *tp, int enable, double pitch, int mode, int tick)
+{
     if (0 == tp) {
         return -1;
     }
-
-    syncdio.psochanged = 1; //something has changed
-    syncdio.pso_enable = enable;
-//    syncdio.pso_pitch = pitch;
-    syncdio.pso_mode = mode;
-    syncdio.pso_tick = tick;
+    pso.enable = enable;
+    pso.pitch = pitch;
+    pso.next_progress = 0;
+    pso.mode = mode;
+    pso.tick = tick;
     return 0;
 }
 

@@ -1624,13 +1624,10 @@ void emcmotCommandHandler(void *arg, long period)
             break;
 
         case EMCMOT_SET_PSO:
-//        	printf("EMCMOT_SET_PSO: emcmotCommand->now(%d)\n",emcmotCommand->now);
             rtapi_print_msg(RTAPI_MSG_DBG, "EMCMOT_SET_PSO");
-//            if (emcmotCommand->now) { //we set it right away
             tpSetPSO(&emcmotDebug->coord_tp, emcmotCommand->pso_enable,
                     emcmotCommand->pso_pitch, emcmotCommand->pso_mode,
                     emcmotCommand->pso_tick);
-//        }
             break;
 
         case EMCMOT_SET_DOUT:

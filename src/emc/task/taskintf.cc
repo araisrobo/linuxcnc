@@ -1829,7 +1829,7 @@ int emcMotionSetAout(unsigned char index, double start, double end, unsigned cha
     @parameter	start	value set at start of motion
     @parameter	end	value set at end of motion
 */
-int emcMotionSetPSO(int enable, double pitch, int mode, double tick, unsigned char now)
+int emcMotionSetPSO(int enable, double pitch, int mode, int tick, unsigned char now)
 {
     emcmotCommand.command = EMCMOT_SET_PSO;
     emcmotCommand.now = now;

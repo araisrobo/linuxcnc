@@ -1494,15 +1494,15 @@ static void get_pos_cmds(long period)
             emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
             /* OUTPUT KINEMATICS - convert to joints in local array */
             kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
-            		&iflags, &fflags);
+                    &iflags, &fflags);
             /* copy to joint structures and spline them up */
             DPS("%11u", _dt);
             DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
-            		emcmotStatus->carte_pos_cmd.tran.x,
-            		emcmotStatus->carte_pos_cmd.tran.y,
-            		emcmotStatus->carte_pos_cmd.tran.z,
-            		emcmotStatus->carte_pos_cmd.a,
-            		emcmotStatus->carte_pos_cmd.s);
+                    emcmotStatus->carte_pos_cmd.tran.x,
+                    emcmotStatus->carte_pos_cmd.tran.y,
+                    emcmotStatus->carte_pos_cmd.tran.z,
+                    emcmotStatus->carte_pos_cmd.a,
+                    emcmotStatus->carte_pos_cmd.s);
 
             /* END OF OUTPUT KINS */
             pso_ready = 0;
@@ -1514,13 +1514,25 @@ static void get_pos_cmds(long period)
                 joint->vel_cmd = (joint->coarse_pos - joint->pos_cmd) * servo_freq;
                 joint->pos_cmd = joint->coarse_pos;
                 DPS ("%17.7f", joint->pos_cmd);
+
                 if(emcmotStatus->pso_req && (joint->vel_cmd != 0) && (pso_ready == 0))
                 {   // to calculate PSO parameters
                     pso_ready = 1;
                     kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
                     emcmotStatus->pso_joint = joint_num;
                     emcmotStatus->jpso_pos = pso_joint_pos[joint_num];
+                    DP ("control.c: pso_joint(%d) jpso_pos(%f)\n", joint_num, pso_joint_pos[joint_num]);
+                    DP ("control.c: j[%d] pos_cmd(%f)\n", joint_num, joint->pos_cmd);
                 }
+            }
+            if ((emcmotStatus->pso_req) && (pso_ready == 0))
+            {
+                /* for 1st or last PSO point */
+                DP("control.c: pso_req(%d) without joint->vel_cmd\n", emcmotStatus->pso_req);
+                kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
+                emcmotStatus->pso_joint = 0;
+                emcmotStatus->jpso_pos = pso_joint_pos[0];
+                DP ("control.c: pso_joint(%d) jpso_pos(%f)\n", 0, pso_joint_pos[0]);
             }
             DPS("\n");
             /* report motion status */
@@ -2167,7 +2179,12 @@ static void output_to_hal(void)
     *(emcmot_hal_data->pso_ticks) = emcmotStatus->pso_tick;
     *(emcmot_hal_data->pso_mode) = emcmotStatus->pso_mode;
     *(emcmot_hal_data->pso_joint) = emcmotStatus->pso_joint;
-    *(emcmot_hal_data->pso_pos) = emcmotStatus->jpso_pos;
+    joint = &joints[emcmotStatus->pso_joint];
+    /* apply backlash and motor offset to PSO joint position */
+    *(emcmot_hal_data->pso_pos) = emcmotStatus->jpso_pos
+                                  + joint->backlash_filt
+                                  + joint->motor_offset
+                                  + joint->blender_offset;
 
     /* output axis info to HAL for scoping, etc */
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {

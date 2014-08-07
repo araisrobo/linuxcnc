@@ -3001,17 +3001,20 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     int type;
     double timeout;               // timeout for M66
 
-    /* The M62-65 commands are used for DIO */
-    /* M62 sets a DIO synched with motion
-     M63 clears a DIO synched with motion
-     M64 sets a DIO imediately
-     M65 clears a DIO imediately
-     M66 waits for an input
-     M67 reads a digital input
-     M68 reads an analog input*/
-    /*fprintf(stderr,"enter convert_m\n");
-  for(int i=0; i<12; i++)
-      fprintf(stderr,"m_modes[%d](%d)\n", i, block->m_modes[i]);*/
+    /**
+     * The M62-65 commands are used for DIO
+     * M62 sets a DIO synched with motion
+     * M63 clears a DIO synched with motion
+     * M64 sets a DIO imediately
+     * M65 clears a DIO imediately
+     * M66 waits for an input
+     * M67 reads a digital input
+     * M68 reads an analog input
+     **/
+
+    //debug: fprintf(stderr,"enter convert_m\n");
+    //debug: for(int i=0; i<12; i++)
+    //debug:     fprintf(stderr,"m_modes[%d](%d)\n", i, block->m_modes[i]);
 
     if (IS_USER_MCODE(block,settings,5) && ONCE_M(5))  {
         return convert_remapped_code(block, settings, STEP_M_5, 'm',
@@ -3120,10 +3123,10 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     	//P-word = pso enable (int)
     	//K-word = pso pitch (float)
     	//Q-word = pso mode (int)
-    	//E-word = pso tick (float)
+    	//E-word = pso tick (int)
 //    	CHKS((!block->p_flag) || (round_to_int(block->k_number) < 0) ||(round_to_int(block->q_number) < 0) ||(!block->e_number),
 //    			(_("Invalid p_flag, k_number, q_number or e_number parameters with M69")));
-    	SET_PSO_VALUE(round_to_int(block->p_number), block->k_number, round_to_int(block->q_number), block->e_number);
+    	SET_PSO_VALUE(round_to_int(block->p_number), block->k_number, round_to_int(block->q_number), round_to_int(block->e_number));
     }
 
     if ((block->m_modes[6] != -1)  && ONCE_M(6)){
