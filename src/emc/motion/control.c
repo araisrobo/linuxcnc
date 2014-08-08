@@ -1525,15 +1525,15 @@ static void get_pos_cmds(long period)
                     DP ("control.c: j[%d] pos_cmd(%f)\n", joint_num, joint->pos_cmd);
                 }
             }
-            if ((emcmotStatus->pso_req) && (pso_ready == 0))
-            {
-                /* for 1st or last PSO point */
-                DP("control.c: pso_req(%d) without joint->vel_cmd\n", emcmotStatus->pso_req);
-                kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
-                emcmotStatus->pso_joint = 0;
-                emcmotStatus->jpso_pos = pso_joint_pos[0];
-                DP ("control.c: pso_joint(%d) jpso_pos(%f)\n", 0, pso_joint_pos[0]);
-            }
+            // if ((emcmotStatus->pso_req) && (pso_ready == 0))
+            // {
+            //     /* for 1st or last PSO point */
+            //     DP("control.c: pso_req(%d) without joint->vel_cmd\n", emcmotStatus->pso_req);
+            //     kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
+            //     emcmotStatus->pso_joint = 0;
+            //     emcmotStatus->jpso_pos = pso_joint_pos[0];
+            //     DP ("control.c: pso_joint(%d) jpso_pos(%f)\n", 0, pso_joint_pos[0]);
+            // }
             DPS("\n");
             /* report motion status */
             SET_MOTION_INPOS_FLAG(0);

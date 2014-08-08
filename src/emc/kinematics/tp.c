@@ -1392,7 +1392,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
     if (tc->pso.enable)
     {
-        if (tc->progress >= tc->pso.next_progress)
+        if (tc->progress > tc->pso.next_progress)
         {
             double temp_progress;
             DP ("TODO: resolve blending two segments: may cause double entrance of tcRunCycle ()\n");
@@ -1405,8 +1405,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             emcmotStatus->pso_mode = tc->pso.mode;
             emcmotStatus->pso_tick = tc->pso.tick;
             emcmotStatus->pso_req = 1;
-            DP("tp.c: pso_pos x(%f) y(%f)\n", emcmotStatus->pso_pos.tran.x, emcmotStatus->pso_pos.tran.y);
-            DP("tp.c: turn pso_req ON, pso_req(%d)\n", emcmotStatus->pso_req);
+            DP ("tp.c: pso_pos x(%f) y(%f)\n", emcmotStatus->pso_pos.tran.x, emcmotStatus->pso_pos.tran.y);
+            DP ("tp.c: turn pso_req ON, pso_req(%d)\n", emcmotStatus->pso_req);
         }
         else
         {
