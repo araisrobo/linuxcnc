@@ -827,8 +827,10 @@ int rtapi_app_main(void)
     while(wou_flush(&w_param) == -1);
 
     // "pulse type (AB-PHASE(a) or STEP-DIR(s) or PWM-DIR(p)) for up to 8 channels")
-    data[0] = 0;
-    data[1] = 0;
+    data[0] = 0; // SSIF_PULSE_TYPE j3 ~ j0
+    data[1] = 0; // SSIF_PULSE_TYPE J5 ~ j4
+    immediate_data = 0; // reset SSIF_MODE of all joints to POSITION-MODE(0)
+
     num_joints = 0;
     for (n = 0; n < MAX_CHAN && (pulse_type[n][0] != ' ') ; n++) {
         if (toupper(pulse_type[n][0]) == 'A') {
@@ -842,6 +844,7 @@ int rtapi_app_main(void)
             }
         } else if (toupper(pulse_type[n][0]) == 'P') {
             // PULSE_TYPE(1): pwm-dir
+            immediate_data |= (1 << n); // joint[n]: set SSIF_MODE as PWM-MODE
             if (n < 4) {
                 data[0] |= (3 << (n * 2));
             } else {
@@ -859,6 +862,10 @@ int rtapi_app_main(void)
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
                 (uint8_t) 2, data);
+
+        write_machine_param(SSIF_MODE, immediate_data);
+        printf("SSIF_MODE: 0x%08X\n", immediate_data);
+
         rtapi_print_msg(RTAPI_MSG_INFO,
                 "STEPGEN: PULSE_TYPE[J3:J0]: 0x%02X\n", data[0]);
         rtapi_print_msg(RTAPI_MSG_INFO,
@@ -1804,7 +1811,7 @@ static void update_freq(void *arg, long period)
         // first sanity-check our maxaccel and maxvel params
         //
 
-        if (stepgen->pulse_type != 'P') {
+//        if (stepgen->pulse_type != 'P') {
             /* pulse_type is either A(AB-PHASE) or S(STEP-DIR) */
             int32_t pulse_accel;
             int32_t pulse_jerk;
@@ -1844,22 +1851,24 @@ static void update_freq(void *arg, long period)
             stepgen->pulse_vel = integer_pos_cmd;
             stepgen->pulse_accel = pulse_accel;
             stepgen->pulse_jerk = pulse_jerk;
-        } else
-        {
-            /* pulse_type is P(PWM) */
-            /* pos_cmd is PWM duty ratio, +/- 0~100 */
-            integer_pos_cmd = (int32_t)((*stepgen->pos_cmd * (stepgen->pos_scale)) * FIXED_POINT_SCALE); // 16.16 precision
-            if (abs(integer_pos_cmd) > ((int32_t) stepgen->maxvel))
-            {
-                if (integer_pos_cmd > 0)
-                {
-                    integer_pos_cmd = (int32_t) stepgen->maxvel;
-                } else
-                {
-                    integer_pos_cmd = (int32_t) -stepgen->maxvel;
-                }
-            }
-        }
+//        }
+
+//        else
+//        {
+//            /* pulse_type is P(PWM) */
+//            /* pos_cmd is PWM duty ratio, +/- 0~100 */
+//            integer_pos_cmd = (int32_t)((*stepgen->pos_cmd * (stepgen->pos_scale)) * FIXED_POINT_SCALE); // 16.16 precision
+//            if (abs(integer_pos_cmd) > ((int32_t) stepgen->maxvel))
+//            {
+//                if (integer_pos_cmd > 0)
+//                {
+//                    integer_pos_cmd = (int32_t) stepgen->maxvel;
+//                } else
+//                {
+//                    integer_pos_cmd = (int32_t) -stepgen->maxvel;
+//                }
+//            }
+//        }
 
         {
             /* extract integer part of command */
