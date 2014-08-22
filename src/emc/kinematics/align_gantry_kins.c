@@ -33,13 +33,13 @@ typedef struct {
     // double x_cent, prev_x_cent, y_cent, prev_y_cent;
     // double x_offset, prev_x_offset, y_offset, prev_y_offset;
     // hal_bit_t *touch_off_cent;
-    hal_float_t *gantry_polarity;
+//    hal_float_t *gantry_polarity;
     hal_float_t *yy_offset;
 } align_pins_t;
 
 static align_pins_t *align_pins;
 
-#define GANTRY_POLARITY (*(align_pins->gantry_polarity))
+//#define GANTRY_POLARITY (*(align_pins->gantry_polarity))
 #define YY_OFFSET       (*(align_pins->yy_offset))
 
 const char *machine_type = "";
@@ -64,8 +64,8 @@ int kinematicsForward(const double *joints,
     // pos->b = joints[5];
     // pos->c = joints[6];
 
-    DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f),POLARITY(%f)\n",
-        pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
+    DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f)\n",
+        pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET);
     DP("kFWD: s(%f), j5(%f)\n", pos->s, joints[5]);
 
     return 0;
@@ -78,15 +78,11 @@ int kinematicsInverse(const EmcPose * pos,
 {
     joints[0] = pos->tran.x;
     joints[1] = pos->tran.y;
-    joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
+    joints[2] = pos->tran.y - YY_OFFSET;  // YY
     joints[3] = pos->tran.z;
     joints[4] = pos->w;
     joints[5] = pos->s;
-    // joints[5] = pos->b;
-    // joints[6] = pos->c;
-    // joints[6] = pos->u;
-    // joints[7] = pos->v;
-    // joints[8] = pos->w;
+
     DP("kINV: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f)\n",
        pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET);
     DP("kINV: s(%f), j5(%f)\n", pos->s, joints[5]);
@@ -141,11 +137,11 @@ int rtapi_app_main(void)
     // align_pins->theta = 0.78539815;   // 45 degree
 
     /* export param for scaled velocity (frequency in Hz) */
-    res = hal_pin_float_new("align-gantry-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
-    if (res != 0) {
-        goto error;
-    }
-    GANTRY_POLARITY = 1.0;
+//    res = hal_pin_float_new("align-gantry-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
+//    if (res != 0) {
+//        goto error;
+//    }
+//    GANTRY_POLARITY = 1.0;
 
     hal_ready(comp_id);
     DP ("success\n");
