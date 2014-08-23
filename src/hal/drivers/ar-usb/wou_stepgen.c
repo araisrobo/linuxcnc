@@ -937,17 +937,11 @@ int rtapi_app_main(void)
 
     // "set LSP_ID/LSN_ID for up to 8 channels"
     for (n = 0; n < MAX_CHAN && (lsp_id[n][0] != ' ') ; n++) {
-        pos_scale = atof(pos_scale_str[n]);
         lsp = atoi(lsp_id[n]);
         lsn = atoi(lsn_id[n]);
-        if(pos_scale >= 0) {
-            immediate_data = (n << 16) | (lsp << 8) | (lsn);
-        } else {
-            immediate_data = (n << 16) | (lsn << 8) | (lsp);
-        }
+        immediate_data = (n << 16) | (lsp << 8) | (lsn);
         write_machine_param(JOINT_LSP_LSN, immediate_data);
         while(wou_flush(&w_param) == -1);
-
     }
 
     // "set ALR_ID for up to 8 channels"
@@ -1469,11 +1463,11 @@ static void update_freq(void *arg, long period)
 
     tmp = (*machine_control->gantry_en << 31);
     if (tmp != machine_control->prev_gantry_ctrl) {
-        machine_control->prev_gantry_ctrl = tmp;
         if (*machine_control->machine_on)
         {   // only Lock/Release gantry brake after servo-on to prevent dropping
             immediate_data = tmp;
             write_machine_param(GANTRY_CTRL, (uint32_t) immediate_data);
+            machine_control->prev_gantry_ctrl = tmp;
         }
     }
     /* end: */
