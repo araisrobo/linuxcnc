@@ -576,7 +576,8 @@ typedef struct {
     int home_pause_timer;		/* used to delay between homing states */
     int index_enable;			/* current state of index enable pin */
 
-    home_state_t home_state;	/* state machine for homing */
+    home_state_t prev_home_state;       /* state machine for homing */
+    home_state_t home_state;	        /* state machine for homing */
     double      index_pos;     	 	/* motor index position in absolute motor pulse counts */
     double      motor_offset;		/* diff between internal and motor pos, used
 				   	   to set position to zero during homing */

@@ -620,6 +620,8 @@ static void fetchmail(const uint8_t *buf_head)
         break;
 
     case MT_RISC_CMD:
+        assert(0);  // MT_RISC_CMD is merged into MT_PROBED_POS
+                    // should no longer get into here
         p = (uint32_t *) (buf_head + 8);
         *machine_control->rcmd_state = *p;
         if (*p == RCMD_UPDATE_POS_REQ)
@@ -639,11 +641,24 @@ static void fetchmail(const uint8_t *buf_head)
         for (i=0; i<num_joints; i++) {
             p += 1;
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
-//            printf("joint[%d] probed_pos(%f)\n", i, *(stepgen->probed_pos));
             stepgen += 1;   // point to next joint
         }
         p += 1;
         *machine_control->trigger_result = ((uint8_t)*p);
+
+        p += 1;
+        *machine_control->rcmd_state = *p;
+        if (*p == RCMD_UPDATE_POS_REQ)
+        {
+            // SET update_pos_req here
+            // will RESET it after sending a RCMD_UPDATE_POS_ACK packet
+            *machine_control->update_pos_req = 1;
+            p += 1;
+            *machine_control->rcmd_seq_num_req = *p;
+        }
+        DP("update_pos_req(%d) rcmd_seq_num_req(%d) rcmd_state(%d)\n", *machine_control->update_pos_req, *machine_control->rcmd_seq_num_req, *machine_control->rcmd_state);
+
+
         break;
 
     default:

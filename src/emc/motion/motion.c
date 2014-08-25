@@ -755,6 +755,7 @@ static int init_comm_buffers(void)
         joint->home_flags = 0;
         joint->home_sequence = -1;
         joint->home_state = HOME_IDLE;
+        joint->prev_home_state = HOME_IDLE;
         joint->backlash = 0.0;
 
         joint->comp.entries = 0;

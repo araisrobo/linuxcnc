@@ -57,6 +57,37 @@ static emcmot_joint_t* master_gantry_joint = 0;
 static emcmot_joint_t* slave_gantry_joint = 0;
 static emcmot_joint_t* sync_gantry_joint = 0;       // synchronized gantry joint
 
+static const char * const home_state_names[] =
+{
+    "HOME_IDLE",
+    "HOME_START",                         // 1
+    "HOME_UNLOCK",                        // 2
+    "HOME_UNLOCK_WAIT",                   // 3
+    "HOME_INITIAL_BACKOFF_START",         // 4
+    "HOME_INITIAL_BACKOFF_WAIT",          // 5
+    "HOME_INITIAL_SEARCH_START",          // 6
+    "HOME_INITIAL_SEARCH_WAIT",           // 7
+    "HOME_SET_COARSE_POSITION",           // 8
+    "HOME_FINAL_BACKOFF_START",           // 9
+    "HOME_FINAL_BACKOFF_WAIT",            // 10
+    "HOME_RISE_SEARCH_START",             // 11
+    "HOME_RISE_SEARCH_WAIT",              // 12
+    "HOME_FALL_SEARCH_START",             // 13
+    "HOME_FALL_SEARCH_WAIT",              // 14
+    "HOME_SET_SWITCH_POSITION",           // 15
+    "HOME_INDEX_ONLY_START",              // 16
+    "HOME_INDEX_SEARCH_START",            // 17
+    "HOME_INDEX_SEARCH_WAIT",             // 18
+    "HOME_SET_INDEX_POSITION",            // 19
+    "HOME_FINAL_MOVE_START",              // 20
+    "HOME_FINAL_MOVE_WAIT",               // 21
+    "HOME_LOCK",                          // 22
+    "HOME_LOCK_WAIT",                     // 23
+    "HOME_WAIT",                          // 24
+    "HOME_FINISHED",                      // 25
+    "HOME_ABORT"                          // 26
+};
+
 /***********************************************************************
  *                      LOCAL FUNCTIONS                                 *
  ************************************************************************/
@@ -218,7 +249,8 @@ void do_homing(void)
     }
 
     /* loop thru joints, treat each one individually */
-    for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
+    for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++)
+    {
         /* point to joint struct */
         joint = &joints[joint_num];
         if (!GET_JOINT_ACTIVE_FLAG(joint)) {
@@ -235,6 +267,7 @@ void do_homing(void)
         /* homing state machine */
         do {
             immediate_state = 0;
+            joint->prev_home_state = joint->home_state;
             switch (joint->home_state) {
             case HOME_IDLE:
                 // update master and slave gantry joint pointers
@@ -298,9 +331,7 @@ void do_homing(void)
                     joint->home_state = HOME_UNLOCK;
                 } else {
                     joint->home_state = HOME_UNLOCK_WAIT;
-                    immediate_state = 1;
                 }
-
                 break;
 
             case HOME_UNLOCK:
@@ -347,7 +378,6 @@ void do_homing(void)
                             /* we aren't already on home switch */
                             joint->home_state = HOME_INITIAL_SEARCH_START;
                         }
-                        immediate_state = 1;
                     } else {
                         reportError(_("invalid homing config: non-zero SEARCH_VEL needs LATCH_VEL"));
                         joint->home_state = HOME_IDLE;
@@ -360,7 +390,7 @@ void do_homing(void)
 		   location where the home switch is already tripped. It
 		   starts a move away from the switch. */
                 /* set up a move at '-search_vel' to back off of switch */
-                home_start_move(joint, -joint->home_search_vel, RISC_PROBE_LOW);
+                home_start_move(joint, -joint->home_search_vel, RISC_PROBE_HIGH); /* artek: our home-switches are low-active */
                 if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
@@ -376,7 +406,7 @@ void do_homing(void)
 		   successfully.  If the move ends or hits a limit before it
 		   clears the switch, the home is aborted. */
                 emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
-                if ((home_sw_active == 0) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                if ((*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
                     /* begin initial search */
                     joint->home_state = HOME_INITIAL_SEARCH_START;
@@ -391,7 +421,7 @@ void do_homing(void)
 		   slower move will be used to set the exact home position. */
 
                 /* set up a move at 'search_vel' to find switch */
-                home_start_move(joint, joint->home_search_vel, RISC_PROBE_HIGH);
+                home_start_move(joint, joint->home_search_vel, RISC_PROBE_LOW); /* artek: our home-switches are low-active */
                 if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
@@ -409,7 +439,7 @@ void do_homing(void)
 
                 /* have we hit home switch yet? */
                 emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
-                if ((home_sw_active) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                if ((*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
                     /* go to next step */
                     joint->home_state = HOME_SET_COARSE_POSITION;
@@ -468,7 +498,7 @@ void do_homing(void)
 		   move that will back off of the switch in preparation for a
 		   final slow move that captures the exact switch location. */
                 /* set up a move at '-search_vel' to back off of switch */
-                home_start_move(joint, -joint->home_search_vel, RISC_PROBE_LOW);
+                home_start_move(joint, -joint->home_search_vel, RISC_PROBE_HIGH); /* artek: our home-switches are low-active */
                 if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {   /* stop issue risc-probe-command */
                     home_stop_move(joint);
@@ -485,7 +515,7 @@ void do_homing(void)
 		   the home is aborted. */
                 emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
                 /* are we off home switch yet? */
-                if ((home_sw_active == 0) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                if ((*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
                     /* begin final search */
                     joint->home_state = HOME_RISE_SEARCH_START;
@@ -499,7 +529,7 @@ void do_homing(void)
 		   'latch_vel' and looks for a rising edge on the switch */
 
                 /* set up a move at 'latch_vel' to locate the switch */
-                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_HIGH);
+                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_LOW); /* artek: our home-switches are low-active */
                 if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
@@ -516,7 +546,7 @@ void do_homing(void)
 		   or hits a limit before it hits the switch, the home is
 		   aborted. */
                 emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ);
-                if ((home_sw_active) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                if ((*emcmot_hal_data->rcmd_state == RCMD_IDLE))
                 {
                     /* stop issue risc-probe-command */
                     home_stop_move(joint);
@@ -542,7 +572,7 @@ void do_homing(void)
 		   'latch_vel' and looks for a falling edge on the switch */
 
                 /* set up a move at 'latch_vel' to locate the switch */
-                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_LOW);
+                home_start_move(joint, joint->home_latch_vel, RISC_PROBE_HIGH); /* artek: our home-switches are low-active */
                 if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
                     /* stop issue risc-probe-command */
@@ -559,7 +589,7 @@ void do_homing(void)
 		   hits a limit before it clears the switch, the home is
 		   aborted. */
                 emcmotStatus->update_pos_ack = (*emcmot_hal_data->rcmd_state != RCMD_IDLE);
-                if ((home_sw_active == 0) && (*emcmot_hal_data->rcmd_state == RCMD_IDLE))
+                if (*emcmot_hal_data->rcmd_state == RCMD_IDLE)
                 {
                     /* have we cleared the home switch yet? */
                     /* yes, where do we go next? */
@@ -874,16 +904,22 @@ void do_homing(void)
 
             }	/* end of switch(joint->home_state) */
         } while (immediate_state);
+
+        if (joint->home_state != joint->prev_home_state)
+        {
+            rtapi_print ("usb_homing: j[%d].home_state(%s) rcmd_state(%d)\n",
+                    joint_num,
+                    home_state_names[joint->home_state],
+                    *(emcmot_hal_data->rcmd_state));
+        }
+
     }	/* end of loop through all joints */
 
     if ( homing_flag ) {
         /* at least one joint is homing, set global flag */
         emcmotStatus->homing_active = 1;
-//        rtapi_print ("usb_homing:880, rcmd_state(%d) j0.hs(%d) j1.hs(%d) j2.hs(%d) j3.hs(%d) j4.hs(%d) j5.hs(%d)\n",
-//                *(emcmot_hal_data->rcmd_state),
-//                joints[0].home_state, joints[1].home_state,
-//                joints[2].home_state, joints[3].home_state,
-//                joints[4].home_state, joints[5].home_state);
+
+
 
     } else {
         /* is a homing sequence in progress? */
