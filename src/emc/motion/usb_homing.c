@@ -11,6 +11,8 @@
  * Copyright (c) 2004 All rights reserved.
  *
  ********************************************************************/
+#include "config.h"
+
 #ifdef RTAPI_SIM
 #include <stdio.h>
 #include <stdlib.h>
@@ -267,7 +269,7 @@ void do_homing(void)
                         if (slave_gantry_joint->home_state == HOME_FINAL_MOVE_START)
                         {
                             // slave_gantry_joint has finished its homing process
-                            // ("j[%d] Begin HOME_GANTRY_MASTER\n", joint_num);
+                            rtapi_print ("j[%d] Begin HOME_GANTRY_MASTER\n", joint_num);
                             // 做 MASTER JOINT HOMING 時，被同步的軸是 SLAVE
                             sync_gantry_joint = slave_gantry_joint;
                         } else
@@ -714,37 +716,35 @@ void do_homing(void)
 
                 emcmotStatus->update_pos_ack = 1; // to synchronize prev_pos_cmd with new pos_cmd
 
-//                 rtapi_print (
-//                          _("HOME_SET_INDEX_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
-//                          joint_num,
-//                          joint->home_offset,
-//                          offset,
-//                          joint->risc_pos_cmd,
-//                          joint->probed_pos,
-//                          joint->pos_cmd,
-//                          joint->pos_fb,
-//                          joint->free_tp.curr_pos,
-//                          joint->motor_offset);
-                // if (joint->home_flags & HOME_GANTRY_JOINT) {
-                //     if (joint == master_gantry_joint) {
-                //         rtapi_print ("DEBUG\n");
-                //         rtapi_print (
-                //                   _("SLAVE: HOME_SET_INDEX_POSITION: \nhome_offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
-                //                   slave_gantry_joint->home_offset,
-                //                   slave_gantry_joint->risc_pos_cmd,
-                //                   slave_gantry_joint->probed_pos,
-                //                   slave_gantry_joint->pos_cmd,
-                //                   slave_gantry_joint->pos_fb,
-                //                   slave_gantry_joint->free_tp.curr_pos,
-                //                   slave_gantry_joint->motor_offset);
-                //         assert(0);
-                //         // TODO: find a better way for gantry alignment tuning
-                //     }
+                // rtapi_print (
+                //          _("HOME_SET_INDEX_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+                //          joint_num,
+                //          joint->home_offset,
+                //          offset,
+                //          joint->risc_pos_cmd,
+                //          joint->probed_pos,
+                //          joint->pos_cmd,
+                //          joint->pos_fb,
+                //          joint->free_tp.curr_pos,
+                //          joint->motor_offset);
+                
+                // if (joint->home_flags & HOME_GANTRY_JOINT)
+                // {   // TODO: to calculate GANTRY joints offset
+                //     rtapi_print (
+                //             _("HOME_SET_INDEX_POSITION: \nj[%d] home_offset(%f) offset(%f) risc_pos_cmd(%f) \nprobed_pos(%f) pos_cmd(%f) pos_fb(%f) \ncurr_pos(%f) motor_offset(%f)\n"),
+                //             joint_num,
+                //             joint->home_offset,
+                //             offset,
+                //             joint->risc_pos_cmd,
+                //             joint->probed_pos,
+                //             joint->pos_cmd,
+                //             joint->pos_fb,
+                //             joint->free_tp.curr_pos,
+                //             joint->motor_offset);
                 // }
 
                 /* next state */
                 joint->home_state = HOME_FINAL_MOVE_START;
-//                immediate_state = 1;
                 break;
 
             case HOME_FINAL_MOVE_START:
@@ -760,13 +760,16 @@ void do_homing(void)
                     {
                         if (master_gantry_joint->home_state != HOME_FINAL_MOVE_WAIT)
                         {
-                            // wait until master_gantry_joint found its home switch
+//                            rtapi_print("wait until master_gantry_joint found its home switch\n");
                             break;
                         } else
                         {   // update new pos_cmd for SLAVE-GANTRY-JOINT
                             joint->pos_cmd = joint->risc_pos_cmd - joint->motor_offset;
                             joint->free_tp.curr_pos = joint->pos_cmd;
                             emcmotStatus->update_pos_ack = 1; // to synchronize prev_pos_cmd with new pos_cmd
+                            rtapi_print ("TODO: pause to calculate GANTRY joints offset\n");
+//                            assert(0);
+
                         }
                     }
                 }
@@ -876,7 +879,7 @@ void do_homing(void)
     if ( homing_flag ) {
         /* at least one joint is homing, set global flag */
         emcmotStatus->homing_active = 1;
-//        printf ("homing... rcmd_state(%d) j0.hs(%d) j1.hs(%d) j2.hs(%d) j3.hs(%d) j4.hs(%d) j5.hs(%d)\n",
+//        rtapi_print ("usb_homing:880, rcmd_state(%d) j0.hs(%d) j1.hs(%d) j2.hs(%d) j3.hs(%d) j4.hs(%d) j5.hs(%d)\n",
 //                *(emcmot_hal_data->rcmd_state),
 //                joints[0].home_state, joints[1].home_state,
 //                joints[2].home_state, joints[3].home_state,
