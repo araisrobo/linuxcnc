@@ -428,7 +428,7 @@ void emcmotController(void *arg, long period)
 static void process_inputs(void)
 {
     int joint_num;
-    double abs_ferror, tmp, scale;
+    double tmp, scale;
     joint_hal_t *joint_data;
     emcmot_joint_t *joint;
     unsigned char enables;
@@ -502,38 +502,8 @@ static void process_inputs(void)
         joint->risc_pos_cmd = *(joint_data->risc_pos_cmd);
         joint->blender_offset = *(joint_data->blender_offset);
 
-        /* calculate following error */
-        joint->ferror = joint->pos_cmd - joint->pos_fb;
-        abs_ferror = fabs(joint->ferror);
-        /* update maximum ferror if needed */
-        if (abs_ferror > joint->ferror_high_mark) {
-            joint->ferror_high_mark = abs_ferror;
-        }
-
-        /* calculate following error limit */
-        // TODO: port ferror limit to risc
-        // (curr_vel / max_vel) * max_ferror = current_ferror_limit
-        // if current_ferror_limit > min_ferror => issue ferror
-        if (joint->vel_limit > 0.0) {
-            joint->ferror_limit =
-                    joint->max_ferror * fabs(joint->vel_cmd) / joint->vel_limit;
-        } else {
-            joint->ferror_limit = 0;
-        }
-        if (joint->ferror_limit < joint->min_ferror) {
-            joint->ferror_limit = joint->min_ferror;
-        }
-        /* update following error flag */
-
-#ifndef MOTION_OVER_USB
-        if (abs_ferror > joint->ferror_limit) {
-            SET_JOINT_FERROR_FLAG(joint, 1);
-        } else {
-            SET_JOINT_FERROR_FLAG(joint, 0);
-        }
-#else
         SET_JOINT_FERROR_FLAG(joint, *(joint_data->usb_ferror_flag));
-#endif
+
         /* read limit switches */
         if ((joint->home_flags & HOME_IGNORE_LIMITS) &&
                 joint->home_state != HOME_IDLE) {
