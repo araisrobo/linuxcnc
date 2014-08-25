@@ -8,6 +8,7 @@
 *    
 * Copyright (c) 2012 All rights reserved.
 ********************************************************************/
+#include "config.h"
 
 #ifdef RTAPI_SIM
 #include <stdio.h>
