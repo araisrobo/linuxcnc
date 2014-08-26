@@ -224,8 +224,8 @@ int Interp::convert_nurbs(int mode, block_pointer block,	//!< pointer to a block
         }
         // P: NURBS curve order
         if (block->p_flag == ON) {
-            CHKS((!nurbs_control_points.empty()),
-                    ("Must specify NURBS curve order at 1st Control Point"));
+//            CHKS((!nurbs_control_points.empty()),
+//                    ("Must specify NURBS curve order at 1st Control Point"));
             nurbs_order = block->p_number;
 
         }
