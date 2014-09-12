@@ -98,48 +98,41 @@ FUNCTION(_)
 
     if (mpg_scale_sel(1))
     {   // 2'b1x -- x100 mode
-
-        if (mpg_joint_code == 5){
-            jog_vel_scale = jog_scale(0);
-            mpg_scale_x1 = 0;
-            mpg_scale_x10 = 0;
-            mpg_scale_x100 = 1;
-            jog_sel = 0; // disable RISC-JOG (velocity mode)
-        }
-        else{
-             jog_vel_scale = jog_scale(2);
-             mpg_scale_x1 = 0;
-        }
-    }
-    else
+        // enable RISC-JOG
+        jog_vel_scale = jog_scale(2);   // for RISC-JOGGING
+        // disable HOST-JOG
+        mpg_scale_x1 = 0;
+        mpg_scale_x10 = 0;
+        mpg_scale_x100 = 0;
+    } else
     {
         if (mpg_scale_sel(0))
         {   // 2'b01 -- x10 mode
-            if (mpg_joint_code == 5){
-            jog_vel_scale = jog_scale(0);
+            // enable RISC-JOG
+            jog_vel_scale = jog_scale(1);
+            // disable HOST-JOG
             mpg_scale_x1 = 0;
-            mpg_scale_x10 = 1;
+            mpg_scale_x10 = 0;
             mpg_scale_x100 = 0;
-            jog_sel = 0; // disable RISC-JOG (velocity mode)
-            }
-            else{
-                jog_vel_scale = jog_scale(1);
-                mpg_scale_x1 = 0;
-            }
         }
         else
         {   // 2'b00 -- x1 mode -- accurate positioning mode
+            jog_sel = 0; // disable RISC-JOG (velocity mode)
             jog_vel_scale = jog_scale(0);
+            // enable HOST-JOG
             mpg_scale_x1 = 1;
             mpg_scale_x10 = 0;
             mpg_scale_x100 = 0;
-            jog_sel = 0; // disable RISC-JOG (velocity mode)
         }
     }
 
     // workaround for joint_5 (S)
-    if (mpg_joint_code == 5) {
+    if (mpg_joint_code == 5){
         // S can only accept jog_scale(0) for x10 and x100 modes
         jog_vel_scale = jog_scale(0);
+        mpg_scale_x1 = 1;
+        mpg_scale_x10 = 0;
+        mpg_scale_x100 = 0;
+        jog_sel = 0; // disable RISC-JOG (velocity mode)
     }
 }

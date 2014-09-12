@@ -10,10 +10,20 @@
  *
  * Last change:
  ********************************************************************/
+#include "config.h"
 
-#ifndef RTAPI
-#error This is a realtime component only!
-#endif
+#ifndef RTAPI_SIM
+#error "this module for user space simulator only"
+#else
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
@@ -22,16 +32,8 @@
 #include <math.h>
 #include <string.h>
 #include <float.h>
-#include <assert.h>
-#include <stdio.h>
 #include "rtapi_math.h"
 #include "motion.h"
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-#include <unistd.h>
 
 #include <wou.h>
 #include <wb_regs.h>
@@ -68,7 +70,6 @@ static FILE *mbox_fp;
 static FILE *debug_fp;
 #endif
 
-#undef  DEBUG
 
 /* module information */
 MODULE_AUTHOR("Yishin Li");
@@ -83,7 +84,7 @@ RTAPI_MP_ARRAY_STRING(pulse_type, MAX_CHAN,
 const char *enc_type[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
 RTAPI_MP_ARRAY_STRING(enc_type, MAX_CHAN,
-        "encoder type (REAL(r) or LOOP-BACK(l)) for up to 8 channels");
+        "encoder type (AB-PHASE(A) or STEP-DIR(S) or LOOP-BACK(l)) for up to 8 channels");
 
 // enc_pol: encoder polarity, default to POSITIVE(p)
 const char *enc_pol[MAX_CHAN] =
@@ -213,17 +214,13 @@ const char *pattern_type_str ="NO_TEST"; // ANALOG_0: analog input0
 RTAPI_MP_STRING(pattern_type_str,
         "indicate test pattern type");
 
-// int alr_output = 0x00000000;
-// RTAPI_MP_INT(alr_output, "Digital Output when E-Stop presents");
-const char *alr_output= "0";
-RTAPI_MP_STRING(alr_output,
-        "Digital Output when E-Stop presents");
+const char *alr_output_0= "0";
+RTAPI_MP_STRING(alr_output_0, "DOUT[31:0] while E-Stop is pressed");
+const char *alr_output_1= "0";
+RTAPI_MP_STRING(alr_output_1, "DOUT[63:32] while E-Stop is pressed");
 
 int gantry_polarity = 0;
 RTAPI_MP_INT(gantry_polarity, "gantry polarity");
-
-int gantry_brake_gpio = -1;
-RTAPI_MP_INT(gantry_brake_gpio, "gantry brake_gpio");
 
 static int test_pattern_type = 0;  // use dbg_pat_str to update dbg_pat_type
 
@@ -246,16 +243,14 @@ typedef struct {
     // hal_pin_*_newf: variable has to be pointer
     // hal_param_*_newf: varaiable not necessary to be pointer
     int64_t     rawcount;       /* precision: 64.16; accumulated pulse sent to FPGA */
-    hal_s32_t   *rawcount32;	/* 32-bit integer part of rawcount */
+    hal_s32_t   *rawcount32;    /* 32-bit integer part of rawcount */
     hal_bit_t   prev_enable;
     uint32_t    son_delay;      /* eanble delay tick for svo-on of ac-servo drivers */
-    hal_bit_t   *enable;		/* pin for enable stepgen */
-    hal_u32_t   step_len;		/* parameter: step pulse length */
+    hal_bit_t   *enable;        /* pin for enable stepgen */
+    hal_u32_t   step_len;       /* parameter: step pulse length */
     char        pulse_type;     /* A(AB-PHASE), S(STEP-DIR), P(PWM) */
-    hal_s32_t *pulse_pos;	/* pin: pulse_pos to servo drive, captured from FPGA */
-    hal_s32_t *enc_pos;		/* pin: encoder position from servo drive, captured from FPGA */
-//    hal_float_t *rpm;	        /* pin: velocity command (pos units/sec) */
-//    hal_float_t pulse_per_rev;	/* param: number of pulse per revolution */
+    hal_s32_t   *pulse_pos;     /* pin: pulse_pos to servo drive, captured from FPGA */
+    hal_s32_t   *enc_pos;       /* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t pos_scale;	/* param: steps per position unit */
     double scale_recip;		/* reciprocal value used for scaling */
@@ -307,7 +302,8 @@ typedef struct {
 typedef struct {
     // Analog input: 0~4.096VDC, up to 16 channel
     hal_s32_t *in[16];
-    // TODO: may add *out[] here
+    hal_s32_t *out[4];
+    hal_s32_t prev_out[4];
 } analog_t;
 
 // machine_control_t:
@@ -345,8 +341,8 @@ typedef struct {
     hal_u32_t   *crc_error_counter;
 
     /* sync output pins (output from motmod) */
-    hal_bit_t *out[32];
-    uint32_t prev_out;		//ON or OFF
+    hal_bit_t   *out[32];
+    uint32_t    prev_out;		//ON or OFF
 
     uint32_t     prev_ahc_state;
     hal_bit_t    *ahc_state;     // 0: disable 1:enable
@@ -381,14 +377,13 @@ typedef struct {
     hal_u32_t   *rcmd_state;
 
     hal_u32_t   *max_tick_time;
-    hal_bit_t   *probe_result;
     hal_bit_t   *machine_moving;
     hal_bit_t   *ahc_doing;
+    hal_bit_t 	*rtp_running; // risc/remote tp running
 
     hal_u32_t   *spindle_joint_id;
 
     hal_bit_t   *gantry_en;
-    hal_bit_t   *gantry_lock;
     uint32_t    gantry_ctrl;
     uint32_t    prev_gantry_ctrl;
 
@@ -397,14 +392,18 @@ typedef struct {
     hal_u32_t    *trigger_type;
     hal_bit_t    *trigger_cond;
     hal_u32_t    *trigger_level;
-    hal_bit_t   *trigger_enable;     // 0: disable 1:enable
-    hal_bit_t   *probing;
-    hal_bit_t   *trigger_result;     // 0: disable 1:enable
+    hal_bit_t  	 *probing;
+    hal_bit_t  	 *trigger_result;     // 0: disable 1:enable
 
-    hal_bit_t     prev_trigger_enable;
     hal_bit_t     prev_probing;
-//    hal_float_t  *ahc_level;
-    double      prev_trigger_level;
+    double    	  prev_trigger_level;
+
+    hal_bit_t    *pso_req;
+    hal_u32_t    *pso_ticks;
+    hal_u32_t    *pso_mode;
+    hal_u32_t    *pso_joint;
+    hal_float_t  *pso_pos;
+
 } machine_control_t;
 
 /* ptr to array of stepgen_t structs in shared memory, 1 per channel */
@@ -564,8 +563,8 @@ static void fetchmail(const uint8_t *buf_head)
             *stepgen->ferror_flag = machine_status & (1 << i);
             stepgen += 1;   // point to next joint
         }
-        *machine_control->probe_result = (machine_status >> PROBE_RESULT_BIT) & 1;
         *machine_control->ahc_doing = (machine_status >> AHC_DOING_BIT) & 1;
+        *machine_control->rtp_running = (machine_status >> TP_RUNNING_BIT) & 1;
 
         p += 1;
         *(machine_control->max_tick_time) = *p;
@@ -621,6 +620,8 @@ static void fetchmail(const uint8_t *buf_head)
         break;
 
     case MT_RISC_CMD:
+        assert(0);  // MT_RISC_CMD is merged into MT_PROBED_POS
+                    // should no longer get into here
         p = (uint32_t *) (buf_head + 8);
         *machine_control->rcmd_state = *p;
         if (*p == RCMD_UPDATE_POS_REQ)
@@ -640,11 +641,24 @@ static void fetchmail(const uint8_t *buf_head)
         for (i=0; i<num_joints; i++) {
             p += 1;
             *(stepgen->probed_pos) = (double) ((int32_t)*p) * (stepgen->scale_recip);
-//            printf("joint[%d] probed_pos(%f)\n", i, *(stepgen->probed_pos));
             stepgen += 1;   // point to next joint
         }
         p += 1;
         *machine_control->trigger_result = ((uint8_t)*p);
+
+        p += 1;
+        *machine_control->rcmd_state = *p;
+        if (*p == RCMD_UPDATE_POS_REQ)
+        {
+            // SET update_pos_req here
+            // will RESET it after sending a RCMD_UPDATE_POS_ACK packet
+            *machine_control->update_pos_req = 1;
+            p += 1;
+            *machine_control->rcmd_seq_num_req = *p;
+        }
+        DP("update_pos_req(%d) rcmd_seq_num_req(%d) rcmd_state(%d)\n", *machine_control->update_pos_req, *machine_control->rcmd_seq_num_req, *machine_control->rcmd_state);
+
+
         break;
 
     default:
@@ -693,8 +707,8 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
 
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&sync_cmd);
     while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
-    DP ("end of send_sync_cmd\n");
 
+    DP ("end of send_sync_cmd\n");
     return;
 }
 
@@ -735,6 +749,9 @@ int rtapi_app_main(void)
     double max_jerk;
     int msg;
     int lsp, lsn, alr;
+    uint16_t sync_cmd;
+    uint32_t dac_ctrl_reg;
+
     msg = rtapi_get_msg_level();
     // rtapi_set_msg_level(RTAPI_MSG_ALL);
     // rtapi_set_msg_level(RTAPI_MSG_INFO);
@@ -825,8 +842,10 @@ int rtapi_app_main(void)
     while(wou_flush(&w_param) == -1);
 
     // "pulse type (AB-PHASE(a) or STEP-DIR(s) or PWM-DIR(p)) for up to 8 channels")
-    data[0] = 0;
-    data[1] = 0;
+    data[0] = 0; // SSIF_PULSE_TYPE j3 ~ j0
+    data[1] = 0; // SSIF_PULSE_TYPE J5 ~ j4
+    immediate_data = 0; // reset SSIF_MODE of all joints to POSITION-MODE(0)
+
     num_joints = 0;
     for (n = 0; n < MAX_CHAN && (pulse_type[n][0] != ' ') ; n++) {
         if (toupper(pulse_type[n][0]) == 'A') {
@@ -840,6 +859,7 @@ int rtapi_app_main(void)
             }
         } else if (toupper(pulse_type[n][0]) == 'P') {
             // PULSE_TYPE(1): pwm-dir
+            immediate_data |= (1 << n); // joint[n]: set SSIF_MODE as PWM-MODE
             if (n < 4) {
                 data[0] |= (3 << (n * 2));
             } else {
@@ -857,6 +877,10 @@ int rtapi_app_main(void)
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_PULSE_TYPE),
                 (uint8_t) 2, data);
+
+        write_machine_param(SSIF_MODE, immediate_data);
+        printf("SSIF_MODE: 0x%08X\n", immediate_data);
+
         rtapi_print_msg(RTAPI_MSG_INFO,
                 "STEPGEN: PULSE_TYPE[J3:J0]: 0x%02X\n", data[0]);
         rtapi_print_msg(RTAPI_MSG_INFO,
@@ -871,13 +895,24 @@ int rtapi_app_main(void)
     data[0] = 0;
     for (n = 0; n < MAX_CHAN && (enc_type[n][0] != ' ') ; n++) {
         if ((enc_type[n][0] == 'l') || (enc_type[n][0] == 'L')) {
-            // ENC_TYPE(0): fake ENCODER counts (loop PULSE_CMD to ENCODER)
-        } else if ((enc_type[n][0] == 'r') || (enc_type[n][0] == 'R')) {
-            // ENC_TYPE(1): real ENCODER counts
-            data[0] |= (1 << n);
+            // ENC_TYPE(00): fake ENCODER counts (loop PULSE_CMD to ENCODER)
+        } else if ((enc_type[n][0] == 'a') || (enc_type[n][0] == 'A')) {
+            // ENC_TYPE(10): real ENCODER counts, AB-Phase
+            if (n < 4) {
+                data[0] |= (2 << (n * 2));
+            } else {
+                data[1] |= (2 << ((n - 4) * 2));
+            }
+        } else if ((enc_type[n][0] == 's') || (enc_type[n][0] == 'S')) {
+            // ENC_TYPE(11): real ENCODER counts, STEP-DIR
+            if (n < 4) {
+                data[0] |= (3 << (n * 2));
+            } else {
+                data[1] |= (3 << ((n - 4) * 2));
+            }
         } else {
             rtapi_print_msg(RTAPI_MSG_ERR,
-                    "STEPGEN: ERROR: bad enc_type '%s' for joint %i (must be 'r' or 'l')\n",
+                    "STEPGEN: ERROR: bad enc_type '%s' for joint %i (must be 'a', 's', or 'l')\n",
                     enc_type[n], n);
             return -1;
         }
@@ -885,9 +920,11 @@ int rtapi_app_main(void)
     if(n > 0) {
         wou_cmd (&w_param, WB_WR_CMD,
                 (uint16_t) (SSIF_BASE | SSIF_ENC_TYPE),
-                (uint8_t) 1, data);
+                (uint8_t) 2, data);
         rtapi_print_msg(RTAPI_MSG_INFO,
-                "STEPGEN: ENC_TYPE: 0x%02X\n", data[0]);
+                "STEPGEN: ENC_TYPE[J3:J0]: 0x%02X\n", data[0]);
+        rtapi_print_msg(RTAPI_MSG_INFO,
+                "STEPGEN: ENC_TYPE[J7:J4]: 0x%02X\n", data[1]);
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR,
                 "WOU: ERROR: no enc_type defined\n");
@@ -915,17 +952,11 @@ int rtapi_app_main(void)
 
     // "set LSP_ID/LSN_ID for up to 8 channels"
     for (n = 0; n < MAX_CHAN && (lsp_id[n][0] != ' ') ; n++) {
-        pos_scale = atof(pos_scale_str[n]);
         lsp = atoi(lsp_id[n]);
         lsn = atoi(lsn_id[n]);
-        if(pos_scale >= 0) {
-            immediate_data = (n << 16) | (lsp << 8) | (lsn);
-        } else {
-            immediate_data = (n << 16) | (lsn << 8) | (lsp);
-        }
+        immediate_data = (n << 16) | (lsp << 8) | (lsn);
         write_machine_param(JOINT_LSP_LSN, immediate_data);
         while(wou_flush(&w_param) == -1);
-
     }
 
     // "set ALR_ID for up to 8 channels"
@@ -942,9 +973,20 @@ int rtapi_app_main(void)
     while(wou_flush(&w_param) == -1);
 
     // configure alarm output (for E-Stop)
-    write_machine_param(ALR_OUTPUT, (uint32_t) strtoul(alr_output, NULL, 16));
-    fprintf(stderr, "ALR_OUTPUT(%08X)",(uint32_t) strtoul(alr_output, NULL, 16));
+    write_machine_param(ALR_OUTPUT_0, (uint32_t) strtoul(alr_output_0, NULL, 16));
     while(wou_flush(&w_param) == -1);
+    fprintf(stderr, "ALR_OUTPUT_0(%08X)",(uint32_t) strtoul(alr_output_0, NULL, 16));
+
+    write_machine_param(ALR_OUTPUT_1, (uint32_t) strtoul(alr_output_1, NULL, 16));
+    while(wou_flush(&w_param) == -1);
+    fprintf(stderr, "ALR_OUTPUT_1(%08X)",(uint32_t) strtoul(alr_output_1, NULL, 16));
+
+    for (i = 0; i < 4; i++) {
+        sync_cmd = SYNC_DAC | (i << 8) | (0x55);    /* DAC, ID:i, ADDR: 0x55(Control Register) */
+        printf ("TODO: write DAC_CTRL_REG through config/ini\n");
+        dac_ctrl_reg = 0x1001;
+        send_sync_cmd (sync_cmd, &dac_ctrl_reg, 1);
+    }
 
     // config auto height control behavior
     immediate_data = atoi(ahc_ch_str);
@@ -1434,14 +1476,13 @@ static void update_freq(void *arg, long period)
         write_machine_param(MACHINE_CTRL, (uint32_t) immediate_data);
     }
 
-    tmp = (*machine_control->gantry_en << 31)
-          | (*machine_control->gantry_lock << 30);
+    tmp = (*machine_control->gantry_en << 31);
     if (tmp != machine_control->prev_gantry_ctrl) {
-        machine_control->prev_gantry_ctrl = tmp;
         if (*machine_control->machine_on)
         {   // only Lock/Release gantry brake after servo-on to prevent dropping
-            immediate_data = tmp | (gantry_brake_gpio & GCTRL_BRAKE_GPIO_MASK);
+            immediate_data = tmp;
             write_machine_param(GANTRY_CTRL, (uint32_t) immediate_data);
+            machine_control->prev_gantry_ctrl = tmp;
         }
     }
     /* end: */
@@ -1528,6 +1569,17 @@ static void update_freq(void *arg, long period)
     machine_control->prev_out = sync_out_data;
     /* end: process motion synchronized output */
 
+    /* DAC: fixed as 4 dac channels */
+    for (i = 0; i < 4; i++) {
+        if(analog->prev_out[i] != *(analog->out[i]))
+        {
+            analog->prev_out[i] = *(analog->out[i]);
+            sync_cmd = SYNC_DAC | (i << 8) | (0x01);    /* DAC, ID:i, ADDR: 0x01 */
+            send_sync_cmd (sync_cmd, (uint32_t *)analog->out[i], 1);
+            // printf("analog->out[%d]\n", *(analog->out[i]));
+        }
+    }
+
     /* point at stepgen data */
     stepgen = arg;
 
@@ -1546,6 +1598,26 @@ static void update_freq(void *arg, long period)
         machine_control->prev_out =  *machine_control->dout0;
     }
 
+    if((*machine_control->pso_req == 1))
+    {	// PSO
+    	uint32_t dbuf[3];
+    	double delta_pos;
+    	dbuf[0] = RCMD_PSO;
+    	delta_pos = *machine_control->pso_pos - stepgen[*machine_control->pso_joint].prev_pos_cmd; // delta PSO position, unit: pulse
+    	dbuf[1] = (int32_t)(delta_pos * (stepgen[*machine_control->pso_joint].pos_scale));
+    	dbuf[2] = ((*machine_control->pso_ticks & 0xFFFF) << 16) |	 // dbuf[2][31:16]
+    			(0x1 << 15) | 			 							 // force pso_en to 1
+    			((*machine_control->pso_mode & 0x3 ) << 12) |		 // dbuf[2][15:12]
+    			((*machine_control->pso_joint & 0xF ) << 8);		 // dbuf[2][11: 8]
+    	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 3);
+//    	printf("wou_stepgen.c: pso_req(%d) pso_ticks(%d) pso_mode(%d) pso_joint(%d) \n",
+//    			*machine_control->pso_req, *machine_control->pso_ticks,
+//    			*machine_control->pso_mode, *machine_control->pso_joint);
+//    	printf("wou_stepgen.c: pso_pos(%f) dbuf1[%d] delta_pos(%f) prev_pos(%f) pos_cmd(%f)\n",
+//    			*machine_control->pso_pos, dbuf[1], delta_pos,
+//    			stepgen[*machine_control->pso_joint].prev_pos_cmd,
+//    			*stepgen[*machine_control->pso_joint].pos_cmd);
+    }
     i = 0;
     stepgen = arg;
     for (n = 0; n < num_joints; n++) {
@@ -1710,7 +1782,7 @@ static void update_freq(void *arg, long period)
         {
             // do RISC_PROBE
             uint32_t dbuf[4];
-            dbuf[0] = RCMD_PROBE_REQ;
+            dbuf[0] = RCMD_RISC_PROBE;
             dbuf[1] = n |   // joint_num
                         (*stepgen->risc_probe_type << 8) |
                         (*stepgen->risc_probe_pin << 16);
@@ -1723,15 +1795,12 @@ static void update_freq(void *arg, long period)
             DP ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
-//        if((*machine_control->trigger_enable != machine_control->prev_trigger_enable) &&
-//           (*machine_control->rcmd_state == RCMD_IDLE))
+
         if((*machine_control->probing != machine_control->prev_probing))
-//        		&&
-//                   (*machine_control->rcmd_state == RCMD_IDLE))
         {
-            // do GMCODE_PROBE
+            // HOST_PROBING G38.X
             uint32_t dbuf[4];
-            dbuf[0] = RCMD_GMCODE_PROBE;
+            dbuf[0] = RCMD_HOST_PROBE;
             dbuf[1] = (*machine_control->trigger_level & 0x3FFF) |
                         ((*machine_control->trigger_din & 0xFF) << 14) |
                         ((*machine_control->trigger_ain & 0x3F) << 22) |
@@ -1739,10 +1808,10 @@ static void update_freq(void *arg, long period)
                         ((*machine_control->trigger_cond & 0x1) << 30) |
                         ((*machine_control->probing & 0x1) << 31);
                             // distance in pulse
-//            printf("level(%d) din(%d) ain(%d)\n type(%d) cond(%d) enable(%d)",
+//            printf("level(%d) din(%d) ain(%d)\n type(%d) cond(%d) probing(%d)\n",
 //            		*machine_control->trigger_level, *machine_control->trigger_din,
 //            		*machine_control->trigger_ain, *machine_control->trigger_type,
-//            		*machine_control->trigger_cond, *machine_control->trigger_enable);
+//            		*machine_control->trigger_cond, *machine_control->probing);
             send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
             machine_control->prev_probing = *machine_control->probing;
         }
@@ -1751,7 +1820,7 @@ static void update_freq(void *arg, long period)
         // first sanity-check our maxaccel and maxvel params
         //
 
-        if (stepgen->pulse_type != 'P') {
+//        if (stepgen->pulse_type != 'P') {
             /* pulse_type is either A(AB-PHASE) or S(STEP-DIR) */
             int32_t pulse_accel;
             int32_t pulse_jerk;
@@ -1791,22 +1860,24 @@ static void update_freq(void *arg, long period)
             stepgen->pulse_vel = integer_pos_cmd;
             stepgen->pulse_accel = pulse_accel;
             stepgen->pulse_jerk = pulse_jerk;
-        } else
-        {
-            /* pulse_type is P(PWM) */
-            /* pos_cmd is PWM duty ratio, +/- 0~100 */
-            integer_pos_cmd = (int32_t)((*stepgen->pos_cmd * (stepgen->pos_scale)) * FIXED_POINT_SCALE); // 16.16 precision
-            if (abs(integer_pos_cmd) > ((int32_t) stepgen->maxvel))
-            {
-                if (integer_pos_cmd > 0)
-                {
-                    integer_pos_cmd = (int32_t) stepgen->maxvel;
-                } else
-                {
-                    integer_pos_cmd = (int32_t) -stepgen->maxvel;
-                }
-            }
-        }
+//        }
+
+//        else
+//        {
+//            /* pulse_type is P(PWM) */
+//            /* pos_cmd is PWM duty ratio, +/- 0~100 */
+//            integer_pos_cmd = (int32_t)((*stepgen->pos_cmd * (stepgen->pos_scale)) * FIXED_POINT_SCALE); // 16.16 precision
+//            if (abs(integer_pos_cmd) > ((int32_t) stepgen->maxvel))
+//            {
+//                if (integer_pos_cmd > 0)
+//                {
+//                    integer_pos_cmd = (int32_t) stepgen->maxvel;
+//                } else
+//                {
+//                    integer_pos_cmd = (int32_t) -stepgen->maxvel;
+//                }
+//            }
+//        }
 
         {
             /* extract integer part of command */
@@ -1903,6 +1974,17 @@ static int export_analog(analog_t * addr)
             return retval;
         }
         *(addr->in[i]) = 0;
+    }
+
+    // export Analog OUT
+    for (i = 0; i < 4; i++) {
+        retval = hal_pin_s32_newf(HAL_IN, &(addr->out[i]), comp_id,
+                "wou.analog.out.%02d", i);
+        if (retval != 0) {
+            return retval;
+        }
+        *(addr->out[i]) = 0;
+        addr->prev_out[i] = 0;
     }
 
     /* restore saved message level */
@@ -2162,10 +2244,6 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->gantry_en) = 0;
 
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->gantry_lock), comp_id, "wou.gantry-lock");
-    if (retval != 0) { return retval; }
-    *(machine_control->gantry_lock) = 0;
-
     // rt_abort: realtime abort command to FPGA
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->rt_abort), comp_id, "wou.rt.abort");
     if (retval != 0) { return retval; }
@@ -2367,10 +2445,6 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
-    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->probe_result), comp_id, "wou.motion.probe-result");
-    if (retval != 0) { return retval; }
-    *(machine_control->probe_result) = 0;
-
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->machine_moving), comp_id, "wou.motion.machine-is-moving");
     if (retval != 0) { return retval; }
     *(machine_control->machine_moving) = 0;
@@ -2378,6 +2452,10 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->ahc_doing), comp_id, "wou.ahc.doing");
     if (retval != 0) { return retval; }
     *(machine_control->ahc_doing) = 0;
+
+    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->rtp_running), comp_id, "wou.motion.rtp-running");
+	if (retval != 0) { return retval; }
+	*(machine_control->rtp_running) = 0;
 
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->spindle_joint_id), comp_id, "wou.motion.spindle-joint-id");
     if (retval != 0) { return retval; }
@@ -2403,11 +2481,6 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->trigger_level) = 0;
 
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->trigger_enable), comp_id, "wou.trigger.enable");
-    if (retval != 0) { return retval; }
-    *(machine_control->trigger_enable) = 0;
-    (machine_control->prev_trigger_enable) = 0;
-
     retval = hal_pin_bit_newf(HAL_IN, &(machine_control->probing), comp_id, "wou.motion.probing");
     if (retval != 0) { return retval; }
     *(machine_control->probing) = 0;
@@ -2418,9 +2491,30 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
 
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->pso_req), comp_id, "wou.motion.pso_req");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_req) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->pso_ticks), comp_id, "wou.motion.pso_ticks");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_ticks) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->pso_mode), comp_id, "wou.motion.pso_mode");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_mode) = 0;
+
+    retval = hal_pin_u32_newf(HAL_IN, &(machine_control->pso_joint), comp_id, "wou.motion.pso_joint");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_joint) = 0;
+
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->pso_pos), comp_id, "wou.motion.pso_pos");
+    if (retval != 0) { return retval; }
+    *(machine_control->pso_pos) = 0;
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
 }
+
+#endif	// RTAPI_SIM
 
 // vim:sw=4:sts=4:et:

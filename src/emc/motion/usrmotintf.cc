@@ -116,6 +116,13 @@ int usrmotWriteEmcmotCommand(emcmot_command_t * c)
     return EMCMOT_COMM_ERROR_TIMEOUT;
 }
 
+//int usrmotUpdateG5xOffset(EmcPose g5x_offset)
+//{
+//    emcmotStatus->g5x_offset = g5x_offset;
+//    printf("usrmotiontf.cc: usrmotUpdateG5xOffset\n");
+//	 return EMCMOT_COMM_OK;
+//}
+
 /* copies status to s */
 int usrmotReadEmcmotStatus(emcmot_status_t * s)
 {

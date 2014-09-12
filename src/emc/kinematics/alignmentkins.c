@@ -60,15 +60,15 @@ void cord_change_handler(EmcPose * pos, double  * joints) {
         Y_OFFSET != PREV_Y_OFFSET ||
         X_CENT   != PREV_X_CENT   ||
         Y_CENT   != PREV_Y_CENT) {
-        fprintf(stderr, "THETA(%f)\n", THETA);
-        fprintf(stderr, "x-cent(%f) y-cent(%f) x-offset(%f) y-offset(%f)\n", X_CENT, Y_CENT, X_OFFSET, Y_OFFSET);
-        fprintf(stderr, "1:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
+        DP("THETA(%f)\n", THETA);
+        DP("x-cent(%f) y-cent(%f) x-offset(%f) y-offset(%f)\n", X_CENT, Y_CENT, X_OFFSET, Y_OFFSET);
+        DP("1:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
                         joints[0], joints[1]);
         pos->tran.x  = (joints[0] - X_CENT - X_OFFSET) * cos(THETA) +
                        (joints[1] - Y_CENT - Y_OFFSET) * sin(THETA) + X_OFFSET + X_CENT;
         pos->tran.y  = -(joints[0] - X_CENT - X_OFFSET)* sin(THETA) +
                         (joints[1] - Y_CENT - Y_OFFSET) * cos(THETA) + Y_OFFSET + Y_CENT;
-        fprintf(stderr, "2:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
+        DP("2:x(%f) y(%f) \nj0(%f) j1(%f)\n", pos->tran.x, pos->tran.y,
                 joints[0], joints[1]);
         PREV_THETA    = THETA;
         PREV_X_OFFSET = X_OFFSET; 

@@ -226,9 +226,9 @@ int main(int argc, char **argv)
     data = fifo->data;
     while ( samples != 0 ) {
 	while ( fifo->in == fifo->out ) {
-            /* fifo empty, sleep for 10mS */
+            /* fifo empty, sleep for 1mS */
 	    delay.tv_sec = 0;
-	    delay.tv_nsec = 10000000;
+	    delay.tv_nsec = 1000000;
 	    nanosleep(&delay,NULL);
 	}
 	/* make pointer to fifo entry */

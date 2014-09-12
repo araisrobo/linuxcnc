@@ -71,6 +71,7 @@ to another.
 #ifndef MOTION_H
 #define MOTION_H
 
+#include "config.h"
 #include "posemath.h"		/* PmCartesian, PmPose, pmCartMag() */
 #include "emcpos.h"		/* EmcPose */
 #include "cubic.h"		/* CUBIC_STRUCT, CUBIC_COEFF */
@@ -80,6 +81,12 @@ to another.
 #include "nurbs.h"
 #include "rtapi_limits.h"
 #include <stdarg.h>
+
+#ifdef RTAPI_SIM
+#include <stdint.h>
+#else
+#define uint32_t __u32
+#endif
 
 
 // define a special value to denote an invalid motion ID 
@@ -148,8 +155,10 @@ typedef enum {
     EMCMOT_SET_TERM_COND,	/* set termination condition (stop, blend) */
     EMCMOT_SET_NUM_JOINTS,	/* set the number of joints */
     EMCMOT_SET_WORLD_HOME,	/* set pose for world home */
+    EMCMOT_SET_G5X_OFFSET,	/* set G5X_OFFSET */
 
     EMCMOT_SET_DEBUG,       /* sets the debug level */
+    EMCMOT_SET_PSO,        /* sets or unsets a PSO, this can be imediate or synched with motion */
     EMCMOT_SET_DOUT,        /* sets or unsets a DIO, this can be imediate or synched with motion */
     EMCMOT_SET_AOUT,	/* sets or unsets a AIO, this can be imediate or synched with motion */
     EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
@@ -272,6 +281,16 @@ typedef struct emcmot_command_t {
     unsigned char tail;	/* flag count for mutex detect */
     int wait_type;          /* wait type for sync_in command */
     int ssm_mode;           /* spindle sync motion mode: G33(0) /rigid_tap G33.1(1) */
+
+    int pso_enable;	/*set pso_enable: enable->1 disable->0 */
+    int pso_mode;       /*(0) switch pso OFF
+                         * (1) switch pso ON
+                         * (2) switch pso OFF for pso_ticks(x20ns); then ON
+                         * (3) switch pso ON  for pso_ticks(x20ns); then OFF
+                         */
+    double pso_pitch;	/*pso_pitch*/
+    int pso_tick;	/*pso_tick*/
+
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -557,7 +576,8 @@ typedef struct {
     int home_pause_timer;		/* used to delay between homing states */
     int index_enable;			/* current state of index enable pin */
 
-    home_state_t home_state;	/* state machine for homing */
+    home_state_t prev_home_state;       /* state machine for homing */
+    home_state_t home_state;	        /* state machine for homing */
     double      index_pos;     	 	/* motor index position in absolute motor pulse counts */
     double      motor_offset;		/* diff between internal and motor pos, used
 				   	   to set position to zero during homing */
@@ -690,6 +710,7 @@ typedef struct emcmot_status_t {
     EmcPose carte_pos_fb;	/* actual Cartesian position */
     int carte_pos_fb_ok;	/* non-zero if feedback is valid */
     EmcPose world_home;	/* cartesean coords of home position */
+    EmcPose g5x_offset;	/* offset position for G54, G55, G56 ... */
     int homing_active;	/* non-zero if any joint is homing */
     home_sequence_state_t homingSequenceState;
     emcmot_joint_status_t joint_status[EMCMOT_MAX_JOINTS];	/* all joint status data */
@@ -751,7 +772,13 @@ typedef struct emcmot_status_t {
     int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
 // moved to spindle_status:   int spindle_is_atspeed; /* hal input */
     unsigned char tail;	/* flag count for mutex detect */
-
+    int pso_enable;
+    int pso_req;
+    int pso_joint;
+    int pso_mode;
+    int pso_tick;
+    EmcPose pso_pos;
+    double jpso_pos;		// ack one joint psoition which have velocity
 } emcmot_status_t;
 
 /*********************************

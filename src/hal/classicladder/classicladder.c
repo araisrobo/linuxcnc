@@ -43,8 +43,7 @@
 #include "manager.h"
 #include "calc_sequential.h"
 #include "files_sequential.h"
-#include "config.h"
-// #include "hardware.h"
+#include "read_config.h"
 #include "socket_server.h"
 #include "socket_modbus_master.h"
 

@@ -411,7 +411,7 @@ endif
 ifeq ($(BUILD_SYS),kbuild)
 
 modules:
-	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 modules
+	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=1 modules
 	-cp Module.symvers *$(MODULE_EXT) ../rtlib/
 endif
 
@@ -669,7 +669,7 @@ EXTRA_CFLAGS = $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I
 	-I$(BASEPWD)/libnml/os_intf -I$(BASEPWD)/libnml/nml -I$(BASEPWD)/libnml/buffer \
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
 	-I$(BASEPWD)/emc/nml_intf -I$(BASEPWD)/emc/kinematics -I$(BASEPWD)/emc/motion \
-        -DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
+	-DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
 	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations 
 	#not for sim: $(call cc-option,-Wframe-larger-than=2560)
 
@@ -683,8 +683,10 @@ endif
 
 # for libwou
 ifneq ($(WOU_VERSION),)
-EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB
+EXTRA_CFLAGS += $(WOU_CFLAGS) -DMOTION_OVER_USB -I$(BASEPWD)/hal/drivers/ar-usb
+ifeq ($(BUILD_SYS),sim)
 LDFLAGS += $(WOU_LIBS)
+endif
 endif
 
 
@@ -919,7 +921,6 @@ motmod-objs += emc/kinematics/tp.o
 motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/command.o
 motmod-objs += emc/motion/control.o
-# motmod-objs += emc/motion/homing.o
 motmod-objs += emc/motion/simple_tp.o
 motmod-objs += emc/motion/emcmotglb.o
 motmod-objs += emc/motion/emcmotutil.o
@@ -982,7 +983,7 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 
 ../rtlib/%.o:
 	$(ECHO) Linking $@
-	$(Q)ld -r -static -S -Os $(LDFLAGS) -o $@ $^ $(EXTRALINK) $(MATHLIB)
+	$(Q)ld -r -static -S $(OPT) $(LDFLAGS) -o $@ $^ $(EXTRALINK) $(MATHLIB)
 endif
 
 ifneq "$(filter normal sim,$(BUILD_SYS))" ""
@@ -997,7 +998,6 @@ endif
 ../rtlib/encoder_ratio$(MODULE_EXT): $(addprefix objects/rt,$(encoder_ratio-objs))
 ../rtlib/stepgen$(MODULE_EXT): $(addprefix objects/rt,$(stepgen-objs))
 ../rtlib/wou$(MODULE_EXT): $(addprefix objects/rt,$(wou-objs))
-# ../rtlib/wou_sim$(MODULE_EXT): $(addprefix objects/rt,$(wou_sim-objs))
 ../rtlib/freqgen$(MODULE_EXT): $(addprefix objects/rt,$(freqgen-objs))
 ../rtlib/pwmgen$(MODULE_EXT): $(addprefix objects/rt,$(pwmgen-objs))
 ../rtlib/siggen$(MODULE_EXT): $(addprefix objects/rt,$(siggen-objs))

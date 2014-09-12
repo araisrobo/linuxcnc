@@ -1,6 +1,9 @@
 #ifndef _DPTRACE_H_
 #define _DPTRACE_H_
 
+#ifdef SIM
+
+// for simulation only:
 #include <stdio.h>
 
 #ifndef TRACE
@@ -26,5 +29,11 @@
 #define DP(fmt, args...)     do {} while(0)
 #define DPS(fmt, args...)    do {} while(0)
 #endif
+
+#else
+// NOT-SIM
+#define DP(fmt, args...)     do {} while(0)
+#define DPS(fmt, args...)    do {} while(0)
+#endif // SIM
 
 #endif  // _DPTRACE_H_

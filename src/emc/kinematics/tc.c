@@ -16,9 +16,17 @@
   FIXME-- should include <stdlib.h> for sizeof(), but conflicts with
   a bunch of <linux> headers
   */
+#include "config.h"
+
+#ifdef RTAPI_SIM
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#else
+#define assert(args...)		do {} while(0)
+#endif
+#include <math.h>
+
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "posemath.h"
 #include "emcpos.h"
@@ -38,6 +46,7 @@
 #endif
 
 extern emcmot_status_t *emcmotStatus;
+extern emcmot_command_t *emcmotCommand;
 
 
 static int
@@ -150,8 +159,14 @@ void nurbs_basisfun(int i, double u, int p,
   int j,r, id;
   double saved, temp, denom;
 
+#ifdef RTAPI_SIM
   double *left = (double*)malloc(sizeof(double)*(p+1));
   double *right = (double*)malloc(sizeof(double)*(p+1));
+#else
+  #warning "to implement rtai_kmalloc() or static memory chunk for left[] and right[]"
+  double left[4096];
+  double right[4096];
+#endif
 
   N[0] = 1.0;
   for (j = 1; j <= p; j++)
@@ -176,8 +191,12 @@ void nurbs_basisfun(int i, double u, int p,
       N[j] = saved;
 
     }
+#ifdef RTAPI_SIM
   free(left);
   free(right);
+#else
+  #warning "to implement rtai_kmalloc() or static memory chunk for left[] and right[]"
+#endif
 
 }
 
@@ -244,10 +263,12 @@ PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
  */   
 
 EmcPose tcGetPos(TC_STRUCT * tc) {
+//	printf("tcGetPos\n");
     return tcGetPosReal(tc, 0);
 }
 
 EmcPose tcGetEndpoint(TC_STRUCT * tc) {
+//	printf("tcGetEndpoint\n");
     return tcGetPosReal(tc, 1);
 }
 
@@ -424,6 +445,7 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
             abc.tran.y = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].B;
             abc.tran.z = tc->nurbs_block.ctrl_pts_ptr[tc->nurbs_block.nr_of_ctrl_pts-1].C;
         }
+
     }
     //DP ("GetEndPoint?(%d) R(%.2f) X(%.2f) Y(%.2f) Z(%.2f) A(%.2f)\n",of_endpoint, R, X, Y, Z, A);
 #if (TRACE != 1)
@@ -608,9 +630,10 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 	(n > tcq->_len)) {	/* too many requested */
 	    return -1;
     }
-    /* if NURBS ?*/
-    for(i=tcq->start;i<(tcq->start+n);i++){
 
+#ifdef RTAPI_SIM
+    /* for NURBS only */
+    for(i=tcq->start;i<(tcq->start+n);i++){
         if(tcq->queue[i].motion_type == TC_NURBS) {
             //fprintf(stderr,"Remove TCNURBS PARAM\n");
             free(tcq->queue[i].nurbs_block.knots_ptr);
@@ -619,6 +642,8 @@ int tcqRemove(TC_QUEUE_STRUCT * tcq, int n)
 
         }
     }
+#endif
+
     /* update start ptr and reset allFull flag and len */
     tcq->start = (tcq->start + n) % tcq->size;
     tcq->allFull = 0;

@@ -98,7 +98,11 @@ typedef struct {
 /* machine data */
 
 typedef struct {
-    hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_bit_t *pso_req;
+    hal_u32_t *pso_ticks;
+    hal_u32_t *pso_mode;
+    hal_u32_t *pso_joint;
+    hal_float_t *pso_pos;
     hal_bit_t *probing;
     hal_u32_t *trigger_din;
     hal_u32_t *trigger_ain;
@@ -109,6 +113,7 @@ typedef struct {
     hal_bit_t *req_cmd_sync;
     hal_bit_t *usb_busy;
     hal_bit_t *machine_is_moving;
+    hal_bit_t *rtp_running;
     hal_bit_t *mpg_scale_x1;    /* is MPG scale at x1 mode? */
     hal_bit_t *mpg_scale_x10;    /* is MPG scale at x10 mode? */
     hal_bit_t *mpg_scale_x100;    /* is MPG scale at x100 mode? */

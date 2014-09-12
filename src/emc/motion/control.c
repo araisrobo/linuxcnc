@@ -12,7 +12,17 @@
  *
  * Copyright (c) 2004 All rights reserved.
  ********************************************************************/
+#include "config.h"
+
+#ifndef RTAPI_SIM
+#define assert(args...)		do {} while(0)
+#else
+// SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 #include <stdint.h>
+#endif
 
 #include "posemath.h"
 #include "rtapi.h"
@@ -25,9 +35,7 @@
 #include "tc.h"
 #include "simple_tp.h"
 #include "motion_debug.h"
-#include "config.h"
-#include "assert.h"
-#include <sync_cmd.h>
+#include "sync_cmd.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -420,7 +428,7 @@ void emcmotController(void *arg, long period)
 static void process_inputs(void)
 {
     int joint_num;
-    double abs_ferror, tmp, scale;
+    double tmp, scale;
     joint_hal_t *joint_data;
     emcmot_joint_t *joint;
     unsigned char enables;
@@ -494,38 +502,8 @@ static void process_inputs(void)
         joint->risc_pos_cmd = *(joint_data->risc_pos_cmd);
         joint->blender_offset = *(joint_data->blender_offset);
 
-        /* calculate following error */
-        joint->ferror = joint->pos_cmd - joint->pos_fb;
-        abs_ferror = fabs(joint->ferror);
-        /* update maximum ferror if needed */
-        if (abs_ferror > joint->ferror_high_mark) {
-            joint->ferror_high_mark = abs_ferror;
-        }
-
-        /* calculate following error limit */
-        // TODO: port ferror limit to risc
-        // (curr_vel / max_vel) * max_ferror = current_ferror_limit
-        // if current_ferror_limit > min_ferror => issue ferror
-        if (joint->vel_limit > 0.0) {
-            joint->ferror_limit =
-                    joint->max_ferror * fabs(joint->vel_cmd) / joint->vel_limit;
-        } else {
-            joint->ferror_limit = 0;
-        }
-        if (joint->ferror_limit < joint->min_ferror) {
-            joint->ferror_limit = joint->min_ferror;
-        }
-        /* update following error flag */
-
-#ifndef MOTION_OVER_USB
-        if (abs_ferror > joint->ferror_limit) {
-            SET_JOINT_FERROR_FLAG(joint, 1);
-        } else {
-            SET_JOINT_FERROR_FLAG(joint, 0);
-        }
-#else
         SET_JOINT_FERROR_FLAG(joint, *(joint_data->usb_ferror_flag));
-#endif
+
         /* read limit switches */
         if ((joint->home_flags & HOME_IGNORE_LIMITS) &&
                 joint->home_state != HOME_IDLE) {
@@ -721,8 +699,7 @@ static void process_probe_inputs(void)
 //                        joint_num, joint_pos[joint_num], joint->probed_pos, joint->backlash_filt, joint->motor_offset, joint->blender_offset);
             }
             kinematicsForward(joint_pos, &emcmotStatus->probedPos, &fflags, &iflags);
-            tpAbort(&emcmotDebug->coord_tp);
-            emcmotStatus->probing = 0;
+            tpAbort(&emcmotDebug->coord_tp); // Let command.c to process EMCMOT_END_PROBE
         }
         *emcmot_hal_data->trigger_result = 0;
     }
@@ -1245,10 +1222,11 @@ static void get_spindle_cmds (double cycle_time)
     if(emcmotStatus->spindle.css_factor && emcmotStatus->spindle.on)
     {
         // for G96
-        double denom = emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x;
+        double denom =  sqrt(pow(emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x, 2) +
+        					pow(emcmotStatus->g5x_offset.tran.y - emcmotStatus->carte_pos_cmd.tran.y, 2));
         double speed;       // speed for major spindle (spindle-s)
         double maxpositive;
-
+        int positive = ((emcmotStatus->spindle.xoffset - emcmotStatus->carte_pos_cmd.tran.x) > 0)? 1: -1;
         // css_factor: unit(mm or inch)/min
         if(emcmotStatus->spindle.dynamic_speed_mode == 0)
         {
@@ -1284,7 +1262,7 @@ static void get_spindle_cmds (double cycle_time)
         emcmotStatus->spindle.speed_req_rps = speed * emcmotStatus->spindle.direction;
         emcmotStatus->spindle.css_error =
                         (emcmotStatus->spindle.css_factor / 60.0
-                         - denom * fabs(emcmotStatus->spindle.curr_vel_rps))
+                         - denom * positive * fabs(emcmotStatus->spindle.curr_vel_rps))
                         * emcmotStatus->spindle.direction; // (unit/(2*PI*sec)
         DP ("css_req(%f)(unit/sec)\n", denom * emcmotStatus->spindle.speed_req_rps * 2 * M_PI);
         DP ("css_cur(%f)\n", denom * emcmotStatus->spindle.curr_vel_rps * 2 * M_PI);
@@ -1318,12 +1296,14 @@ static void get_pos_cmds(long period)
 {
     int joint_num, result;
     emcmot_joint_t *joint;
-    //obsolete: emcmot_axis_t *axis;
-    double positions[EMCMOT_MAX_JOINTS]/*, tmp_pos[EMCMOT_MAX_JOINTS], tmp_vel[EMCMOT_MAX_JOINTS]*/;
+    double positions[EMCMOT_MAX_JOINTS];
     double old_pos_cmd;
     int onlimit = 0;
     int joint_limit[EMCMOT_MAX_JOINTS][2];
     int num_joints;
+
+    int pso_ready;
+    double pso_joint_pos[EMCMOT_MAX_JOINTS];
 
     num_joints = emcmotConfig->numJoints;
 
@@ -1477,47 +1457,53 @@ static void get_pos_cmds(long period)
             rtapi_print_msg(RTAPI_MSG_DBG,"EMCMOT_MOTION_COORD ++++\n");
 
             /* check joint 0 to see if the interpolators are empty */
-            while (cubicNeedNextPoint(&(joints[0].cubic))) {
-                /* they're empty, pull next point(s) off Cartesian planner */
-                /* run coordinated trajectory planning cycle */
-                tpRunCycle(&emcmotDebug->coord_tp, period);
-                /* gt new commanded traj pos */
-                emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
-                /* OUTPUT KINEMATICS - convert to joints in local array */
-                kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
-                        &iflags, &fflags);
-                /* copy to joint structures and spline them up */
-                DPS("%11u", _dt);
-                DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
-                        emcmotStatus->carte_pos_cmd.tran.x,
-                        emcmotStatus->carte_pos_cmd.tran.y,
-                        emcmotStatus->carte_pos_cmd.tran.z,
-                        emcmotStatus->carte_pos_cmd.a,
-                        emcmotStatus->carte_pos_cmd.s);
-                for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
-                    /* point to joint struct */
-                    joint = &joints[joint_num];
-                    joint->coarse_pos = positions[joint_num];
+            /* they're empty, pull next point(s) off Cartesian planner */
+            /* run coordinated trajectory planning cycle */
+            tpRunCycle(&emcmotDebug->coord_tp, period);
+            /* gt new commanded traj pos */
+            emcmotStatus->carte_pos_cmd = tpGetPos(&emcmotDebug->coord_tp);
+            /* OUTPUT KINEMATICS - convert to joints in local array */
+            kinematicsInverse(&emcmotStatus->carte_pos_cmd, positions,
+                    &iflags, &fflags);
+            /* copy to joint structures and spline them up */
+            DPS("%11u", _dt);
+            DPS("x(%10.5f)%10.5f%10.5f%10.5fs(%10.5f)",
+                    emcmotStatus->carte_pos_cmd.tran.x,
+                    emcmotStatus->carte_pos_cmd.tran.y,
+                    emcmotStatus->carte_pos_cmd.tran.z,
+                    emcmotStatus->carte_pos_cmd.a,
+                    emcmotStatus->carte_pos_cmd.s);
 
-                    /* spline joints up-- note that we may be adding points
-                           that fail soft limits, but we'll abort at the end of
-                           this cycle so it doesn't really matter */
-                    cubicAddPoint(&(joint->cubic), joint->coarse_pos);
-                }
-                /* END OF OUTPUT KINS */
-            }
-            /* there is data in the interpolators */
-            /* run interpolation */
+            /* END OF OUTPUT KINS */
+            pso_ready = 0;
             for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
                 /* point to joint struct */
                 joint = &joints[joint_num];
-                /* save old command */
-                old_pos_cmd = joint->pos_cmd;
+                joint->coarse_pos = positions[joint_num];
                 /* interpolate to get new one */
-                joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
-                joint->vel_cmd = (joint->pos_cmd - old_pos_cmd) * servo_freq;
+                joint->vel_cmd = (joint->coarse_pos - joint->pos_cmd) * servo_freq;
+                joint->pos_cmd = joint->coarse_pos;
                 DPS ("%17.7f", joint->pos_cmd);
+
+                if(emcmotStatus->pso_req && (joint->vel_cmd != 0) && (pso_ready == 0))
+                {   // to calculate PSO parameters
+                    pso_ready = 1;
+                    kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
+                    emcmotStatus->pso_joint = joint_num;
+                    emcmotStatus->jpso_pos = pso_joint_pos[joint_num];
+                    DP ("control.c: pso_joint(%d) jpso_pos(%f)\n", joint_num, pso_joint_pos[joint_num]);
+                    DP ("control.c: j[%d] pos_cmd(%f)\n", joint_num, joint->pos_cmd);
+                }
             }
+            // if ((emcmotStatus->pso_req) && (pso_ready == 0))
+            // {
+            //     /* for 1st or last PSO point */
+            //     DP("control.c: pso_req(%d) without joint->vel_cmd\n", emcmotStatus->pso_req);
+            //     kinematicsInverse(&emcmotStatus->pso_pos, pso_joint_pos, &iflags, &fflags);
+            //     emcmotStatus->pso_joint = 0;
+            //     emcmotStatus->jpso_pos = pso_joint_pos[0];
+            //     DP ("control.c: pso_joint(%d) jpso_pos(%f)\n", 0, pso_joint_pos[0]);
+            // }
             DPS("\n");
             /* report motion status */
             SET_MOTION_INPOS_FLAG(0);
@@ -2158,6 +2144,17 @@ static void output_to_hal(void)
 
     // modify update_pos_ack after all joints data are updated
     *(emcmot_hal_data->update_pos_ack) = emcmotStatus->update_pos_ack;
+
+    *(emcmot_hal_data->pso_req) = emcmotStatus->pso_req;
+    *(emcmot_hal_data->pso_ticks) = emcmotStatus->pso_tick;
+    *(emcmot_hal_data->pso_mode) = emcmotStatus->pso_mode;
+    *(emcmot_hal_data->pso_joint) = emcmotStatus->pso_joint;
+    joint = &joints[emcmotStatus->pso_joint];
+    /* apply backlash and motor offset to PSO joint position */
+    *(emcmot_hal_data->pso_pos) = emcmotStatus->jpso_pos
+                                  + joint->backlash_filt
+                                  + joint->motor_offset
+                                  + joint->blender_offset;
 
     /* output axis info to HAL for scoping, etc */
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {

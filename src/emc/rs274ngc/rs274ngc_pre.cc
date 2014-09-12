@@ -178,11 +178,6 @@ int Interp::close()
     // be "lazy" only if we're not aborting a call in progress
     // in which case we need to reset() the call stack
     // this does not reset the filename properly 
-    if(_setup.use_lazy_close) //  && (_setup.call_level == 0)) 
-    {
-      _setup.lazy_closing = 1;
-      return INTERP_OK;
-    }
 
   if (_setup.file_pointer != NULL) {
     fclose(_setup.file_pointer);
@@ -1238,15 +1233,8 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
   char *line;
   int index;
   int length;
-
   logOword("open()");
-  if(_setup.use_lazy_close && _setup.lazy_closing)
-    {
-      _setup.use_lazy_close = 0; // so that close will work
-      close();
-      _setup.use_lazy_close = 1;
-      _setup.lazy_closing = 0;
-    }
+
   CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
   CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
   _setup.file_pointer = fopen(filename, "r");

@@ -26,6 +26,9 @@
  *    SYNC_DATA          4'b1100  ... TODO:       {VAL} Send immediate data
  *                                                VAL[7:0]: one byte data
  *    SYNC_EOF           4'b1101                  End of frame                                            
+ *    SYNC_DAC           4'b1110  {ID, ADDR}      write into DAC register with {ID[11:8], ADDR[7:0]}
+ *                                                ADDR: 0x01 ... Data register
+ *                                                ADDR: 0x55 ... Control register
  *    Write 2nd byte of SYNC_CMD[] will push it into SFIFO.
  *    The WB_WRITE got stalled if SFIFO is full.
  */
@@ -45,7 +48,7 @@
 #define SYNC_MACH_PARAM     0xB000
 #define SYNC_DATA           0xC000
 #define SYNC_EOF            0xD000
-// RESERVED  0xe000
+#define SYNC_DAC            0xE000      // 1st 16-bit for ID and ADDR, 2nd 32-bit for VALUE
 // RESERVED  0xf000
 
 //  timeout type
@@ -74,11 +77,19 @@
 #define SYNC_MOT_PARAM_ID_MASK          0x000F
 #define SYNC_MACH_PARAM_ADDR_MASK       0x0FFF
 #define SYNC_USB_CMD_TYPE_MASK 		0x0FFF
+
 // SYNC VEL CMD masks
 #define VEL_MASK                        0x0FFE
 #define VEL_SYNC_MASK                   0x0001
+
 // PROBE mask
 #define SYNC_PROBE_MASK                 0x0FFF
+
+// SYNC_DAC masks
+#define SYNC_DAC_ID_MASK                0x0F00
+#define SYNC_DAC_ADDR_MASK              0x00FF
+#define SYNC_DAC_VAL_MASK               0xFFFF
+
 //      SFIFO DATA MACROS
 #define GET_IO_ID(i)                    (((i) & SYNC_DI_DO_PIN_MASK) >> 6)
 #define GET_DO_VAL(v)                   (((v) & SYNC_DOUT_VAL_MASK))
@@ -88,6 +99,9 @@
 #define GET_MOT_PARAM_ID(t)             (((t) & SYNC_MOT_PARAM_ID_MASK))
 #define GET_MACH_PARAM_ADDR(t)          ((t) & SYNC_MACH_PARAM_ADDR_MASK)
 #define GET_USB_CMD_TYPE(t)             ((t) & SYNC_USB_CMD_TYPE_MASK)
+#define GET_DAC_ID(i)                   (((i) & SYNC_DAC_ID_MASK) >> 8)
+#define GET_DAC_ADDR(a)                 ((a) & SYNC_DAC_ADDR_MASK)
+#define GET_DAC_VAL(v)                  ((v) & SYNC_DAC_VAL_MASK)
 
 #define PACK_SYNC_DATA(t)               ((t & 0xFF))
 #define PACK_IO_ID(i)                   (((i) & 0x3F) << 6)
@@ -103,8 +117,7 @@
 /* bit index for machine_status[31:0] */
 #define FERROR_MASK                     0x000000FF  // machine_status[7:0]
 #define ALARM_MASK                      0x00000100  // machine_status[8]
-#define PROBE_RESULT_BIT                16
-#define MACHINE_MOVING_BIT              17
+#define TP_RUNNING_BIT                  17
 #define AHC_DOING_BIT                   18
 
 /**
@@ -136,12 +149,9 @@
 
 /**
  *  GANTRY_CTRL,    // [31]     GANTRY_EN
- *                  // [30]     GANTRY_LOCK, SET to lock gantry joints with BRAKEs
- *                  // [7:0]    GANTRY_BRAKE_GPIO
  **/                  
 #define GCTRL_EN_MASK                   0x80000000  // Gantry Enable Bit
-#define GCTRL_LOCK_MASK                 0x40000000  // Gantry Lock Bit
-#define GCTRL_BRAKE_GPIO_MASK           0x000000FF  // GPIO pin ID for Brake Signal
+// TODO: add GANTRY_MASTER_ID and GANTRY_SLAVE_ID to GANTRY_CTRL register
 
 typedef enum {
     // naming: RISC_...CMD..._REQ
@@ -149,8 +159,9 @@ typedef enum {
     RCMD_ALIGNING,              // RCMD_FSM, joint is aligning
     RCMD_UPDATE_POS_REQ,        // RCMD_FSM, request HOST to update position
     RCMD_UPDATE_POS_ACK,        // RCMD set by HOST 
-    RCMD_PROBE_REQ,             // RCMD set by HOST 
-    RCMD_GMCODE_PROBE,          // RCMD set by HOST
+    RCMD_RISC_PROBE,            // Do risc probe 
+    RCMD_HOST_PROBE,            // Do host probe
+    RCMD_PSO,                   // PSO -- progress synced output
 } rsic_cmd_t;
 
 typedef enum {
@@ -180,12 +191,15 @@ enum machine_parameter_addr {
     AHC_STATE,
     AHC_LEVEL,
     GANTRY_CTRL,            // [31]     GANTRY_EN
-                            // [30]     GANTRY_LOCK
-                            // [7:0]    GANTRY_BRAKE_GPIO_PIN
                             
     JOINT_LSP_LSN,          // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
-    ALR_OUTPUT,             // output value when ESTOP is pressed
-    ALR_EN_BITS,            // the enable bitmap of ALARM input bits
+    ALR_OUTPUT_0,           // DOUT_0 value, dout[31:0], when ESTOP is pressed
+    ALR_OUTPUT_1,           // DOUT_1 value, dout[63:32], when ESTOP is pressed
+    ALR_EN_BITS,            // the enable bitmap of ALARM input bits (
+
+    SSIF_MODE,              // [7:0]    bitwise mapping of mode for SSIF_PULSE_TYPE
+                            //          0: POSITION MODE (STEP-DIR or AB-PHASE)
+                            //          1: PWM MODE (velocity or torque)
 
     MACHINE_CTRL,           // [31:28]  JOG_VEL_SCALE
                             // [27:24]  SPINDLE_JOINT_ID
@@ -215,9 +229,8 @@ enum test_pattern_type_enum {
 };
 
 enum ahc_state_enum {
-    AHC_DISABLE,  // clear offset
-    AHC_ENABLE,   // ahc start
-    AHC_SUSPEND,  // ahc stop
+    AHC_DISABLE,
+    AHC_ENABLE,
 };
 
 // memory map for motion parameter for each joint

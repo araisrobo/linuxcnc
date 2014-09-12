@@ -1360,6 +1360,14 @@ double emcTrajGetAngularUnits()
     return TrajConfig.AngularUnits;
 }
 
+int emcTrajSetG5xOffset(EmcPose g5x_offset)
+{
+    emcmotCommand.command = EMCMOT_SET_G5X_OFFSET;
+    emcmotCommand.pos = g5x_offset;
+
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 int emcTrajSetOffset(EmcPose tool_offset)
 {
     emcmotCommand.command = EMCMOT_SET_OFFSET;
@@ -1808,6 +1816,27 @@ int emcMotionSetAout(unsigned char index, double start, double end, unsigned cha
     emcmotCommand.minLimit = start;
     emcmotCommand.maxLimit = end;
 
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
+/*! \function emcMotionSetAout()
+
+    This function sends a EMCMOT_SET_AOUT message to the motion controller.
+    That one plans a AOUT command when motion starts or right now.
+
+    @parameter	index	which output gets modified
+    @parameter	now	wheather change is imediate or synched with motion
+    @parameter	start	value set at start of motion
+    @parameter	end	value set at end of motion
+*/
+int emcMotionSetPSO(int enable, double pitch, int mode, int tick, unsigned char now)
+{
+    emcmotCommand.command = EMCMOT_SET_PSO;
+    emcmotCommand.now = now;
+    emcmotCommand.pso_enable = enable;
+    emcmotCommand.pso_pitch = pitch;
+    emcmotCommand.pso_mode = mode;
+    emcmotCommand.pso_tick = tick;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

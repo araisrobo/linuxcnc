@@ -8,9 +8,18 @@
 *    
 * Copyright (c) 2012 All rights reserved.
 ********************************************************************/
+#include "config.h"
 
+#ifdef RTAPI_SIM
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
 #include "string.h"
-#include "assert.h"
+#else
+#define assert(args...)		do {} while(0)
+#endif
+
 #include "rtapi_math.h"
 #include "kinematics.h"		/* these decls */
 

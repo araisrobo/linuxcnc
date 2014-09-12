@@ -1105,6 +1105,11 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
   return;
 }
 
+void SET_PSO_VALUE(int enable, double pitch, int mode, int tick)
+{
+  return;
+}
+
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET()
 {
     return _tool_offset.tran.x;

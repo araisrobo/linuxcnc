@@ -240,9 +240,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         td = tempfile.mkdtemp()
         self._current_file = filename
 #        print 'gremlin.load(%s)' % filename
-        if ('converted_dryrun') not in filename:
-#            print 'no load remap, but it can run, just no display'
-            return
+#         if ('converted_dryrun') not in filename:
+# #            print 'no load remap, but it can run, just no display'
+#             return
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             # we want canon to retain some information
@@ -255,6 +255,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             canon.set_highlight_mode(self.highlight_mode)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
+                 
             if parameter:
                 try:
                     shutil.copy(parameter, temp_parameter)

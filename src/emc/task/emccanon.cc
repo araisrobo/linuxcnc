@@ -3436,7 +3436,27 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
 
   return;
 }
+/*! \function SET_PSO_VALUE
 
+  sets a PSO value, not used by the RS274 Interp,
+  not fully implemented in the motion controller either
+*/
+void SET_PSO_VALUE(int enable, double pitch, int mode, int tick)
+{
+  EMC_MOTION_SET_PSO pso_msg;
+
+  flush_segments();
+
+  pso_msg.enable = enable;	// which output
+  pso_msg.pitch = pitch;	// start value
+  pso_msg.mode = mode;		// end value
+  pso_msg.tick = tick;		// end value
+  pso_msg.now = 1;		// immediate=1, or synched when motion start=0
+
+  interp_list.append(pso_msg);
+
+  return;
+}
 /*! \function WAIT
    program execution and interpreting is stopped until the input selected by 
    index changed to the needed state (specified by wait_type).

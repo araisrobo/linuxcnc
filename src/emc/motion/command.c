@@ -318,7 +318,6 @@ void emcmotSyncInputWrite(int index, double timeout, int wait_type)
         *(emcmot_hal_data->sync_wait_type) = wait_type;
         *(emcmot_hal_data->timeout) = timeout;
         *(emcmot_hal_data->sync_in_trigger) = 1;
-        //printf("motmod write hal wait_type(%d) timeout(%f) pin(%d)\n",wait_type,timeout,index);
     }
 }
 
@@ -397,7 +396,6 @@ void emcmotCommandHandler(void *arg, long period)
         /* got a new command-- echo command and number... */
         emcmotStatus->commandEcho = emcmotCommand->command;
         emcmotStatus->commandNumEcho = emcmotCommand->commandNum;
-
         /* clear status value by default */
         emcmotStatus->commandStatus = EMCMOT_COMMAND_OK;
 
@@ -1427,7 +1425,6 @@ void emcmotCommandHandler(void *arg, long period)
 
         case EMCMOT_END_PROBE:
             rtapi_print_msg(RTAPI_MSG_DBG, "END_PROBE");
-            printf("\nEMCMOT_END_PROBE and CLEAR FLAG\n");
             if (emcmotStatus->probeTripped == 0)
             {
                 reportError(_("move finished without making contact"));
@@ -1469,9 +1466,10 @@ void emcmotCommandHandler(void *arg, long period)
                 ain_value= *(emcmot_hal_data->analog_input[n]);
                 amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
                 dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
-                //			printf("TODO: if probe condition already true need abort\n");
-                //			printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
-                //			printf("amode(%d) dmode(%d)\n", amode, dmode);
+//					printf("if probe condition already true need abort\n");
+//					printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
+//					printf("amode(%d) dmode(%d)\n", amode, dmode);
+
                 switch(*(emcmot_hal_data->trigger_type))
                 {
                 case OR:
@@ -1623,6 +1621,13 @@ void emcmotCommandHandler(void *arg, long period)
                 tpSetAout(&emcmotDebug->coord_tp, emcmotCommand->out,
                         emcmotCommand->minLimit, emcmotCommand->maxLimit);
             }
+            break;
+
+        case EMCMOT_SET_PSO:
+            rtapi_print_msg(RTAPI_MSG_DBG, "EMCMOT_SET_PSO");
+            tpSetPSO(&emcmotDebug->coord_tp, emcmotCommand->pso_enable,
+                    emcmotCommand->pso_pitch, emcmotCommand->pso_mode,
+                    emcmotCommand->pso_tick);
             break;
 
         case EMCMOT_SET_DOUT:
@@ -1789,6 +1794,11 @@ void emcmotCommandHandler(void *arg, long period)
         case EMCMOT_SET_OFFSET:
             emcmotStatus->tool_offset = emcmotCommand->tool_offset;
             break;
+
+        case EMCMOT_SET_G5X_OFFSET:
+        		emcmotStatus->g5x_offset = emcmotCommand->pos;
+        		break;
+
 
         case EMCMOT_SET_AXIS_POSITION_LIMITS:
             /* set the position limits for axis */
