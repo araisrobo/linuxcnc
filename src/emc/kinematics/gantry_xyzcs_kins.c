@@ -29,13 +29,11 @@ static FILE *dptrace;
 #endif
 
 typedef struct {
-    hal_float_t *gantry_polarity;
     hal_float_t *yy_offset;
 } align_pins_t;
 
 static align_pins_t *align_pins;
 
-#define GANTRY_POLARITY (*(align_pins->gantry_polarity))
 #define YY_OFFSET       (*(align_pins->yy_offset))
 
 const char *machine_type = "";
@@ -59,7 +57,7 @@ int kinematicsForward(const double *joints,
     pos->s = joints[5];
 
     DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f),POLARITY(%f)\n",
-        pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET, GANTRY_POLARITY);
+        pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET);
     DP("kFWD: s(%f), j5(%f)\n", pos->s, joints[5]);
 
     return 0;
@@ -72,7 +70,7 @@ int kinematicsInverse(const EmcPose * pos,
 {
     joints[0] = pos->tran.x;
     joints[1] = pos->tran.y;
-    joints[2] = pos->tran.y - (YY_OFFSET * GANTRY_POLARITY);  // YY
+    joints[2] = pos->tran.y - YY_OFFSET;  // YY
     joints[3] = pos->tran.z;
     joints[4] = pos->c;
     joints[5] = pos->s;
@@ -122,13 +120,6 @@ int rtapi_app_main(void)
     if (!align_pins) goto error;
     if ((res = hal_pin_float_new("gantry-xyzcs-kins.yy-offset", HAL_IN, &(align_pins->yy_offset), comp_id)) < 0) goto error;
     YY_OFFSET = 0;
-
-    /* export param for scaled velocity (frequency in Hz) */
-    res = hal_pin_float_new("gantry-xyzcs-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
-    if (res != 0) {
-        goto error;
-    }
-    GANTRY_POLARITY = 1.0;
 
     hal_ready(comp_id);
     DP ("success\n");

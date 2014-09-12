@@ -377,7 +377,6 @@ typedef struct {
     hal_u32_t   *rcmd_state;
 
     hal_u32_t   *max_tick_time;
-    hal_bit_t   *machine_moving;
     hal_bit_t   *ahc_doing;
     hal_bit_t 	*rtp_running; // risc/remote tp running
 
@@ -494,7 +493,6 @@ static void fetchmail(const uint8_t *buf_head)
             joints_vel |= *(stepgen->enc_vel_p);
             stepgen += 1;   // point to next joint
         }
-        *machine_control->machine_moving = (joints_vel != 0);
 
         // digital input
         p += 1;
@@ -2444,10 +2442,6 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) {
         return retval;
     }
-
-    retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->machine_moving), comp_id, "wou.motion.machine-is-moving");
-    if (retval != 0) { return retval; }
-    *(machine_control->machine_moving) = 0;
 
     retval = hal_pin_bit_newf(HAL_OUT, &(machine_control->ahc_doing), comp_id, "wou.ahc.doing");
     if (retval != 0) { return retval; }

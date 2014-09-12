@@ -23,23 +23,15 @@
 #define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
-// FILE *dptrace = fopen("dptrace.log","w");
 static FILE *dptrace;
 #endif
 
 typedef struct {
-    // hal_float_t *theta; // unit: rad
-    // double prev_theta;
-    // double x_cent, prev_x_cent, y_cent, prev_y_cent;
-    // double x_offset, prev_x_offset, y_offset, prev_y_offset;
-    // hal_bit_t *touch_off_cent;
-//    hal_float_t *gantry_polarity;
     hal_float_t *yy_offset;
 } align_pins_t;
 
 static align_pins_t *align_pins;
 
-//#define GANTRY_POLARITY (*(align_pins->gantry_polarity))
 #define YY_OFFSET       (*(align_pins->yy_offset))
 
 const char *machine_type = "";
@@ -61,8 +53,6 @@ int kinematicsForward(const double *joints,
     pos->tran.z = joints[3];
     pos->w = joints[4];
     pos->s = joints[5];
-    // pos->b = joints[5];
-    // pos->c = joints[6];
 
     DP("kFWD: x(%f), y(%f), j0(%f), j1(%f), j2(%f), yy_offset(%f)\n",
         pos->tran.x, pos->tran.y, joints[0], joints[1], joints[2], YY_OFFSET);
@@ -127,21 +117,8 @@ int rtapi_app_main(void)
     
     align_pins = hal_malloc(sizeof(align_pins_t));
     if (!align_pins) goto error;
-    // if ((res = hal_pin_float_new("align-gantry-kins.theta", HAL_IN, &(align_pins->theta), comp_id)) < 0) goto error;
-    // THETA = 0;
     if ((res = hal_pin_float_new("align-gantry-kins.yy-offset", HAL_IN, &(align_pins->yy_offset), comp_id)) < 0) goto error;
     YY_OFFSET = 0;
-    // if ((res = hal_pin_bit_new("align-gantry-kins.touch-off-cent", HAL_IO, &(align_pins->touch_off_cent), comp_id)) < 0) goto error;
-    // TOUCH_OFF_CENT = 0;
-    // align_pins->theta = 0;
-    // align_pins->theta = 0.78539815;   // 45 degree
-
-    /* export param for scaled velocity (frequency in Hz) */
-//    res = hal_pin_float_new("align-gantry-kins.gantry-polarity", HAL_IN, &(align_pins->gantry_polarity), comp_id);
-//    if (res != 0) {
-//        goto error;
-//    }
-//    GANTRY_POLARITY = 1.0;
 
     hal_ready(comp_id);
     DP ("success\n");
