@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdint.h>
+
 #else
 #define assert(args...)		do {} while(0)
 #endif
@@ -37,7 +38,7 @@
 #define SMLBLND         // to evaluate seamless blending
 
 // to disable DP(): #define TRACE 0
-#define TRACE 0
+#define TRACE 1
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE* dptrace = 0;
@@ -131,7 +132,7 @@ int tpClearPSO()
     pso.pitch = 0;
     pso.tick = 0;
     pso.next_progress = 0;
-    DP("tp.c, tpClearPSO(): TODO: resolve a method to terminate PSO at End Of Program\n");
+//    DP("tp.c, tpClearPSO(): TODO: resolve a method to terminate PSO at End Of Program\n");
     return 0;
 }
 /*
@@ -928,7 +929,14 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
  **/
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc) 
 {
-    double t, t1, vel, v1, dist, req_vel;
+    double t, t1, vel, acc, v1, dist, req_vel;
+
+    static double ts, ti;
+    static double k, s6_a, s6_v, s6_p, error_d, prev_s, prev_v;
+    static double c1, c2, c3, c4, c5, c6;
+    static double d1, d2, d3;
+
+    double pi = 3.14159265359;
     int immediate_state;
     double tc_target;
 
@@ -969,6 +977,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
                 tc->accel_state = ACCEL_S2;
+                s6_v = tc->cur_vel;
+                s6_a = fabs(tc->cur_accel);
+                ts = floor((2*(req_vel - s6_v))/s6_a);
+                k = s6_a*pi/(4*(req_vel - s6_v));
+                prev_v = s6_v;
+                d1 = s6_a/2;
+                d2 = s6_a/(4*k);
+                d3 = 2*k;
+                ti = 1;
                 break;
             }
 
@@ -1007,6 +1024,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
+                s6_v = tc->cur_vel;
+                s6_a = fabs(tc->cur_accel);
+                ts = floor((2*(req_vel - s6_v))/s6_a);
+                k = s6_a*pi/(4*(req_vel - s6_v));
+                prev_v = s6_v;
+                d1 = s6_a/2;
+                d2 = s6_a/(4*k);
+                d3 = 2*k;
+                ti = 1;
                 break;
             }
 
@@ -1033,6 +1059,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             vel = req_vel - tc->cur_accel * t + 0.5 * tc->jerk * t * t;
             if (tc->cur_vel >= vel) {
                 tc->accel_state = ACCEL_S2;
+                s6_v = tc->cur_vel;
+                s6_a = fabs(tc->cur_accel);
+                ts = floor((2*(req_vel - s6_v))/s6_a);
+                k = s6_a*pi/(4*(req_vel - s6_v));
+                prev_v = s6_v;
+                d1 = s6_a/2;
+                d2 = s6_a/(4*k);
+                d3 = 2*k;
+                ti = 1;
                 break;
             }
 
@@ -1068,74 +1103,97 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
+                s6_v = tc->cur_vel;
+                s6_a = fabs(tc->cur_accel);
+                ts = floor((2*(req_vel - s6_v))/s6_a);
+                k = s6_a*pi/(4*(req_vel - s6_v));
+                prev_v = s6_v;
+                d1 = s6_a/2;
+                d2 = s6_a/(4*k);
+                d3 = 2*k;
+                ti = 1;
                 break;
             }
             break;
 
 
         case ACCEL_S2: 
+
+            if(ti <= ts){
+                tc->cur_vel = d1*ti+d2*sin(d3*ti)+s6_v;
+                tc->cur_accel = tc->cur_vel - prev_v;
+                tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel;
+                prev_v = tc->cur_vel;
+                ti = ti + 1;
+            }
+            else {
+                tc->cur_accel = 0;
+                tc->accel_state = ACCEL_S3;
+            }
+
             // to DECELERATE to ACCEL==0
 
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
-            tc->cur_accel = tc->cur_accel - tc->jerk;
-            tc->cur_vel = tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
-            tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel - 1.0/6.0 * tc->jerk;
-
-            // check accel == 0
-            if (tc->cur_accel <= 0) {
-                tc->accel_state = ACCEL_S3;
-                break;
-            }
-
-            // check if we will hit velocity limit at next BP
-            req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
-            if (req_vel > tc->maxvel) {
-                req_vel = tc->maxvel;
-            }
-            // vel: velocity at next BP 
-            vel = tc->cur_vel + tc->cur_accel - 1.5 * tc->jerk;
-            if (vel > req_vel) {
-                tc->cur_vel = vel;
-                tc->accel_state = ACCEL_S3;
-                break;
-            } 
-
-            // check if we will hit progress limit
-            // refer to 2011-10-17 ysli design note
-            // AT = AT + JT
-            // VT = V0 + A0T + 1/2 JT^2
-            // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
-            vel = tc->cur_vel;
-            // distance for S3
-            dist = tc->progress + (vel);
-
-            /* 
-            0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
-            t1 = sqrt(vel/j)
-             */
-            t = ceil(sqrt(vel/tc->jerk));
-            // AT = AT + JT
-            t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
-            if (t > t1) {
-                // S4 -> S5 -> S6
-                dist += t1 * vel;    // dist of (S4 + S6)
-                // calc decel.dist for ACCEL_S5
-                // t: time for S5
-                t = (vel - tc->jerk * t1 * t1) / tc->maxaccel;
-                v1 = vel - 0.5 * tc->jerk * t1 * t1;
-                // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
-                dist += (v1 * t - 0.5 * tc->maxaccel * t * t);
-            } else {
-                // S4 -> S6
-                dist += t * vel;    // dist of (S4 + S6)
-            }
-
-            if (tc_target < dist) {
-                tc->accel_state = ACCEL_S3;
-                break;
-            }
+//            tc->cur_accel = tc->cur_accel - tc->jerk;
+//            tc->cur_vel = tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
+//            tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel - 1.0/6.0 * tc->jerk;
+//
+//            // check if (accel <= 0) at next BP
+//            acc = tc->cur_accel - tc->jerk;
+//            if (acc <= 0) {
+//                tc->accel_state = ACCEL_S3;
+//                break;
+//            }
+//
+//            // check if we will hit velocity limit at next BP
+//            req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
+//            if (req_vel > tc->maxvel) {
+//                req_vel = tc->maxvel;
+//            }
+//            // vel: velocity at next BP
+//            vel = tc->cur_vel + tc->cur_accel - 1.5 * tc->jerk;
+//            if (vel > req_vel) {
+//                tc->cur_vel = req_vel;
+//                tc->accel_state = ACCEL_S3;
+//                break;
+//            }
+//
+//            // check if we will hit progress limit
+//            // refer to 2011-10-17 ysli design note
+//            // AT = AT + JT
+//            // VT = V0 + A0T + 1/2 JT^2
+//            // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
+//            vel = tc->cur_vel;
+//            // distance for S3
+//            dist = tc->progress + (vel);
+//
+//            /*
+//            0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
+//            t1 = sqrt(vel/j)
+//             */
+//            t = ceil(sqrt(vel/tc->jerk));
+//            // AT = AT + JT
+//            t1 = ceil(tc->maxaccel / tc->jerk);   // max time for S4
+//            if (t > t1) {
+//                // S4 -> S5 -> S6
+//                dist += t1 * vel;    // dist of (S4 + S6)
+//                // calc decel.dist for ACCEL_S5
+//                // t: time for S5
+//                t = (vel - tc->jerk * t1 * t1) / tc->maxaccel;
+//                v1 = vel - 0.5 * tc->jerk * t1 * t1;
+//                // PT = P0 + V0T + 1/2A0T^2 + 1/6JT^3
+//                dist += (v1 * t - 0.5 * tc->maxaccel * t * t);
+//            } else {
+//                // S4 -> S6
+//                dist += t * vel;    // dist of (S4 + S6)
+//            }
+//
+//            if (tc_target < dist) {
+//                tc->accel_state = ACCEL_S3;
+//                break;
+//            }
 
             break;
 
@@ -1181,6 +1239,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // check if dist would be greater than tc_target at next cycle
             if (tc_target < (dist - vel)) {
                 tc->accel_state = ACCEL_S4;
+                DP("to ACCEL_S4\n");
                 // blending at largest velocity for G64 w/o P<tolerance>
                 if (!tc->tolerance) {
                     tc->tolerance = tc->target - tc->progress; // tc->distance_to_go
@@ -1198,6 +1257,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 break;
             } else if ((tc->cur_vel - 1.5 * tc->jerk) > req_vel) {
                 tc->accel_state = ACCEL_S4;
+                DP("to ACCEL_S4\n");
                 break;
             }
             tc->cur_vel = req_vel;
@@ -1228,7 +1288,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             }
 
             // should we stay in S4 and keep decel?
-            // calculate dist for S6 -> S4 -> (maybe S5) -> S6
+            // calculate dist for S4 -> (maybe S5) -> S6
             t = - tc->cur_accel / tc->jerk;
             // target dist after switching to S6 (jerk is positive for S6)
             dist = tc->progress + tc->cur_vel * t 
@@ -1237,9 +1297,8 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // VT = V0 + A0T + 1/2JT2
             // obtain vel for S6 -> S3
             vel = tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t;
-
-            if (vel > 0) {    
-                /* 
+            if (vel > 0) {
+                /*
                 0.5 * vel = vel + 0 * t1 - 0.5 * j * t1 * t1;
                 t1 = sqrt(vel/j)
                  */
@@ -1262,26 +1321,46 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             }
 
             // check if dist would be greater than tc_target at next cycle
-            if (tc_target < (dist - (tc->cur_vel + 1.5 * tc->cur_accel - 2.1666667 * tc->jerk))) {
-                tc->accel_state = ACCEL_S4;
-                DPS("should stay in S4 and keep decel\n");
-                break;
-            }
-
-            // check if we will approaching requested velocity
-            // vel should not be greater than "request velocity" after
-            // starting acceleration to "accel == 0".
-            //
-            // AT = A0 + JT (let AT = 0 to calculate T)
-            // VT = V0 + A0T + 1/2JT2
-            t = - tc->cur_accel / tc->jerk;
-            req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
-            if (req_vel > tc->maxvel) {
-                req_vel = tc->maxvel;
-            }
-            if ((tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t) <= req_vel) {
-                tc->accel_state = ACCEL_S6;
-                DPS("S4: hit velocity rule; move to S6\n");
+            printf ("tc_target(%f) dist(%f) vel(%f) t(%f) t1(%f)\n", tc_target, dist, vel, t, t1);
+//            if (tc_target > (dist - (tc->cur_vel + 1.5 * tc->cur_accel - 2.1666667 * tc->jerk)))
+            if (vel > 0)
+            {
+                // check if we will approaching requested velocity
+                // vel should not be greater than "request velocity" after
+                // starting acceleration to "accel == 0".
+                //
+                // AT = A0 + JT (let AT = 0 to calculate T)
+                // VT = V0 + A0T + 1/2JT2
+                req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
+                if (req_vel > tc->maxvel) {
+                    req_vel = tc->maxvel;
+                }
+                if (dist < tc_target) {
+                    if (vel <= req_vel) {
+                        tc->accel_state = ACCEL_S6;
+                        DPS("S4: hit velocity rule; move to S6 to decel to req_vel(%f)\n", req_vel);
+                        break;
+                    }
+                }
+            } else
+            {
+                tc->accel_state = ACCEL_S7;
+                s6_v = tc->cur_vel;
+                s6_a = fabs(tc->cur_accel);
+                s6_p = tc->progress;
+                ts = floor((2*s6_v)/s6_a);
+                k = s6_a*pi/(4*s6_v);
+                error_d = tc->target - tc->progress - s6_v * s6_v / s6_a * (1-4/(pi*pi));
+                prev_s = 0;
+                prev_v = s6_v;
+                c1 = -s6_a/4;
+                c2 = s6_v+((error_d*s6_a)/(2*s6_v));
+                c3 = s6_a/(8*k*k);
+                c4 = 2*k;
+                c5 = -(error_d*s6_a)/(8*k*s6_v);
+                c6 = 4*k;
+                ti = 1;
+                DPS("S4: hit distance rule; move to S6\n");
                 break;
             }
 
@@ -1350,21 +1429,46 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 req_vel = tc->maxvel;
             }
             if ((tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t) <= req_vel) {
-                tc->accel_state = ACCEL_S6;
+                tc->accel_state = ACCEL_S7;
+                s6_v = tc->cur_vel;
+                s6_a = fabs(tc->cur_accel);
+                s6_p = tc->progress;
+                ts = floor((2*s6_v)/s6_a);
+                k = s6_a*pi/(4*s6_v);
+                error_d = tc->target - tc->progress - s6_v * s6_v / s6_a * (1-4/(pi*pi));
+                prev_s = 0;
+                prev_v = s6_v;
+                c1 = -s6_a/4;
+                c2 = s6_v+((error_d*s6_a)/(2*s6_v));
+                c3 = s6_a/(8*k*k);
+                c4 = 2*k;
+                c5 = -(error_d*s6_a)/(8*k*s6_v);
+                c6 = 4*k;
+                ti = 1;
                 break;
             }
 
             break;
 
         case ACCEL_S6:
+            // for approaching to req_vel
             // AT = AT + JT
             // VT = VT + AT + 1/2JT
             // PT = PT + VT + 1/2AT + 1/6JT
+            req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
+            if (req_vel > tc->maxvel) {
+                req_vel = tc->maxvel;
+            }
+
             tc->cur_accel = tc->cur_accel + tc->jerk;
             tc->cur_vel = tc->cur_vel + tc->cur_accel + 0.5 * tc->jerk;
-            if (tc->cur_vel <= 0) {
-                tc->cur_accel = 0;
-                tc->cur_vel = 0.5 * tc->jerk;   // give some velocity for approaching target
+
+            if (tc->cur_vel <= req_vel) {
+                tc->accel_state = ACCEL_S3;
+                if ((req_vel - tc->cur_vel) < 1.5*tc->jerk) {
+                    // align to req_vel only when not changing feed_override
+                    tc->cur_vel = req_vel;
+                }
             }
             dist = tc->cur_vel + 0.5 * tc->cur_accel + 1.0/6.0 * tc->jerk;
             tc->progress = tc->progress + dist;
@@ -1373,6 +1477,26 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 tc->accel_state = ACCEL_S3;
             }
 
+            break;
+
+        case ACCEL_S7:
+            // decel to target position based on Jofey's algorithm
+
+            if(ti <= ts){
+                dist = c1*ti*ti + c2*ti + c3*cos(c4*ti) + c5*cos(c6*ti-0.5*pi) - c3;
+                tc->cur_vel = dist - prev_s;
+                tc->cur_accel = tc->cur_vel - prev_v;
+                prev_s = dist;
+                prev_v = tc->cur_vel;
+                tc->progress = s6_p + dist;
+                ti = ti + 1;
+            }
+            else {
+                tc->cur_vel = 0;
+                tc->cur_accel = 0;
+                tc->progress = tc->target;
+                tc->accel_state = ACCEL_S3;
+            }
             break;
 
         default:
@@ -1414,9 +1538,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
         }
     }
 
-    DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f%15.5f\n",
+    DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.6f%15.5f%15.5f\n",
             _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time,
-            tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->target,
+            tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->progress,
             (tc->target - tc->progress), tc_target);
     tc->distance_to_go = tc->target - tc->progress;
     //TODO: this assert will be triggered with rockman.ini: 
