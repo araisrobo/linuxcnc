@@ -38,7 +38,7 @@
 #define SMLBLND         // to evaluate seamless blending
 
 // to disable DP(): #define TRACE 0
-#define TRACE 1
+#define TRACE 0
 #include "dptrace.h"
 #if (TRACE!=0)
 static FILE* dptrace = 0;
@@ -929,7 +929,8 @@ int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block, EmcPose pos,
  **/
 void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc) 
 {
-    double t, t1, vel, acc, v1, dist, req_vel;
+//    double t, t1, vel, acc, v1, dist, req_vel;
+    double t, t1, vel, v1, dist, req_vel;
 
     static double ts, ti;
     static double k, s6_a, s6_v, s6_p, error_d, prev_s, prev_v;
@@ -1320,49 +1321,95 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 }
             }
 
-            // check if dist would be greater than tc_target at next cycle
-            printf ("tc_target(%f) dist(%f) vel(%f) t(%f) t1(%f)\n", tc_target, dist, vel, t, t1);
-//            if (tc_target > (dist - (tc->cur_vel + 1.5 * tc->cur_accel - 2.1666667 * tc->jerk)))
-            if (vel > 0)
-            {
-                // check if we will approaching requested velocity
-                // vel should not be greater than "request velocity" after
-                // starting acceleration to "accel == 0".
-                //
-                // AT = A0 + JT (let AT = 0 to calculate T)
-                // VT = V0 + A0T + 1/2JT2
-                req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
-                if (req_vel > tc->maxvel) {
-                    req_vel = tc->maxvel;
-                }
-                if (dist < tc_target) {
-                    if (vel <= req_vel) {
-                        tc->accel_state = ACCEL_S6;
-                        DPS("S4: hit velocity rule; move to S6 to decel to req_vel(%f)\n", req_vel);
-                        break;
-                    }
-                }
-            } else
-            {
-                tc->accel_state = ACCEL_S7;
-                s6_v = tc->cur_vel;
-                s6_a = fabs(tc->cur_accel);
-                s6_p = tc->progress;
-                ts = floor((2*s6_v)/s6_a);
-                k = s6_a*pi/(4*s6_v);
-                error_d = tc->target - tc->progress - s6_v * s6_v / s6_a * (1-4/(pi*pi));
-                prev_s = 0;
-                prev_v = s6_v;
-                c1 = -s6_a/4;
-                c2 = s6_v+((error_d*s6_a)/(2*s6_v));
-                c3 = s6_a/(8*k*k);
-                c4 = 2*k;
-                c5 = -(error_d*s6_a)/(8*k*s6_v);
-                c6 = 4*k;
-                ti = 1;
-                DPS("S4: hit distance rule; move to S6\n");
+            if (tc_target < (dist - (tc->cur_vel + 1.5 * tc->cur_accel - 2.1666667 * tc->jerk))) {
+                tc->accel_state = ACCEL_S4;
+                DPS("should stay in S4 and keep decel\n");
                 break;
             }
+
+            // check if we will approaching requested velocity
+            // vel should not be greater than "request velocity" after
+            // starting acceleration to "accel == 0".
+            //
+            // AT = A0 + JT (let AT = 0 to calculate T)
+            // VT = V0 + A0T + 1/2JT2
+            t = - tc->cur_accel / tc->jerk;
+            req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
+            if (req_vel > tc->maxvel) {
+                req_vel = tc->maxvel;
+            }
+            if ((tc->cur_vel + tc->cur_accel * t + 0.5 * tc->jerk * t * t) <= req_vel) {
+                if(tc->progress/tc->target < 0.9){
+                    tc->accel_state = ACCEL_S6;
+                    DPS("S4: hit velocity rule; move to S6\n");
+                }
+                else
+                {
+                    tc->accel_state = ACCEL_S7;
+                    s6_v = tc->cur_vel;
+                    s6_a = fabs(tc->cur_accel);
+                    s6_p = tc->progress;
+                    ts = floor((2*s6_v)/s6_a);
+                    k = s6_a*pi/(4*s6_v);
+                    error_d = tc->target - tc->progress - s6_v * s6_v / s6_a * (1-4/(pi*pi));
+                    prev_s = 0;
+                    prev_v = s6_v;
+                    c1 = -s6_a/4;
+                    c2 = s6_v+((error_d*s6_a)/(2*s6_v));
+                    c3 = s6_a/(8*k*k);
+                    c4 = 2*k;
+                    c5 = -(error_d*s6_a)/(8*k*s6_v);
+                    c6 = 4*k;
+                    ti = 1;
+                    DPS("S4: hit distance rule; move to S6\n");
+                    break;
+                }
+
+            }
+
+//            // check if dist would be greater than tc_target at next cycle
+//            printf ("tc_target(%f) dist(%f) vel(%f) t(%f) t1(%f)\n", tc_target, dist, vel, t, t1);
+////            if (tc_target > (dist - (tc->cur_vel + 1.5 * tc->cur_accel - 2.1666667 * tc->jerk)))
+//            if (vel > 0)
+//            {
+//                // check if we will approaching requested velocity
+//                // vel should not be greater than "request velocity" after
+//                // starting acceleration to "accel == 0".
+//                //
+//                // AT = A0 + JT (let AT = 0 to calculate T)
+//                // VT = V0 + A0T + 1/2JT2
+//                req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
+//                if (req_vel > tc->maxvel) {
+//                    req_vel = tc->maxvel;
+//                }
+//                if (dist < tc_target) {
+//                    if (vel <= req_vel) {
+//                        tc->accel_state = ACCEL_S6;
+//                        DPS("S4: hit velocity rule; move to S6 to decel to req_vel(%f)\n", req_vel);
+//                        break;
+//                    }
+//                }
+//            } else
+//            {
+//                tc->accel_state = ACCEL_S7;
+//                s6_v = tc->cur_vel;
+//                s6_a = fabs(tc->cur_accel);
+//                s6_p = tc->progress;
+//                ts = floor((2*s6_v)/s6_a);
+//                k = s6_a*pi/(4*s6_v);
+//                error_d = tc->target - tc->progress - s6_v * s6_v / s6_a * (1-4/(pi*pi));
+//                prev_s = 0;
+//                prev_v = s6_v;
+//                c1 = -s6_a/4;
+//                c2 = s6_v+((error_d*s6_a)/(2*s6_v));
+//                c3 = s6_a/(8*k*k);
+//                c4 = 2*k;
+//                c5 = -(error_d*s6_a)/(8*k*s6_v);
+//                c6 = 4*k;
+//                ti = 1;
+//                DPS("S4: hit distance rule; move to S6\n");
+//                break;
+//            }
 
             break;
 
