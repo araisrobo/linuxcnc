@@ -117,6 +117,8 @@
 /* bit index for machine_status[31:0] */
 #define FERROR_MASK                     0x000000FF  // machine_status[7:0]
 #define ALARM_MASK                      0x00000100  // machine_status[8]
+#define SFIFO_IS_EMPTY_MASK             0x00000200  // machine_status[9]
+#define SFIFO_IS_EMPTY_BIT              9           // set to 1 if SFIFO is EMPTY
 #define TP_RUNNING_BIT                  17
 #define AHC_DOING_BIT                   18
 
