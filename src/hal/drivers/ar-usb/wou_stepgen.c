@@ -402,6 +402,11 @@ typedef struct {
     hal_u32_t    *pso_mode;
     hal_u32_t    *pso_joint;
     hal_float_t  *pso_pos;
+    hal_bit_t    *remote_jog;
+    hal_bit_t    *remote_polarity;
+    hal_float_t    *remote_vel_xy;
+    hal_float_t    *remote_vel_z;
+    hal_bit_t     prev_remote_jog;
 
 } machine_control_t;
 
@@ -1591,6 +1596,22 @@ static void update_freq(void *arg, long period)
 //    			stepgen[*machine_control->pso_joint].prev_pos_cmd,
 //    			*stepgen[*machine_control->pso_joint].pos_cmd);
     }
+    if((*machine_control->remote_jog != machine_control->prev_remote_jog))
+    {
+    	uint32_t dbuf[5];
+        stepgen = arg;
+		dbuf[0] = RCMD_REMOTE_JOG;
+        dbuf[1] = *machine_control->remote_vel_xy * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
+        stepgen++;
+        dbuf[2] = *machine_control->remote_vel_xy * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
+        stepgen++;
+        stepgen++;
+        dbuf[3] = *machine_control->remote_vel_z * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
+        dbuf[4] = ((*machine_control->remote_jog & 0x1) |
+        		(*machine_control->remote_polarity & 0x1) << 1);
+    	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 5);
+        machine_control->prev_remote_jog =  *machine_control->remote_jog;
+    }
     i = 0;
     stepgen = arg;
     for (n = 0; n < num_joints; n++) {
@@ -2473,7 +2494,28 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_float_newf(HAL_IN, &(machine_control->pso_pos), comp_id, "wou.motion.pso_pos");
     if (retval != 0) { return retval; }
     *(machine_control->pso_pos) = 0;
-    /* restore saved message level*/
+
+
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->remote_jog), comp_id, "wou.motion.remote-jog");
+    if (retval != 0) { return retval; }
+    *(machine_control->remote_jog) = 0;
+    machine_control->prev_remote_jog = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->remote_polarity), comp_id, "wou.motion.remote-polarity");
+    if (retval != 0) { return retval; }
+    *(machine_control->remote_polarity) = 0;
+
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->remote_vel_xy), comp_id, "wou.motion.remote-vel.xy");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->remote_vel_xy) = 0;
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->remote_vel_z), comp_id, "wou.motion.remote-vel.z");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->remote_vel_z) = 0;    /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
 }

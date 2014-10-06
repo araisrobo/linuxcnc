@@ -9,12 +9,21 @@ pin in  bit     mpg-scale-sel.#[2]      "array of mpg-scale-sel signals";
 pin in  bit     mpg-joint-sel.#[7]      "array of mpg-joint-sel signals";
 pin in  bit     wheel-jog-active.#[6]   "array of wheel-jog-active signals";
 
+pin in  bit		remote-east				"KEY east";
+pin in  bit		remote-west				"KEY west";
+pin in  bit		remote-south			"KEY south";
+pin in  bit		remote-north			"KEY north";
+pin in  bit		remote-up				"KEY up";
+pin in  bit		remote-down				"KEY down";
+
 pin out  s32    jog-vel-scale           "jog-vel-scale for shifting mpg-vel left/right";
 pin out  u32    jog-sel                 "bitwise jog select signal";
 pin out  bit    wheel-jog-enable.#[6]   "array of wheel-jog-enable signals for handle_jogwheels()";
 pin out  bit    mpg-scale-x1            "mpg scale at x1 mode -- accurate positioning mode";
 pin out  bit    mpg-scale-x10           "mpg scale at x10 mode -- accurate positioning mode";
 pin out  bit    mpg-scale-x100          "mpg scale at x100 mode -- accurate positioning mode";
+pin out  bit    remote-jog		        "condition in RISC";
+pin out  bit    remote-polarity	        "condition in RISC 1: positive, 0: negative";
 
 param rw  u32   master-gantry-id        "joint-id for mater gantry";
 param rw  u32   slave-gantry-id         "joint-id for slave gantry";
@@ -73,6 +82,7 @@ FUNCTION(_)
     {
         wheel_jog_enable(i) = 0;
     }
+	remote_jog = 0; // condition in RISC
 
     if (mpg_joint_code > 0)
     {
@@ -134,5 +144,51 @@ FUNCTION(_)
         mpg_scale_x10 = 0;
         mpg_scale_x100 = 0;
         jog_sel = 0; // disable RISC-JOG (velocity mode)
+    }
+
+    if (remote_east){
+        mpg_scale_x1 = 1;
+    	jog_sel = 129;
+    	wheel_jog_enable(0) = 1;
+    	mpg_joint_code = 1;
+    	remote_jog = 1;
+    	remote_polarity = 1; //positive
+    }   else if (remote_west){
+        mpg_scale_x1 = 1;
+    	jog_sel = 129;
+    	wheel_jog_enable(0) = 1;
+    	mpg_joint_code = 1;
+    	remote_jog = 1;
+    	remote_polarity = 0; //negative
+    }	else if (remote_south){
+        mpg_scale_x1 = 1;
+    	jog_sel = 134;
+    	wheel_jog_enable(master_gantry_id) = 1;
+    	wheel_jog_enable(slave_gantry_id) = 1;
+    	mpg_joint_code = 2;
+    	remote_jog = 1;
+    	remote_polarity = 0; //negative
+    }   else if (remote_north){
+        mpg_scale_x1 = 1;
+    	jog_sel = 134;
+    	wheel_jog_enable(master_gantry_id) = 1;
+    	wheel_jog_enable(slave_gantry_id) = 1;
+    	mpg_joint_code = 2;
+    	remote_jog = 1;
+    	remote_polarity = 1; //positive
+    }   else if (remote_up){
+        mpg_scale_x1 = 1;
+    	jog_sel = 136;
+    	wheel_jog_enable(3) = 1;
+    	mpg_joint_code = 3;
+    	remote_jog = 1;
+    	remote_polarity = 1; //positive
+    }	else if (remote_down){
+        mpg_scale_x1 = 1;
+    	jog_sel = 136;
+    	wheel_jog_enable(3) = 1;
+    	mpg_joint_code = 3;
+    	remote_jog = 1;
+    	remote_polarity = 0; //negative
     }
 }

@@ -164,6 +164,7 @@ typedef enum {
     RCMD_RISC_PROBE,            // Do risc probe 
     RCMD_HOST_PROBE,            // Do host probe
     RCMD_PSO,                   // PSO -- progress synced output
+    RCMD_REMOTE_JOG,            // remote control 
 } rsic_cmd_t;
 
 typedef enum {
