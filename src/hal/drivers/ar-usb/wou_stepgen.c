@@ -104,6 +104,19 @@ const char *lsn_id[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(lsn_id, MAX_CHAN,
         "lsn_id: gpio pin id for limit-switch-negative(lsn) for up to 8 channels");
 
+// jsn_id: gpio pin id for jog-switch-negative(jsn)
+const char *jsn_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(jsn_id, MAX_CHAN,
+        "jsn_id: gpio pin id for jog-switch-negative(jsn) for up to 8 channels");
+
+// jsp_id: gpio pin id for jog-switch-positive(jsp)
+const char *jsp_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(jsp_id, MAX_CHAN,
+        "jsp_id: gpio pin id for jog-switch-positive(jsp) for up to 8 channels");
+
+
 // lsp_id: gpio pin id for ALARM siganl
 const char *alr_id[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
@@ -290,6 +303,8 @@ typedef struct {
 
     hal_float_t *uu_per_rev;
     hal_float_t prev_uu_per_rev;
+    hal_float_t *jog_vel;
+    hal_float_t prev_jog_vel;
 
     hal_bit_t   *bypass_lsp;
     hal_bit_t   *bypass_lsn;
@@ -402,11 +417,6 @@ typedef struct {
     hal_u32_t    *pso_mode;
     hal_u32_t    *pso_joint;
     hal_float_t  *pso_pos;
-    hal_bit_t    *remote_jog;
-    hal_bit_t    *remote_polarity;
-    hal_float_t    *remote_vel_xy;
-    hal_float_t    *remote_vel_z;
-    hal_bit_t     prev_remote_jog;
 
 } machine_control_t;
 
@@ -730,7 +740,7 @@ int rtapi_app_main(void)
     double enc_scale;
     double max_jerk;
     int msg;
-    int lsp, lsn, alr;
+    int lsp, lsn, alr, jsp, jsn;
     uint16_t sync_cmd;
     uint32_t dac_ctrl_reg;
 
@@ -938,6 +948,15 @@ int rtapi_app_main(void)
         lsn = atoi(lsn_id[n]);
         immediate_data = (n << 16) | (lsp << 8) | (lsn);
         write_machine_param(JOINT_LSP_LSN, immediate_data);
+        while(wou_flush(&w_param) == -1);
+    }
+
+    // "set JOG JSP_ID/JSN_ID for up to 8 channels"
+    for (n = 0; n < MAX_CHAN && (jsp_id[n][0] != ' ') ; n++) {
+        jsp = atoi(jsp_id[n]);
+        jsn = atoi(jsn_id[n]);
+        immediate_data = (n << 16) | (jsp << 8) | (jsn);
+        write_machine_param(JOINT_JSP_JSN, immediate_data);
         while(wou_flush(&w_param) == -1);
     }
 
@@ -1596,22 +1615,7 @@ static void update_freq(void *arg, long period)
 //    			stepgen[*machine_control->pso_joint].prev_pos_cmd,
 //    			*stepgen[*machine_control->pso_joint].pos_cmd);
     }
-    if((*machine_control->remote_jog != machine_control->prev_remote_jog))
-    {
-    	uint32_t dbuf[5];
-        stepgen = arg;
-		dbuf[0] = RCMD_REMOTE_JOG;
-        dbuf[1] = *machine_control->remote_vel_xy * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
-        stepgen++;
-        dbuf[2] = *machine_control->remote_vel_xy * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
-        stepgen++;
-        stepgen++;
-        dbuf[3] = *machine_control->remote_vel_z * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
-        dbuf[4] = ((*machine_control->remote_jog & 0x1) |
-        		(*machine_control->remote_polarity & 0x1) << 1);
-    	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 5);
-        machine_control->prev_remote_jog =  *machine_control->remote_jog;
-    }
+
     i = 0;
     stepgen = arg;
     for (n = 0; n < num_joints; n++) {
@@ -1632,7 +1636,16 @@ static void update_freq(void *arg, long period)
             write_mot_param (n, (SSYNC_SCALE), immediate_data); // format: 16.16
             stepgen->prev_uu_per_rev = *stepgen->uu_per_rev;
         }
-
+        if(*stepgen->jog_vel != stepgen->prev_jog_vel)
+        {
+        	uint32_t dbuf[3];
+        	dbuf[0] = RCMD_REMOTE_JOG;
+            // jog-switch-positive
+            dbuf[1] = n & 0xF ;
+            dbuf[2] = *stepgen->jog_vel * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
+        	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 3);
+        	stepgen->prev_jog_vel =  *stepgen->jog_vel;
+        }
         if (*stepgen->bypass_lsp != stepgen->prev_bypass_lsp)
         {   // bypass limit-switch-positive
             int lsp, lsn;
@@ -2154,6 +2167,13 @@ static int export_stepgen(int num, stepgen_t * addr, char pulse_type)
     *(addr->uu_per_rev) = 0;
     (addr->prev_uu_per_rev) = 0;
 
+    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_vel), comp_id, "wou.stepgen.%d.jog-vel", num);
+    if (retval != 0) {
+        return retval;
+    }
+    *(addr->jog_vel) = 0;
+    (addr->prev_jog_vel) = 0;
+
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
     addr->freq = 0.0;
@@ -2495,27 +2515,7 @@ static int export_machine_control(machine_control_t * machine_control)
     if (retval != 0) { return retval; }
     *(machine_control->pso_pos) = 0;
 
-
-
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->remote_jog), comp_id, "wou.motion.remote-jog");
-    if (retval != 0) { return retval; }
-    *(machine_control->remote_jog) = 0;
-    machine_control->prev_remote_jog = 0;
-
-    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->remote_polarity), comp_id, "wou.motion.remote-polarity");
-    if (retval != 0) { return retval; }
-    *(machine_control->remote_polarity) = 0;
-
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->remote_vel_xy), comp_id, "wou.motion.remote-vel.xy");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->remote_vel_xy) = 0;
-    retval = hal_pin_float_newf(HAL_IN, &(machine_control->remote_vel_z), comp_id, "wou.motion.remote-vel.z");
-    if (retval != 0) {
-        return retval;
-    }
-    *(machine_control->remote_vel_z) = 0;    /* restore saved message level*/
+    /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
 }
