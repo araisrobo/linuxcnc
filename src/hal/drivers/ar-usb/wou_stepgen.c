@@ -104,6 +104,19 @@ const char *lsn_id[MAX_CHAN] =
 RTAPI_MP_ARRAY_STRING(lsn_id, MAX_CHAN,
         "lsn_id: gpio pin id for limit-switch-negative(lsn) for up to 8 channels");
 
+// jsn_id: gpio pin id for jog-switch-negative(jsn)
+const char *jsn_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(jsn_id, MAX_CHAN,
+        "jsn_id: gpio pin id for jog-switch-negative(jsn) for up to 8 channels");
+
+// jsp_id: gpio pin id for jog-switch-positive(jsp)
+const char *jsp_id[MAX_CHAN] =
+{ " ", " ", " ", " ", " ", " ", " ", " " };
+RTAPI_MP_ARRAY_STRING(jsp_id, MAX_CHAN,
+        "jsp_id: gpio pin id for jog-switch-positive(jsp) for up to 8 channels");
+
+
 // lsp_id: gpio pin id for ALARM siganl
 const char *alr_id[MAX_CHAN] =
 { " ", " ", " ", " ", " ", " ", " ", " " };
@@ -289,6 +302,8 @@ typedef struct {
 
     hal_float_t *uu_per_rev;
     hal_float_t prev_uu_per_rev;
+    hal_float_t *jog_vel;
+    hal_float_t prev_jog_vel;
 
     hal_bit_t   *bypass_lsp;
     hal_bit_t   *bypass_lsn;
@@ -614,22 +629,6 @@ static void fetchmail(const uint8_t *buf_head)
         }
         break;
 
-    case MT_RISC_CMD:
-        assert(0);  // MT_RISC_CMD is merged into MT_PROBED_POS
-                    // should no longer get into here
-        p = (uint32_t *) (buf_head + 8);
-        *machine_control->rcmd_state = *p;
-        if (*p == RCMD_UPDATE_POS_REQ)
-        {
-            // SET update_pos_req here
-            // will RESET it after sending a RCMD_UPDATE_POS_ACK packet
-            *machine_control->update_pos_req = 1;
-            p += 1;
-            *machine_control->rcmd_seq_num_req = *p;
-        }
-        DP("update_pos_req(%d) rcmd_seq_num_req(%d) rcmd_state(%d)\n", *machine_control->update_pos_req, *machine_control->rcmd_seq_num_req, *machine_control->rcmd_state);
-        break;
-
     case MT_PROBED_POS:
         stepgen = stepgen_array;
         p = (uint32_t *) (buf_head + 4);
@@ -651,8 +650,6 @@ static void fetchmail(const uint8_t *buf_head)
             p += 1;
             *machine_control->rcmd_seq_num_req = *p;
         }
-        DP("update_pos_req(%d) rcmd_seq_num_req(%d) rcmd_state(%d)\n", *machine_control->update_pos_req, *machine_control->rcmd_seq_num_req, *machine_control->rcmd_state);
-
 
         break;
 
@@ -680,7 +677,6 @@ static void write_mot_param (uint32_t joint, uint32_t addr, int32_t data)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD),
             sizeof(uint16_t), buf);
     while(wou_flush(&w_param) == -1);
-    DP ("end of SYNC_MOT_PARAM_CMD\n");
 
     return;
 }
@@ -703,7 +699,6 @@ static void send_sync_cmd (uint16_t sync_cmd, uint32_t *data, uint32_t size)
     wou_cmd(&w_param, WB_WR_CMD, (uint16_t) (JCMD_BASE | JCMD_SYNC_CMD), sizeof(uint16_t), (const uint8_t *)&sync_cmd);
     while(wou_flush(&w_param) == -1);   // wait until all those WB_WR_CMDs are accepted by WOU
 
-    DP ("end of send_sync_cmd\n");
     return;
 }
 
@@ -725,7 +720,6 @@ static void write_machine_param (uint32_t addr, int32_t data)
             sizeof(uint16_t), buf);
 
     while(wou_flush(&w_param) == -1);
-    DP ("end of write_machine_param(%u)\n", addr);     // addr(32): MACHINE_CTRL ... updated when accel_state changes
     return;
 }
 
@@ -743,7 +737,7 @@ int rtapi_app_main(void)
     double enc_scale;
     double max_jerk;
     int msg;
-    int lsp, lsn, alr;
+    int lsp, lsn, alr, jsp, jsn;
     uint16_t sync_cmd;
     uint32_t dac_ctrl_reg;
 
@@ -951,6 +945,15 @@ int rtapi_app_main(void)
         lsn = atoi(lsn_id[n]);
         immediate_data = (n << 16) | (lsp << 8) | (lsn);
         write_machine_param(JOINT_LSP_LSN, immediate_data);
+        while(wou_flush(&w_param) == -1);
+    }
+
+    // "set JOG JSP_ID/JSN_ID for up to 8 channels"
+    for (n = 0; n < MAX_CHAN && (jsp_id[n][0] != ' ') ; n++) {
+        jsp = atoi(jsp_id[n]);
+        jsn = atoi(jsn_id[n]);
+        immediate_data = (n << 16) | (jsp << 8) | (jsn);
+        write_machine_param(JOINT_JSP_JSN, immediate_data);
         while(wou_flush(&w_param) == -1);
     }
 
@@ -1487,11 +1490,9 @@ static void update_freq(void *arg, long period)
         uint32_t dbuf[2];
         dbuf[0] = RCMD_UPDATE_POS_ACK;
         dbuf[1] = *machine_control->rcmd_seq_num_req;
-        DP("update_pos_ack");
         send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 2);
         // Reset update_pos_req after sending a RCMD_UPDATE_POS_ACK packet
         *machine_control->update_pos_req = 0;
-        DP("update_pos_ack(%d) rcmd_seq_num_ack(%d)\n", *machine_control->update_pos_ack, dbuf[1]);
     }
 
     /* begin: handle AHC state, AHC level */
@@ -1507,6 +1508,7 @@ static void update_freq(void *arg, long period)
 
     if ((*machine_control->ahc_state) !=
             (machine_control->prev_ahc_state)) {
+    	printf("machine_control->ahc_state:(%d)", *machine_control->ahc_state);
         immediate_data = (*(machine_control->ahc_state));
         write_machine_param(AHC_STATE, immediate_data);
         fprintf(stderr,"wou_stepgen.c: ahc_state(%d)\n",
@@ -1532,9 +1534,6 @@ static void update_freq(void *arg, long period)
     if (*(machine_control->sync_in_trigger) != 0) {
         assert(*(machine_control->sync_in_index) >= 0);
         assert(*(machine_control->sync_in_index) < GPIO_IN_NUM);
-        DP("wou_stepgen.c: risc singal wait trigged(input(%d) type (%d))\n",
-                (uint32_t)*machine_control->sync_in_index,
-                (uint32_t)*(machine_control->wait_type));
         // begin: trigger sync in and wait timeout
         sync_cmd = SYNC_DIN |
                    PACK_IO_ID((uint32_t)*(machine_control->sync_in_index)) |
@@ -1613,6 +1612,7 @@ static void update_freq(void *arg, long period)
 //    			stepgen[*machine_control->pso_joint].prev_pos_cmd,
 //    			*stepgen[*machine_control->pso_joint].pos_cmd);
     }
+
     i = 0;
     stepgen = arg;
     for (n = 0; n < num_joints; n++) {
@@ -1632,10 +1632,17 @@ static void update_freq(void *arg, long period)
                                       / stepgen_array[(*machine_control->spindle_joint_id)].pos_scale);
             write_mot_param (n, (SSYNC_SCALE), immediate_data); // format: 16.16
             stepgen->prev_uu_per_rev = *stepgen->uu_per_rev;
-            DP("j[%d].SSYNC_SCALE: 0x%08X\n", n, immediate_data);
-            DP("spindle_joint_id(%d) uu_per_rev(%f) prev_uu_per_rev(%f)\n", *machine_control->spindle_joint_id, *stepgen->uu_per_rev, stepgen->prev_uu_per_rev);
         }
-
+        if(*stepgen->jog_vel != stepgen->prev_jog_vel)
+        {
+        	uint32_t dbuf[3];
+        	dbuf[0] = RCMD_REMOTE_JOG;
+            // jog-switch-positive
+            dbuf[1] = n & 0xF ;
+            dbuf[2] = *stepgen->jog_vel * stepgen->pos_scale * dt * FIXED_POINT_SCALE;       // fixed-point 16.16
+        	send_sync_cmd ((SYNC_USB_CMD | RISC_CMD_TYPE), dbuf, 3);
+        	stepgen->prev_jog_vel =  *stepgen->jog_vel;
+        }
         if (*stepgen->bypass_lsp != stepgen->prev_bypass_lsp)
         {   // bypass limit-switch-positive
             int lsp, lsn;
@@ -1787,7 +1794,6 @@ static void update_freq(void *arg, long period)
             assert(*stepgen->risc_probe_pin < 64);
             assert(dbuf[2] != 0);
             stepgen->risc_probing = 1;
-            DP ("j[%d]: do risc-probing type(%d) pin(%d)\n", n, *stepgen->risc_probe_type, *stepgen->risc_probe_pin);
         }
 
 
@@ -1824,9 +1830,6 @@ static void update_freq(void *arg, long period)
             {
                 (stepgen->prev_pos_cmd) = (*stepgen->pos_cmd);
                 stepgen->rawcount = stepgen->prev_pos_cmd * FIXED_POINT_SCALE * stepgen->pos_scale;
-                DP ("update_pos_ack(%d)\n", *machine_control->update_pos_ack);
-                DP ("j[%d], pos_cmd(%f) prev_pos_cmd(%f)\n",
-                        n, (*stepgen->pos_cmd), (stepgen->prev_pos_cmd));
             }
             *stepgen->vel_cmd = ((*stepgen->pos_cmd) - (stepgen->prev_pos_cmd));
 
@@ -2153,6 +2156,13 @@ static int export_stepgen(int num, stepgen_t * addr, char pulse_type)
     }
     *(addr->uu_per_rev) = 0;
     (addr->prev_uu_per_rev) = 0;
+
+    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_vel), comp_id, "wou.stepgen.%d.jog-vel", num);
+    if (retval != 0) {
+        return retval;
+    }
+    *(addr->jog_vel) = 0;
+    (addr->prev_jog_vel) = 0;
 
     addr->pos_scale = 1.0;
     addr->scale_recip = 0.0;
@@ -2493,6 +2503,7 @@ static int export_machine_control(machine_control_t * machine_control)
     retval = hal_pin_float_newf(HAL_IN, &(machine_control->pso_pos), comp_id, "wou.motion.pso_pos");
     if (retval != 0) { return retval; }
     *(machine_control->pso_pos) = 0;
+
     /* restore saved message level*/
     rtapi_set_msg_level(msg);
     return 0;
