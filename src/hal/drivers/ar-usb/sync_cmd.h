@@ -34,10 +34,7 @@
  */
 
 //      SFIFO COMMANDS
-#define SYNC_JNT            0x0000
-// 0x1000 do not use
-// 0x2000 do not use
-// 0x3000 do not use
+#define SYNC_JNT            0x0000      // 0x0000 ~ 0x3FFF
 #define SYNC_DOUT           0x4000
 #define SYNC_DIN            0x5000
 #define SYNC_MOT_POS_CMD    0x6000
@@ -164,6 +161,7 @@ typedef enum {
     RCMD_RISC_PROBE,            // Do risc probe 
     RCMD_HOST_PROBE,            // Do host probe
     RCMD_PSO,                   // PSO -- progress synced output
+    RCMD_REMOTE_JOG,            // remote control 
 } rsic_cmd_t;
 
 typedef enum {
@@ -195,6 +193,7 @@ enum machine_parameter_addr {
     GANTRY_CTRL,            // [31]     GANTRY_EN
                             
     JOINT_LSP_LSN,          // format: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
+    JOINT_JSP_JSN,          // format jog: {JOINT[31:16], LSP_ID[15:8], LSN_ID[7:0]}
     ALR_OUTPUT_0,           // DOUT_0 value, dout[31:0], when ESTOP is pressed
     ALR_OUTPUT_1,           // DOUT_1 value, dout[63:32], when ESTOP is pressed
     ALR_EN_BITS,            // the enable bitmap of ALARM input bits (

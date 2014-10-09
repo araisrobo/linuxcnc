@@ -249,7 +249,6 @@ typedef struct {
     hal_bit_t   *enable;        /* pin for enable stepgen */
     hal_u32_t   step_len;       /* parameter: step pulse length */
     char        pulse_type;     /* A(AB-PHASE), S(STEP-DIR), P(PWM) */
-    hal_s32_t   *pulse_pos;     /* pin: pulse_pos to servo drive, captured from FPGA */
     hal_s32_t   *enc_pos;       /* pin: encoder position from servo drive, captured from FPGA */
 
     hal_float_t pos_scale;	/* param: steps per position unit */
@@ -482,8 +481,6 @@ static void fetchmail(const uint8_t *buf_head)
         stepgen = stepgen_array;
         joints_vel = 0;
         for (i=0; i<num_joints; i++) {
-            p += 1;
-            *(stepgen->pulse_pos) = (int32_t)*p;
             p += 1;
             *(stepgen->enc_pos) = (int32_t)*p;
             p += 1;
@@ -2015,13 +2012,6 @@ static int export_stepgen(int num, stepgen_t * addr, char pulse_type)
         return retval;
     }
 
-    /* export pin for counts captured by wou_update() */
-    retval = hal_pin_s32_newf(HAL_OUT, &(addr->pulse_pos), comp_id,
-            "wou.stepgen.%d.pulse_pos", num);
-    if (retval != 0) {
-        return retval;
-    }
-
     retval = hal_pin_s32_newf(HAL_OUT, &(addr->rawcount32), comp_id,
             "wou.stepgen.%d.rawcount32", num);
     if (retval != 0) {
@@ -2184,7 +2174,6 @@ static int export_stepgen(int num, stepgen_t * addr, char pulse_type)
     addr->printed_error = 0;
     // addr->old_pos_cmd = 0.0;
     /* set initial pin values */
-    *(addr->pulse_pos) = 0;
     *(addr->rawcount32) = 0;
     *(addr->enc_pos) = 0;
     *(addr->pos_fb) = 0.0;
