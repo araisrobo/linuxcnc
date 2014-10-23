@@ -1939,6 +1939,12 @@ static void update_freq(void *arg, long period)
 #if (TRACE!=0)
     stepgen = arg;
     if (*(stepgen->enable)) {
+        DPS("%15d%15d%15d%15d%15d",
+                *machine_control->debug[0],
+                *machine_control->debug[1],
+                *machine_control->debug[2],
+                *machine_control->debug[3],
+                *machine_control->debug[4]);
         DPS("\n");
     }
 #endif
