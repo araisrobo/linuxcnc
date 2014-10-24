@@ -18,6 +18,7 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 # import pdb
+import subprocess as sp
 
 import sys, os
 import string
@@ -651,7 +652,8 @@ class LivePlotter:
         self.notifications_clear = False
         self.notifications_clear_info = False
         self.notifications_clear_error = False
-
+        self.jog_speed = 0
+    
     def start(self):
         if self.running.get(): return
         if not os.path.exists(linuxcnc.nmlfile):
@@ -714,6 +716,11 @@ class LivePlotter:
             print "error", detail
             del self.stat
             return
+        if (vars.jog_speed.get()/60. != self.jog_speed):
+            self.jog_speed = vars.jog_speed.get()/60.
+            for a in range(6):
+                sp.Popen(["halcmd", "setp", "wou.stepgen.%d.jog-vel"%a,"%f"%self.jog_speed], 
+              stdout = sp.PIPE)
         self.after = self.win.after(update_ms, self.update)
 
         self.win.set_current_line(self.stat.id or self.stat.motion_line)
