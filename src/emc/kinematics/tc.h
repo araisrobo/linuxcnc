@@ -67,6 +67,17 @@ typedef struct {
 } pso_t;
 
 typedef struct {
+    int enable;
+    double req_height;
+    double height;
+    double offset;
+    double tmag_recip;
+    double coef_a;
+    double coef_b;
+    double coef_c;
+} leapfrog_t;
+
+typedef struct {
     // for RIGID_TAPPING(G33.1), CSS(G33 w/ G96), and THREADING(G33 w/ G97)
     PmLine xyz;             // original, but elongated, move down
     PmCartesian abc;
@@ -152,7 +163,8 @@ typedef struct {
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     char atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
-    pso_t     pso;          // PSO -- progress synchronized output for this move
+    pso_t       pso;          // PSO -- progress synchronized output for this move
+    leapfrog_t  leapfrog;     // LEAPFROG -- progress synchronized output for this move
     int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
 
     PmCartesian utvIn;      // unit tangent vector inward

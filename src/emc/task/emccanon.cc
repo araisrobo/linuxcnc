@@ -3457,6 +3457,21 @@ void SET_PSO_VALUE(int enable, double pitch, int mode, int tick)
 
   return;
 }
+/*! \function SET_LEAPFROG_VALUE
+
+  set params for LEAPFROG motion
+*/
+void SET_LEAPFROG_VALUE(int enable, double height)
+{
+    EMC_MOTION_SET_LEAPFROG leapfrog_msg;
+
+    flush_segments();
+    leapfrog_msg.enable = enable;
+    leapfrog_msg.height = height;
+
+    interp_list.append(leapfrog_msg);
+    return;
+}
 /*! \function WAIT
    program execution and interpreting is stopped until the input selected by 
    index changed to the needed state (specified by wait_type).

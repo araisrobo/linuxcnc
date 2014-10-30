@@ -3430,6 +3430,36 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
                 block->q_number,0);
     }
 
+    // ARTEK M201: LEAPFROG motion mode
+    if (block->m_modes[11] == 201)
+    {
+        int enable;
+        /**
+         * P-word: ENABLE(1)/DISABLE(0) LEAPFROG MOTION
+         * Q-word: LEAPFROG height
+         */
+        CHKS(((block->p_flag == ON) && (round_to_int(block->p_number) < 0) && (round_to_int(block->p_number) > 1)) || ((block->p_flag == OFF)),
+               _("M201: Invalid P word for LEAPFROG; must be 0 or 1"));
+        CHKS(((block->q_flag == ON) && (block->q_number) <= 0),
+               _("M201: LEAPFROG jump height should be greater than 0"));
+
+        if (block->q_flag == ON)
+        {   // get LEAPFROG HEIGHT
+            settings->leapfrog_height = block->q_number;
+            printf("interp_convert.cc: debug: M201 q_number(%f)\n", block->q_number);
+        }
+
+        if (block->p_flag == ON)
+        {   // get LEAPFROG_ENABLE_FLAG
+            enable = round_to_int(block->p_number);
+            if (enable) {
+                CHKS(((settings->leapfrog_height) <= 0),
+                       _("M201: LEAPFROG jump height should be greater than 0"));
+            }
+        }
+
+        SET_LEAPFROG_VALUE(enable, settings->leapfrog_height);
+    }
 
     return INTERP_OK;
 }

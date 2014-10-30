@@ -640,7 +640,8 @@ typedef struct setup_struct
   double origin_offset_x;       // g5x offset x
   double origin_offset_y;       // g5x offset y
   double origin_offset_z;       // g5x offset z
-  double rotation_xy;         // rotation of coordinate system around Z, in degrees
+  double rotation_xy;           // rotation of coordinate system around Z, in degrees
+  double leapfrog_height;       // request jump height for leapfrog
   double parameters[RS274NGC_MAX_PARAMETERS];   // system parameters
   int parameter_occurrence;     // parameter buffer index
   int parameter_numbers[MAX_NAMED_PARAMETERS];    // parameter number buffer

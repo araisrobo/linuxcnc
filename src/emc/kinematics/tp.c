@@ -65,6 +65,7 @@ static const double tiny = 1e-7;
 int output_chan = 0;
 static syncdio_t syncdio; //record tpSetDout's here
 static pso_t pso;
+static leapfrog_t leapfrog;
 
 int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
 {
@@ -588,6 +589,28 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
     }
 
     tc.pso = pso;
+
+    /* check LEAPFROG */
+    tc.leapfrog.enable = leapfrog.enable;
+    if (leapfrog.enable) {
+        tc.leapfrog.height = leapfrog.req_height;
+        if (line_xyz.tmag != 0) {
+            tc.leapfrog.tmag_recip = 1.0 / line_xyz.tmag;
+        } else {
+            tc.leapfrog.tmag_recip = 0;
+        }
+        rtapi_print("tp.c, tpAddLine(): TODO: limit the height(%f) based on Z_VEL and Z_MAX\n", tc.leapfrog.height);
+        tc.leapfrog.offset = end_xyz.tran.z - start_xyz.tran.z;
+        if (tc.leapfrog.offset == 0) {
+            tc.leapfrog.coef_a = -4.0 * tc.leapfrog.height;
+        } else if (tc.leapfrog.offset < 0) {
+            rtapi_print("TODO: jump from high to low\n");
+            assert(0);
+        } else if (tc.leapfrog.offset > 0) {
+            rtapi_print("TODO: jump from low to high\n");
+            assert(0);
+        }
+    }
 
     tc.utvIn = line_xyz.uVec;
     tc.utvOut = line_xyz.uVec;
@@ -2189,6 +2212,16 @@ int tpSetPSO(TP_STRUCT *tp, int enable, double pitch, int mode, int tick)
     pso.next_progress = 0;
     pso.mode = mode;
     pso.tick = tick;
+    return 0;
+}
+
+int tpSetLEAPFROG(TP_STRUCT *tp, int enable, double height)
+{
+    if (0 == tp) {
+        return -1;
+    }
+    leapfrog.enable = enable;
+    leapfrog.req_height = height;
     return 0;
 }
 

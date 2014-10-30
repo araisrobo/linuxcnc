@@ -200,52 +200,40 @@ void nurbs_basisfun(int i, double u, int p,
 
 }
 
-#if 0
-// was used for blending; need to review for S-curve velocity blending
-PmCartesian tcGetStartingUnitVector(TC_STRUCT *tc) {
-    PmCartesian v;
+/*! \function getLeapfrogPoint()
 
-    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
-        pmCartCartSub(tc->coords.line.xyz.end.tran, tc->coords.line.xyz.start.tran, &v);
+    calculate LEAPFROG points
+
+    @parameter  line    vector of xyz
+    @parameter  lf      leapforg parameters
+*/
+static int getLeapfrogPoint(PmLine * line, leapfrog_t *lfrog, double len, PmPose * point)
+{
+    int r1 = 0, r2 = 0, r3 = 0, r4 = 0;
+    double lfrog_z;
+    double p;   // p: progress ratio
+
+    /* return start + len * uVec */
+    r1 = pmCartScalMult(line->uVec, len, &point->tran);
+    p = len * lfrog->tmag_recip;        // p: progress ratio
+    lfrog_z = lfrog->coef_a * p * (p - 1.0);
+    point->tran.z += lfrog_z;
+    r2 = pmCartCartAdd(line->start.tran, point->tran, &point->tran);
+
+    if (line->rmag_zero) {
+        point->rot = line->end.rot;
     } else {
-        PmPose startpoint;
-        PmCartesian radius;
-        PmCartesian tan, perp;
-
-        pmCirclePoint(&tc->coords.circle.xyz, 0.0, &startpoint);
-        pmCartCartSub(startpoint.tran, tc->coords.circle.xyz.center, &radius);
-        pmCartCartCross(tc->coords.circle.xyz.normal, radius, &tan);
-        pmCartUnit(tan, &tan);
-
-        pmCartCartSub(tc->coords.circle.xyz.center, startpoint.tran, &perp);
-        pmCartUnit(perp, &perp);
-
-        pmCartScalMult(tan, tc->maxaccel, &tan);
-        pmCartScalMult(perp, pmSq(0.5 * tc->reqvel)/tc->coords.circle.xyz.radius, &perp);
-        pmCartCartAdd(tan, perp, &v);
+        if (line->tmag_zero) {
+            r3 = pmQuatScalMult(line->qVec, len, &point->rot);
+        } else {
+            r3 = pmQuatScalMult(line->qVec, len * line->rmag / line->tmag,
+                &point->rot);
+        }
+        r4 = pmQuatQuatMult(line->start.rot, point->rot, &point->rot);
     }
-    pmCartUnit(v, &v);
-    return v;
+
+    return pmErrno = (r1 || r2 || r3 || r4) ? PM_NORM_ERR : 0;
 }
-
-// was used for blending; need to review for S-curve velocity blending
-PmCartesian tcGetEndingUnitVector(TC_STRUCT *tc) {
-    PmCartesian v;
-
-    if(tc->motion_type == TC_LINEAR || tc->motion_type == TC_SPINDLE_SYNC_MOTION) {
-        pmCartCartSub(tc->coords.line.xyz.end.tran, tc->coords.line.xyz.start.tran, &v);
-    } else {
-        PmPose endpoint;
-        PmCartesian radius;
-
-        pmCirclePoint(&tc->coords.circle.xyz, tc->coords.circle.xyz.angle, &endpoint);
-        pmCartCartSub(endpoint.tran, tc->coords.circle.xyz.center, &radius);
-        pmCartCartCross(tc->coords.circle.xyz.normal, radius, &v);
-    }
-    pmCartUnit(v, &v);
-    return v;
-}
-#endif
 
 /*! tcGetPos() function
  *
@@ -303,7 +291,11 @@ EmcPose tcGetPosReal(TC_STRUCT * tc, int of_endpoint)
         if (tc->coords.line.xyz.tmag > 0.) {
             // progress is along xyz, so uvw and abc move proportionally in order
             // to end at the same time.
-            pmLinePoint(&tc->coords.line.xyz, progress, &xyz);
+            if (tc->leapfrog.enable) {
+                getLeapfrogPoint(&tc->coords.line.xyz, &tc->leapfrog, progress, &xyz);
+            } else {
+                pmLinePoint(&tc->coords.line.xyz, progress, &xyz);
+            }
             pmLinePoint(&tc->coords.line.uvw,
                         progress * tc->coords.line.uvw.tmag / tc->target,
                         &uvw);

@@ -749,6 +749,7 @@ extern void CLEAR_AUX_OUTPUT_BIT(int index);
 extern void SET_MOTION_OUTPUT_VALUE(int index, double value);
 extern void SET_AUX_OUTPUT_VALUE(int index, double value);
 extern void SET_PSO_VALUE(int enable, double pitch, int mode, int tick);
+extern void SET_LEAPFROG_VALUE(int enable, double height);
 
 extern void SET_MOTION_SYNC_INPUT_BIT(int index, int wait_type,
         double timeout, unsigned char now);

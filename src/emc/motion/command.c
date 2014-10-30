@@ -1630,6 +1630,13 @@ void emcmotCommandHandler(void *arg, long period)
                     emcmotCommand->pso_tick);
             break;
 
+        case EMCMOT_SET_LEAPFROG:
+            rtapi_print_msg(RTAPI_MSG_DBG, "EMCMOT_SET_LEAPFROG");
+            tpSetLEAPFROG(&emcmotDebug->coord_tp,
+                          emcmotCommand->lf_enable,
+                          emcmotCommand->lf_height);
+            break;
+
         case EMCMOT_SET_DOUT:
             rtapi_print_msg(RTAPI_MSG_DBG, "SET_DOUT");
             if (emcmotCommand->now) { //we set it right away

@@ -1840,6 +1840,22 @@ int emcMotionSetPSO(int enable, double pitch, int mode, int tick, unsigned char 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+/*! \function emcMotionSetLEAPFROG()
+
+    This function sends a EMCMOT_SET_LEAPFROG message to the motion controller.
+    That one plans a LEAPFROG jump height for next STRAIGHT motion.
+
+    @parameter  enable  enable/disable LEAPFROG
+    @parameter  height  request jump height
+*/
+int emcMotionSetLEAPFROG(int enable, double height)
+{
+    emcmotCommand.command = EMCMOT_SET_LEAPFROG;
+    emcmotCommand.lf_enable = enable;
+    emcmotCommand.lf_height = height;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 /*! \function emcMotionSetDout()
     
     This function sends a EMCMOT_SET_DOUT message to the motion controller.

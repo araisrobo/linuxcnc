@@ -814,6 +814,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_SET_PSO_TYPE:
+            case EMC_MOTION_SET_LEAPFROG_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
@@ -933,6 +934,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_SET_PSO_TYPE:
+            case EMC_MOTION_SET_LEAPFROG_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
@@ -1379,6 +1381,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_MOTION_SET_PSO_TYPE:
+            case EMC_MOTION_SET_LEAPFROG_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_SYNC_INPUT_TYPE:
 	    case EMC_TRAJ_SPINDLE_SYNC_MOTION_TYPE:
@@ -1557,6 +1560,10 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	}
 	return EMC_TASK_EXEC_DONE;
 	break;
+
+    case EMC_MOTION_SET_LEAPFROG_TYPE:
+        return EMC_TASK_EXEC_DONE;
+        break;
 
     case EMC_MOTION_SET_AOUT_TYPE:
 	if (((EMC_MOTION_SET_AOUT *) cmd)->now) {
@@ -1956,11 +1963,16 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_MOTION_SET_PSO_TYPE:
 	retval = emcMotionSetPSO(((EMC_MOTION_SET_PSO *) cmd)->enable,
-				  ((EMC_MOTION_SET_PSO *) cmd)->pitch,
-				  ((EMC_MOTION_SET_PSO *) cmd)->mode,
-				  ((EMC_MOTION_SET_PSO *) cmd)->tick,
-				  ((EMC_MOTION_SET_PSO *) cmd)->now);
+				 ((EMC_MOTION_SET_PSO *) cmd)->pitch,
+				 ((EMC_MOTION_SET_PSO *) cmd)->mode,
+				 ((EMC_MOTION_SET_PSO *) cmd)->tick,
+				 ((EMC_MOTION_SET_PSO *) cmd)->now);
 	break;
+
+    case EMC_MOTION_SET_LEAPFROG_TYPE:
+        retval = emcMotionSetLEAPFROG(((EMC_MOTION_SET_LEAPFROG *) cmd)->enable,
+                                      ((EMC_MOTION_SET_LEAPFROG *) cmd)->height);
+        break;
 
     case EMC_MOTION_SET_DOUT_TYPE:
 	retval = emcMotionSetDout(((EMC_MOTION_SET_DOUT *) cmd)->index,
@@ -2480,6 +2492,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
 
     case EMC_MOTION_SET_AOUT_TYPE:
     case EMC_MOTION_SET_PSO_TYPE:
+    case EMC_MOTION_SET_LEAPFROG_TYPE:
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
     case EMC_MOTION_SET_SYNC_INPUT_TYPE:

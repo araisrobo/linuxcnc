@@ -1110,6 +1110,11 @@ void SET_PSO_VALUE(int enable, double pitch, int mode, int tick)
   return;
 }
 
+void SET_LEAPFROG_VALUE(int enable, double height)
+{
+  return;
+}
+
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET()
 {
     return _tool_offset.tran.x;

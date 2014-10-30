@@ -1172,6 +1172,19 @@ class EMC_MOTION_SET_PSO:public EMC_MOTION_CMD_MSG {
     unsigned char now;		// wether command is imediate or synched with motion
 };
 
+class EMC_MOTION_SET_LEAPFROG:public EMC_MOTION_CMD_MSG {
+    public:
+    EMC_MOTION_SET_LEAPFROG():EMC_MOTION_CMD_MSG(
+                                    EMC_MOTION_SET_LEAPFROG_TYPE,
+                                    sizeof(EMC_MOTION_SET_LEAPFROG)) {};
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    int enable;                 // LEAPFROG enable
+    double height;              // value to set LEAPFROG height
+};
+
 class EMC_MOTION_SET_DOUT:public EMC_MOTION_CMD_MSG {
   public:
     EMC_MOTION_SET_DOUT():EMC_MOTION_CMD_MSG(EMC_MOTION_SET_DOUT_TYPE,

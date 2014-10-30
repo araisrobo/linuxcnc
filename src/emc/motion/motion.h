@@ -157,8 +157,9 @@ typedef enum {
     EMCMOT_SET_WORLD_HOME,	/* set pose for world home */
     EMCMOT_SET_G5X_OFFSET,	/* set G5X_OFFSET */
 
-    EMCMOT_SET_DEBUG,       /* sets the debug level */
-    EMCMOT_SET_PSO,        /* sets or unsets a PSO, this can be imediate or synched with motion */
+    EMCMOT_SET_DEBUG,           /* sets the debug level */
+    EMCMOT_SET_PSO,             /* sets or unsets a PSO, this can be immediate or synched with motion */
+    EMCMOT_SET_LEAPFROG,        /* enable/disable LEAPFROG, synched with motion */
     EMCMOT_SET_DOUT,        /* sets or unsets a DIO, this can be imediate or synched with motion */
     EMCMOT_SET_AOUT,	/* sets or unsets a AIO, this can be imediate or synched with motion */
     EMCMOT_SET_SPINDLESYNC, /* syncronize motion to spindle encoder */
@@ -291,6 +292,8 @@ typedef struct emcmot_command_t {
     double pso_pitch;	/*pso_pitch*/
     int pso_tick;	/*pso_tick*/
 
+    int lf_enable;      /* LeapFrog_enable: enable->1 disable->0 */
+    double lf_height;      /* LeapFrog jump height */
 } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars

@@ -156,7 +156,8 @@ class PM_CARTESIAN;
 #define EMC_MOTION_SET_DOUT_TYPE                     ((NMLTYPE) 305)
 #define EMC_MOTION_ADAPTIVE_TYPE                     ((NMLTYPE) 306)
 #define EMC_MOTION_SET_SYNC_INPUT_TYPE               ((NMLTYPE) 307)
-#define EMC_MOTION_SET_PSO_TYPE                     ((NMLTYPE) 308)
+#define EMC_MOTION_SET_PSO_TYPE                      ((NMLTYPE) 308)
+#define EMC_MOTION_SET_LEAPFROG_TYPE                 ((NMLTYPE) 309)
 #define EMC_MOTION_STAT_TYPE                         ((NMLTYPE) 399)
 
 // NML for EMC_TASK
@@ -521,6 +522,7 @@ extern int emcMotionSetDebug(int debug);
 extern int emcMotionSetAout(unsigned char index, double start, double end,
                             unsigned char now);
 extern int emcMotionSetPSO(int enable, double pitch, int mode, int tick, unsigned char now);
+extern int emcMotionSetLEAPFROG(int enable, double height);
 extern int emcMotionSetDout(unsigned char index, unsigned char start,
                             unsigned char end, unsigned char now);
 extern int emcMotionSetSyncInput(unsigned char index, unsigned char now,

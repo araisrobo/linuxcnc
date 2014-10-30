@@ -72,7 +72,7 @@
 #define NCE_K_WORD_MISSING_WITH_G87 _("K word missing with g87")
 #define NCE_LEFT_BRACKET_MISSING_AFTER_SLASH_WITH_ATAN _("Left bracket missing after slash with atan")
 #define NCE_LEFT_BRACKET_MISSING_AFTER_UNARY_OPERATION_NAME _("Left bracket missing after unary operation name")
-#define NCE_M_CODE_GREATER_THAN_199 _("M code greater than 199")
+#define NCE_M_CODE_GREATER_THAN_299 _("M code greater than 299")
 #define NCE_MIXED_RADIUS_IJK_FORMAT_FOR_ARC _("Mixed radius ijk format for arc")
 #define NCE_MULTIPLE_A_WORDS_ON_ONE_LINE _("Multiple a words on one line")
 #define NCE_MULTIPLE_B_WORDS_ON_ONE_LINE _("Multiple b words on one line")

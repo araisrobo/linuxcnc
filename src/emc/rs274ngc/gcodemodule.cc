@@ -621,6 +621,7 @@ void CLEAR_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_BIT(int bit) {}
 void SET_AUX_OUTPUT_VALUE(int index, double value) {}
 void SET_PSO_VALUE(int enable, double pitch, int mode, int tick) {}
+void SET_LEAPFROG_VALUE(int enable, double height) {}
 void CLEAR_MOTION_OUTPUT_BIT(int bit)
 {
 //    printf("%s: (%s:%d): bit(%d)\n", __FILE__, __FUNCTION__, __LINE__, bit);

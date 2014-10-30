@@ -749,6 +749,7 @@ int Interp::init()
   _setup.value_returned = 0;
   _setup.remap_level = 0; // remapped blocks stack index
   _setup.call_state = CS_NORMAL;
+  _setup.leapfrog_height = 0;   // default value for leapfrog jump height
 
   if(iniFileName != NULL) {
 
