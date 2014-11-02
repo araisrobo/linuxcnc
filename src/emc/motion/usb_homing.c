@@ -690,13 +690,13 @@ void do_homing(void)
 		   next index pulse arrives. */
 
                 /* set up a move at 'latch_vel' to find the index LOCK signal */
-                if ((joint->home_search_vel * joint->home_latch_vel) > 0.0) {
+//                if ((joint->home_search_vel * joint->home_latch_vel) > 0.0) {
                     /* search and latch vel are same direction */
                     home_start_move(joint, joint->home_latch_vel, RISC_PROBE_INDEX);
-                } else {
-                    /* search and latch vel are opposite directions */
-                    home_start_move(joint, -joint->home_latch_vel, RISC_PROBE_INDEX);
-                }
+//                } else {
+//                    /* search and latch vel are opposite directions */
+//                    home_start_move(joint, -joint->home_latch_vel, RISC_PROBE_INDEX);
+//                }
 
                 if(*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ)
                 {
