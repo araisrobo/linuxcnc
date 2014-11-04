@@ -603,12 +603,12 @@ int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel,
         tc.leapfrog.offset = end_xyz.tran.z - start_xyz.tran.z;
         if (tc.leapfrog.offset == 0) {
             tc.leapfrog.coef_a = -4.0 * tc.leapfrog.height;
-        } else if (tc.leapfrog.offset < 0) {
-            rtapi_print("TODO: jump from high to low\n");
-            assert(0);
-        } else if (tc.leapfrog.offset > 0) {
-            rtapi_print("TODO: jump from low to high\n");
-            assert(0);
+        } else {
+            double a, h, z;
+            h = leapfrog.req_height;
+            z = -fabs(tc.leapfrog.offset);
+            a = (2*h - 2*sqrt(h*(h - z)))/z;
+            tc.leapfrog.coef_a = z / (1 - a);
         }
     }
 

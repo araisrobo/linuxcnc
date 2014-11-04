@@ -153,6 +153,8 @@ typedef struct CanonConfig_t {
     int spindle_dir;
     int feed_mode;
     int synched;
+    int leapfrog_enable;
+    double leapfrog_height;
     CANON_POSITION g5xOffset;
     CANON_POSITION g92Offset;
 /*

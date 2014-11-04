@@ -535,6 +535,11 @@ double getStraightJerk(double x, double y, double z,
     dv = fabs(v - canon.endPoint.v);
     dw = fabs(w - canon.endPoint.w);
 
+    if (canon.leapfrog_enable)
+    {
+        dz += 2 * canon.leapfrog_height;
+    }
+
     if(!axis_valid(0) || dx < tiny) dx = 0.0;
     if(!axis_valid(1) || dy < tiny) dy = 0.0;
     if(!axis_valid(2) || dz < tiny) dz = 0.0;
@@ -627,6 +632,11 @@ double getStraightAcceleration(double x, double y, double z,
     du = fabs(u - canon.endPoint.u);
     dv = fabs(v - canon.endPoint.v);
     dw = fabs(w - canon.endPoint.w);
+
+    if (canon.leapfrog_enable)
+    {
+        dz += 2 * canon.leapfrog_height;
+    }
 
     if(!axis_valid(0) || dx < tiny) dx = 0.0;
     if(!axis_valid(1) || dy < tiny) dy = 0.0;
@@ -747,6 +757,11 @@ double getStraightVelocity(double x, double y, double z,
     du = fabs(u - canon.endPoint.u);
     dv = fabs(v - canon.endPoint.v);
     dw = fabs(w - canon.endPoint.w);
+
+    if (canon.leapfrog_enable)
+    {
+        dz += 2 * canon.leapfrog_height;
+    }
 
     if(!axis_valid(0) || dx < tiny) dx = 0.0;
     if(!axis_valid(1) || dy < tiny) dy = 0.0;
@@ -2758,6 +2773,8 @@ void INIT_CANON()
     canon.spindle_dir = 0;
     canon.feed_mode = 0;
     canon.synched = 0;
+    canon.leapfrog_enable = 0;
+    canon.leapfrog_height = 0.0;
     canon.g5xOffset.x = 0.0;
     canon.g5xOffset.y = 0.0;
     canon.g5xOffset.z = 0.0;
@@ -3468,6 +3485,10 @@ void SET_LEAPFROG_VALUE(int enable, double height)
     flush_segments();
     leapfrog_msg.enable = enable;
     leapfrog_msg.height = height;
+
+    /* record leapfrog setting for STRAIGHT motion */
+    canon.leapfrog_enable = enable;
+    canon.leapfrog_height = height;
 
     interp_list.append(leapfrog_msg);
     return;
