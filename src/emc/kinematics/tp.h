@@ -1,15 +1,15 @@
 /********************************************************************
-* Description: tp.h
-*   Trajectory planner based on TC elements
-*
-*   Derived from a work by Fred Proctor & Will Shackleford
-*
-* Author:
-* License: GPL Version 2
-* System: Linux
-*    
-* Copyright (c) 2004 All rights reserved.
-********************************************************************/
+ * Description: tp.h
+ *   Trajectory planner based on TC elements
+ *
+ *   Derived from a work by Fred Proctor & Will Shackleford
+ *
+ * Author:
+ * License: GPL Version 2
+ * System: Linux
+ *
+ * Copyright (c) 2004 All rights reserved.
+ ********************************************************************/
 #ifndef TP_H
 #define TP_H
 
@@ -30,7 +30,7 @@ typedef struct {
     TC_QUEUE_STRUCT queue;
     int queueSize;
     double cycleTime;
-    double vMax;		/* vel for subsequent moves */
+    double vMax;                /* vel for subsequent moves */
     double ini_maxvel;          /* max velocity allowed by machine 
                                    constraints (ini file) for
                                    subsequent moves */
@@ -53,7 +53,7 @@ typedef struct {
     double tolerance;           /* for subsequent motions, stay within this
                                    distance of the programmed path during
                                    blends */
-    int synchronized;       // spindle sync required for this move
+    int synchronized;           // spindle sync required for this move
     int velocity_mode; 	        /* TRUE if spindle sync is in velocity mode,
 				   FALSE if in position mode */
     double uu_per_rev;          /* user units per spindle revolution */
@@ -74,15 +74,15 @@ extern int tpGetExecId(TP_STRUCT * tp);
 extern int tpSetTermCond(TP_STRUCT * tp, int cond, double tolerance);
 extern int tpSetPos(TP_STRUCT * tp, EmcPose pos);
 extern int tpAddSpindleSyncMotion(TP_STRUCT * tp, EmcPose end, double vel,
-                         double ini_maxvel, double acc, double jerk, 
-                         int ssm_mode, unsigned char enables);
+        double ini_maxvel, double acc, double jerk,
+        int ssm_mode, unsigned char enables);
 extern int tpAddLine(TP_STRUCT * tp, EmcPose end, int type, double vel, double
-                     ini_maxvel, double acc, double jerk, unsigned char enables, char atspeed, int indexrotary);
+        ini_maxvel, double acc, double jerk, unsigned char enables, char atspeed, int indexrotary);
 extern int tpAddCircle(TP_STRUCT * tp, EmcPose end, PmCartesian center,
         PmCartesian normal, int turn, int type, double vel, double ini_maxvel,
-                       double acc, double jerk, unsigned char enables, char atspeed);
+        double acc, double jerk, unsigned char enables, char atspeed);
 extern int tpAddNURBS(TP_STRUCT *tp, int type, nurbs_block_t nurbs_block,EmcPose pos,unsigned char enables,
-                      double vel,double ini_maxvel,double ini_maxacc,double ini_maxjerk);
+        double vel,double ini_maxvel,double ini_maxacc,double ini_maxjerk);
 extern int tpRunCycle(TP_STRUCT * tp, long period);
 extern int tpPause(TP_STRUCT * tp);
 extern int tpResume(TP_STRUCT * tp);
