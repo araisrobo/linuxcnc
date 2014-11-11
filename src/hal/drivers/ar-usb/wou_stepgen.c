@@ -361,9 +361,11 @@ typedef struct {
     uint32_t     prev_ahc_state;
     hal_bit_t    *ahc_state;     // 0: disable 1:enable
     hal_float_t  *ahc_level;
+    hal_bit_t    *motion_s3;     // 0: disable 1:enable
     double      prev_ahc_level;
     /* motion state tracker */
     hal_s32_t    *motion_state;
+    hal_s32_t    prev_motion_state;
     hal_u32_t    *jog_sel;
     hal_s32_t    *jog_vel_scale;
 
@@ -1514,8 +1516,28 @@ static void update_freq(void *arg, long period)
         fprintf(stderr,"wou_stepgen.c: ahc_state(%d)\n",
                 *(machine_control->ahc_state));
         machine_control->prev_ahc_state = *machine_control->ahc_state;
+        // motion_s3 set from M103 Q_word
+        if (*machine_control->motion_s3 == 0){
+            write_machine_param(MOTION_S3, 1);
+            fprintf(stderr,"wou_stepgen.c: Do AHC not wait motion_S3 \n");
+        }
     }
     /* end: handle AHC state, AHC level */
+
+    // motion_s3 set from M103 Q_word
+    if ((*machine_control->motion_s3) && (*machine_control->ahc_state) &&
+        (machine_control->prev_motion_state != *machine_control->motion_state))
+    {
+        if ((*machine_control->motion_state == 3) && (*machine_control->current_vel != 0)){
+            write_machine_param(MOTION_S3, 1);
+        }
+        else if (*machine_control->motion_state != 3){
+            write_machine_param(MOTION_S3, 0);
+        }
+        machine_control->prev_motion_state = *machine_control->motion_state;
+
+    }
+
 
     /* begin: setup sync wait timeout */
     if (*machine_control->timeout != machine_control->prev_timeout) {
@@ -2294,8 +2316,7 @@ static int export_machine_control(machine_control_t * machine_control)
     *(machine_control->timeout) = 0.0;
 
     for (i = 0; i < GPIO_OUT_NUM; i++) {
-        retval =
-                hal_pin_bit_newf(HAL_IN, &(machine_control->out[i]), comp_id,
+        retval = hal_pin_bit_newf(HAL_IN, &(machine_control->out[i]), comp_id,
                         "wou.gpio.out.%02d", i);
         if (retval != 0) {
             return retval;
@@ -2303,28 +2324,32 @@ static int export_machine_control(machine_control_t * machine_control)
         *(machine_control->out[i]) = 0;
     }
 
-    retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->analog_ref_level), comp_id,
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->analog_ref_level), comp_id,
                     "wou.sync.analog_ref_level");
     if (retval != 0) {
         return retval;
     }
     *(machine_control->analog_ref_level) = 0;    // pin index must not beyond index
 
-    retval =
-            hal_pin_bit_newf(HAL_IN, &(machine_control->ahc_state), comp_id, "wou.ahc.state");
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->ahc_state), comp_id, "wou.ahc.state");
     if (retval != 0) {
         return retval;
     }
     *(machine_control->ahc_state) = 0;
 
-    retval =
-            hal_pin_float_newf(HAL_IN, &(machine_control->ahc_level), comp_id,
+    retval = hal_pin_float_newf(HAL_IN, &(machine_control->ahc_level), comp_id,
                     "wou.ahc.level");
     if (retval != 0) {
         return retval;
     }
     *(machine_control->ahc_level) = 0;
+
+    retval = hal_pin_bit_newf(HAL_IN, &(machine_control->motion_s3), comp_id,
+                    "wou.ahc.motion_s3");
+    if (retval != 0) {
+        return retval;
+    }
+    *(machine_control->motion_s3) = 0;
 
     /* wou command */
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->wou_cmd), comp_id,
@@ -2340,6 +2365,7 @@ static int export_machine_control(machine_control_t * machine_control)
         return retval;
     }
     *(machine_control->motion_state) = 0;
+    machine_control->prev_motion_state = 0;
 
     retval = hal_pin_u32_newf(HAL_IN, &(machine_control->jog_sel), comp_id, "wou.motion.jog-sel");
     if (retval != 0) {
