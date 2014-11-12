@@ -361,7 +361,7 @@ typedef struct {
     uint32_t     prev_ahc_state;
     hal_bit_t    *ahc_state;     // 0: disable 1:enable
     hal_float_t  *ahc_level;
-    hal_bit_t    *motion_s3;     // 0: disable 1:enable
+    hal_bit_t    *motion_s3;     // synchronize AHC with S3, 0: disable 1:enable
     double      prev_ahc_level;
     /* motion state tracker */
     hal_s32_t    *motion_state;
@@ -1508,35 +1508,36 @@ static void update_freq(void *arg, long period)
         machine_control->prev_ahc_level = *(machine_control->ahc_level);
     }
 
-    if ((*machine_control->ahc_state) !=
-            (machine_control->prev_ahc_state)) {
-    	printf("machine_control->ahc_state:(%d)", *machine_control->ahc_state);
-        immediate_data = (*(machine_control->ahc_state));
-        write_machine_param(AHC_STATE, immediate_data);
-        fprintf(stderr,"wou_stepgen.c: ahc_state(%d)\n",
-                *(machine_control->ahc_state));
-        machine_control->prev_ahc_state = *machine_control->ahc_state;
-        // motion_s3 set from M103 Q_word
-        if (*machine_control->motion_s3 == 0){
-            write_machine_param(MOTION_S3, 1);
-            fprintf(stderr,"wou_stepgen.c: Do AHC not wait motion_S3 \n");
+    // motion_s3 is set by M103 Q_word
+    if (*machine_control->motion_s3)
+    {   // AHC has to synchronize with motion_state.S3
+        if ((*machine_control->ahc_state) &&
+             (machine_control->prev_motion_state != *machine_control->motion_state))
+        {   // to synchronize AHC with motion.S3
+            if ((*machine_control->motion_state == 3) &&
+                 (*machine_control->current_vel != 0))
+            {   // to enable AHC only when motion_state is
+                write_machine_param(AHC_STATE, 1);
+            } else
+            {   // to disable AHC
+                write_machine_param(AHC_STATE, 0);
+            }
+            machine_control->prev_motion_state = *machine_control->motion_state;
+        }
+    } else
+    {   // AHC is judged by ahc_state only
+        if ((*machine_control->ahc_state) != (machine_control->prev_ahc_state))
+        {
+            immediate_data = (*(machine_control->ahc_state));
+            write_machine_param(AHC_STATE, immediate_data);
+            machine_control->prev_ahc_state = *machine_control->ahc_state;
         }
     }
+
+
     /* end: handle AHC state, AHC level */
 
-    // motion_s3 set from M103 Q_word
-    if ((*machine_control->motion_s3) && (*machine_control->ahc_state) &&
-        (machine_control->prev_motion_state != *machine_control->motion_state))
-    {
-        if ((*machine_control->motion_state == 3) && (*machine_control->current_vel != 0)){
-            write_machine_param(MOTION_S3, 1);
-        }
-        else if (*machine_control->motion_state != 3){
-            write_machine_param(MOTION_S3, 0);
-        }
-        machine_control->prev_motion_state = *machine_control->motion_state;
 
-    }
 
 
     /* begin: setup sync wait timeout */
