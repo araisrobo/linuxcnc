@@ -89,7 +89,7 @@ int tpCreate(TP_STRUCT * tp, int _queueSize, TC_STRUCT * tcSpace)
         dptrace = fopen("tp.log", "w");
         /* prepare header for gnuplot */
         DPS ("%11s%6s%15s%15s%15s%15s%15s%15s%15s\n",
-                "#dt", "state", "req_vel", "cur_accel", "cur_vel", "progress%", "target", "dist_to_go", "tc_target");
+                "#dt", "state", "req_vel", "cur_accel", "cur_vel", "progress%", "progress", "dist_to_go", "tc->jerk");
         _dt = 0;
     }
 #endif
@@ -1099,19 +1099,9 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S2;
-//                s6_v = tc->cur_vel;
-//                s6_a = fabs(tc->cur_accel);
-//                ts = floor((2*(req_vel - s6_v))/s6_a);
-//                k = s6_a*pi/(4*(req_vel - s6_v));
-//                prev_v = s6_v;
-//                d1 = s6_a/2;
-//                d2 = s6_a/(4*k);
-//                d3 = 2*k;
-//                ti = 1;
                 break;
             }
             break;
-
 
         case ACCEL_S2: 
             // to DECELERATE to ACCEL==0
@@ -1123,13 +1113,6 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             tc->cur_vel = tc->cur_vel + tc->cur_accel - 0.5 * tc->jerk;
             tc->progress = tc->progress + tc->cur_vel + 0.5 * tc->cur_accel - 1.0/6.0 * tc->jerk;
 
-            // check if (accel <= 0) at next BP
-            acc = tc->cur_accel - tc->jerk;
-            if (acc <= 0) {
-                tc->accel_state = ACCEL_S3;
-                break;
-            }
-
             // check if we will hit velocity limit at next BP
             req_vel = tc->reqvel * tc->feed_override * tc->cycle_time;
             if (req_vel > tc->maxvel) {
@@ -1140,6 +1123,15 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             if (vel > req_vel) {
                 tc->cur_vel = req_vel;
                 tc->accel_state = ACCEL_S3;
+                DP("to ACCEL_S3 vel > req_vel\n");
+                break;
+            }
+
+            // check if (accel <= 0) at next BP
+            acc = tc->cur_accel - tc->jerk;
+            if (acc <= 0) {
+                tc->accel_state = ACCEL_S3;
+                DP("to ACCEL_S3 acc <= 0\n");
                 break;
             }
 
@@ -1175,6 +1167,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
 
             if (tc_target < dist) {
                 tc->accel_state = ACCEL_S3;
+                DP("to ACCEL_S3 tc_target < dist\n");
                 break;
             }
 
@@ -1222,7 +1215,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
             // check if dist would be greater than tc_target at next cycle
             if (tc_target < (dist - vel)) {
                 tc->accel_state = ACCEL_S4;
-                DP("to ACCEL_S4\n");
+                DP("to ACCEL_S4 tc_target < (dist - vel)\n");
                 // blending at largest velocity for G64 w/o P<tolerance>
                 if (!tc->tolerance) {
                     tc->tolerance = tc->target - tc->progress; // tc->distance_to_go
@@ -1240,7 +1233,7 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
                 break;
             } else if ((tc->cur_vel - 1.5 * tc->jerk) > req_vel) {
                 tc->accel_state = ACCEL_S4;
-                DP("to ACCEL_S4\n");
+                DP("to ACCEL_S4 (tc->cur_vel - 1.5 * tc->jerk) > req_vel\n");
                 break;
             }
             tc->cur_vel = req_vel;
@@ -1575,10 +1568,10 @@ void tcRunCycle(TP_STRUCT *tp, TC_STRUCT *tc)
         }
     }
 
-    DPS("%11u%6d%15.5f%15.5f%15.5f%15.5f%15.6f%15.5f%15.5f\n",
+    DPS("%11u%6d%15.8f%15.8f%15.8f%15.8f%15.8f%15.8f%15.8f\n",
             _dt, tc->accel_state, tc->reqvel * tc->feed_override * tc->cycle_time,
             tc->cur_accel, tc->cur_vel, tc->progress/tc->target, tc->progress,
-            (tc->target - tc->progress), tc_target);
+            (tc->target - tc->progress), tc->jerk);
     tc->distance_to_go = tc->target - tc->progress;
     //TODO: this assert will be triggered with rockman.ini: 
     //      assert (tc->cur_vel >= 0);
