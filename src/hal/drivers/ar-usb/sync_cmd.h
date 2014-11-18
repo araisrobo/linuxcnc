@@ -261,5 +261,6 @@ enum motion_parameter_addr {
     SSYNC_SCALE       ,     // spindle sync compensation scale: 16.16 format
     MAX_PARAM_ITEM
 };
+#define NUM_PID_PARAMS 14   // pid params: from P_GAIN to MAXOUTPUT
 
 #endif // __sync_cmd_h__

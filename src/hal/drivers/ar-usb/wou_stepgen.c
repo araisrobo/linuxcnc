@@ -138,7 +138,6 @@ RTAPI_MP_INT(servo_period_ns, "used for calculating new velocity command, unit: 
 # define GPIO_IN_NUM    80
 # define GPIO_OUT_NUM   32
 
-#define NUM_PID_PARAMS  14
 const char **pid_str[MAX_CHAN];
 const char *j0_pid_str[NUM_PID_PARAMS] =
 { "0", "0", "0", "0", "65536", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
