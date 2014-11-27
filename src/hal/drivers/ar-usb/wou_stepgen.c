@@ -1523,6 +1523,13 @@ static void update_freq(void *arg, long period)
             }
             machine_control->prev_motion_state = *machine_control->motion_state;
         }
+        if ((*machine_control->ahc_state == 0) &&
+             (machine_control->prev_motion_state == *machine_control->motion_state))
+        {   // in motion stable, but we suddenly closed ahc
+            immediate_data = (*(machine_control->ahc_state));
+            write_machine_param(AHC_STATE, immediate_data);
+            machine_control->prev_motion_state = 255;
+        }
     } else
     {   // AHC is judged by ahc_state only
         if ((*machine_control->ahc_state) != (machine_control->prev_ahc_state))

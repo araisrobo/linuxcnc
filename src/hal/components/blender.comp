@@ -23,6 +23,8 @@ pin in u32 pos_cmd_id "0: exec 2 blending commands, 1: exec 1 blending command";
 // Output Pins
 pin out float offset_o "Motor Position Command Out";
 pin out bit blending_o "Set to 1 while blending";
+pin out float curr_vel "current blending velocity";
+
 
 // Parameters
 param rw float max_vel "Max velocity";
@@ -40,7 +42,7 @@ FUNCTION(_)
 {
     double max_dv, tiny_dp, pos_err, vel_req, pos_cmd, vel_limit;
     static double curr_pos = 0;
-    static double curr_vel = 0;
+//    static double curr_vel = 0;
     max_dv = max_acc * fperiod;
     tiny_dp = max_dv * fperiod * 0.001;
     if (!enable)
