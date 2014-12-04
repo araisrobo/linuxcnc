@@ -111,6 +111,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.foam_w = 1.5
         self.notify = 0
         self.notify_message = ""
+        self.pierce = 0
+
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -376,10 +378,23 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.block_feed = self.feedrate
         self.path.append(('M4', self.lineno))
         
+    def stop_spindle_turning(self, arg):
+        # M5
+        if self.suppress > 0: return
+        color = self.colors['dwell']
+#         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+        self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
+#         if self.block_start != None:
+        self.blocks_append((self.lineno+1, self.block_pos,self.block_feed))
+        self.block_pos = []
+        self.pierce += 1
+        self.path.append(('M5', self.lineno))    
+            
     def program_end(self):
         # M2/M30
         self.path.append(('M2', self.lineno))
-
+        self.pierce = 0
+        
     def clear_motion_output_bit(self, arg):
         # M63 P-
         self.path.append(('M63', self.lineno, arg))

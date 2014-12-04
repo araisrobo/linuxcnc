@@ -561,7 +561,13 @@ void START_SPINDLE_CLOCKWISE(int l)
     Py_XDECREF(result);
 }
 void SET_SPINDLE_MODE(double) {}
-void STOP_SPINDLE_TURNING() {}
+void STOP_SPINDLE_TURNING() {
+    if(interp_error) return;
+    PyObject *result =
+        callmethod(callback, "stop_spindle_turning", "f");
+    if(result == NULL) interp_error ++;
+    Py_XDECREF(result);
+}
 void SET_SPINDLE_SPEED(double rpm) {}
 void ORIENT_SPINDLE(double d, int i) {}
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
