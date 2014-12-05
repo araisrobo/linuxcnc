@@ -2669,7 +2669,7 @@ for cycles) need testing.
 int Interp::convert_length_units(int g_code,     //!< g_code being executed (must be G_20 or G_21)
         setup_pointer settings) //!< pointer to machine settings
 {
-    if (g_code == G_20) {
+    if ((g_code == G_20) || (g_code == G_70)) {
         USE_LENGTH_UNITS(CANON_UNITS_INCHES);
         if (settings->length_units != CANON_UNITS_INCHES) {
             settings->length_units = CANON_UNITS_INCHES;
@@ -2709,7 +2709,7 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
             settings->tool_offset.w = GET_EXTERNAL_TOOL_LENGTH_WOFFSET();
             settings->feed_rate = GET_EXTERNAL_FEED_RATE();
         }
-    } else if (g_code == G_21) {
+    } else if ((g_code == G_21) || (g_code == G_71)) {
         USE_LENGTH_UNITS(CANON_UNITS_MM);
         if (settings->length_units != CANON_UNITS_MM) {
             settings->length_units = CANON_UNITS_MM;

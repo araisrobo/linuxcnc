@@ -777,7 +777,8 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
 
   if (line[counter] == '/')     /* skip the slash character if first */
     counter++;
-
+  if (line[counter] == '%')     /* skip the slash character if first */
+    counter++;
   if (line[counter] == 'n') {
     CHP(read_n_number(line, &counter, block));
   }

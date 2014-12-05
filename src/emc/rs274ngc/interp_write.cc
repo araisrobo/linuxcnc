@@ -103,7 +103,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
   gez[4] =
     (settings->cutter_comp_side == RIGHT) ? G_42 :
     (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
-  gez[5] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
+  gez[5] = (settings->length_units == CANON_UNITS_INCHES) ? (G_20||G_70) : (G_21||G_71);
   gez[6] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
   gez[7] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
 	    (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
