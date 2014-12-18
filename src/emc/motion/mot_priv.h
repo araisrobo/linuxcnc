@@ -124,6 +124,7 @@ typedef struct {
     hal_u32_t *rcmd_seq_num_ack;
     hal_u32_t *rcmd_seq_num_req;
     hal_u32_t *rcmd_state;
+    hal_bit_t *force_stop;
 
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;

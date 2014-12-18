@@ -375,9 +375,10 @@ void emcmotCommandHandler(void *arg, long period)
     counter = counter+1;
     check_stuff ( "before command_handler()" );
 
-    if ((*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ) &&
+    if (((*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ) &&
         (emcmotCommand->command != EMCMOT_ABORT) &&
-        (emcmotCommand->command != EMCMOT_JOINT_ABORT))
+        (emcmotCommand->command != EMCMOT_JOINT_ABORT)) &&
+        (*emcmot_hal_data->force_stop == 0))
     {
         // prevent execute EMCMOT_END_PROBE for G38.x
         // 容許 EMCMOT_ABORT 再更新座標時，可以停止動作
