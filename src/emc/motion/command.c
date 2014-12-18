@@ -1469,9 +1469,9 @@ void emcmotCommandHandler(void *arg, long period)
                 ain_value= *(emcmot_hal_data->analog_input[n]);
                 amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
                 dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
-//					printf("if probe condition already true need abort\n");
-//					printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
-//					printf("amode(%d) dmode(%d)\n", amode, dmode);
+//                printf("if probe condition already true need abort\n");
+//                printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
+//                printf("amode(%d) dmode(%d)\n", amode, dmode);
 
                 switch(*(emcmot_hal_data->trigger_type))
                 {
