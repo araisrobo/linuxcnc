@@ -684,6 +684,7 @@ static int init_comm_buffers(void)
     emcmotStatus->commandEcho = 0;
     emcmotStatus->commandNumEcho = 0;
     emcmotStatus->commandStatus = 0;
+    emcmotStatus->wait_risc = 0;
 
     /* init more stuff */
     emcmotDebug->head = 0;
