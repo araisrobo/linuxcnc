@@ -561,7 +561,8 @@ void START_SPINDLE_CLOCKWISE(int l)
     Py_XDECREF(result);
 }
 void SET_SPINDLE_MODE(double) {}
-void STOP_SPINDLE_TURNING() {
+void STOP_SPINDLE_TURNING(int l) {
+    maybe_new_line(l);
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "stop_spindle_turning", "f");

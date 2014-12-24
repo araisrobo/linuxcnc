@@ -3223,7 +3223,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         enqueue_START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
         settings->spindle_turning = CANON_COUNTERCLOCKWISE;
     } else if ((block->m_modes[7] == 5) && ONCE_M(7)){
-        enqueue_STOP_SPINDLE_TURNING();
+        enqueue_STOP_SPINDLE_TURNING(block->line_number);
         settings->spindle_turning = CANON_STOPPED;
     } else if ((block->m_modes[7] == 19) && ONCE_M(7)) {
         settings->spindle_turning = CANON_STOPPED;
@@ -4372,7 +4372,7 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
         settings->cutter_comp_side = false;
         settings->cutter_comp_firstmove = true;
 
-        /*7*/ STOP_SPINDLE_TURNING();
+        /*7*/ STOP_SPINDLE_TURNING(block->line_number);
         settings->spindle_turning = CANON_STOPPED;
 
         /* turn off FPR */
@@ -5258,7 +5258,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
     START_CHANGE(); // indicate start of change operation
     if (!settings->tool_change_with_spindle_on) {
-        STOP_SPINDLE_TURNING();
+        STOP_SPINDLE_TURNING(0);
         settings->spindle_turning = CANON_STOPPED;
     }
 

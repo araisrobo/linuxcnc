@@ -565,7 +565,7 @@ int Canterp::execute(const char *line) {
     }
 
     if (!strcmp(the_command_name, "STOP_SPINDLE_TURNING")) {
-	STOP_SPINDLE_TURNING();
+	STOP_SPINDLE_TURNING(ln);
 	return 0;
     }
 

@@ -375,7 +375,7 @@ int Interp::convert_cycle_g86(block_pointer block,
 
   cycle_feed(block, plane, x, y, bottom_z);
   DWELL(dwell);
-  STOP_SPINDLE_TURNING();
+  STOP_SPINDLE_TURNING(block->line_number);
   cycle_traverse(block, plane, x, y, clear_z);
   if (direction == CANON_CLOCKWISE)
     START_SPINDLE_CLOCKWISE(block->line_number);
@@ -461,7 +461,7 @@ int Interp::convert_cycle_g87(block_pointer block,
       NCE_SPINDLE_NOT_TURNING_IN_G87);
 
   cycle_traverse(block, plane, offset_x, offset_y, r);
-  STOP_SPINDLE_TURNING();
+  STOP_SPINDLE_TURNING(block->line_number);
   ORIENT_SPINDLE(0.0, direction);
   cycle_traverse(block, plane, offset_x, offset_y, bottom_z);
   cycle_traverse(block, plane, x, y, bottom_z);
@@ -471,7 +471,7 @@ int Interp::convert_cycle_g87(block_pointer block,
     START_SPINDLE_COUNTERCLOCKWISE(block->line_number);
   cycle_feed(block, plane, x, y, middle_z);
   cycle_feed(block, plane, x, y, bottom_z);
-  STOP_SPINDLE_TURNING();
+  STOP_SPINDLE_TURNING(block->line_number);
   ORIENT_SPINDLE(0.0, direction);
   cycle_traverse(block, plane, offset_x, offset_y, bottom_z);
   cycle_traverse(block, plane, offset_x, offset_y, clear_z);
@@ -528,7 +528,7 @@ int Interp::convert_cycle_g88(block_pointer block,
 
   cycle_feed(block, plane, x, y, bottom_z);
   DWELL(dwell);
-  STOP_SPINDLE_TURNING();
+  STOP_SPINDLE_TURNING(block->line_number);
   PROGRAM_STOP();               /* operator retracts the spindle here */
   if (direction == CANON_CLOCKWISE)
     START_SPINDLE_CLOCKWISE(block->line_number);

@@ -179,10 +179,10 @@ void enqueue_START_SPINDLE_COUNTERCLOCKWISE(int l) {
     qc().push_back(q);
 }
 
-void enqueue_STOP_SPINDLE_TURNING(void) {
+void enqueue_STOP_SPINDLE_TURNING(int l) {
     if(qc().empty()) {
         if(debug_qc) printf("immediate spindle stop\n");
-        STOP_SPINDLE_TURNING();
+        STOP_SPINDLE_TURNING(l);
         return;
     }
     queued_canon q;
@@ -517,7 +517,7 @@ void dequeue_canons(setup_pointer settings) {
             break;
         case QSTOP_SPINDLE_TURNING:
             if(debug_qc) printf("issuing stop spindle\n");
-            STOP_SPINDLE_TURNING();
+            STOP_SPINDLE_TURNING(q.data.set_spindle_dir.line_number);
             break;
         case QSET_SPINDLE_MODE:
             if(debug_qc) printf("issuing set spindle mode\n");
