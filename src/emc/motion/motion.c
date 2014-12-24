@@ -431,14 +431,14 @@ static int init_hal_io(void)
     if ((retval = hal_param_float_newf(HAL_RO, &(emcmot_hal_data->debug_float_1), mot_comp_id, "motion.debug-float-1")) != 0) goto error;
     if ((retval = hal_param_float_newf(HAL_RO, &(emcmot_hal_data->debug_float_2), mot_comp_id, "motion.debug-float-2")) != 0) goto error;
     if ((retval = hal_param_float_newf(HAL_RO, &(emcmot_hal_data->debug_float_3), mot_comp_id, "motion.debug-float-3")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_0), mot_comp_id, "motion.debug-s32-0")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_1), mot_comp_id, "motion.debug-s32-1")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_2), mot_comp_id, "motion.debug-s32-2")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_3), mot_comp_id, "motion.debug-s32-3")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_4), mot_comp_id, "motion.debug-s32-4")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_5), mot_comp_id, "motion.debug-s32-5")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_6), mot_comp_id, "motion.debug-s32-6")) != 0) goto error;
-    if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->debug_s32_7), mot_comp_id, "motion.debug-s32-7")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_0), mot_comp_id, "motion.debug-s32-0")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_1), mot_comp_id, "motion.debug-s32-1")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_2), mot_comp_id, "motion.debug-s32-2")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_3), mot_comp_id, "motion.debug-s32-3")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_4), mot_comp_id, "motion.debug-s32-4")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_5), mot_comp_id, "motion.debug-s32-5")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_6), mot_comp_id, "motion.debug-s32-6")) != 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->debug_s32_7), mot_comp_id, "motion.debug-s32-7")) != 0) goto error;
 
     // FIXME - debug only, remove later
     // export HAL parameters for some trajectory planner internal variables
