@@ -238,11 +238,13 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 {
   int status;
     
-  //debug: printf("debug: execute_block():\n");
-  //debug: printf("\tcurrent_x(%f) current_y(%f)\n", settings->current_x, settings->current_y);
-  //debug: printf("\tcutter_comp_firstmove(%d)\n", settings->cutter_comp_firstmove);
-
-  block->line_number = settings->sequence_number;
+  if (settings->remap_level == 0)
+  {
+      block->line_number = settings->sequence_number;
+  } else
+  {   // use saved_line_number of toplevel for motion-id
+      block->line_number = settings->blocks[settings->remap_level].saved_line_number;
+  }
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
     CHP(status);
