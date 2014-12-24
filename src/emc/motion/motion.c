@@ -419,6 +419,9 @@ static int init_hal_io(void)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->yuu_per_rev), mot_comp_id, "motion.yuu-per-rev")) != 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->zuu_per_rev), mot_comp_id, "motion.zuu-per-rev")) != 0) goto error;
 
+    /* signals for tcq */
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->tcqlen), mot_comp_id, "motion.tcq.len")) != 0) goto error;
+
     /* export debug parameters */
     /* these can be used to view any internal variable, simply change a line
        in control.c:output_to_hal() and recompile */
