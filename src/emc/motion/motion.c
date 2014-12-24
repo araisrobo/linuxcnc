@@ -318,13 +318,11 @@ static int init_hal_io(void)
     if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->rcmd_seq_num_req), mot_comp_id, "motion.rcmd-seq-num-req")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_OUT, &(emcmot_hal_data->rcmd_seq_num_ack), mot_comp_id, "motion.rcmd-seq-num-ack")) < 0) goto error;
     if ((retval = hal_pin_u32_newf(HAL_IN, &(emcmot_hal_data->rcmd_state), mot_comp_id, "motion.rcmd-state")) < 0) goto error;
-    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->force_stop), mot_comp_id, "motion.force-stop")) < 0) goto error;
     *emcmot_hal_data->update_pos_req = 0;
     *emcmot_hal_data->update_pos_ack = 0;
     *emcmot_hal_data->rcmd_seq_num_req = 0;
     *emcmot_hal_data->rcmd_seq_num_ack = 0;
     *emcmot_hal_data->rcmd_state = RCMD_IDLE;
-    *emcmot_hal_data->force_stop = 0;
 
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->usb_busy), mot_comp_id, "motion.usb-busy")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->machine_is_moving), mot_comp_id, "motion.machine-is-moving")) < 0) goto error;
