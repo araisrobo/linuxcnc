@@ -1549,7 +1549,6 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     enum EMC_TASK_INTERP_ENUM interpState;	// EMC_IDLE,READING,PAUSED,WAITING
     int motionLine;		// line motion is executing-- may lag
     int currentLine;            // line currently executing
-    int main_id;               // line main executing
     int readLine;		// line interpreter has read to
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)
     bool block_delete_state;	// state of block delete (== ON means we ignore lines starting with "/")

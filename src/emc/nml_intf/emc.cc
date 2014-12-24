@@ -2009,7 +2009,6 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update((int *) &interpState, 1);
     cms->update(motionLine);
     cms->update(currentLine);
-    cms->update(main_id);
     cms->update(readLine);
     cms->update(file, 256);
     cms->update(command, 256);

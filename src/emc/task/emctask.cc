@@ -563,10 +563,6 @@ int emcTaskPlanExecute(const char *command)
 	}
     }
 
-    if(strstr(emcStatus->task.command,"REMAP") == NULL){
-        emcStatus->task.main_id = emcStatus->task.readLine;
-    }
-
     int retval = interp.execute(command);
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
