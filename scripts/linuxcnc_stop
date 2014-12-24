@@ -1,4 +1,4 @@
 #!/bin/sh
 
 echo "LinuxCNC stopped at " `date`
-killall -9 touchy rtapi_app io milltask emcrsh halui linuxcncsvr > /dev/null 2>&1
+killall rtapi_app io milltask emcrsh halui linuxcncsvr arhmi > /dev/null 2>&1
