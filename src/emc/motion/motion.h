@@ -689,6 +689,8 @@ typedef struct emcmot_status_t {
     int sync_pos_cmd;
     int sync_risc_pos;
     uint32_t update_pos_ack;    /* for RCMD_FSM inside RISC */
+    uint32_t update_pos_req;    /* for RCMD_FSM inside RISC */
+    uint32_t wait_risc;
 
     unsigned char head;	/* flag count for mutex detect */
     /* these three are updated only when a new command is handled */

@@ -559,8 +559,18 @@ interpret_again:
 			    // record the line number and command
 			    emcStatus->task.readLine = emcTaskPlanLine();
 
-			    emcTaskPlanCommand((char *) &emcStatus->task.
-					       command);
+			    emcTaskPlanCommand((char *) &emcStatus->task.command);
+
+                            if(programStartLine > 1){
+                                // prevent REMAP gcode confusion the execute line number
+//                                if(strstr(emcStatus->task.command,"REMAP") == NULL){
+//
+//                                  printf("emcStatus->task.command: %s, rLine:%d, mLine:%d\n",
+//                                          emcStatus->task.command, emcStatus->task.readLine, emcStatus->task.motionLine);
+//                                  printf("programStartLine: %d\n", programStartLine);
+//                                }
+                                interp_list.clear();
+                            }
 			    // and execute it
 			    execRetval = emcTaskPlanExecute(0);
 			    if (execRetval > INTERP_MIN_ERROR) {

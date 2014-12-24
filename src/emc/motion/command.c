@@ -375,12 +375,15 @@ void emcmotCommandHandler(void *arg, long period)
     counter = counter+1;
     check_stuff ( "before command_handler()" );
 
-    if ((*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ) &&
+    emcmotStatus->wait_risc = 0;
+    if ((emcmotStatus->probing == 1) &&
+        (*emcmot_hal_data->rcmd_state == RCMD_UPDATE_POS_REQ) &&
         (emcmotCommand->command != EMCMOT_ABORT) &&
         (emcmotCommand->command != EMCMOT_JOINT_ABORT))
     {
         // prevent execute EMCMOT_END_PROBE for G38.x
         // 容許 EMCMOT_ABORT 再更新座標時，可以停止動作
+        emcmotStatus->wait_risc = 1;
         return;
     }
 
@@ -1469,9 +1472,9 @@ void emcmotCommandHandler(void *arg, long period)
                 ain_value= *(emcmot_hal_data->analog_input[n]);
                 amode = (ain_value < *(emcmot_hal_data->trigger_level)) ^ (*(emcmot_hal_data->trigger_cond));
                 dmode = (din_value == 0) ^ (*(emcmot_hal_data->trigger_cond));
-//					printf("if probe condition already true need abort\n");
-//					printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
-//					printf("amode(%d) dmode(%d)\n", amode, dmode);
+//                printf("if probe condition already true need abort\n");
+//                printf("din_value(%d) ain_value(%f)\n", din_value, ain_value);
+//                printf("amode(%d) dmode(%d)\n", amode, dmode);
 
                 switch(*(emcmot_hal_data->trigger_type))
                 {

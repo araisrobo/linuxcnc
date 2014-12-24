@@ -581,21 +581,21 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             feed_line = min((arcfeed_line,feed_line,traverse_line))
         if traverse_line is None:
             traverse_line = min((arcfeed_line,feed_line,traverse_line))
-        print arcfeed_line, feed_line, traverse_line
+#         print arcfeed_line, feed_line, traverse_line
         if feed_line >= max((traverse_line, arcfeed_line)):
             # print 'max is feed', feed_line
             index = len(self.feed) - 1
-            print 'last pos is feed', self.feed[index][2][:3]
-            print 'line', feed_line
+#             print 'last pos is feed', self.feed[index][2][:3]
+#             print 'line', feed_line
             return self.feed[index][2][:3],self.feed[index][3]
         if arcfeed_line >= max((traverse_line, feed_line)):
             # print 'max is arcfeed', arcfeed_line
             index = len(self.arcfeed)- 1
-            print 'last pos is arc', self.arcfeed[index]
+#             print 'last pos is arc', self.arcfeed[index]
             return self.arcfeed[index][2][:3],self.arcfeed[index][3]
         if traverse_line >= max((arcfeed_line, feed_line)):
             # print 'max is traverse', traverse_line 
-            print 'last pos is traverse', last_traverse[2][:3]
+#             print 'last pos is traverse', last_traverse[2][:3]
             feedrate = last_traverse[3]
             return last_traverse[2][:3], feedrate
     def get_start_line_of_block(self, lineno = None):
