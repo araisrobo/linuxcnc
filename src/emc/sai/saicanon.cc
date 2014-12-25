@@ -616,7 +616,7 @@ void SET_SPINDLE_SPEED(double rpm)
   _spindle_speed = rpm;
 }
 
-void STOP_SPINDLE_TURNING()
+void STOP_SPINDLE_TURNING(int l)
 {
   PRINT0("STOP_SPINDLE_TURNING()\n");
   _spindle_turning = CANON_STOPPED;

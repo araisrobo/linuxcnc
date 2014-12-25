@@ -2179,7 +2179,7 @@ void SET_SPINDLE_SPEED(double r)
             emc_spindle_speed_msg.speed, canon.spindleSpeed, canon.spindle_dir);
 }
 
-void STOP_SPINDLE_TURNING()
+void STOP_SPINDLE_TURNING(int l)
 {
     EMC_SPINDLE_OFF emc_spindle_off_msg;
 

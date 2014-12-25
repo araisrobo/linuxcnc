@@ -391,7 +391,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 #         self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
         self.block_pos = self.lo # None # self.lo # we should record next feed (arcfeed or traverse) 
 #         if self.block_start != None:
-        self.blocks_append((self.lineno+1, self.block_pos,self.block_feed))
+        self.blocks_append((self.lineno, self.block_pos,self.block_feed))
         self.block_pos = []
         self.pierce += 1
         self.path.append(('M5', self.lineno))    
