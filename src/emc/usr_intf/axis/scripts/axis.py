@@ -343,6 +343,8 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.bind('<Button-1>', self.select_prime, add=True)
         self.bind('<ButtonRelease-1>', self.select_fire, add=True)
         self.bind('<Button1-Motion>', self.select_cancel, add=True)
+        self.path_tracking = False
+        self.program_pos = [0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.highlight_line = None
         self.select_event = None
         self.select_buffer_size = 100
@@ -523,7 +525,9 @@ class MyOpengl(GlCanonDraw, Opengl):
             view = p
         return view
 
-
+    def get_path_tracking(self):
+        return self.path_tracking
+    
     def get_show_relative(self): return vars.coord_type.get()
     def get_show_limits(self): return vars.show_machine_limits.get()
     def get_show_tool(self): return vars.show_tool.get()

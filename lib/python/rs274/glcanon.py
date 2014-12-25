@@ -30,6 +30,12 @@ from scipy import mat
 from scipy import linalg
 from numpy import cross
 from numpy import linalg as LA
+import inspect
+
+def lineno():
+    """Returns the current line number in our program."""
+    # usage: print "GL_LINES(%d)" % (lineno())
+    return inspect.currentframe().f_back.f_lineno
 
 def minmax(*args):
     return min(*args), max(*args)
@@ -614,7 +620,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             self.highlight_mode = 'line'
     def highlight(self, lineno, geometry):
         if self.highlight_mode is 'block':
-            # print 'highlighting ',lineno,' block'
             return self.highlight2(lineno, geometry)
         glLineWidth(3)
         c = self.colors['selected']
@@ -654,6 +659,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def color_with_alpha(self, name):
         glColor4f(*(self.colors[name] + (self.colors.get(name+'_alpha', 1/3.),)))
+    
     def color(self, name):
         glColor3f(*self.colors[name])
 
@@ -811,7 +817,6 @@ class GlCanonDraw:
 
         if buffer:
             min_depth, max_depth, names = min(buffer)
-            # print 'names', names
             # call to draw highlight line
             self.set_highlight_line(names[0]) # input lineno to find block
             if self.canon.highlight_mode is 'block':
@@ -871,7 +876,6 @@ class GlCanonDraw:
 
     @with_context_swap
     def redraw_perspective(self):
-
         w = self.winfo_width()
         h = self.winfo_height()
         glViewport(0, 0, w, h)
@@ -956,7 +960,7 @@ class GlCanonDraw:
         dashwidth = pullback/4
         charsize = dashwidth * 1.5
         halfchar = charsize * .5
-
+        
         if view == z or view == p:
             z_pos = g.min_extents[z]
             zdashwidth = 0
@@ -1004,7 +1008,7 @@ class GlCanonDraw:
             glVertex3f(x_pos + dashwidth, y_pos + zdashwidth, g.max_extents[z])
 
         glEnd()
-
+        
         # Labels
         if self.get_show_relative():
             offset = self.to_internal_units(s.g5x_offset + s.g92_offset)
@@ -1304,9 +1308,11 @@ class GlCanonDraw:
         # pattern position
         try:
             if self.get_path_tracking() == True:
+                print "TODO: path_tracking() might be helpful for relative positioning\n"
                 diff = []
                 diff2 = []
-                pos = s.position[:s.axes]
+                # the following logic assume axes sequences as X Y Z A B C U V W
+                pos = s.actual_position[:3] # for [x, y, z]
                 for i in range(0, len(pos)):
                     d = pos[i] - self.program_pos[i]
                     diff.append(d)
@@ -1331,7 +1337,7 @@ class GlCanonDraw:
                 glEnable(GL_BLEND)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
    
-            glTranslatef(diff[0], diff[1], 0)
+            glTranslatef(diff[0], diff[1], diff[2])
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_main_list))
             glCallList(self.dlist('program_norapids', gen=self.make_main_list))
@@ -1344,10 +1350,9 @@ class GlCanonDraw:
             if self.get_show_extents():
                 self.show_extents()
 
-        glTranslatef(-diff[0], -diff[1], 0)
-
+        glTranslatef(-diff[0], -diff[1], -diff[2])
+        
         if self.get_show_live_plot() or self.get_show_program():
-    
             alist = self.dlist(('axes', self.get_view()), gen=self.draw_axes)
             glPushMatrix()
             if self.get_show_relative() and (s.g5x_offset[0] or s.g5x_offset[1] or s.g5x_offset[2] or
@@ -1358,7 +1363,6 @@ class GlCanonDraw:
                 glCallList(olist)
                 g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
                 g92_offset = self.to_internal_units(s.g92_offset)[:3]
-
 
                 if self.get_show_offsets() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
                     glBegin(GL_LINES)
@@ -1418,7 +1422,7 @@ class GlCanonDraw:
             else:
                 glCallList(alist)
             glPopMatrix()
-        
+           
         try:
             if self.draw_material():
                 pos_2, pos_3, pos_0, pos_1 = self.get_material_dimension()
@@ -1448,12 +1452,9 @@ class GlCanonDraw:
                     glEnd()
                     glEnable(GL_DEPTH_TEST)
                     glDisable(GL_BLEND)
-            else:
-                # print 'PLATEVIEW: glcanon does not want to draw'
-                pass
         except:
-            # print 'PLATEVIEW: glcanon exception error'
             pass
+        
         if self.get_show_limits():
             glLineWidth(1)
             glColor3f(1.0,0.0,0.0)
@@ -1514,9 +1515,10 @@ class GlCanonDraw:
             glMatrixMode(GL_PROJECTION)
             glPushMatrix()
             glTranslatef(0,0,.003)
-
+            
+            # self.lp is positionlogger, defined at emcmodule.cc
             self.lp.call()
-
+ 
             glPopMatrix()
             glMatrixMode(GL_MODELVIEW)
             glPopMatrix()
