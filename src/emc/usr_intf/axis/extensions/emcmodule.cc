@@ -1938,11 +1938,11 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
             bool add_point = s->npts < 2 || c != op->c;
             double x, y, z, rx, ry, rz;
             if(s->is_xyuv) {
-                x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
-                y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
+                x = status->motion.traj.actualPosition.tran.x - status->task.toolOffset.tran.x,
+                y = status->motion.traj.actualPosition.tran.y - status->task.toolOffset.tran.y,
                 z = s->foam_z;
-                rx = status->motion.traj.position.u - status->task.toolOffset.u,
-                ry = status->motion.traj.position.v - status->task.toolOffset.v,
+                rx = status->motion.traj.actualPosition.u - status->task.toolOffset.u,
+                ry = status->motion.traj.actualPosition.v - status->task.toolOffset.v,
                 rz = s->foam_w;
                 /* TODO .01, the distance at which a preview line is dropped,
                  * should either be dependent on units or configurable, because
@@ -1958,15 +1958,15 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                                 oop->rx, oop->ry, oop->rz);
             } else {
                 double pt[9] = {
-                    status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
-                    status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
-                    status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
-                    status->motion.traj.position.a - status->task.toolOffset.a,
-                    status->motion.traj.position.b - status->task.toolOffset.b,
-                    status->motion.traj.position.c - status->task.toolOffset.c,
-                    status->motion.traj.position.u - status->task.toolOffset.u,
-                    status->motion.traj.position.v - status->task.toolOffset.v,
-                    status->motion.traj.position.w - status->task.toolOffset.w};
+                    status->motion.traj.actualPosition.tran.x - status->task.toolOffset.tran.x,
+                    status->motion.traj.actualPosition.tran.y - status->task.toolOffset.tran.y,
+                    status->motion.traj.actualPosition.tran.z - status->task.toolOffset.tran.z,
+                    status->motion.traj.actualPosition.a - status->task.toolOffset.a,
+                    status->motion.traj.actualPosition.b - status->task.toolOffset.b,
+                    status->motion.traj.actualPosition.c - status->task.toolOffset.c,
+                    status->motion.traj.actualPosition.u - status->task.toolOffset.u,
+                    status->motion.traj.actualPosition.v - status->task.toolOffset.v,
+                    status->motion.traj.actualPosition.w - status->task.toolOffset.w};
 
                 double p[3];
                 vertex9(pt, p, s->geometry);
