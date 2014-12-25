@@ -103,6 +103,7 @@ SUBDIRS := \
     \
     hal/components hal/drivers hal/user_comps/devices \
     hal/user_comps/vfs11_vfd hal/user_comps/vfdb_vfd \
+    hal/user_comps/ctec713p \
     hal/user_comps hal/user_comps/vismach hal/classicladder hal/utils hal \
     \
     emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \

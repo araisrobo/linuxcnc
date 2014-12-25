@@ -1,0 +1,33 @@
+#
+# example usage of the DELTA VFD-B driver
+# detail HAL and INI settings are at configs/araisrobo/css/
+# -S: section name of *.INI file
+#
+loadusr -Wn ctec-713p ctec713p -n ctec-713p -I ctec713p.ini -S CTEC713P -r 
+
+# connect the spindle direction pins to the VFD
+net vfdb-fwd ctec-713p.spindle-fwd <= motion.spindle-forward
+net vfdb-rev ctec-713p.spindle-rev <= motion.spindle-reverse
+
+# connect the spindle on pin to the VF-S11
+net spindle-on => ctec-713p.spindle-on
+
+# connect the VF-S11 at speed to the motion at speed
+net vfdb-at-speed <= ctec-713p.at-speed
+
+# connect the spindle RPM to the VF-S11
+net spindle-t-speed-out         ctec-713p.speed-command
+net spindle-t-speed-feedback    ctec-713p.motor-RPS
+
+# to use the VFS11 jog mode for spindle orient 
+# see orient.9 and motion.9
+# TODO: this mode is not verified
+net spindle-orient motion.spindle-orient ctec-713p.max-speed ctec-713p.jog-mode
+
+# take precedence over control panel
+setp ctec-713p.enable 1
+
+setp ctec-713p.rpm-limit 12000
+setp ctec-713p.nameplate-RPM 12000
+setp ctec-713p.nameplate-HZ 400
+
