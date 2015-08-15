@@ -161,9 +161,6 @@ void do_homing_sequence(void)
         }
         /* ok to start the sequence, start at zero */
         home_sequence = 0;
-//        /* reset gantry joint pointers */
-//        master_gantry_joint = 0;
-//        slave_gantry_joint = 0;
         /* tell the world we're on the job */
         emcmotStatus->homing_active = 1;
         /* and drop into next state */

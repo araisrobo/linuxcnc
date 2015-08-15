@@ -686,7 +686,7 @@ typedef struct emcmot_status_t {
     int update_current_pos_flag;
     uint32_t special_cmd;
     uint32_t probe_cmd;
-    int sync_pos_cmd;
+//    int sync_pos_cmd;
     int sync_risc_pos;
     uint32_t update_pos_ack;    /* for RCMD_FSM inside RISC */
     uint32_t update_pos_req;    /* for RCMD_FSM inside RISC */

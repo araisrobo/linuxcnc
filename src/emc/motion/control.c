@@ -705,19 +705,8 @@ static void process_probe_inputs(void)
     }
 }
 
-static int update_current_pos = 0;
 static void handle_special_cmd(void)
 {
-    if (*emcmot_hal_data->req_cmd_sync == 1) {
-        DP("req_cmd_sync(%d)\n", *emcmot_hal_data->req_cmd_sync);
-        emcmotStatus->sync_pos_cmd = 1;
-        update_current_pos = 1;
-        printf("ERROR: handle_special_cmd(): req_cmd_sync(1)\n");
-        assert(0);
-    } else {
-        emcmotStatus->sync_pos_cmd = 0;
-    }
-
     /* must not be homing */
     if (emcmotStatus->homing_active) {
         // let usb_homing.c control the "update_pos_req" and "rcmd_seq_num_ack"

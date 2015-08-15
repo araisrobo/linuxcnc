@@ -110,7 +110,7 @@ typedef struct {
     hal_bit_t *trigger_cond;
     hal_u32_t *trigger_level;
     hal_bit_t *trigger_result;
-    hal_bit_t *req_cmd_sync;
+//    hal_bit_t *req_cmd_sync;
     hal_bit_t *usb_busy;
     hal_bit_t *machine_is_moving;
     hal_bit_t *rtp_running;
