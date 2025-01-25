@@ -48,6 +48,8 @@
 
 #define MAX_JOINT_NUM           5   // support up to 5 joints
 
+#define DEBUG			0
+
 /*
   Using emcrsh:
 
@@ -59,6 +61,7 @@
 // global vars for modbus connection:
 static modbus_t            *mb_ctx;
 static modbus_mapping_t    *mb_mapping;
+static int status_bits[32];
 
 struct option longopts[] = {
   {"help", 0, NULL, 'h'},
@@ -117,13 +120,14 @@ static int initModbus()
     int baud, bits, stopbits, debug;
     const char *device, *parity;
     int rc;
+    int i;
     
     baud = 115200;
     // baud = 57600;
     // baud = 9600;
     bits = 8;
     stopbits = 1;
-    debug = 1;
+    debug = DEBUG;
     device = "/dev/ttyO1";
     // device = "/dev/ttyUSB0";
     // device = "/dev/ttyUSB1";
@@ -137,6 +141,9 @@ static int initModbus()
     // serial: 
     mb_ctx = modbus_new_rtu(device, baud, *parity, bits, stopbits);
     modbus_set_slave(mb_ctx, server_id);
+    for (i = 0; i < 32; i++) {
+	status_bits[i] = 0;
+    }
             
     // ethernet:
     // ctx = modbus_new_tcp("127.0.0.1", 1502);
@@ -192,6 +199,36 @@ static void sigQuit(int sig)
 #define _FC_REPORT_SLAVE_ID           0x11
 #define _FC_WRITE_AND_READ_REGISTERS  0x17
 
+/* Set a float to 4 bytes in Modbus format; was modbus_set_float() */
+static inline void com_set_float(uint16_t *dest, float f)
+{
+    uint32_t *ip;
+    ip = (uint32_t *) &f;
+
+    dest[0] = (uint16_t) *ip;
+    dest[1] = (uint16_t)(*ip >> 16);
+}
+
+/* Set a uint32 to 4 bytes in Modbus format */
+static inline void com_set_uint32(uint16_t *dest, uint32_t u)
+{
+    dest[0] = (uint16_t) u;
+    dest[1] = (uint16_t)(u >> 16);
+}
+			
+/* Set array of 32 bool values to 2 bytes in Modbus format */
+static inline void com_set_intArray32_to_uint32 (uint16_t *dest, int *ia)
+{
+    int i;
+    uint32_t tmp = 0;
+    tmp |= (ia[31] & 1);
+    for (i = 30; i > -1; i--) {
+	tmp <<= 1;
+	tmp |= (ia[i] & 1);
+    }
+    com_set_uint32 (dest, tmp);
+}
+
 static void parseModbusCommand(const uint8_t *req, int req_length)
 {
     int offset = modbus_get_header_length(mb_ctx);
@@ -200,39 +237,60 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
     uint16_t address = (req[offset + 1] << 8) + req[offset + 2];
     int nb;
     static uint32_t sn = 0;   // serial number
+    float *fp;
     
     // TODO: read slave address through INI file
     assert (slave == 22);
+
+    updateStatus();
 
     switch (function) {
     case _FC_READ_INPUT_REGISTERS:
         switch (address) {
             case    0:  
+#if DEBUG
 			printf("RD REGS\n");
-			// printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
-			// printf("inpos: %d\n", emcStatus->motion.traj.inpos);
-			mb_mapping->tab_input_bits[0] = (uint8_t) emcStatus->motion.traj.queueFull;
-			mb_mapping->tab_input_bits[1] = (uint8_t) emcStatus->motion.traj.inpos;
+			printf("queueFull: %d\n", emcStatus->motion.traj.queueFull);
+			printf("inpos: %d\n", emcStatus->motion.traj.inpos);
 
-			// printf("queue: %d\n", emcStatus->motion.traj.queue);
-			mb_mapping->tab_input_registers[0] = (uint16_t) emcStatus->motion.traj.queue;
-			mb_mapping->tab_input_registers[1] = (uint16_t) (emcStatus->motion.traj.queue >> 16);
-			// // EmcPose position;		// current commanded position
-			// printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
-			// printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
-			// printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
-			// printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
-			// printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
-			//TODO: mb_mapping->tab_input_registers[2] = (uint16_t) emcStatus->motion.traj.position.tran.x;
-			//TODO: mb_mapping->tab_input_registers[3] = (uint16_t) (emcStatus->motion.traj.position.tran.x >> 16);
-			// // EmcPose actualPosition;	// current actual position, from forward kins
-			// printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
-			// printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
-			// printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
-			// printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
-			// printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
-			// printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
-			// printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
+			printf("queue: %d\n", emcStatus->motion.traj.queue);
+			printf("echo_serial_number: %d\n", emcStatus->echo_serial_number);
+			// EmcPose position;		// current commanded position
+			printf("pos_x: %f\n", emcStatus->motion.traj.position.tran.x);
+			printf("pos_y: %f\n", emcStatus->motion.traj.position.tran.y);
+			printf("pos_z: %f\n", emcStatus->motion.traj.position.tran.z);
+			printf("pos_a: %f\n", emcStatus->motion.traj.position.a);
+			printf("pos_b: %f\n", emcStatus->motion.traj.position.b);
+			// EmcPose actualPosition;	// current actual position, from forward kins
+			printf("actual_pos_x: %f\n", emcStatus->motion.traj.actualPosition.tran.x);
+			printf("actual_pos_y: %f\n", emcStatus->motion.traj.actualPosition.tran.y);
+			printf("actual_pos_z: %f\n", emcStatus->motion.traj.actualPosition.tran.z);
+			printf("actual_pos_a: %f\n", emcStatus->motion.traj.actualPosition.a);
+			printf("actual_pos_b: %f\n", emcStatus->motion.traj.actualPosition.b);
+			printf("sync_di[0]: %d\n", emcStatus->motion.synch_di[0]);
+			printf("sync_di[1]: %d\n", emcStatus->motion.synch_di[1]);
+#endif
+			status_bits[0] = (int) emcStatus->motion.traj.queueFull;
+			status_bits[1] = (int) emcStatus->motion.traj.inpos;
+
+			com_set_uint32 (mb_mapping->tab_input_registers +  0, (uint32_t) emcStatus->motion.traj.queue);
+			com_set_uint32 (mb_mapping->tab_input_registers +  2, (uint32_t) emcStatus->echo_serial_number);
+			// EmcPose position;		// current commanded position
+			com_set_float (mb_mapping->tab_input_registers +  4, (float) emcStatus->motion.traj.position.tran.x);
+			com_set_float (mb_mapping->tab_input_registers +  6, (float) emcStatus->motion.traj.position.tran.y);
+			com_set_float (mb_mapping->tab_input_registers +  8, (float) emcStatus->motion.traj.position.tran.z);
+			com_set_float (mb_mapping->tab_input_registers + 10, (float) emcStatus->motion.traj.position.a);
+			com_set_float (mb_mapping->tab_input_registers + 12, (float) emcStatus->motion.traj.position.b);
+			// EmcPose actualPosition;	// current actual position, from forward kins
+			com_set_float (mb_mapping->tab_input_registers + 14, (float) emcStatus->motion.traj.actualPosition.tran.x);
+			com_set_float (mb_mapping->tab_input_registers + 16, (float) emcStatus->motion.traj.actualPosition.tran.y);
+			com_set_float (mb_mapping->tab_input_registers + 18, (float) emcStatus->motion.traj.actualPosition.tran.z);
+			com_set_float (mb_mapping->tab_input_registers + 20, (float) emcStatus->motion.traj.actualPosition.a);
+			com_set_float (mb_mapping->tab_input_registers + 22, (float) emcStatus->motion.traj.actualPosition.b);
+			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 24, emcStatus->motion.synch_di);
+			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 26, emcStatus->motion.synch_di + 32);
+			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 28, emcStatus->motion.synch_do);
+			com_set_intArray32_to_uint32 (mb_mapping->tab_input_registers + 30, status_bits);
                         break;
             default:    printf("TODO ");
                         break;
@@ -252,7 +310,6 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
             char mdi_buf[256];
             char buf[32];
             const char cmd[8] = "FXYZAB";
-            float *fp;
             
             /** 
              * FC(16) Preset Multiple Registers, P.55 of PI_MBUS_300.pdf
@@ -301,7 +358,9 @@ static void parseModbusCommand(const uint8_t *req, int req_length)
                     }
                 }
             }
+#if DEBUG
             printf("%s\n", mdi_buf);
+#endif
 
             // execState: usually at EMC_TASK_EXEC_DONE(2)
             // printf("execState(%d)\n", emcStatus->task.execState);
@@ -434,10 +493,7 @@ static void modbus_main()
     uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
     
     while(1) {
-	struct timespec	req;
-	
-	req = {0,10500000};   // 10.5ms
-	nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
+	struct timespec	req= {0,10500000};   // 10.5ms
 
         updateStatus();
         if (check_machine_stat()) {
@@ -446,11 +502,12 @@ static void modbus_main()
         }
 	
         rc = modbus_receive(mb_ctx, query);
+	nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
         if (rc > 0) {
             /* rc is the query size */
             parseModbusCommand(query, rc);
-	    nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
             modbus_reply(mb_ctx, query, rc, mb_mapping);
+	    nanosleep(&req, NULL);  // sleep for 10.5ms to avoid blocking by UART
         } else if (rc == -1) {
             /* modbus related error */
 	    rcs_print_error("ERROR: %s\n", modbus_strerror(errno));
